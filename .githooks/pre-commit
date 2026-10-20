@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Blocks the commit if gitleaks finds a secret or personal data in the staged changes.
+# Enable once per clone: git config core.hooksPath .githooks
+set -e
+GITLEAKS="$(command -v gitleaks || true)"
+if [ -z "$GITLEAKS" ] && [ -n "$LOCALAPPDATA" ] && [ -x "$LOCALAPPDATA/gitleaks/gitleaks.exe" ]; then
+  GITLEAKS="$LOCALAPPDATA/gitleaks/gitleaks.exe"
+fi
+if [ -z "$GITLEAKS" ]; then
+  echo "pre-commit: gitleaks not found. Install it (https://github.com/gitleaks/gitleaks) before committing." >&2
+  exit 1
+fi
+"$GITLEAKS" git --staged --config .gitleaks.toml --redact --no-banner

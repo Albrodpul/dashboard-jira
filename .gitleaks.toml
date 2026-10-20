@@ -1,0 +1,41 @@
+title = "dashboard-jira"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "atlassian-account-id"
+description = "Jira account id of a real person"
+regex = '''\b\d{6}:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b'''
+tags = ["pii", "jira"]
+
+[[rules]]
+id = "atlassian-site"
+description = "Real Atlassian site (only the placeholder belongs in the repo)"
+regex = '''\b[a-z0-9-]+\.atlassian\.net\b'''
+tags = ["jira"]
+[rules.allowlist]
+regexes = ['''your-company\.atlassian\.net''']
+
+[[rules]]
+id = "jira-api-token"
+description = "Atlassian API token"
+regex = '''\bATATT[A-Za-z0-9_\-=]{20,}'''
+tags = ["secret", "jira"]
+
+[[rules]]
+id = "email-address"
+description = "Real e-mail address (only placeholders belong in the repo)"
+regex = '''\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b'''
+tags = ["pii"]
+[rules.allowlist]
+regexes = ['''you@your-company\.com''', '''@example\.com''', '''noreply@anthropic\.com''']
+
+[[rules]]
+id = "private-key-pem"
+description = "PEM private key"
+regex = '''-----BEGIN (EC |RSA )?PRIVATE KEY-----'''
+tags = ["secret"]
+
+[allowlist]
+paths = ['''\.gitleaks\.toml$''']

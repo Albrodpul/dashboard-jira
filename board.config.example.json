@@ -1,0 +1,23 @@
+{
+  "company": "Company name",
+  "root": "C:/path/to/your/workspace",
+  "jira": {
+    "projects": ["WEB", "API"],
+    "me": { "id": "<your Jira accountId>", "name": "Your Name" },
+    "reviewer": { "id": "<accountId of who reviews your work>", "name": "Name", "mentions": ["@Name Surname", "@Name"] },
+    "transitions": { "start": "<transition id to In progress>", "todo": "<id to To do>", "block": "<id to Blocked>" },
+    "defaultIssueType": "Story"
+  },
+  "statuses": {
+    "review": "IN REVIEW",
+    "returned": ["BLOCKED", "To Do"],
+    "inProgress": ["In Progress"],
+    "closed": ["Done", "Closed"],
+    "rejectLabel": "rejected"
+  },
+  "followUp": [{ "id": "reviewer", "name": "Name", "environment": "beta", "hourly": true }],
+  "errorsArea": null,
+  "deployProjects": ["api", "web"],
+  "sessionModel": "claude-opus-5-5",
+  "contextDomains": "context/domains"
+}
