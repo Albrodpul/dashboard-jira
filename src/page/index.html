@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Torre de control</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#0b6e8a">
+<link rel="icon" type="image/png" href="/icon-192.png">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Torre">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="stylesheet" href="/page/styles.css">
+<script type="module" src="/page/main.js"></script>
+</head>
+<body>
+<div class="app">
+  <aside class="nav">
+    <div class="brand">
+      <span class="logo" aria-hidden="true"><i></i><i></i><i></i></span>
+      <div>
+        <h1>Torre de control</h1>
+        <p class="sub">Jira, sesiones y despliegues</p>
+      </div>
+    </div>
+    <nav class="tabs" role="tablist" aria-orientation="vertical" id="tabs"></nav>
+  </aside>
+  <aside class="report" aria-label="Reporte de Jira">
+    <div class="report-head">
+      <strong>Reporte de Jira</strong>
+      <button class="btn bell" type="button" id="pause"></button>
+      <button class="btn bell" type="button" id="notifications" hidden></button>
+      <button class="btn primary" type="button" id="refresh">Refrescar</button>
+    </div>
+    <span class="meta" id="stamp"></span>
+    <section class="jira" id="report-body" hidden></section>
+  </aside>
+  <main class="main">
+    <div class="main-head">
+      <h2 id="view-title"></h2>
+      <p class="sub" id="view-sub"></p>
+    </div>
+    <div class="groups" id="groups" aria-live="polite"></div>
+  </main>
+</div>
+<nav class="bottom" id="bottom" aria-label="Secciones"></nav>
+<div class="toast" id="toast" hidden></div>
+<script>
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
+</script>
+</body>
+</html>
