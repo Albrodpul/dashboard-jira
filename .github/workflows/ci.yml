@@ -1,0 +1,61 @@
+# Syntax check of every script and a secret scan of the whole history on every push and PR.
+# Needs no secrets: nothing here talks to Jira.
+
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Syntax check
+        run: |
+          for f in install.js src/*.js src/page/*.js bin/*.js; do
+            node --check "$f"
+          done
+          bash -n bin/jira.sh .githooks/pre-commit
+
+      - name: Install against the example config
+        run: |
+          mkdir -p "$RUNNER_TEMP/ws"
+          cp board.config.example.json "$RUNNER_TEMP/ws/board.config.json"
+          sed -i "s#C:/path/to/your/workspace#$RUNNER_TEMP/root#" "$RUNNER_TEMP/ws/board.config.json"
+          node install.js "$RUNNER_TEMP/ws"
+          test -f "$RUNNER_TEMP/root/.claude/commands/orquesta.md"
+          node "$RUNNER_TEMP/ws/board.js" list
+
+  secrets:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_CONFIG: .gitleaks.toml
