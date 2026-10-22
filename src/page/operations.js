@@ -255,6 +255,41 @@ async function toWav16k(blob) {
   return wavFromBuffer(await off.startRendering());
 }
 
+const SILENCE_MS = 2000;
+
+function watchSilence(stream, onSilence) {
+  const Ctx = window.AudioContext || window.webkitAudioContext;
+  if (!Ctx) return () => {};
+  const ctx = new Ctx();
+  const analyser = ctx.createAnalyser();
+  analyser.fftSize = 1024;
+  ctx.createMediaStreamSource(stream).connect(analyser);
+  const samples = new Float32Array(analyser.fftSize);
+  let noiseFloor = null;
+  let spoke = false;
+  let quietSince = Date.now();
+  const started = Date.now();
+  const timer = setInterval(() => {
+    analyser.getFloatTimeDomainData(samples);
+    let sum = 0;
+    for (const v of samples) sum += v * v;
+    const level = Math.sqrt(sum / samples.length);
+    if (Date.now() - started < 400) noiseFloor = Math.max(noiseFloor || 0, level);
+    const threshold = Math.max(0.015, (noiseFloor || 0) * 2.5);
+    if (level > threshold) {
+      spoke = true;
+      quietSince = Date.now();
+    } else if (spoke && Date.now() - quietSince > SILENCE_MS) {
+      clearInterval(timer);
+      onSilence();
+    }
+  }, 100);
+  return () => {
+    clearInterval(timer);
+    ctx.close().catch(() => {});
+  };
+}
+
 async function toggleRecording() {
   if (recording) return recording.recorder.stop();
   let stream;
@@ -267,7 +302,9 @@ async function toggleRecording() {
   const chunks = [];
   const to = talkTo;
   recorder.ondataavailable = (e) => e.data.size && chunks.push(e.data);
+  const silence = watchSilence(stream, () => recording && recording.recorder.state === "recording" && recording.recorder.stop());
   recorder.onstop = async () => {
+    silence();
     stream.getTracks().forEach((t) => t.stop());
     const seconds = (Date.now() - recording.started) / 1000;
     recording = null;
@@ -474,7 +511,7 @@ export function renderTalk(root) {
     }
   });
   const notes = state.voice && window.MediaRecorder && navigator.mediaDevices;
-  const compose = [recording ? h("div", { class: "chat-recording", role: "status" }, [h("span", { class: "rec-dot", "aria-hidden": "true" }), h("span", { text: "Grabando " }), h("span", { id: "rec-time", text: elapsed(recording.started) }), h("span", { class: "meta", text: " · pulsa ■ para enviar" })]) : box];
+  const compose = [recording ? h("div", { class: "chat-recording", role: "status" }, [h("span", { class: "rec-dot", "aria-hidden": "true" }), h("span", { text: "Grabando " }), h("span", { id: "rec-time", text: elapsed(recording.started) }), h("span", { class: "meta", text: " · se envía sola al callarte 2 s, o pulsa ■" })]) : box];
   const active = dictation || recording;
   const mic = iconButton(active ? "stop" : "mic", recording ? "Parar y enviar la nota" : dictation ? "Parar de dictar" : notes ? "Grabar nota de voz" : "Dictar", active ? "mic listening" : "mic", () => {
     if (notes) return toggleRecording();
