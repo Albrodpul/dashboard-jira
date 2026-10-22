@@ -495,8 +495,9 @@ select.epic-add { flex: none; width: auto; max-width: 100%; border-radius: 999px
 @keyframes chat-pulse { 50% { box-shadow: 0 0 0 6px var(--danger-soft); } }
 @media (prefers-reduced-motion: reduce) { .chat-icon.listening { animation: none; } }
 @media (max-width: 760px) {
-  .chat { height: auto; min-height: 0; overflow: visible; border-radius: 10px; }
-  .chat-log { overflow: visible; padding: 12px 10px; }
+  .app[data-view="talk"] #view-sub { display: none; }
+  .app[data-view="talk"] .main { padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
+  .chat { height: calc(100dvh - 255px - env(safe-area-inset-bottom, 0px)); min-height: 300px; border-radius: 10px; }
+  .chat-log { padding: 12px 10px; }
   .chat-bubble { max-width: 86%; }
-  .chat-compose { position: sticky; bottom: calc(61px + env(safe-area-inset-bottom, 0px)); z-index: 3; border-radius: 0 0 10px 10px; }
 }

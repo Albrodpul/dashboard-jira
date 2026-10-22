@@ -215,6 +215,7 @@ const ICON = {
   stop: '<rect x="7" y="7" width="10" height="10" rx="1.5"/>',
 };
 let lastChatMark = "";
+let chatFromBottom = 0;
 
 function iconButton(kind, label, cls, onClick) {
   const b = h("button", { class: `chat-icon ${cls}`, type: "button", title: label, "aria-label": label });
@@ -288,6 +289,7 @@ export function renderTalk(root) {
     log.appendChild(bubble(true, m.text, m.at, ticks(m)));
     for (const r of m.replies || (m.reply ? [{ at: m.readAt, text: m.reply }] : [])) log.appendChild(bubble(false, r.text, r.at));
   }
+  log.addEventListener("scroll", () => (chatFromBottom = log.scrollHeight - log.scrollTop - log.clientHeight));
   chat.appendChild(log);
 
   const box = h("textarea", { class: "chat-input", id: "talk-text", rows: "1", placeholder: dictation ? "Escuchando…" : "Escribe un mensaje", "aria-label": "Mensaje" });
@@ -324,11 +326,9 @@ export function renderTalk(root) {
   requestAnimationFrame(() => {
     grow();
     const mark = `${talkTo}:${list.length}:${list.map((m) => (m.replies || []).length).join(",")}`;
-    if (mark !== lastChatMark) {
-      if (MOBILE_CHAT.matches) window.scrollTo(0, document.documentElement.scrollHeight);
-      else log.scrollTop = log.scrollHeight;
-      lastChatMark = mark;
-    }
+    if (mark !== lastChatMark) chatFromBottom = 0;
+    lastChatMark = mark;
+    log.scrollTop = log.scrollHeight - log.clientHeight - chatFromBottom;
   });
 }
 

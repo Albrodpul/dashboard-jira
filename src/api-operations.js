@@ -88,7 +88,8 @@ function handleMessage(res, { to, text }, send) {
     d.messages.unshift({ id, to, text: clean, at, readAt: null, reply: null });
     d.messages = d.messages.slice(0, 60);
   });
-  setTimeout(() => deliverMessage(id).catch(() => {}), 45000);
+  const target = to === "reporter" ? state().reporterStatus : state().orchestrator;
+  setTimeout(() => deliverMessage(id).catch(() => {}), target && target.watching ? 45000 : 1500);
   send(res, 200, { id });
 }
 
