@@ -404,14 +404,26 @@ function playNext() {
   const next = replyQueue.shift();
   if (!next) return readAloud && state.speech && keepAwake();
   playingReply = next;
-  const p = getPlayer();
-  p.loop = false;
-  p.src = `/api/speech/${next.id}/${next.index}.mp3`;
-  if ("mediaSession" in navigator) navigator.mediaSession.metadata = new MediaMetadata({ title: next.text.slice(0, 80), artist: `Respuesta de la ${TALK_NAMES[next.to].toLowerCase()}` });
-  p.play().catch(() => {
+  const fail = () => {
     playingReply = null;
     toast("El móvil no ha dejado reproducirla sola: toca el altavoz de la respuesta.");
-  });
+  };
+  fetch(`/api/speech/${next.id}/${next.index}.mp3`)
+    .then((r) => {
+      if (!r.ok) throw new Error(r.status);
+      return r.blob();
+    })
+    .then((blob) => {
+      if (playingReply !== next) return;
+      const p = getPlayer();
+      if (p.dataset.blob) URL.revokeObjectURL(p.dataset.blob);
+      p.dataset.blob = URL.createObjectURL(blob);
+      p.loop = false;
+      p.src = p.dataset.blob;
+      if ("mediaSession" in navigator) navigator.mediaSession.metadata = new MediaMetadata({ title: next.text.slice(0, 80), artist: `Respuesta de la ${TALK_NAMES[next.to].toLowerCase()}` });
+      return p.play();
+    })
+    .catch(fail);
 }
 
 function playReply(id, index, text, to, queued) {
@@ -595,7 +607,10 @@ export function renderTalk(root) {
   const lastMine = list[list.length - 1];
   const pending = lastMine && !(lastMine.replies || []).length && !lastMine.reply && Date.now() - new Date(lastMine.readAt || lastMine.at).getTime() < 15 * 60000;
   if (pending) {
-    const label = lastMine.readAt ? "Escribiendo…" : lastMine.wokenUp ? "Despertando la sesión…" : "Esperando a que lo lea…";
+    const target = talkTo === "reporter" ? state.reporterStatus : state.orchestrator;
+    const live = target && (state.sessions.list || []).find((x) => x.conversation === target.conversation);
+    const busy = live && live.status === "busy";
+    const label = lastMine.readAt ? "Escribiendo…" : busy ? "Está ocupada con otra cosa: lo leerá al terminar" : lastMine.wokenUp ? "Despertando la sesión…" : "Esperando a que lo lea…";
     log.appendChild(h("div", { class: "chat-bubble theirs chat-typing", role: "status", "aria-label": label }, [h("span", { class: "chat-dots", "aria-hidden": "true" }, [h("i"), h("i"), h("i")]), h("span", { class: "chat-typing-label", text: label })]));
   }
   log.addEventListener("scroll", () => (chatFromBottom = log.scrollHeight - log.scrollTop - log.clientHeight));
