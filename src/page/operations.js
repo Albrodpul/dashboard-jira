@@ -221,8 +221,10 @@ let readAloud = false;
 try {
   readAloud = localStorage.getItem("talk-read-aloud") === "1";
 } catch (e) {}
-let spokenUpTo = null;
 const PAGE_OPENED_AT = Date.now();
+const heardReplies = new Set();
+const replyQueue = [];
+let playingReply = null;
 
 function wavFromBuffer(buffer) {
   const data = buffer.getChannelData(0);
@@ -293,6 +295,7 @@ function watchSilence(stream, onSilence) {
 
 async function toggleRecording() {
   if (recording) return recording.recorder.stop();
+  pauseReplies();
   let stream;
   try {
     stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -309,6 +312,7 @@ async function toggleRecording() {
     stream.getTracks().forEach((t) => t.stop());
     const seconds = (Date.now() - recording.started) / 1000;
     recording = null;
+    playNext();
     if (seconds < 0.7) return render();
     voiceBusy = true;
     render();
@@ -362,7 +366,11 @@ function getPlayer() {
   if (player) return player;
   player = document.createElement("audio");
   player.preload = "auto";
-  player.addEventListener("ended", () => readAloud && keepAwake());
+  player.addEventListener("ended", () => {
+    if (player.loop) return;
+    playingReply = null;
+    playNext();
+  });
   document.body.appendChild(player);
   return player;
 }
@@ -377,13 +385,50 @@ function keepAwake() {
   if ("mediaSession" in navigator) navigator.mediaSession.metadata = new MediaMetadata({ title: "Manos libres: esperando respuestas", artist: "Torre de control" });
 }
 
-function playReply(id, index, text) {
-  if (!state.speech) return speak(text);
+function playNext() {
+  if (playingReply || recording) return;
+  const next = replyQueue.shift();
+  if (!next) return readAloud && state.speech && keepAwake();
+  playingReply = next;
   const p = getPlayer();
   p.loop = false;
-  p.src = `/api/speech/${id}/${index}.mp3`;
-  if ("mediaSession" in navigator) navigator.mediaSession.metadata = new MediaMetadata({ title: text.slice(0, 80), artist: `Respuesta de la ${TALK_NAMES[talkTo].toLowerCase()}` });
-  p.play().catch(() => toast("El móvil no ha dejado reproducirla sola: toca el altavoz de la respuesta."));
+  p.src = `/api/speech/${next.id}/${next.index}.mp3`;
+  if ("mediaSession" in navigator) navigator.mediaSession.metadata = new MediaMetadata({ title: next.text.slice(0, 80), artist: `Respuesta de la ${TALK_NAMES[next.to].toLowerCase()}` });
+  p.play().catch(() => {
+    playingReply = null;
+    toast("El móvil no ha dejado reproducirla sola: toca el altavoz de la respuesta.");
+  });
+}
+
+function playReply(id, index, text, to, queued) {
+  if (!state.speech) return speak(text);
+  const item = { id, index, text, to: to || talkTo };
+  if (queued) {
+    replyQueue.push(item);
+    return playNext();
+  }
+  replyQueue.length = 0;
+  playingReply = null;
+  replyQueue.push(item);
+  playNext();
+}
+
+function pauseReplies() {
+  if (!player || player.paused) return;
+  if (playingReply) replyQueue.unshift(playingReply);
+  playingReply = null;
+  player.pause();
+}
+
+function queueNewReplies() {
+  for (const m of state.messages || []) {
+    (m.replies || (m.reply ? [{ at: m.readAt, text: m.reply }] : [])).forEach((r, i) => {
+      const key = `${m.id}:${i}`;
+      if (heardReplies.has(key)) return;
+      heardReplies.add(key);
+      if (readAloud && new Date(r.at).getTime() > PAGE_OPENED_AT) playReply(m.id, i, r.text, m.to, true);
+    });
+  }
 }
 
 function speak(text) {
@@ -531,12 +576,7 @@ export function renderTalk(root) {
     log.appendChild(bubble(true, m.text, m.at, ticks(m), m.voice));
     (m.replies || (m.reply ? [{ at: m.readAt, text: m.reply }] : [])).forEach((r, i) => log.appendChild(bubble(false, r.text, r.at, null, null, [m.id, i])));
   }
-  const replies = list.flatMap((m) => (m.replies || (m.reply ? [{ at: m.readAt, text: m.reply }] : [])).map((r, i) => ({ ...r, id: m.id, index: i })));
-  const newest = replies[replies.length - 1];
-  const newestKey = newest ? `${talkTo}:${newest.at}` : `${talkTo}:none`;
-  const arrivedNow = newest && new Date(newest.at).getTime() > PAGE_OPENED_AT;
-  if (spokenUpTo !== null && readAloud && arrivedNow && newestKey !== spokenUpTo && spokenUpTo.startsWith(talkTo + ":")) playReply(newest.id, newest.index, newest.text);
-  spokenUpTo = newestKey;
+  queueNewReplies();
   if (voiceBusy) log.appendChild(h("div", { class: "chat-bubble mine chat-typing", role: "status" }, [h("span", { class: "chat-dots", "aria-hidden": "true" }, [h("i"), h("i"), h("i")]), h("span", { class: "chat-typing-label", text: "Transcribiendo la nota…" })]));
   const lastMine = list[list.length - 1];
   const pending = lastMine && !(lastMine.replies || []).length && !lastMine.reply && Date.now() - new Date(lastMine.readAt || lastMine.at).getTime() < 15 * 60000;
