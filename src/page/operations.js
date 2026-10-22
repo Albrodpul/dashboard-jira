@@ -1,4 +1,4 @@
-import { state, drafts, h, button, when, minutesSince, toast, requestOrFail, post, whoSends, areaName, areaSelect, render, refresh, renderMd, empty, ticketUrl, reviewer, deployProjects, exampleKey } from "./base.js";
+import { state, drafts, h, button, when, minutesSince, toast, requestOrFail, post, whoSends, areaName, areaSelect, render, refresh, renderMd, empty, fmtDay, ticketUrl, reviewer, deployProjects, exampleKey } from "./base.js";
 
 const search = { q: "", onlyAvailable: true, skipReview: true, results: null, busy: false, capped: false };
 
@@ -198,54 +198,126 @@ function toggleDictation() {
   render();
 }
 
+const MOBILE_CHAT = window.matchMedia("(max-width: 760px)");
+const ICON = {
+  send: '<path d="M4 12 20 4l-4 16-4-7z"/><path d="m12 13 8-9"/>',
+  mic: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>',
+  stop: '<rect x="7" y="7" width="10" height="10" rx="1.5"/>',
+};
+let lastChatMark = "";
+
+function iconButton(kind, label, cls, onClick) {
+  const b = h("button", { class: `chat-icon ${cls}`, type: "button", title: label, "aria-label": label });
+  b.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[kind]}</svg>`;
+  b.addEventListener("click", () => onClick(b));
+  return b;
+}
+
+function sessionStatus(to) {
+  const s = to === "orchestrator" ? state.orchestrator : state.reporterStatus;
+  if (!s) return "sin registrar";
+  if (s.watching) return "vigilando";
+  return s.open ? "abierta" : "cerrada: se abre al escribirle";
+}
+
+function bubble(mine, text, at, foot) {
+  const kids = [h("div", { class: "chat-text", text })];
+  kids.push(h("div", { class: "chat-foot" }, [h("span", { text: when(at) }), foot || null]));
+  return h("div", { class: `chat-bubble ${mine ? "mine" : "theirs"}` }, kids);
+}
+
+function ticks(m) {
+  if (m.readAt) return h("span", { class: "chat-ticks read", title: `Leído a las ${when(m.readAt)}`, text: "✓✓" });
+  if (m.wokenUp) return h("span", { class: "chat-ticks", title: "Despertando la sesión", text: "✓ ⏳" });
+  return h("span", { class: "chat-ticks", title: "Enviado, sin leer", text: "✓" });
+}
+
+function sendTalk(box, b) {
+  const txt = box.value.trim();
+  if (!txt) return box.focus();
+  if (dictation) dictation.stop();
+  b.disabled = true;
+  requestOrFail("/api/message", { to: talkTo, text: txt })
+    .then(() => {
+      delete drafts.talk;
+      box.value = "";
+    })
+    .catch(() => {
+      b.disabled = false;
+      toast("No se pudo enviar el mensaje.");
+    })
+    .then(() => refresh(true));
+}
+
 export function renderTalk(root) {
-  const sel = h("select", { id: "talk-to", "aria-label": "Con quién hablar" });
+  const picker = h("div", { class: "people-chips chat-picker", role: "group", "aria-label": "Con quién hablar" });
   for (const k of ["orchestrator", "reporter"]) {
-    const o = h("option", { value: k, text: TALK_NAMES[k] });
-    if (k === talkTo) o.selected = true;
-    sel.appendChild(o);
+    const b = h("button", { type: "button", "aria-pressed": k === talkTo ? "true" : "false", text: TALK_NAMES[k] });
+    b.addEventListener("click", () => {
+      talkTo = k;
+      lastChatMark = "";
+      render();
+    });
+    picker.appendChild(b);
   }
-  sel.addEventListener("change", () => {
-    talkTo = sel.value;
-    render();
-  });
-  const box = h("textarea", { class: "reply-box", id: "talk-text", rows: "4", placeholder: "Lo que le dirías en su pestaña…", "aria-label": "Mensaje" });
+
+  const chat = h("section", { class: "chat", "aria-label": `Conversación con la ${TALK_NAMES[talkTo].toLowerCase()}` });
+  chat.appendChild(h("header", { class: "chat-head" }, [h("strong", { text: TALK_NAMES[talkTo] }), h("span", { class: "meta", text: sessionStatus(talkTo) })]));
+
+  const log = h("div", { class: "chat-log", role: "log", "aria-live": "polite" });
+  const list = (state.messages || []).filter((x) => x.to === talkTo).slice().reverse();
+  if (!list.length) log.appendChild(h("div", { class: "chat-empty", text: "Aún no le has escrito. Lo que le mandes vale como si lo escribieras en su pestaña de VS Code." }));
+  let day = "";
+  for (const m of list) {
+    const d = fmtDay.format(new Date(m.at));
+    if (d !== day) {
+      day = d;
+      const today = fmtDay.format(new Date()) === d;
+      log.appendChild(h("div", { class: "chat-day", text: today ? "Hoy" : d }));
+    }
+    log.appendChild(bubble(true, m.text, m.at, ticks(m)));
+    for (const r of m.replies || (m.reply ? [{ at: m.readAt, text: m.reply }] : [])) log.appendChild(bubble(false, r.text, r.at));
+  }
+  chat.appendChild(log);
+
+  const box = h("textarea", { class: "chat-input", id: "talk-text", rows: "1", placeholder: dictation ? "Escuchando…" : "Escribe un mensaje", "aria-label": "Mensaje" });
   box.value = drafts.talk || "";
-  box.addEventListener("input", () => (drafts.talk = box.value));
-  const send = button("Enviar", {
-    cls: "primary",
-    onClick: (b) => {
-      const txt = box.value.trim();
-      if (!txt) return toast("Escribe el mensaje.");
-      b.disabled = true;
-      requestOrFail("/api/message", { to: talkTo, text: txt })
-        .then(() => {
-          delete drafts.talk;
-          toast(`Mensaje enviado a la ${TALK_NAMES[talkTo].toLowerCase()}.`);
-        })
-        .catch(() => {
-          b.disabled = false;
-          toast("No se pudo enviar el mensaje.");
-        })
-        .then(() => refresh(true));
-    },
+  const grow = () => {
+    box.style.height = "auto";
+    box.style.height = Math.min(box.scrollHeight + 2, 160) + "px";
+    box.style.overflowY = box.scrollHeight > 158 ? "auto" : "hidden";
+  };
+  box.addEventListener("input", () => {
+    drafts.talk = box.value;
+    grow();
   });
-  const actions = [send];
+  const send = iconButton("send", "Enviar", "send", (b) => sendTalk(box, b));
+  box.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey && !MOBILE_CHAT.matches) {
+      e.preventDefault();
+      sendTalk(box, send);
+    }
+  });
+  const compose = [box];
   if (Recognition) {
-    const mic = button(dictation ? "Parar de dictar" : "Dictar", { cls: dictation ? "danger" : "", title: "Habla y se escribe en la caja; revísalo antes de enviar", onClick: toggleDictation });
+    const mic = iconButton(dictation ? "stop" : "mic", dictation ? "Parar de dictar" : "Dictar", dictation ? "mic listening" : "mic", toggleDictation);
     mic.setAttribute("aria-pressed", dictation ? "true" : "false");
-    actions.push(mic);
+    compose.push(mic);
   }
-  root.appendChild(h("div", { class: "actions" }, [sel]));
-  root.appendChild(box);
-  root.appendChild(h("div", { class: "actions" }, actions));
-  if (dictation) root.appendChild(h("div", { class: "meta", text: "Escuchando… Lo que digas se va escribiendo en la caja." }));
-  for (const m of (state.messages || []).filter((x) => x.to === talkTo)) {
-    const situation = m.reply ? "Contestado" : m.readAt ? `Leído a las ${when(m.readAt)}` : m.wokenUp ? "Despertando la sesión…" : "Enviado, sin leer";
-    const kids = [h("div", { class: "top" }, [h("span", { class: "time", text: when(m.at) }), h("span", { class: `chip ${m.reply ? "sent" : m.readAt ? "approved" : "returned"}`, text: situation })]), h("div", { class: "note", text: m.text })];
-    for (const r of m.replies || (m.reply ? [{ at: m.readAt, text: m.reply }] : [])) kids.push(h("div", { class: "reply" }, [h("b", { text: `${TALK_NAMES[m.to]} · ${when(r.at)}: ` }), r.text]));
-    root.appendChild(h("article", { class: "card" }, kids));
-  }
+  compose.push(send);
+  chat.appendChild(h("div", { class: "chat-compose" }, compose));
+
+  root.appendChild(picker);
+  root.appendChild(chat);
+  requestAnimationFrame(() => {
+    grow();
+    const mark = `${talkTo}:${list.length}:${list.map((m) => (m.replies || []).length).join(",")}`;
+    if (mark !== lastChatMark) {
+      if (MOBILE_CHAT.matches) window.scrollTo(0, document.documentElement.scrollHeight);
+      else log.scrollTop = log.scrollHeight;
+      lastChatMark = mark;
+    }
+  });
 }
 
 export function renderContext(root) {
