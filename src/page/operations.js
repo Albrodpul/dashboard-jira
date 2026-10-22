@@ -172,6 +172,18 @@ const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 const DICTATION_ERRORS = { "not-allowed": "El navegador no deja usar el micrófono: dale permiso en los ajustes del sitio.", "service-not-allowed": "El navegador no deja usar el micrófono: dale permiso en los ajustes del sitio.", network: "No hay conexión con el servicio de dictado del navegador.", "audio-capture": "No se encuentra ningún micrófono." };
 let dictation = null;
 
+function mergeHeard(results) {
+  const parts = [];
+  for (let i = 0; i < results.length; i++) {
+    const t = results[i][0].transcript.trim();
+    const prev = parts[parts.length - 1];
+    if (!t) continue;
+    if (prev && t.toLowerCase().startsWith(prev.toLowerCase())) parts[parts.length - 1] = t;
+    else if (!(prev && prev.toLowerCase().startsWith(t.toLowerCase()))) parts.push(t);
+  }
+  return parts.join(" ");
+}
+
 function toggleDictation() {
   if (dictation) return dictation.stop();
   const r = new Recognition();
@@ -180,9 +192,7 @@ function toggleDictation() {
   r.interimResults = true;
   const before = (drafts.talk || "").trim();
   r.onresult = (e) => {
-    let heard = "";
-    for (let i = 0; i < e.results.length; i++) heard += e.results[i][0].transcript;
-    drafts.talk = [before, heard.trim()].filter(Boolean).join(" ");
+    drafts.talk = [before, mergeHeard(e.results)].filter(Boolean).join(" ");
     const box = document.getElementById("talk-text");
     if (box) box.value = drafts.talk;
   };
