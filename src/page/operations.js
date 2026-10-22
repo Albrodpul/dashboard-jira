@@ -326,6 +326,12 @@ export function renderTalk(root) {
     log.appendChild(bubble(true, m.text, m.at, ticks(m)));
     for (const r of m.replies || (m.reply ? [{ at: m.readAt, text: m.reply }] : [])) log.appendChild(bubble(false, r.text, r.at));
   }
+  const lastMine = list[list.length - 1];
+  const pending = lastMine && !(lastMine.replies || []).length && !lastMine.reply && Date.now() - new Date(lastMine.readAt || lastMine.at).getTime() < 15 * 60000;
+  if (pending) {
+    const label = lastMine.readAt ? "Escribiendo…" : lastMine.wokenUp ? "Despertando la sesión…" : "Esperando a que lo lea…";
+    log.appendChild(h("div", { class: "chat-bubble theirs chat-typing", role: "status", "aria-label": label }, [h("span", { class: "chat-dots", "aria-hidden": "true" }, [h("i"), h("i"), h("i")]), h("span", { class: "chat-typing-label", text: label })]));
+  }
   log.addEventListener("scroll", () => (chatFromBottom = log.scrollHeight - log.scrollTop - log.clientHeight));
   chat.appendChild(log);
 
@@ -363,7 +369,7 @@ export function renderTalk(root) {
   requestAnimationFrame(() => {
     fitChat();
     grow();
-    const mark = `${talkTo}:${list.length}:${list.map((m) => (m.replies || []).length).join(",")}`;
+    const mark = `${talkTo}:${list.length}:${list.map((m) => (m.replies || []).length).join(",")}:${pending ? (lastMine.readAt ? "r" : "w") : ""}`;
     if (mark !== lastChatMark) chatFromBottom = 0;
     lastChatMark = mark;
     log.scrollTop = log.scrollHeight - log.clientHeight - chatFromBottom;
