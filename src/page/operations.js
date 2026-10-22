@@ -217,6 +217,19 @@ const ICON = {
 let lastChatMark = "";
 let chatFromBottom = 0;
 
+function fitChat() {
+  const chat = document.querySelector(".chat");
+  if (!chat) return;
+  if (!MOBILE_CHAT.matches) return (chat.style.height = "");
+  const bar = document.querySelector(".bottom");
+  const below = (bar ? bar.getBoundingClientRect().height : 0) + 12;
+  const top = chat.getBoundingClientRect().top + window.scrollY;
+  const viewport = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+  chat.style.height = Math.max(240, Math.floor(viewport - top - below)) + "px";
+}
+window.addEventListener("resize", fitChat);
+if (window.visualViewport) window.visualViewport.addEventListener("resize", fitChat);
+
 function iconButton(kind, label, cls, onClick) {
   const b = h("button", { class: `chat-icon ${cls}`, type: "button", title: label, "aria-label": label });
   b.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[kind]}</svg>`;
@@ -324,6 +337,7 @@ export function renderTalk(root) {
   root.appendChild(picker);
   root.appendChild(chat);
   requestAnimationFrame(() => {
+    fitChat();
     grow();
     const mark = `${talkTo}:${list.length}:${list.map((m) => (m.replies || []).length).join(",")}`;
     if (mark !== lastChatMark) chatFromBottom = 0;
