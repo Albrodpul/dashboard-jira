@@ -122,7 +122,20 @@ function watchDispatches() {
 
 const MODES = { reports: "reports", reportes: "reports", dispatches: "dispatches", envios: "dispatches" };
 
+function exitWhenOrphaned() {
+  process.stdout.on("error", () => process.exit(0));
+  const parent = process.ppid;
+  setInterval(() => {
+    try {
+      process.kill(parent, 0);
+    } catch (e) {
+      if (e.code !== "EPERM") process.exit(0);
+    }
+  }, 15000);
+}
+
 function watch(mode) {
+  exitWhenOrphaned();
   const m = mode ? MODES[mode] : null;
   if (mode && !m) {
     console.error("Uso: board.js watch [reports|dispatches]");
