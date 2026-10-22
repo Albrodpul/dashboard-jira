@@ -13,6 +13,7 @@ const { handlePeople } = require("./follow-up");
 const { fetchQuota } = require("./quota");
 const learning = require("./learning");
 const voice = require("./voice");
+const speech = require("./speech");
 
 const PAGE_DIR = path.join(__dirname, "page");
 const HOSTS_FILE = path.join(DATA_DIR, "board-hosts.txt");
@@ -183,8 +184,9 @@ function handle(req, res) {
     if (url === "/api/push/reason") return serveBody(res, "application/json", JSON.stringify({ text: pushReason() }));
     if (url === "/api/push/key") return serveBody(res, "application/json", JSON.stringify({ key: pushKeys().publicKey }));
     if (url === "/api/learning") return serveBody(res, "application/json", JSON.stringify(learning.learningSummary()));
-    if (url === "/api/state") return serveBody(res, "application/json", JSON.stringify({ ...state(), voice: voice.voiceAvailable() }));
+    if (url === "/api/state") return serveBody(res, "application/json", JSON.stringify({ ...state(), voice: voice.voiceAvailable(), speech: speech.speechAvailable() }));
     if (url.startsWith("/api/voice/")) return voice.serveVoice(res, url);
+    if (url.startsWith("/api/speech/")) return speech.serveSpeech(res, url);
     if (["/icon-192.png", "/icon-512.png", "/favicon.ico"].includes(url)) return serveBody(res, "image/png", icon(url === "/icon-512.png" ? 512 : 192), "max-age=86400");
   }
   if (req.method === "POST" && url === "/api/quit") {
