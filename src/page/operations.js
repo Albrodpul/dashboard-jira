@@ -168,6 +168,35 @@ export function renderDeploy(root) {
 
 let talkTo = "orchestrator";
 const TALK_NAMES = { orchestrator: "Orquestadora", reporter: "Sesión de reporte" };
+const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+const DICTATION_ERRORS = { "not-allowed": "El navegador no deja usar el micrófono: dale permiso en los ajustes del sitio.", "service-not-allowed": "El navegador no deja usar el micrófono: dale permiso en los ajustes del sitio.", network: "No hay conexión con el servicio de dictado del navegador.", "audio-capture": "No se encuentra ningún micrófono." };
+let dictation = null;
+
+function toggleDictation() {
+  if (dictation) return dictation.stop();
+  const r = new Recognition();
+  r.lang = "es-ES";
+  r.continuous = true;
+  r.interimResults = true;
+  const before = (drafts.talk || "").trim();
+  r.onresult = (e) => {
+    let heard = "";
+    for (let i = 0; i < e.results.length; i++) heard += e.results[i][0].transcript;
+    drafts.talk = [before, heard.trim()].filter(Boolean).join(" ");
+    const box = document.getElementById("talk-text");
+    if (box) box.value = drafts.talk;
+  };
+  r.onerror = (e) => {
+    if (!["no-speech", "aborted"].includes(e.error)) toast(DICTATION_ERRORS[e.error] || `No se pudo dictar (${e.error}).`);
+  };
+  r.onend = () => {
+    dictation = null;
+    render();
+  };
+  dictation = r;
+  r.start();
+  render();
+}
 
 export function renderTalk(root) {
   const sel = h("select", { id: "talk-to", "aria-label": "Con quién hablar" });
@@ -201,9 +230,16 @@ export function renderTalk(root) {
         .then(() => refresh(true));
     },
   });
+  const actions = [send];
+  if (Recognition) {
+    const mic = button(dictation ? "Parar de dictar" : "Dictar", { cls: dictation ? "danger" : "", title: "Habla y se escribe en la caja; revísalo antes de enviar", onClick: toggleDictation });
+    mic.setAttribute("aria-pressed", dictation ? "true" : "false");
+    actions.push(mic);
+  }
   root.appendChild(h("div", { class: "actions" }, [sel]));
   root.appendChild(box);
-  root.appendChild(h("div", { class: "actions" }, [send]));
+  root.appendChild(h("div", { class: "actions" }, actions));
+  if (dictation) root.appendChild(h("div", { class: "meta", text: "Escuchando… Lo que digas se va escribiendo en la caja." }));
   for (const m of (state.messages || []).filter((x) => x.to === talkTo)) {
     const situation = m.reply ? "Contestado" : m.readAt ? `Leído a las ${when(m.readAt)}` : m.wokenUp ? "Despertando la sesión…" : "Enviado, sin leer";
     const kids = [h("div", { class: "top" }, [h("span", { class: "time", text: when(m.at) }), h("span", { class: `chip ${m.reply ? "sent" : m.readAt ? "approved" : "returned"}`, text: situation })]), h("div", { class: "note", text: m.text })];
