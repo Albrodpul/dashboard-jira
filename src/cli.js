@@ -38,6 +38,7 @@ const ALIASES = {
   "ordenar-fin": "tidy-end",
   mensaje: "message",
   contesta: "answer-message",
+  progreso: "progress",
   contados: "counted",
   pendiente: "refresh-request",
   "epics-jira": "jira-epics",
@@ -459,6 +460,20 @@ const commands = {
     );
   },
 
+  progress() {
+    const text = rest(4).slice(0, 300);
+    if (!text) fail("Uso: board.js progress <id> <en qué estás, en una línea>");
+    const ok = mutate((d) => {
+      const m = d.messages.find((x) => x.id === a);
+      if (!m) return false;
+      m.readAt = m.readAt || now();
+      m.progress = { at: now(), text };
+      return true;
+    });
+    if (!ok) fail(`no existe el mensaje ${a}`);
+    console.log("progreso guardado en el tablero");
+  },
+
   counted() {
     console.log(`${markCounted()} evento(s) de Jira marcados como contados sin publicar reporte`);
   },
@@ -636,5 +651,5 @@ for (const c of ["tidy-start", "tidy-end"]) commands[c] = contextTidy;
 if (Object.prototype.hasOwnProperty.call(commands, cmd)) commands[cmd]();
 else
   console.log(
-    "Uso: node board.js serve | ensure | restart | add [json] | list [status] | update <key> [json] | approve-chat <key> <area> | report [text] | reporter | watch [reports|dispatches] | refresh-request | sessions [json] | epics [json] | jira-epics | open <session> | areas | dispatches | attachments <key> | done | partial | question | comment | delivered | sent | reply | changes | orchestrator | deployments | deployment-update | startup | push-test | followup | followup-error | error-sent | followup-status | people | person-accounts | tidy-status | tidy-start | tidy-end | message | answer-message | counted | learning-read | cause | jira-setup [ISSUE-KEY] [reviewer name]"
+    "Uso: node board.js serve | ensure | restart | add [json] | list [status] | update <key> [json] | approve-chat <key> <area> | report [text] | reporter | watch [reports|dispatches] | refresh-request | sessions [json] | epics [json] | jira-epics | open <session> | areas | dispatches | attachments <key> | done | partial | question | comment | delivered | sent | reply | changes | orchestrator | deployments | deployment-update | startup | push-test | followup | followup-error | error-sent | followup-status | people | person-accounts | tidy-status | tidy-start | tidy-end | message | answer-message | progress | counted | learning-read | cause | jira-setup [ISSUE-KEY] [reviewer name]"
   );

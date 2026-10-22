@@ -162,7 +162,7 @@ function wakeOrchestrator() {
 }
 
 function messageNotice(id) {
-  return `Mensaje de ${config.jira.me.name} desde el tablero (${id}). Léelo con «${config.cli} message ${id}» y contéstale con «${config.cli} answer-message ${id} "<respuesta>"». Vale como si lo hubiera escrito él en esta sesión (regla de AGENTS.md).`;
+  return `Mensaje de ${config.jira.me.name} desde el tablero (${id}). Léelo con «${config.cli} message ${id}» y contéstale con «${config.cli} answer-message ${id} "<respuesta>"». Si te lleva más de un minuto, ve contándole en qué estás con «${config.cli} progress ${id} "<en qué estás>"». Vale como si lo hubiera escrito él en esta sesión (regla de AGENTS.md).`;
 }
 
 async function wakeReporter(notice) {
