@@ -61,8 +61,8 @@ Es un aviso para que arranque, no una orden de enviar nada: lo que autoriza cada
 
 {{ME}} puede pausar las revisiones desde el tablero (el botón de stop junto a la campana, en la cabecera del reporte), por ejemplo cuando {{REVIEWER}} está de vacaciones. Cada ciclo y cada cron es un turno entero de esta sesión, así que en pausa no se gasta ninguno:
 
-- **Al llegar el evento `PAUSE`** (o si `board.js reporter` da `"paused": true`): borra con `CronDelete` los dos crons de respaldo y no vuelvas a armar el Monitor cuando caduque. En el chat, una línea: «Revisiones en pausa».
-- **«Aviso del tablero: {{ME}} pide una revisión»** ({{ME}} ha pulsado Refrescar en pausa y el tablero te despierta): comprueba con `board.js refresh-request` que hay una petición y haz una sola «Cada revisión». No armes nada.
+- **Al llegar el evento `PAUSE`** (o si `board.js reporter` da `"paused": true`): borra con `CronDelete` los dos crons de respaldo. El Monitor `watch reports` sí se mantiene armado y se rearma al caducar: en pausa no da ciclos, solo `MESSAGE` y `REFRESH`, así que no gasta turnos, y así los mensajes de Hablar llegan en un segundo en vez de esperar a que el tablero despierte la sesión (unos 15 s). En el chat, una línea: «Revisiones en pausa».
+- **«Aviso del tablero: {{ME}} pide una revisión»** ({{ME}} ha pulsado Refrescar en pausa y el tablero te despierta): comprueba con `board.js refresh-request` que hay una petición y haz una sola «Cada revisión». Si el Monitor no está armado, ármalo (ver el punto anterior); los crons no.
 - **«Aviso del tablero: reanuda las revisiones»**: comprueba que `board.js reporter` da `"paused": false` y haz los pasos 3 a 5 del principio (Monitor, orquestadora, crons) y una «Cada revisión».
 - Hablar sigue llegando: si nadie lo lee en 45 segundos, el tablero despierta a la sesión.
 
