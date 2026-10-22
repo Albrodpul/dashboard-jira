@@ -10,6 +10,7 @@ const WHISPER_BIN = config.voice.whisperBin || path.join(LOCAL, "bin", "Release"
 const WHISPER_MODEL = config.voice.model || path.join(LOCAL, "ggml-small-q5_1.bin");
 const MAX_BYTES = 15 * 1024 * 1024;
 const ID = /^voice-\d{17}$/;
+const recent = new Map();
 
 const voiceAvailable = () => fs.existsSync(WHISPER_BIN) && fs.existsSync(WHISPER_MODEL);
 
