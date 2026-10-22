@@ -302,6 +302,10 @@ async function toggleRecording() {
   } catch (e) {
     return toast("El navegador no deja usar el micrófono: dale permiso en los ajustes del sitio.");
   }
+  let wakeLock = null;
+  try {
+    if (navigator.wakeLock) wakeLock = await navigator.wakeLock.request("screen");
+  } catch (e) {}
   const recorder = new MediaRecorder(stream);
   const chunks = [];
   const to = talkTo;
@@ -309,6 +313,7 @@ async function toggleRecording() {
   const silence = watchSilence(stream, () => recording && recording.recorder.state === "recording" && recording.recorder.stop());
   recorder.onstop = async () => {
     silence();
+    if (wakeLock) wakeLock.release().catch(() => {});
     stream.getTracks().forEach((t) => t.stop());
     const seconds = (Date.now() - recording.started) / 1000;
     recording = null;
@@ -326,6 +331,15 @@ async function toggleRecording() {
     voiceBusy = false;
     refresh(true);
   };
+  const cut = () => {
+    if (!recording || recording.recorder.state !== "recording") return;
+    toast("El móvil ha cortado el micrófono (¿se apagó la pantalla?). Envío lo grabado hasta aquí.");
+    recording.recorder.stop();
+  };
+  stream.getAudioTracks().forEach((t) => {
+    t.addEventListener("mute", cut);
+    t.addEventListener("ended", cut);
+  });
   recording = { recorder, started: Date.now() };
   recorder.start();
   render();

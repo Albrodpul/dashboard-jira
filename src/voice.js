@@ -45,6 +45,10 @@ async function handleVoice(req, res, send, createMessage) {
   if (!["reporter", "orchestrator"].includes(to)) return send(res, 400, { error: "destino desconocido" });
   const body = await readBody(req);
   if (body.length < 44 || body.toString("ascii", 0, 4) !== "RIFF") return send(res, 400, { error: "audio no válido" });
+  const hash = require("crypto").createHash("sha1").update(body).digest("hex");
+  for (const [h, at] of recent) if (Date.now() - at > 30 * 60000) recent.delete(h);
+  if (recent.has(hash)) return send(res, 200, { duplicate: true });
+  recent.set(hash, Date.now());
   fs.mkdirSync(VOICE_DIR, { recursive: true });
   const id = "voice-" + new Date().toISOString().replace(/\D/g, "").slice(0, 17);
   const file = path.join(VOICE_DIR, `${id}.wav`);
