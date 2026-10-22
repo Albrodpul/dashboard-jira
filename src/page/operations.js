@@ -336,6 +336,55 @@ const elapsed = (from) => {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 };
 
+let player = null;
+
+function silentWav() {
+  const rate = 8000;
+  const out = new DataView(new ArrayBuffer(44 + rate * 2));
+  const str = (o, t) => [...t].forEach((ch, i) => out.setUint8(o + i, ch.charCodeAt(0)));
+  str(0, "RIFF");
+  out.setUint32(4, 36 + rate * 2, true);
+  str(8, "WAVEfmt ");
+  out.setUint32(16, 16, true);
+  out.setUint16(20, 1, true);
+  out.setUint16(22, 1, true);
+  out.setUint32(24, rate, true);
+  out.setUint32(28, rate * 2, true);
+  out.setUint16(32, 2, true);
+  out.setUint16(34, 16, true);
+  str(36, "data");
+  out.setUint32(40, rate * 2, true);
+  return URL.createObjectURL(new Blob([out], { type: "audio/wav" }));
+}
+
+function getPlayer() {
+  if (player) return player;
+  player = document.createElement("audio");
+  player.preload = "auto";
+  player.addEventListener("ended", () => readAloud && keepAwake());
+  document.body.appendChild(player);
+  return player;
+}
+
+let silence = null;
+function keepAwake() {
+  const p = getPlayer();
+  silence = silence || silentWav();
+  p.loop = true;
+  p.src = silence;
+  p.play().catch(() => {});
+  if ("mediaSession" in navigator) navigator.mediaSession.metadata = new MediaMetadata({ title: "Manos libres: esperando respuestas", artist: "Torre de control" });
+}
+
+function playReply(id, index, text) {
+  if (!state.speech) return speak(text);
+  const p = getPlayer();
+  p.loop = false;
+  p.src = `/api/speech/${id}/${index}.mp3`;
+  if ("mediaSession" in navigator) navigator.mediaSession.metadata = new MediaMetadata({ title: text.slice(0, 80), artist: `Respuesta de la ${TALK_NAMES[talkTo].toLowerCase()}` });
+  p.play().catch(() => toast("El móvil no ha dejado reproducirla sola: toca el altavoz de la respuesta."));
+}
+
 function speak(text) {
   if (!window.speechSynthesis) return toast("Este navegador no puede leer en voz alta.");
   speechSynthesis.cancel();
@@ -398,13 +447,13 @@ function sessionStatus(to) {
   return s.open ? "abierta" : "cerrada: se abre al escribirle";
 }
 
-function bubble(mine, text, at, foot, voiceId) {
+function bubble(mine, text, at, foot, voiceId, replyRef) {
   const kids = [];
   if (voiceId) kids.push(h("audio", { class: "chat-audio", controls: "", preload: "none", src: `/api/voice/${voiceId}.wav` }));
   kids.push(h("div", { class: `chat-text${voiceId ? " transcript" : ""}`, text }));
-  if (!mine && window.speechSynthesis) {
+  if (!mine && (state.speech || window.speechSynthesis)) {
     const b = h("button", { class: "chat-speak", type: "button", title: "Escuchar", "aria-label": "Escuchar la respuesta", text: "🔊" });
-    b.addEventListener("click", () => speak(text));
+    b.addEventListener("click", () => (replyRef ? playReply(replyRef[0], replyRef[1], text) : speak(text)));
     foot = b;
   }
   kids.push(h("div", { class: "chat-foot" }, [h("span", { text: when(at) }), foot || null]));
@@ -448,15 +497,19 @@ export function renderTalk(root) {
 
   const chat = h("section", { class: "chat", "aria-label": `Conversación con la ${TALK_NAMES[talkTo].toLowerCase()}` });
   const head = [h("strong", { text: TALK_NAMES[talkTo] }), h("span", { class: "meta", text: sessionStatus(talkTo) })];
-  if (window.speechSynthesis) {
-    const aloud = h("button", { class: "chat-aloud", type: "button", "aria-pressed": readAloud ? "true" : "false", title: "Leer en voz alta las respuestas que lleguen", text: readAloud ? "🔊 Voz activada" : "🔇 Leer respuestas" });
+  if (state.speech || window.speechSynthesis) {
+    const aloud = h("button", { class: "chat-aloud", type: "button", "aria-pressed": readAloud ? "true" : "false", title: "Manos libres: las respuestas que lleguen suenan solas, también con otra app delante o el móvil bloqueado", text: readAloud ? "🔊 Manos libres" : "🔇 Manos libres" });
     aloud.addEventListener("click", () => {
       readAloud = !readAloud;
       try {
         localStorage.setItem("talk-read-aloud", readAloud ? "1" : "0");
       } catch (e) {}
-      if (readAloud) speak("Leeré en voz alta las respuestas.");
-      else speechSynthesis.cancel();
+      if (readAloud && state.speech) keepAwake();
+      else if (readAloud) speak("Leeré en voz alta las respuestas.");
+      else {
+        if (player) player.pause();
+        if (window.speechSynthesis) speechSynthesis.cancel();
+      }
       render();
     });
     head.push(aloud);
@@ -475,12 +528,12 @@ export function renderTalk(root) {
       log.appendChild(h("div", { class: "chat-day", text: today ? "Hoy" : d }));
     }
     log.appendChild(bubble(true, m.text, m.at, ticks(m), m.voice));
-    for (const r of m.replies || (m.reply ? [{ at: m.readAt, text: m.reply }] : [])) log.appendChild(bubble(false, r.text, r.at));
+    (m.replies || (m.reply ? [{ at: m.readAt, text: m.reply }] : [])).forEach((r, i) => log.appendChild(bubble(false, r.text, r.at, null, null, [m.id, i])));
   }
-  const replies = list.flatMap((m) => m.replies || (m.reply ? [{ at: m.readAt, text: m.reply }] : []));
+  const replies = list.flatMap((m) => (m.replies || (m.reply ? [{ at: m.readAt, text: m.reply }] : [])).map((r, i) => ({ ...r, id: m.id, index: i })));
   const newest = replies[replies.length - 1];
   const newestKey = newest ? `${talkTo}:${newest.at}` : `${talkTo}:none`;
-  if (spokenUpTo !== null && readAloud && newest && newestKey !== spokenUpTo && spokenUpTo.startsWith(talkTo + ":")) speak(newest.text);
+  if (spokenUpTo !== null && readAloud && newest && newestKey !== spokenUpTo && spokenUpTo.startsWith(talkTo + ":")) playReply(newest.id, newest.index, newest.text);
   spokenUpTo = newestKey;
   if (voiceBusy) log.appendChild(h("div", { class: "chat-bubble mine chat-typing", role: "status" }, [h("span", { class: "chat-dots", "aria-hidden": "true" }, [h("i"), h("i"), h("i")]), h("span", { class: "chat-typing-label", text: "Transcribiendo la nota…" })]));
   const lastMine = list[list.length - 1];
