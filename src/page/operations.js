@@ -226,6 +226,30 @@ function fitChat() {
   const top = chat.getBoundingClientRect().top + window.scrollY;
   const viewport = window.visualViewport ? window.visualViewport.height : window.innerHeight;
   chat.style.height = Math.max(240, Math.floor(viewport - top - below)) + "px";
+  setTimeout(reportOverflow, 400);
+}
+
+let overflowReported = false;
+function reportOverflow() {
+  const extra = document.documentElement.scrollHeight - window.innerHeight;
+  if (overflowReported || extra <= 1 || !MOBILE_CHAT.matches) return;
+  overflowReported = true;
+  const box = (sel) => {
+    const el = document.querySelector(sel);
+    if (!el) return null;
+    const r = el.getBoundingClientRect();
+    return { top: Math.round(r.top), bottom: Math.round(r.bottom), height: Math.round(r.height) };
+  };
+  post("/api/layout-report", {
+    ua: navigator.userAgent,
+    standalone: window.matchMedia("(display-mode: standalone)").matches,
+    inner: [window.innerWidth, window.innerHeight],
+    visual: window.visualViewport ? [Math.round(window.visualViewport.width), Math.round(window.visualViewport.height)] : null,
+    scrollHeight: document.documentElement.scrollHeight,
+    bodyHeight: document.body.scrollHeight,
+    extra,
+    boxes: { app: box(".app"), nav: box(".nav"), main: box(".main"), chat: box(".chat"), bottom: box(".bottom"), report: box(".report") },
+  }).catch(() => {});
 }
 window.addEventListener("resize", fitChat);
 if (window.visualViewport) window.visualViewport.addEventListener("resize", fitChat);
