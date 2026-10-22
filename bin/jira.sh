@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Usage:
-#   jira.sh <issue-key>              — Fetch a single issue with its comments (e.g. FRON-1658)
+#   jira.sh <issue-key>              — Fetch a single issue with its comments (e.g. WEB-123)
 #   jira.sh search "<JQL>"           — Run a JQL query (e.g. "project=FRON AND sprint in openSprints()")
 #
 # Works whether or not the jira MCP server is up: it talks to the REST API directly with the
