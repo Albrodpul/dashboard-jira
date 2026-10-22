@@ -78,14 +78,14 @@ async function deliverMessage(id) {
   });
 }
 
-function handleMessage(res, { to, text }, send) {
+function handleMessage(res, { to, text, voice }, send) {
   const clean = String(text || "").trim().slice(0, 4000);
   if (!MESSAGE_TARGETS[to]) return send(res, 400, { error: "destino desconocido" });
   if (!clean) return send(res, 400, { error: "escribe el mensaje" });
   const at = now();
   const id = "msg-" + stamp(at, 17);
   mutate((d) => {
-    d.messages.unshift({ id, to, text: clean, at, readAt: null, reply: null });
+    d.messages.unshift({ id, to, text: clean, at, readAt: null, reply: null, ...(voice ? { voice } : {}) });
     d.messages = d.messages.slice(0, 60);
   });
   const target = to === "reporter" ? state().reporterStatus : state().orchestrator;
