@@ -605,12 +605,12 @@ export function renderTalk(root) {
   queueNewReplies();
   if (voiceBusy) log.appendChild(h("div", { class: "chat-bubble mine chat-typing", role: "status" }, [h("span", { class: "chat-dots", "aria-hidden": "true" }, [h("i"), h("i"), h("i")]), h("span", { class: "chat-typing-label", text: "Transcribiendo la nota…" })]));
   const lastMine = list[list.length - 1];
-  const pending = lastMine && !(lastMine.replies || []).length && !lastMine.reply && Date.now() - new Date(lastMine.readAt || lastMine.at).getTime() < 15 * 60000;
+  const pending = lastMine && !(lastMine.replies || []).length && !lastMine.reply && Date.now() - new Date((lastMine.progress && lastMine.progress.at) || lastMine.readAt || lastMine.at).getTime() < 15 * 60000;
   if (pending) {
     const target = talkTo === "reporter" ? state.reporterStatus : state.orchestrator;
     const live = target && (state.sessions.list || []).find((x) => x.conversation === target.conversation);
     const busy = live && live.status === "busy";
-    const label = lastMine.readAt ? "Escribiendo…" : busy ? "Está ocupada con otra cosa: lo leerá al terminar" : lastMine.wokenUp ? "Despertando la sesión…" : "Esperando a que lo lea…";
+    const label = lastMine.progress ? lastMine.progress.text : lastMine.readAt ? "Escribiendo…" : busy ? "Está ocupada con otra cosa: lo leerá al terminar" : lastMine.wokenUp ? "Despertando la sesión…" : "Esperando a que lo lea…";
     log.appendChild(h("div", { class: "chat-bubble theirs chat-typing", role: "status", "aria-label": label }, [h("span", { class: "chat-dots", "aria-hidden": "true" }, [h("i"), h("i"), h("i")]), h("span", { class: "chat-typing-label", text: label })]));
   }
   log.addEventListener("scroll", () => (chatFromBottom = log.scrollHeight - log.scrollTop - log.clientHeight));
