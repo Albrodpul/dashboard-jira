@@ -222,6 +222,7 @@ try {
   readAloud = localStorage.getItem("talk-read-aloud") === "1";
 } catch (e) {}
 let spokenUpTo = null;
+const PAGE_OPENED_AT = Date.now();
 
 function wavFromBuffer(buffer) {
   const data = buffer.getChannelData(0);
@@ -533,7 +534,8 @@ export function renderTalk(root) {
   const replies = list.flatMap((m) => (m.replies || (m.reply ? [{ at: m.readAt, text: m.reply }] : [])).map((r, i) => ({ ...r, id: m.id, index: i })));
   const newest = replies[replies.length - 1];
   const newestKey = newest ? `${talkTo}:${newest.at}` : `${talkTo}:none`;
-  if (spokenUpTo !== null && readAloud && newest && newestKey !== spokenUpTo && spokenUpTo.startsWith(talkTo + ":")) playReply(newest.id, newest.index, newest.text);
+  const arrivedNow = newest && new Date(newest.at).getTime() > PAGE_OPENED_AT;
+  if (spokenUpTo !== null && readAloud && arrivedNow && newestKey !== spokenUpTo && spokenUpTo.startsWith(talkTo + ":")) playReply(newest.id, newest.index, newest.text);
   spokenUpTo = newestKey;
   if (voiceBusy) log.appendChild(h("div", { class: "chat-bubble mine chat-typing", role: "status" }, [h("span", { class: "chat-dots", "aria-hidden": "true" }, [h("i"), h("i"), h("i")]), h("span", { class: "chat-typing-label", text: "Transcribiendo la nota…" })]));
   const lastMine = list[list.length - 1];
