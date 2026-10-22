@@ -299,11 +299,13 @@ export function renderTalk(root) {
     }
   });
   const compose = [box];
-  if (Recognition) {
-    const mic = iconButton(dictation ? "stop" : "mic", dictation ? "Parar de dictar" : "Dictar", dictation ? "mic listening" : "mic", toggleDictation);
-    mic.setAttribute("aria-pressed", dictation ? "true" : "false");
-    compose.push(mic);
-  }
+  const mic = iconButton(dictation ? "stop" : "mic", dictation ? "Parar de dictar" : "Dictar", dictation ? "mic listening" : "mic", () => {
+    if (Recognition) return toggleDictation();
+    box.focus();
+    toast("Este navegador no trae dictado (Chrome, Edge y Safari sí). En Windows, con el cursor en la caja, pulsa Win+H: el dictado de Windows escribe en cualquier sitio.");
+  });
+  mic.setAttribute("aria-pressed", dictation ? "true" : "false");
+  compose.push(mic);
   compose.push(send);
   chat.appendChild(h("div", { class: "chat-compose" }, compose));
 
