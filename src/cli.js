@@ -27,10 +27,7 @@ const ALIASES = {
   "despliegue-update": "deployment-update",
   arranque: "startup",
   "aviso-prueba": "push-test",
-  ana: "followup",
-  "ana-error": "followup-error",
   "error-enviado": "error-sent",
-  "ana-estado": "followup-status",
   seguimiento: "people",
   "persona-cuentas": "person-accounts",
   "ordenar-estado": "tidy-status",
@@ -511,7 +508,7 @@ const commands = {
   open() {
     const st = state();
     const asTarget = (x) => x && { name: x.title, conversation: x.conversation, open: x.open, sessionName: x.session };
-    const role = ["orchestrator", "orquestador"].includes(a) ? asTarget(st.orchestrator) : ["followup", "ana", "seguimiento"].includes(a) ? asTarget(st.followUpStatus) : null;
+    const role = ["orchestrator", "orquestador"].includes(a) ? asTarget(st.orchestrator) : ["followup", "seguimiento"].includes(a) ? asTarget(st.followUpStatus) : null;
     const target = role || st.areas.find((x) => x.id === a || (x.name && titleKey(x.name) === titleKey(a)));
     if (!target) fail(`sesión desconocida: ${a}`);
     if (!UUID.test(target.conversation || "")) fail(`«${target.name}» no tiene una conversación enlazada: ábrela a mano en VS Code una vez.`);
