@@ -215,6 +215,99 @@ const ICON = {
   stop: '<rect x="7" y="7" width="10" height="10" rx="1.5"/>',
 };
 let lastChatMark = "";
+let recording = null;
+let voiceBusy = false;
+let readAloud = false;
+try {
+  readAloud = localStorage.getItem("talk-read-aloud") === "1";
+} catch (e) {}
+let spokenUpTo = null;
+
+function wavFromBuffer(buffer) {
+  const data = buffer.getChannelData(0);
+  const out = new DataView(new ArrayBuffer(44 + data.length * 2));
+  const str = (o, t) => [...t].forEach((ch, i) => out.setUint8(o + i, ch.charCodeAt(0)));
+  str(0, "RIFF");
+  out.setUint32(4, 36 + data.length * 2, true);
+  str(8, "WAVEfmt ");
+  out.setUint32(16, 16, true);
+  out.setUint16(20, 1, true);
+  out.setUint16(22, 1, true);
+  out.setUint32(24, 16000, true);
+  out.setUint32(28, 32000, true);
+  out.setUint16(32, 2, true);
+  out.setUint16(34, 16, true);
+  str(36, "data");
+  out.setUint32(40, data.length * 2, true);
+  for (let i = 0; i < data.length; i++) out.setInt16(44 + i * 2, Math.max(-1, Math.min(1, data[i])) * 0x7fff, true);
+  return new Blob([out], { type: "audio/wav" });
+}
+
+async function toWav16k(blob) {
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  const decoded = await ctx.decodeAudioData(await blob.arrayBuffer());
+  ctx.close();
+  const off = new OfflineAudioContext(1, Math.ceil(decoded.duration * 16000), 16000);
+  const src = off.createBufferSource();
+  src.buffer = decoded;
+  src.connect(off.destination);
+  src.start();
+  return wavFromBuffer(await off.startRendering());
+}
+
+async function toggleRecording() {
+  if (recording) return recording.recorder.stop();
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch (e) {
+    return toast("El navegador no deja usar el micrófono: dale permiso en los ajustes del sitio.");
+  }
+  const recorder = new MediaRecorder(stream);
+  const chunks = [];
+  const to = talkTo;
+  recorder.ondataavailable = (e) => e.data.size && chunks.push(e.data);
+  recorder.onstop = async () => {
+    stream.getTracks().forEach((t) => t.stop());
+    const seconds = (Date.now() - recording.started) / 1000;
+    recording = null;
+    if (seconds < 0.7) return render();
+    voiceBusy = true;
+    render();
+    try {
+      const wav = await toWav16k(new Blob(chunks, { type: recorder.mimeType }));
+      const r = await fetch(`/api/voice?to=${to}`, { method: "POST", headers: { "content-type": "audio/wav" }, body: wav });
+      if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || r.status);
+    } catch (e) {
+      toast(`No se pudo enviar la nota: ${e.message}`);
+    }
+    voiceBusy = false;
+    refresh(true);
+  };
+  recording = { recorder, started: Date.now() };
+  recorder.start();
+  render();
+  const tick = setInterval(() => {
+    if (!recording) return clearInterval(tick);
+    const el = document.getElementById("rec-time");
+    if (el) el.textContent = elapsed(recording.started);
+  }, 500);
+}
+
+const elapsed = (from) => {
+  const s = Math.floor((Date.now() - from) / 1000);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+};
+
+function speak(text) {
+  if (!window.speechSynthesis) return toast("Este navegador no puede leer en voz alta.");
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = "es-ES";
+  const v = speechSynthesis.getVoices().find((x) => /^es/i.test(x.lang));
+  if (v) u.voice = v;
+  speechSynthesis.speak(u);
+}
 let chatFromBottom = 0;
 
 function fitChat() {
@@ -268,8 +361,15 @@ function sessionStatus(to) {
   return s.open ? "abierta" : "cerrada: se abre al escribirle";
 }
 
-function bubble(mine, text, at, foot) {
-  const kids = [h("div", { class: "chat-text", text })];
+function bubble(mine, text, at, foot, voiceId) {
+  const kids = [];
+  if (voiceId) kids.push(h("audio", { class: "chat-audio", controls: "", preload: "none", src: `/api/voice/${voiceId}.wav` }));
+  kids.push(h("div", { class: `chat-text${voiceId ? " transcript" : ""}`, text }));
+  if (!mine && window.speechSynthesis) {
+    const b = h("button", { class: "chat-speak", type: "button", title: "Escuchar", "aria-label": "Escuchar la respuesta", text: "🔊" });
+    b.addEventListener("click", () => speak(text));
+    foot = b;
+  }
   kids.push(h("div", { class: "chat-foot" }, [h("span", { text: when(at) }), foot || null]));
   return h("div", { class: `chat-bubble ${mine ? "mine" : "theirs"}` }, kids);
 }
@@ -310,7 +410,21 @@ export function renderTalk(root) {
   }
 
   const chat = h("section", { class: "chat", "aria-label": `Conversación con la ${TALK_NAMES[talkTo].toLowerCase()}` });
-  chat.appendChild(h("header", { class: "chat-head" }, [h("strong", { text: TALK_NAMES[talkTo] }), h("span", { class: "meta", text: sessionStatus(talkTo) })]));
+  const head = [h("strong", { text: TALK_NAMES[talkTo] }), h("span", { class: "meta", text: sessionStatus(talkTo) })];
+  if (window.speechSynthesis) {
+    const aloud = h("button", { class: "chat-aloud", type: "button", "aria-pressed": readAloud ? "true" : "false", title: "Leer en voz alta las respuestas que lleguen", text: readAloud ? "🔊 Voz activada" : "🔇 Leer respuestas" });
+    aloud.addEventListener("click", () => {
+      readAloud = !readAloud;
+      try {
+        localStorage.setItem("talk-read-aloud", readAloud ? "1" : "0");
+      } catch (e) {}
+      if (readAloud) speak("Leeré en voz alta las respuestas.");
+      else speechSynthesis.cancel();
+      render();
+    });
+    head.push(aloud);
+  }
+  chat.appendChild(h("header", { class: "chat-head" }, head));
 
   const log = h("div", { class: "chat-log", role: "log", "aria-live": "polite" });
   const list = (state.messages || []).filter((x) => x.to === talkTo).slice().reverse();
@@ -323,9 +437,15 @@ export function renderTalk(root) {
       const today = fmtDay.format(new Date()) === d;
       log.appendChild(h("div", { class: "chat-day", text: today ? "Hoy" : d }));
     }
-    log.appendChild(bubble(true, m.text, m.at, ticks(m)));
+    log.appendChild(bubble(true, m.text, m.at, ticks(m), m.voice));
     for (const r of m.replies || (m.reply ? [{ at: m.readAt, text: m.reply }] : [])) log.appendChild(bubble(false, r.text, r.at));
   }
+  const replies = list.flatMap((m) => m.replies || (m.reply ? [{ at: m.readAt, text: m.reply }] : []));
+  const newest = replies[replies.length - 1];
+  const newestKey = newest ? `${talkTo}:${newest.at}` : `${talkTo}:none`;
+  if (spokenUpTo !== null && readAloud && newest && newestKey !== spokenUpTo && spokenUpTo.startsWith(talkTo + ":")) speak(newest.text);
+  spokenUpTo = newestKey;
+  if (voiceBusy) log.appendChild(h("div", { class: "chat-bubble mine chat-typing", role: "status" }, [h("span", { class: "chat-dots", "aria-hidden": "true" }, [h("i"), h("i"), h("i")]), h("span", { class: "chat-typing-label", text: "Transcribiendo la nota…" })]));
   const lastMine = list[list.length - 1];
   const pending = lastMine && !(lastMine.replies || []).length && !lastMine.reply && Date.now() - new Date(lastMine.readAt || lastMine.at).getTime() < 15 * 60000;
   if (pending) {
@@ -353,15 +473,19 @@ export function renderTalk(root) {
       sendTalk(box, send);
     }
   });
-  const compose = [box];
-  const mic = iconButton(dictation ? "stop" : "mic", dictation ? "Parar de dictar" : "Dictar", dictation ? "mic listening" : "mic", () => {
+  const notes = state.voice && window.MediaRecorder && navigator.mediaDevices;
+  const compose = [recording ? h("div", { class: "chat-recording", role: "status" }, [h("span", { class: "rec-dot", "aria-hidden": "true" }), h("span", { text: "Grabando " }), h("span", { id: "rec-time", text: elapsed(recording.started) }), h("span", { class: "meta", text: " · pulsa ■ para enviar" })]) : box];
+  const active = dictation || recording;
+  const mic = iconButton(active ? "stop" : "mic", recording ? "Parar y enviar la nota" : dictation ? "Parar de dictar" : notes ? "Grabar nota de voz" : "Dictar", active ? "mic listening" : "mic", () => {
+    if (notes) return toggleRecording();
     if (Recognition) return toggleDictation();
     box.focus();
     toast("Este navegador no trae dictado (Chrome, Edge y Safari sí). En Windows, con el cursor en la caja, pulsa Win+H: el dictado de Windows escribe en cualquier sitio.");
   });
-  mic.setAttribute("aria-pressed", dictation ? "true" : "false");
+  mic.setAttribute("aria-pressed", active ? "true" : "false");
+  if (voiceBusy) mic.disabled = true;
   compose.push(mic);
-  compose.push(send);
+  if (!recording) compose.push(send);
   chat.appendChild(h("div", { class: "chat-compose" }, compose));
 
   root.appendChild(picker);
@@ -369,7 +493,7 @@ export function renderTalk(root) {
   requestAnimationFrame(() => {
     fitChat();
     grow();
-    const mark = `${talkTo}:${list.length}:${list.map((m) => (m.replies || []).length).join(",")}:${pending ? (lastMine.readAt ? "r" : "w") : ""}`;
+    const mark = `${talkTo}:${list.length}:${list.map((m) => (m.replies || []).length).join(",")}:${pending ? (lastMine.readAt ? "r" : "w") : ""}:${voiceBusy}`;
     if (mark !== lastChatMark) chatFromBottom = 0;
     lastChatMark = mark;
     log.scrollTop = log.scrollHeight - log.clientHeight - chatFromBottom;

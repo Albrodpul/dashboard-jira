@@ -109,6 +109,10 @@ This time it renders `/resumen-jira`, `/orquesta`, `/soy` and `/seguimiento` int
 
 6. The sessions run board commands without asking, so allow `Bash` in `<root>/.claude/settings.local.json`.
 
+### Voice notes (optional)
+
+The Talk tab can send voice notes. They are transcribed on your computer with [whisper.cpp](https://github.com/ggml-org/whisper.cpp) (MIT, free), and the session receives the text. Download `whisper-blas-bin-x64.zip` from its releases into `%LOCALAPPDATA%/whisper/bin`, and a model such as `ggml-small-q5_1.bin` into `%LOCALAPPDATA%/whisper`. To use other paths, set `voice.whisperBin` and `voice.model` in `board.config.json`. Without Whisper, the mic button falls back to the browser's dictation. Replies can be read aloud with the browser's own speech synthesis.
+
 ### Using the board from your phone
 
 Keep the server on `127.0.0.1`. Expose it only inside your own tailnet with `tailscale serve`, never with `funnel`. Then add the tailnet host name to `data/board-hosts.txt`, so the server accepts it.

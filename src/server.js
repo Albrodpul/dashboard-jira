@@ -12,6 +12,7 @@ const operations = require("./api-operations");
 const { handlePeople } = require("./follow-up");
 const { fetchQuota } = require("./quota");
 const learning = require("./learning");
+const voice = require("./voice");
 
 const PAGE_DIR = path.join(__dirname, "page");
 const HOSTS_FILE = path.join(DATA_DIR, "board-hosts.txt");
@@ -182,7 +183,8 @@ function handle(req, res) {
     if (url === "/api/push/reason") return serveBody(res, "application/json", JSON.stringify({ text: pushReason() }));
     if (url === "/api/push/key") return serveBody(res, "application/json", JSON.stringify({ key: pushKeys().publicKey }));
     if (url === "/api/learning") return serveBody(res, "application/json", JSON.stringify(learning.learningSummary()));
-    if (url === "/api/state") return serveBody(res, "application/json", JSON.stringify(state()));
+    if (url === "/api/state") return serveBody(res, "application/json", JSON.stringify({ ...state(), voice: voice.voiceAvailable() }));
+    if (url.startsWith("/api/voice/")) return voice.serveVoice(res, url);
     if (["/icon-192.png", "/icon-512.png", "/favicon.ico"].includes(url)) return serveBody(res, "image/png", icon(url === "/icon-512.png" ? 512 : 192), "max-age=86400");
   }
   if (req.method === "POST" && url === "/api/quit") {
@@ -190,6 +192,10 @@ function handle(req, res) {
     res.writeHead(200).end("bye");
     setTimeout(() => process.exit(0), 50);
     return;
+  }
+  if (req.method === "POST" && url === "/api/voice") {
+    if (!originOk(req) || !(req.headers["content-type"] || "").startsWith("audio/")) return res.writeHead(403).end("origen no permitido");
+    return voice.handleVoice(req, res, send, operations.handleMessage).catch((e) => send(res, 500, { error: String(e.message || e) }));
   }
   const route = req.method === "POST" && POST_ROUTES[url];
   if (!route) return res.writeHead(404).end();

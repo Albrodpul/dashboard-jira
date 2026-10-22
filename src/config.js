@@ -101,6 +101,7 @@ module.exports = {
   },
   followUp: c.followUp || [],
   errorsArea: c.errorsArea || null,
+  voice: c.voice || {},
   deployProjects: c.deployProjects || [],
   sessionModel: c.sessionModel || "claude-opus-5-5",
   contextDomains: path.join(root, c.contextDomains || "context/dominios"),
