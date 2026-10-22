@@ -9,7 +9,7 @@ const LOCAL = path.join(process.env.LOCALAPPDATA || "", "piper");
 const PIPER_BIN = config.voice.piperBin || path.join(LOCAL, "piper", "piper.exe");
 const PIPER_VOICE = config.voice.piperVoice || path.join(LOCAL, "es_ES-davefx-medium.onnx");
 const FFMPEG = config.voice.ffmpeg || "ffmpeg";
-const ROUTE = /^\/api\/speech\/(msg-\d{17})\/(\d{1,2})\.mp3$/;
+const ROUTE = /^\/api\/speech\/(msg-\d{17})\/(\d{1,2}|p\d{13})\.mp3$/;
 const running = new Map();
 
 const speechAvailable = () => fs.existsSync(PIPER_BIN) && fs.existsSync(PIPER_VOICE);
@@ -45,6 +45,7 @@ async function synthesize(text, file) {
 function replyText(id, index) {
   const m = load().messages.find((x) => x.id === id);
   if (!m) return null;
+  if (String(index).startsWith("p")) return m.progress && `p${new Date(m.progress.at).getTime()}` === index ? m.progress.text : null;
   const replies = m.replies || (m.reply ? [{ text: m.reply }] : []);
   return replies[index] ? replies[index].text : null;
 }
@@ -53,7 +54,7 @@ function serveSpeech(res, url) {
   const match = ROUTE.exec(url);
   if (!match || !speechAvailable()) return res.writeHead(404).end();
   const [, id, n] = match;
-  const text = replyText(id, Number(n));
+  const text = replyText(id, n.startsWith("p") ? n : Number(n));
   if (!text) return res.writeHead(404).end();
   fs.mkdirSync(SPEECH_DIR, { recursive: true });
   const file = path.join(SPEECH_DIR, `${id}-${n}.mp3`);
