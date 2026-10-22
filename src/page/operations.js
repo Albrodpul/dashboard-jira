@@ -166,7 +166,7 @@ export function renderDeploy(root) {
   deployHistory(root);
 }
 
-let talkTo = "orchestrator";
+let talkTo = "reporter";
 const TALK_NAMES = { orchestrator: "Orquestadora", reporter: "Sesión de reporte" };
 const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 const DICTATION_ERRORS = { "not-allowed": "El navegador no deja usar el micrófono: dale permiso en los ajustes del sitio.", "service-not-allowed": "El navegador no deja usar el micrófono: dale permiso en los ajustes del sitio.", network: "No hay conexión con el servicio de dictado del navegador.", "audio-capture": "No se encuentra ningún micrófono." };
@@ -299,7 +299,7 @@ function sendTalk(box, b) {
 
 export function renderTalk(root) {
   const picker = h("div", { class: "people-chips chat-picker", role: "group", "aria-label": "Con quién hablar" });
-  for (const k of ["orchestrator", "reporter"]) {
+  for (const k of ["reporter", "orchestrator"]) {
     const b = h("button", { type: "button", "aria-pressed": k === talkTo ? "true" : "false", text: TALK_NAMES[k] });
     b.addEventListener("click", () => {
       talkTo = k;
