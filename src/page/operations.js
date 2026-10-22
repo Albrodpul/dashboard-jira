@@ -448,6 +448,14 @@ function pauseReplies() {
 
 function queueNewReplies() {
   for (const m of state.messages || []) {
+    if (m.progress && !(m.replies || []).length && !m.reply) {
+      const step = `p${new Date(m.progress.at).getTime()}`;
+      const key = `${m.id}:${step}`;
+      if (!heardReplies.has(key)) {
+        heardReplies.add(key);
+        if (readAloud && new Date(m.progress.at).getTime() > PAGE_OPENED_AT) playReply(m.id, step, m.progress.text, m.to, true);
+      }
+    }
     (m.replies || (m.reply ? [{ at: m.readAt, text: m.reply }] : [])).forEach((r, i) => {
       const key = `${m.id}:${i}`;
       if (heardReplies.has(key)) return;
