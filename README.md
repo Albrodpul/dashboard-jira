@@ -1,8 +1,42 @@
 # Dashboard Jira
 
-A local board that sits between Jira and a set of [Claude Code](https://claude.com/claude-code) sessions. One session reads Jira every few minutes and turns new or returned tickets into cards; you approve each card on the board (or from your phone), and an orchestrator session hands it to the session that owns that epic. Sessions report back (`done`, `partial`, `question`) and the board shows it all in one place.
+A local control tower for running several [Claude Code](https://claude.com/claude-code) sessions on a Jira backlog. It reads Jira, turns new and returned tickets into cards, and lets you decide from your desktop or your phone which AI session works on each one.
 
-Everything runs on your machine: a Node server on `127.0.0.1`, a SQLite file and your Jira API token in a local `.env`. Nothing is sent to any service other than your own Jira.
+![Board: Jira cards waiting for approval, grouped by epic, next to the latest Jira report](docs/board.png)
+
+## Why
+
+When several AI coding sessions work in parallel (one per product area), someone has to watch Jira, decide what goes where, pass each session the ticket and its attachments, and collect the answers. Dashboard Jira does that plumbing. You keep the decisions: nothing is sent to a session until you approve it.
+
+## How it works
+
+1. **A reporter session reads Jira** every few minutes. It publishes a short report and creates a card for each new ticket, each ticket returned from review and each new comment on one of your tickets.
+2. **You approve cards** on the board, from the browser or from your phone. Each card goes to the session that owns its epic.
+3. **An orchestrator session delivers** the approved work, with the ticket's attachments already downloaded. Each session reports back `done`, `partial` or `question`, and you answer from the board.
+
+It also has:
+- one-click deploy orders;
+- a chat with the sessions (voice notes transcribed locally with Whisper; replies spoken with Piper);
+- push notifications;
+- an hourly activity summary of a colleague;
+- a "Learning" tab that tracks how often work comes back from review.
+
+<img src="docs/talk.png" alt="Phone view: chat with the reporter session, with a progress line while it works" width="300">
+
+Everything runs on your machine: a Node server on `127.0.0.1`, a SQLite file and your Jira API token in a local `.env`. Nothing is sent anywhere other than your own Jira. The interface is in Spanish.
+
+## Quick start
+
+```bash
+git clone https://github.com/Albrodpul/dashboard-jira.git
+node dashboard-jira/install.js C:/work/acme/board   # creates board.config.json and .env there
+# fill in .env (Jira site, email, API token) and board.config.json (projects, root folder)
+node C:/work/acme/board/board.js jira-setup        # prints the Jira ids the config needs
+node dashboard-jira/install.js C:/work/acme/board   # renders the Claude Code slash commands
+node C:/work/acme/board/board.js ensure            # http://127.0.0.1:4747
+```
+
+Then run `/resumen-jira` in one Claude Code session and `/orquesta` in another. The full walkthrough is below.
 
 ## Requirements
 
@@ -166,3 +200,7 @@ bin/            Jira window reader, Jira writer, sessions CLI, jira.sh
 templates/      slash commands rendered by the installer
 install.js      installer
 ```
+
+## License
+
+[MIT](LICENSE)
