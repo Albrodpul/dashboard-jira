@@ -181,7 +181,7 @@ function render() {
   (NON_TASK_VIEWS[state.tab] || renderTasks)(root);
 }
 
-const FIELDS = ["sessions", "aliases", "reporterRoute", "orchestrator", "epics", "allEpics", "reports", "lastReview", "config", "followUps", "contextTidy", "messages", "tidyBlockers", "lastContextPass", "followUpStatus", "refreshRequest", "deployments", "deployerArea", "quota", "people", "jiraSetup"];
+const FIELDS = ["sessions", "aliases", "reporterRoute", "reporterStatus", "orchestrator", "epics", "allEpics", "reports", "lastReview", "config", "followUps", "contextTidy", "messages", "tidyBlockers", "lastContextPass", "followUpStatus", "refreshRequest", "deployments", "deployerArea", "quota", "people", "jiraSetup"];
 const withoutReadTime = (d) => JSON.stringify(d, (k, v) => (k === "syncedAt" ? undefined : v));
 const editing = () => {
   const a = document.activeElement;
@@ -211,7 +211,8 @@ function reload(force) {
         state.sessions = d.sessions || state.sessions;
         return updateStamp();
       }
-      if (!force && editing()) {
+      const talkBox = document.activeElement && document.activeElement.id === "talk-text" ? document.activeElement : null;
+      if (!force && editing() && !talkBox) {
         deferred = d;
         Object.assign(state, { reports: d.reports || [], lastReview: d.lastReview || null, refreshRequest: d.refreshRequest || null, sessions: d.sessions || state.sessions });
         renderReport();
@@ -219,7 +220,13 @@ function reload(force) {
       }
       last = raw;
       deferred = null;
+      const selection = talkBox ? [talkBox.selectionStart, talkBox.selectionEnd] : null;
       apply(d);
+      const box = selection && document.getElementById("talk-text");
+      if (box) {
+        box.focus({ preventScroll: true });
+        box.setSelectionRange(...selection);
+      }
     })
     .catch(() => {
       state.ok = false;
