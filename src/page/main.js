@@ -114,7 +114,11 @@ function paintBottomBar(section, attention) {
     const b = h("button", { type: "button", "aria-current": section === id ? "page" : "false" });
     b.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[id]}</svg>`;
     b.appendChild(document.createTextNode(label));
-    if (attention[id]) b.appendChild(h("span", { class: "badge", text: String(attention[id]) }));
+    if (attention[id]) {
+      const n = attention[id];
+      const what = id === "today" ? `${n} ${n === 1 ? "cosa espera" : "cosas esperan"} tu decisión: tareas por decidir o posibles errores del seguimiento` : `${n} sin terminar`;
+      b.appendChild(h("span", { class: "badge", text: String(n), title: what, "aria-label": what }));
+    }
     b.addEventListener("click", () => switchView(target, true));
     bottom.appendChild(b);
   }
