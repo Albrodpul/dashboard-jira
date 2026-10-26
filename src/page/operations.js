@@ -695,6 +695,10 @@ let olderOpen = false;
 function errorCard(e) {
   const [cls, label] = ERROR_CHIP[e.state];
   const kids = [h("div", { class: "top" }, [h("span", { class: "time", text: when(e.at) }), h("span", { class: `chip ${cls}`, text: label })]), h("div", { class: "note", text: e.text })];
+  if (e.result) {
+    kids.push(h("div", { class: "reply" }, [h("b", { text: `Resultado · ${when(e.result.at)}: ` }), e.result.text]));
+    kids[0].lastChild.textContent = "Contestado por la sesión de errores";
+  }
   if (e.state === "proposed") {
     const buttons = [];
     const act = (action, msg) => {

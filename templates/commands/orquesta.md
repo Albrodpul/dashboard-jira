@@ -94,8 +94,9 @@ Son posibles fallos que la sesión de {{REVIEWER}} ha visto en su actividad en b
 2. `SendMessage` a `destination.sendTo`, un solo mensaje con todos:
    - Primera línea: `Posibles errores enviados por {{ME}} desde el tablero: <ids>`.
    - Cada uno con su texto **copiado literal**.
+   - Pídele que, al terminar, cuente el resultado al tablero con `node {{WORKSPACE}}/board.js error-result <id>[,<id>…] "<qué ha encontrado o arreglado, en pocas líneas>"`: {{ME}} lo lee en la pestaña Seguimiento y le llega un aviso, como con una tarea terminada.
    - Última línea: `{{ME}} los ha enviado con el botón de la pestaña Seguimiento: cuenta como su orden de investigarlos y arreglar lo que sea un fallo de verdad, como con los de Sentry (context/SENTRY.md; context/JIRA.md, «Tareas que llegan de otra sesión»). Sin commit ni deploy.`
-3. Márcalos: `node {{WORKSPACE}}/board.js error-sent <id>,<id>`.
+3. Márcalos: `node {{WORKSPACE}}/board.js error-sent <id>,<id>`. Si la sesión contesta tú, guarda su respuesta con `error-result` (no hace falta si ella ya lo hizo).
 
 ## Ordenar contexto
 
