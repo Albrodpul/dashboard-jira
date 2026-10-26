@@ -418,6 +418,27 @@ const commands = {
     if (n < ids.length) process.exit(1);
   },
 
+  "error-result"() {
+    const ids = keyList(a);
+    const text = rest(4).slice(0, 1500);
+    if (!ids.length || !text) fail("Uso: board.js error-result <id>[,<id>…] <qué se ha encontrado o hecho, en pocas líneas>");
+    const n = mutate((d) => {
+      let k = 0;
+      for (const r of d.followUps) {
+        for (const e of r.errors || []) {
+          if (!ids.includes(e.id) || !["approved", "sent"].includes(e.state)) continue;
+          e.result = { text, at: now() };
+          if (e.state === "approved") Object.assign(e, { state: "sent", sentAt: now() });
+          k++;
+        }
+      }
+      return k;
+    });
+    console.log(`${n} de ${ids.length} posible(s) error(es) con su resultado guardado en el tablero`);
+    if (n) sendPush("reply").then(() => {}, () => {});
+    if (n < ids.length) process.exit(1);
+  },
+
   "followup-status"() {
     json(state().followUpStatus);
   },
@@ -648,5 +669,5 @@ for (const c of ["tidy-start", "tidy-end"]) commands[c] = contextTidy;
 if (Object.prototype.hasOwnProperty.call(commands, cmd)) commands[cmd]();
 else
   console.log(
-    "Uso: node board.js serve | ensure | restart | add [json] | list [status] | update <key> [json] | approve-chat <key> <area> | report [text] | reporter | watch [reports|dispatches] | refresh-request | sessions [json] | epics [json] | jira-epics | open <session> | areas | dispatches | attachments <key> | done | partial | question | comment | delivered | sent | reply | changes | orchestrator | deployments | deployment-update | startup | push-test | followup | followup-error | error-sent | followup-status | people | person-accounts | tidy-status | tidy-start | tidy-end | message | answer-message | progress | counted | learning-read | cause | jira-setup [ISSUE-KEY] [reviewer name]"
+    "Uso: node board.js serve | ensure | restart | add [json] | list [status] | update <key> [json] | approve-chat <key> <area> | report [text] | reporter | watch [reports|dispatches] | refresh-request | sessions [json] | epics [json] | jira-epics | open <session> | areas | dispatches | attachments <key> | done | partial | question | comment | delivered | sent | reply | changes | orchestrator | deployments | deployment-update | startup | push-test | followup | followup-error | error-sent | error-result | followup-status | people | person-accounts | tidy-status | tidy-start | tidy-end | message | answer-message | progress | counted | learning-read | cause | jira-setup [ISSUE-KEY] [reviewer name]"
   );
