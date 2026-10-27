@@ -151,9 +151,9 @@ function renderMore(root, waitingDeploys, errors) {
 
 function taskView() {
   try {
-    return localStorage.getItem("task-view") || "list";
+    return localStorage.getItem("task-view") || "board";
   } catch (e) {
-    return "list";
+    return "board";
   }
 }
 
