@@ -906,7 +906,7 @@ export function renderFollowUp(root) {
   root.appendChild(h("div", { class: "actions" }, actions));
   if (!list.length) return root.appendChild(empty(`Todavía no hay resúmenes de ${p.name}.`, p.hourly ? "Sale uno cada hora en horario de trabajo, de lunes a viernes." : "Pídelo con el botón cuando quieras."));
   root.appendChild(h("section", { class: "jira follow-up" }, [h("div", { class: "jira-head", text: `Resumen de las ${when(list[0].at)}` }), renderMd(list[0].text)]));
-  if (!(list[0].errors || []).some((x) => x.wholeSummary && x.state !== "discarded")) {
+  if (!(list[0].errors || []).some((x) => x.state !== "discarded")) {
     const sendAll = button("Enviar este resumen a la sesión de errores", {
       title: "Para cuando ves un fallo que la sesión no ha apuntado como posible error. Se manda el resumen entero.",
       onClick: (b) => {
