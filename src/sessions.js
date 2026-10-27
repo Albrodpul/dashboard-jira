@@ -72,6 +72,55 @@ function conversationTitle(sessionId) {
   return title;
 }
 
+const SUBAGENT_MAX_AGE = 30 * 60000;
+const subagentCache = new Map();
+
+function subagentRunning(file, st) {
+  const mark = `${st.size}:${st.mtimeMs}`;
+  const previous = subagentCache.get(file);
+  if (previous && previous.mark === mark) return previous.running;
+  const length = Math.min(st.size, 256 * 1024);
+  const buf = Buffer.alloc(length);
+  const fd = fs.openSync(file, "r");
+  try {
+    fs.readSync(fd, buf, 0, length, st.size - length);
+  } finally {
+    fs.closeSync(fd);
+  }
+  let running = true;
+  const lines = buf.toString("utf8").trim().split("\n");
+  for (let i = lines.length - 1; i >= 0; i--) {
+    if (!lines[i].includes('"type":"assistant"')) continue;
+    try {
+      running = JSON.parse(lines[i]).message.stop_reason !== "end_turn";
+      break;
+    } catch (e) {}
+  }
+  subagentCache.set(file, { mark, running });
+  return running;
+}
+
+function runningSubagents(sessionId) {
+  const transcript = transcriptOf(sessionId);
+  if (!transcript) return 0;
+  const dir = path.join(path.dirname(transcript), sessionId, "subagents");
+  let files;
+  try {
+    files = fs.readdirSync(dir).filter((f) => f.endsWith(".jsonl"));
+  } catch (e) {
+    return 0;
+  }
+  let n = 0;
+  for (const f of files) {
+    try {
+      const file = path.join(dir, f);
+      const st = fs.statSync(file);
+      if (Date.now() - st.mtimeMs < SUBAGENT_MAX_AGE && subagentRunning(file, st)) n++;
+    } catch (e) {}
+  }
+  return n;
+}
+
 function liveSessions() {
   let files;
   try {
@@ -84,11 +133,13 @@ function liveSessions() {
     try {
       const j = JSON.parse(fs.readFileSync(path.join(REGISTRY, f), "utf8"));
       if (j.kind !== "interactive" || !j.name || !j.sessionId || !processAlive(j.pid)) continue;
+      const subagents = runningSubagents(j.sessionId);
       out.push({
         name: j.name,
         conversation: j.sessionId,
         started: new Date(Number(j.startedAt)).toISOString(),
-        status: j.status || "",
+        status: subagents ? "busy" : j.status || "",
+        subagents,
         statusSince: j.statusUpdatedAt ? new Date(Number(j.statusUpdatedAt)).toISOString() : null,
         title: conversationTitle(j.sessionId),
       });
