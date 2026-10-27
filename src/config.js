@@ -67,6 +67,8 @@ const escape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const alternatives = (xs) => xs.map(escape).join("|");
 const slashes = (p) => p.replace(/\\/g, "/");
 
+const deployTargets = (c.deployProjects || []).map((p) => (typeof p === "string" ? { id: p } : p));
+
 function credentials() {
   const { JIRA_SITE, JIRA_EMAIL, JIRA_TOKEN } = process.env;
   if (JIRA_SITE && JIRA_EMAIL && JIRA_TOKEN) return { site: JIRA_SITE, email: JIRA_EMAIL, token: JIRA_TOKEN };
@@ -102,7 +104,8 @@ module.exports = {
   followUp: c.followUp || [],
   errorsArea: c.errorsArea || null,
   voice: c.voice || {},
-  deployProjects: c.deployProjects || [],
+  deployProjects: deployTargets.map((t) => t.id),
+  deployTargets,
   sessionModel: c.sessionModel || "claude-opus-5-5",
   contextDomains: path.join(root, c.contextDomains || "context/dominios"),
   forPage: () => ({
@@ -111,6 +114,6 @@ module.exports = {
     me: { name: c.jira.me.name },
     reviewer: { name: c.jira.reviewer.name },
     reviewStatus: c.statuses.review,
-    deployProjects: c.deployProjects || [],
+    deployProjects: deployTargets.map((t) => t.id),
   }),
 };

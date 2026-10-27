@@ -14,6 +14,7 @@ const { fetchQuota } = require("./quota");
 const learning = require("./learning");
 const voice = require("./voice");
 const speech = require("./speech");
+const deployStatus = require("./deploy-status");
 
 const PAGE_DIR = path.join(__dirname, "page");
 const HOSTS_FILE = path.join(DATA_DIR, "board-hosts.txt");
@@ -122,6 +123,7 @@ const POST_ROUTES = {
   "/api/new-session": (res, input, send) => sessions.handleNewSession(res, input, send),
   "/api/epic": (res, input, send) => sessions.handleEpic(res, input, send),
   "/api/deploy": (res, input, send) => operations.handleDeploy(res, input, send),
+  "/api/deploy-status/refresh": (res, input, send) => deployStatus.handleDeployStatusRefresh(res, send),
   "/api/tidy": (res, input, send) => operations.handleTidy(res, send),
   "/api/message": (res, input, send) => operations.handleMessage(res, input, send),
   "/api/followup-error": (res, input, send) => operations.handleFollowUpError(res, input, send),
@@ -187,7 +189,7 @@ function handle(req, res) {
     if (url === "/api/push/reason") return serveBody(res, "application/json", JSON.stringify(pushReason()));
     if (url === "/api/push/key") return serveBody(res, "application/json", JSON.stringify({ key: pushKeys().publicKey }));
     if (url === "/api/learning") return serveBody(res, "application/json", JSON.stringify(learning.learningSummary()));
-    if (url === "/api/state") return serveBody(res, "application/json", JSON.stringify({ ...state(), voice: voice.voiceAvailable(), speech: speech.speechAvailable() }));
+    if (url === "/api/state") return serveBody(res, "application/json", JSON.stringify({ ...state(), voice: voice.voiceAvailable(), speech: speech.speechAvailable(), deployStatus: deployStatus.readStatus() }));
     if (url.startsWith("/api/voice/")) return voice.serveVoice(res, url);
     if (url.startsWith("/api/speech/")) return speech.serveSpeech(res, url);
     if (["/icon-192.png", "/icon-512.png", "/favicon.ico"].includes(url)) return serveBody(res, "image/png", icon(url === "/icon-512.png" ? 512 : 192), "max-age=86400");
@@ -237,6 +239,7 @@ function serve() {
   every(tasks.archiveDone, 10 * 60 * 1000);
   every(fetchQuota, 3 * 60 * 1000);
   every(learning.startReading, 3 * 60 * 60 * 1000);
+  deployStatus.startDeployStatus();
 }
 
 module.exports = { serve };

@@ -519,3 +519,39 @@ select.epic-add { flex: none; width: auto; max-width: 100%; border-radius: 999px
 .chat-speak { padding: 0 2px; border: 0; background: none; font-size: 13px; line-height: 1; cursor: pointer; }
 .chat-recording { flex: 1 1 auto; display: flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 14px; border-radius: 20px; background: var(--danger-soft); color: var(--ink); font-variant-numeric: tabular-nums; }
 .rec-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--danger); animation: chat-bounce 1s ease-in-out infinite; }
+
+.ds-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+.ds-card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+.ds-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.ds-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: start; gap: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
+.ds-dot { width: 10px; height: 10px; border-radius: 50%; margin-top: 5px; background: var(--mute); }
+.ds-dot.success { background: var(--ok); }
+.ds-dot.failed { background: var(--danger); }
+.ds-dot.cancelled { background: var(--back); }
+.ds-dot.running { background: var(--accent); animation: chat-pulse-dot 1.4s ease-in-out infinite; }
+@keyframes chat-pulse-dot { 50% { box-shadow: 0 0 0 5px var(--accent-soft); } }
+@media (prefers-reduced-motion: reduce) { .ds-dot.running { animation: none; } }
+.ds-main { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.ds-line { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.ds-ref { font-family: var(--mono); font-size: 12px; color: var(--ink-2); background: var(--surface-2); padding: 1px 6px; border-radius: 4px; }
+.chip.ds-success { color: var(--ok); background: var(--ok-soft); }
+.chip.ds-running { color: var(--accent); background: var(--accent-soft); }
+.chip.ds-failed { color: var(--danger); background: var(--danger-soft); }
+.chip.ds-cancelled { color: var(--back); background: var(--back-soft); }
+.chip.ds-unknown { color: var(--mute); background: var(--mute-soft); }
+.ds-bar { height: 6px; border-radius: 3px; background: var(--surface-2); overflow: hidden; margin-top: 4px; }
+.ds-bar i { display: block; height: 100%; background: var(--accent); }
+.ds-link { color: var(--ink-3); text-decoration: none; font-size: 16px; padding: 0 4px; }
+.ds-link:hover { color: var(--accent); }
+.ds-refresh { margin-left: auto; }
+
+.dh-list { display: flex; flex-direction: column; gap: 8px; }
+.dh-item { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; display: flex; flex-direction: column; gap: 4px; }
+.dh-item.off { opacity: 0.6; }
+.dh-top { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.dh-top .key { font-family: var(--mono); font-size: 13px; }
+.dh-reply summary { cursor: pointer; font-size: 13px; color: var(--accent); }
+.dh-reply .reply { margin-top: 6px; white-space: pre-wrap; font-size: 14px; }
+.dh-more { margin-top: 8px; }
+.dh-more summary { cursor: pointer; margin-bottom: 8px; }
+.dh-top .time { margin-left: 0; order: 0; }

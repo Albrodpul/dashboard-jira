@@ -78,25 +78,104 @@ function option(type, group, value, checked, title, note, onChange, extra) {
   return h("label", { class: `option${extra ? " " + extra : ""}`, for: `${group}-${value}` }, [input, h("span", {}, [h("b", { text: title }), note ? h("small", { text: note }) : null])]);
 }
 
+const DS_STATE = { success: "Desplegado", running: "En curso", failed: "Falló", cancelled: "Cancelado", unknown: "Sin datos" };
+const DS_ENV = { develop: "Develop", production: "Producción" };
+let dsBusy = false;
+
+function ago(iso) {
+  if (!iso) return "";
+  const m = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
+  if (m < 1) return "ahora mismo";
+  if (m < 60) return `hace ${m} min`;
+  return when(iso);
+}
+
+function lastRelease(id) {
+  const item = state.deployStatus && state.deployStatus.items.find((x) => x.id === id);
+  const ref = item && item.envs.production && item.envs.production.actions && item.envs.production.actions.ref;
+  const m = /v?(\d+)\.(\d+)\.(\d+)/.exec(ref || "");
+  return m ? m.slice(1).map(Number) : null;
+}
+
+function nextVersion(id, level) {
+  const v = lastRelease(id);
+  if (!v) return "";
+  const [x, y, z] = v;
+  const next = level === "x" ? [x + 1, 0, 0] : level === "y" ? [x, y + 1, 0] : [x, y, z + 1];
+  return `v${v.join(".")} → v${next.join(".")}`;
+}
+
+function statusRow(env, e) {
+  const a = e.actions;
+  const cd = e.codedeploy;
+  const kids = [
+    h("span", { class: `ds-dot ${e.state}`, "aria-hidden": "true" }),
+    h("div", { class: "ds-main" }, [
+      h("div", { class: "ds-line" }, [h("strong", { text: DS_ENV[env] }), a ? h("code", { class: "ds-ref", text: a.ref }) : null, h("span", { class: `chip ds-${e.state}`, text: DS_STATE[e.state] || e.state })]),
+      h("div", { class: "meta", text: [e.step, a ? ago(e.state === "running" ? a.startedAt : (cd && cd.finishedAt) || a.updatedAt) : ""].filter(Boolean).join(" · ") }),
+    ]),
+  ];
+  if (e.state === "running" && cd && cd.total && cd.status !== "Succeeded") kids[1].appendChild(h("div", { class: "ds-bar", role: "progressbar", "aria-valuemin": "0", "aria-valuemax": String(cd.total), "aria-valuenow": String(cd.done) }, [h("i", { style: `width:${Math.round((cd.done / cd.total) * 100)}%` })]));
+  if (a && a.url) kids.push(h("a", { class: "ds-link", href: a.url, target: "_blank", rel: "noopener", title: "Ver en GitHub Actions", "aria-label": `Ver ${DS_ENV[env].toLowerCase()} en GitHub Actions`, text: "↗" }));
+  return h("div", { class: `ds-row ${e.state}` }, kids);
+}
+
+function deployStatusPanel(root) {
+  const st = state.deployStatus;
+  const refreshBtn = button(dsBusy ? "Comprobando…" : "Comprobar ahora", {
+    cls: "ds-refresh",
+    disabled: dsBusy,
+    onClick: () => {
+      dsBusy = true;
+      render();
+      requestOrFail("/api/deploy-status/refresh", {})
+        .catch(() => toast("No se pudo comprobar el estado de los despliegues."))
+        .then(() => {
+          dsBusy = false;
+          return refresh(true);
+        });
+    },
+  });
+  root.appendChild(h("div", { class: "group-head" }, [h("span", { class: "group-name", text: "Estado ahora" }), h("span", { class: "meta", text: st ? `Comprobado ${ago(st.at)}` : "Sin comprobar todavía" }), refreshBtn]));
+  if (!st) return root.appendChild(empty("Todavía no hay estado.", "Añade el repo de cada proyecto en deployProjects de board.config.json para seguir sus despliegues."));
+  const grid = h("div", { class: "ds-grid" });
+  for (const item of st.items) {
+    const card = h("article", { class: "ds-card" }, [h("div", { class: "ds-head" }, [h("strong", { text: item.id }), item.envs.develop && item.envs.develop.codedeploy ? h("span", { class: "meta", text: "GitHub Actions + CodeDeploy" }) : h("span", { class: "meta", text: "GitHub Actions" })])]);
+    if (item.error) card.appendChild(h("div", { class: "meta", text: `No se pudo leer: ${item.error}` }));
+    for (const env of ["develop", "production"]) if (item.envs[env]) card.appendChild(statusRow(env, item.envs[env]));
+    grid.appendChild(card);
+  }
+  root.appendChild(grid);
+}
+
+let historyMore = false;
+
+function orderItem(x) {
+  const situation = { approved: "Esperando envío", sent: "Enviada", cancelled: "Cancelada" }[x.status] || x.status;
+  const target = areaName(x.area) || x.area;
+  const line = x.status === "sent" ? `Enviada a ${target}${x.sentAt ? ` a las ${when(x.sentAt)}` : ""}.` : x.status === "approved" ? `${whoSends(true)} la envía a ${target} en cuanto la recoge.` : "No se llegó a enviar.";
+  const envChip = touchesProd(x.environment) ? (x.environment === "both" ? "Develop + producción" : "Producción") + (x.version ? ` · ${x.version.toUpperCase()}` : "") : "Develop";
+  const kids = [
+    h("div", { class: "dh-top" }, [h("span", { class: "time", text: when(x.at) }), h("span", { class: `chip ${touchesProd(x.environment) ? "prod" : "new"}`, text: envChip }), h("span", { class: `chip ${x.status === "sent" ? "sent" : x.status === "approved" ? "returned" : "cancelled"}`, text: situation }), h("span", { class: "key", text: x.projects.join(", ") })]),
+    h("div", { class: "meta", text: line }),
+  ];
+  if (x.reply) kids.push(h("details", { class: "dh-reply" }, [h("summary", { text: "Respuesta de la sesión" }), h("div", { class: "reply", text: x.reply })]));
+  if (x.status === "approved") kids.push(h("div", { class: "actions" }, [button("Cancelar", { onClick: (b) => ((b.disabled = true), post("/api/deploy", { cancel: x.id }, "Despliegue cancelado.")) })]));
+  return h("article", { class: `dh-item${x.status === "cancelled" ? " off" : ""}` }, kids);
+}
+
 function deployHistory(root) {
   const history = state.deployments || [];
   if (!history.length) return;
-  root.appendChild(h("div", { class: "group-head" }, [h("span", { class: "group-name", text: "Últimos despliegues" })]));
-  const rows = history.map((x) => {
-    const situation = { approved: "Esperando envío", sent: "Enviado", cancelled: "Cancelado" }[x.status] || x.status;
-    const target = areaName(x.area) || x.area;
-    const line = x.status === "sent" ? `Enviado a ${target}${x.sentAt ? ` a las ${when(x.sentAt)}` : ""}.` : x.status === "approved" ? `${whoSends(true)} lo envía a ${target} en cuanto lo recoge.` : "No se llegó a enviar.";
-    const side = [h("span", { class: "state-line", text: line })];
-    if (x.reply) side.push(h("span", { class: "reply", text: x.reply }));
-    if (x.status === "approved") side.push(button("Cancelar", { onClick: (b) => ((b.disabled = true), post("/api/deploy", { cancel: x.id }, "Despliegue cancelado.")) }));
-    const envChip = touchesProd(x.environment) ? (x.environment === "both" ? "Develop + producción" : "Producción") + (x.version ? ` · ${x.version.toUpperCase()}` : "") : "Develop";
-    return h("div", { class: `row${x.status === "cancelled" ? " off" : ""}` }, [
-      h("div", { class: "row-id" }, [h("span", { class: "time", text: when(x.at) }), h("span", { class: `chip ${touchesProd(x.environment) ? "prod" : "new"}`, text: envChip }), h("span", { class: `chip ${x.status === "sent" ? "sent" : x.status === "approved" ? "returned" : "cancelled"}`, text: situation })]),
-      h("span", { class: "key", text: x.projects.join(", ") }),
-      h("div", { class: "row-side" }, side),
-    ]);
-  });
-  root.appendChild(h("div", { class: "rows" }, rows));
+  root.appendChild(h("div", { class: "group-head" }, [h("span", { class: "group-name", text: "Órdenes anteriores" })]));
+  const list = h("div", { class: "dh-list" }, history.slice(0, 5).map(orderItem));
+  root.appendChild(list);
+  if (history.length > 5) {
+    const more = h("details", { class: "dh-more" }, [h("summary", { class: "meta", text: `Ver ${history.length - 5} órdenes más` }), h("div", { class: "dh-list" }, history.slice(5).map(orderItem))]);
+    more.open = historyMore;
+    more.addEventListener("toggle", () => (historyMore = more.open));
+    root.appendChild(more);
+  }
 }
 
 export function renderDeploy(root) {
@@ -104,12 +183,14 @@ export function renderDeploy(root) {
   const chosen = projects.filter((p) => deploy.picked[p]);
   const area = deploy.area !== undefined ? deploy.area : state.deployerArea || "";
   const waiting = (state.deployments || []).find((x) => x.status === "approved");
+  deployStatusPanel(root);
+  root.appendChild(h("div", { class: "group-head" }, [h("span", { class: "group-name", text: "Ordenar un despliegue" })]));
   const box = h("div", { class: "deploy" });
   const all = projects.length > 0 && chosen.length === projects.length;
   box.appendChild(
     h("fieldset", { class: "field" }, [
       h("legend", { text: "Qué subir" }),
-      h("div", { class: "options" }, projects.map((p) => option("checkbox", "project", p, !!deploy.picked[p], p, "", (v) => (deploy.picked[p] = v)))),
+      h("div", { class: "options" }, projects.map((p) => option("checkbox", "project", p, !!deploy.picked[p], p, touchesProd(deploy.environment) ? nextVersion(p, deploy.version) : "", (v) => (deploy.picked[p] = v)))),
       h("div", {}, [button(all ? "Quitar todos" : "Marcar todos", { onClick: () => (projects.forEach((p) => (deploy.picked[p] = !all)), render()) })]),
     ])
   );
