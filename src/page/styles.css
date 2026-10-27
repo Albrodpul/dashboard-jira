@@ -562,3 +562,33 @@ select.epic-add { flex: none; width: auto; max-width: 100%; border-radius: 999px
 .dh-more { margin-top: 8px; }
 .dh-more summary { cursor: pointer; margin-bottom: 8px; }
 .dh-top .time { margin-left: 0; order: 0; }
+
+.view-switch { display: inline-flex; align-self: flex-start; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.view-switch button { font: inherit; font-size: 13px; padding: 5px 14px; border: 0; background: var(--surface); color: var(--ink-2); cursor: pointer; }
+.view-switch button + button { border-left: 1px solid var(--line); }
+.view-switch button[aria-pressed="true"] { background: var(--mute-soft); color: var(--ink); font-weight: 600; }
+.task-board { display: flex; gap: 10px; align-items: flex-start; }
+.tasks-col { flex: 1 1 0; }
+.tasks-col.wide { flex: 1.7 1 0; }
+.tasks-col.folded { flex: 0 0 40px; padding: 10px 0; align-items: center; min-height: 260px; }
+.tasks-col.folded .board-head { writing-mode: vertical-rl; transform: rotate(180deg); padding: 0; }
+.board-epic { flex: none; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.board-epic-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; padding: 8px 10px; }
+.board-epic-name { font-weight: 600; font-size: 13px; flex: 1 1 auto; min-width: 0; }
+.board-epic-head .group-actions { margin-left: 0; width: 100%; }
+.board-epic-head .group-actions select { flex: 1 1 auto; font-size: 12.5px; padding: 4px 6px; }
+.board-epic-head .group-actions .btn { padding: 4px 10px; font-size: 12.5px; }
+.board-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; align-items: baseline; width: 100%; padding: 7px 10px; border: 0; border-top: 1px solid var(--line); background: none; font: inherit; font-size: 12.5px; color: var(--ink); text-align: left; cursor: pointer; }
+.board-row:hover, .board-row.open, .board-card:hover, .board-card.open { background: var(--surface-2); }
+.board-row .key, .board-card .key { font-size: 11.5px; color: var(--accent); white-space: nowrap; }
+.board-row-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.board-tag { font-size: 10px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--back); white-space: nowrap; }
+.board-card { flex: none; display: flex; flex-direction: column; gap: 5px; width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); font: inherit; font-size: 12.5px; color: var(--ink); text-align: left; cursor: pointer; }
+.board-card-title { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.35; }
+.board-card-foot { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: 11px; color: var(--ink-3); }
+.board-card-area { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.board-card-foot .time { font-size: 11px; }
+.drawer { position: fixed; top: 0; right: 0; bottom: 0; width: 360px; z-index: 7; background: var(--surface); border-left: 1px solid var(--line); box-shadow: -8px 0 24px rgba(0, 0, 0, 0.08); padding: 16px 18px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+.drawer-head { display: flex; align-items: baseline; gap: 10px; }
+.drawer-head .btn { margin-left: auto; }
+.drawer .card { border: 0; padding: 0; }

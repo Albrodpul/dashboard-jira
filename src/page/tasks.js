@@ -260,7 +260,7 @@ function batchControls(g) {
   });
   sel.appendChild(h("option", { value: "__new__", text: "+ Sesión nueva…" }));
   sel.setAttribute("aria-label", `Sesión para todas las tareas de ${g.name}`);
-  const btn = button(`Hacer las ${g.items.length}`, {
+  const btn = button(g.items.length === 1 ? "Hacer" : `Hacer las ${g.items.length}`, {
     cls: "primary",
     disabled: !ready,
     onClick: (b) => {
@@ -337,4 +337,73 @@ export function renderToday(root, errors) {
     root.appendChild(h("section", { class: "today-group" }, [h("h3", { text: `Posibles errores de seguimiento por decidir (${errors})` }), h("div", { class: "actions" }, [button("Verlos en Seguimiento", { onClick: () => switchView("follow-up") })])]));
   }
   if (!any) root.appendChild(empty("Nada que decidir ahora.", "Debajo tienes el último reporte de Jira."));
+}
+
+const BOARD_COLUMNS = [
+  ["pending", "Pendientes", ["pending"]],
+  ["approved", "Por enviar", ["approved"]],
+  ["sent", "En curso", ["sent"]],
+  ["waiting", "Te esperan", ["waiting", "partial"]],
+  ["done", "Hechas", ["done"]],
+];
+let openTask = null;
+
+function openDrawer(t) {
+  openTask = t.id;
+  render();
+}
+
+function closeDrawer() {
+  openTask = null;
+  render();
+}
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && openTask) closeDrawer();
+});
+
+function boardRow(t) {
+  const tag = t.kind === "returned" ? "Devuelta" : t.kind === "comment" ? "Comentario" : t.kind === "resend" ? "Ya enviada" : "";
+  return h("button", { type: "button", class: `board-row${openTask === t.id ? " open" : ""}`, title: t.title, onclick: () => openDrawer(t) }, [h("span", { class: "key", text: t.key }), h("span", { class: "board-row-title", text: t.title }), tag ? h("span", { class: `board-tag ${t.kind}`, text: tag }) : null]);
+}
+
+function boardCard(t) {
+  const flag = t.status === "partial" ? "A medias" : t.status === "waiting" ? "Te espera" : t.manual ? "A mano" : hasChanges(t) ? "Cambió en Jira" : "";
+  return h("button", { type: "button", class: `board-card${openTask === t.id ? " open" : ""}`, onclick: () => openDrawer(t) }, [
+    h("span", { class: "board-card-title", text: t.title }),
+    h("span", { class: "board-card-foot" }, [h("span", { class: "key", text: t.key }), h("span", { class: "board-card-area", text: areaName(t.area || t.proposedArea) || "" }), flag ? h("span", { class: "board-tag", text: flag }) : null, h("span", { class: "time", text: when(t.sentAt || t.decidedAt || t.at) })]),
+  ]);
+}
+
+function pendingColumn(list) {
+  const byEpic = new Map();
+  for (const t of list) {
+    const k = t.epicKey || "no-epic";
+    if (!byEpic.has(k)) byEpic.set(k, { key: t.epicKey, name: t.epicName || "Sin epic", area: t.area || t.proposedArea, items: [] });
+    byEpic.get(k).items.push(t);
+  }
+  return [...byEpic.values()].map((g) =>
+    h("div", { class: "board-epic" }, [
+      h("div", { class: "board-epic-head" }, [g.key ? h("span", { class: "group-key", text: g.key }) : null, h("span", { class: "board-epic-name", text: g.name }), batchControls(g)]),
+      ...g.items.map(boardRow),
+    ])
+  );
+}
+
+export function renderBoard(root) {
+  const columns = BOARD_COLUMNS.map(([id, title, statuses]) => {
+    const list = state.tasks.filter((t) => statuses.includes(t.status)).sort((a, b) => String(b.sentAt || b.at || "").localeCompare(String(a.sentAt || a.at || "")));
+    const head = h("div", { class: "board-head" }, [h("span", { text: title }), h("span", { class: "n", text: String(list.length) })]);
+    const body = id === "pending" ? pendingColumn(list) : list.map(boardCard);
+    return h("section", { class: `board-col tasks-col${id === "pending" ? " wide" : ""}${list.length ? "" : " folded"}`, title: list.length ? null : `${title}: ninguna` }, [head, ...body]);
+  });
+  root.appendChild(h("div", { class: "task-board" }, columns));
+  const t = openTask && state.tasks.find((x) => x.id === openTask);
+  if (!t) return (openTask = null);
+  root.appendChild(
+    h("aside", { class: "drawer", "aria-label": `Tarea ${t.key}` }, [
+      h("div", { class: "drawer-head" }, [h("span", { class: "meta", text: [t.epicKey, t.epicName].filter(Boolean).join(" ") }), button("Cerrar", { cls: "subtle", onClick: closeDrawer })]),
+      card(t),
+    ])
+  );
 }
