@@ -2,14 +2,13 @@ import { state, choice, drafts, h, button, when, minutesSince, fmtDay, reviewer,
 import { createSession } from "./sessions.js";
 
 const PENDING_CHIP = { returned: "Devuelta", comment: "Comentario", resend: "Ya enviada" };
-const STATUS_CHIP = { approved: "Por enviar", sent: "Enviada", ignored: "Ignorada", waiting: "Te espera", partial: "A medias", done: "Hecha" };
+const STATUS_CHIP = { approved: "Por enviar", sent: "En curso", ignored: "Ignorada", waiting: "Te espera", partial: "A medias", done: "Hecha" };
 const NOTICE_LABEL = { done: "Hecha", partial: "A medias", question: "Pregunta", comment: "Comentario propuesto para Jira" };
 const EMPTY_LISTS = {
   pending: ["Nada pendiente de decidir.", "Cuando alguien cree una tarea nueva sin asignar o para ti, te devuelva una o comente en una tuya, aparecerá aquí con su sesión propuesta."],
   approved: ["Nada esperando envío.", "Lo que apruebes con Hacer lo envía la sesión que orquesta en unos segundos, si está abierta."],
   sent: ["Todavía no se ha enviado nada.", "Aquí queda cada tarea enviada, con la respuesta de la sesión que la recibe."],
-  waiting: ["Ninguna sesión te está esperando.", "Cuando una sesión necesite que le contestes algo para seguir con una tarea, aparecerá aquí."],
-  partial: ["Nada a medias.", "Aquí salen las tareas que una sesión no ha podido terminar, con el motivo."],
+  waiting: ["Ninguna sesión te está esperando.", "Aquí salen las tareas en las que una sesión te pregunta algo o no ha podido terminar, con el motivo."],
   done: ["Todavía no hay tareas hechas.", "Cuando una sesión termine una tarea la marca aquí, con lo que ha hecho."],
   ignored: ["No hay tareas ignoradas.", "Las que descartes con Ignorar se guardan aquí por si cambias de idea."],
 };
@@ -278,7 +277,7 @@ function deleteBar(root, list) {
     const f = t.sentAt || t.decidedAt || t.at;
     return !f || fmtDay.format(new Date(f)) !== today;
   });
-  const name = { sent: "enviadas", ignored: "ignoradas", done: "hechas", partial: "a medias" }[state.tab];
+  const name = { sent: "en curso", ignored: "ignoradas", done: "hechas", waiting: "a medias" }[state.tab];
   const closed = list.filter((t) => t.jiraClosedAt);
   const ids = (xs) => xs.map((t) => t.id);
   const withChanges = list.filter((t) => !t.manual && hasChanges(t));
@@ -306,9 +305,10 @@ function deleteBar(root, list) {
 }
 
 export function renderTasks(root) {
-  const list = state.tasks.filter((t) => t.status === state.tab);
+  const list = state.tasks.filter((t) => t.status === state.tab || (state.tab === "waiting" && t.status === "partial"));
   if (!list.length) return root.appendChild(empty(...EMPTY_LISTS[state.tab]));
-  if (["sent", "ignored", "done", "partial"].includes(state.tab)) deleteBar(root, list);
+  const deletable = list.filter((t) => t.status !== "waiting");
+  if (["sent", "ignored", "done", "waiting"].includes(state.tab) && deletable.length) deleteBar(root, deletable);
   const byEpic = new Map();
   for (const t of list) {
     const k = t.epicKey || "no-epic";
@@ -318,7 +318,7 @@ export function renderTasks(root) {
   for (const g of byEpic.values()) {
     g.items.sort((a, b) => hasChanges(b) - hasChanges(a) || String(b.at || "").localeCompare(String(a.at || "")));
     const batch = state.tab === "pending" && g.items.length > 1;
-    const sendBack = ["sent", "done", "partial"].includes(state.tab) && g.items.some((t) => !t.manual);
+    const sendBack = (["sent", "done"].includes(state.tab) || (state.tab === "waiting" && g.items.every((t) => t.status === "partial"))) && g.items.some((t) => !t.manual);
     const head = h("div", { class: "group-head" }, [g.key ? h("span", { class: "group-key", text: g.key }) : null, h("span", { class: "group-name", text: g.name }), batch ? batchControls(g) : sendBack ? backToPendingGroup(g) : areaLabel(g)]);
     root.appendChild(h("section", {}, [head, h("div", { class: "cards" }, g.items.map(card))]));
   }
@@ -326,8 +326,8 @@ export function renderTasks(root) {
 
 export function renderToday(root, errors) {
   let any = false;
-  for (const [status, title] of [["waiting", "Te esperan"], ["partial", "A medias"], ["pending", "Pendientes"]]) {
-    const list = state.tasks.filter((t) => t.status === status);
+  for (const [statuses, title] of [[["waiting", "partial"], "Te esperan"], [["pending"], "Pendientes"]]) {
+    const list = state.tasks.filter((t) => statuses.includes(t.status));
     if (!list.length) continue;
     any = true;
     root.appendChild(h("section", { class: "today-group" }, [h("h3", { text: `${title} (${list.length})` }), ...list.map(card)]));
