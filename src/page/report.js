@@ -1,4 +1,13 @@
-import { state, h, when, minutesSince, toast, request, post, refresh, renderMd, reviewer } from "./base.js";
+import { state, h, when, minutesSince, toast, request, post, refresh, renderMd, reviewer, fmtDay } from "./base.js";
+
+const weekday = new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", weekday: "long" });
+
+function dayLabel(iso) {
+  const day = fmtDay.format(new Date(iso));
+  if (day === fmtDay.format(new Date())) return "";
+  if (day === fmtDay.format(new Date(Date.now() - 86400000))) return `ayer, ${day}`;
+  return `${weekday.format(new Date(iso))} ${day}`;
+}
 
 let historyOpen = false;
 let paintedReport = "";
@@ -14,7 +23,7 @@ export function renderReport() {
     return;
   }
   const slow = req ? minutesSince(req.at) >= 3 : false;
-  const fingerprint = JSON.stringify([reports, last, req, slow]);
+  const fingerprint = JSON.stringify([reports, last, req, slow, fmtDay.format(new Date())]);
   if (fingerprint === paintedReport) return;
   paintedReport = fingerprint;
   box.hidden = false;
@@ -22,7 +31,8 @@ export function renderReport() {
   if (req) box.appendChild(h("div", { class: "pending-note", text: `Reporte pedido a las ${when(req.at)}. ${slow ? "Tarda más de lo normal: la sesión de reporte puede estar ocupada o cerrada." : "Se está preparando."}` }));
   if (!reports.length) return;
   const noChanges = last && last.empty && new Date(last.at) > new Date(reports[0].at);
-  if (noChanges) box.appendChild(h("div", { class: "jira-head", text: "Lo último que pasó en Jira:" }));
+  const day = dayLabel(reports[0].at);
+  if (noChanges || day) box.appendChild(h("div", { class: "jira-head", text: `Lo último que pasó en Jira${day ? ` (${day})` : ""}:` }));
   box.appendChild(renderMd(reports[0].text));
   const older = reports.slice(1);
   if (!older.length) return;
