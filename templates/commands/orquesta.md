@@ -71,7 +71,7 @@ Las sesiones avisan al tablero por su cuenta de cómo queda cada tarea (hecha, a
    - Primera línea: `Respuesta de {{ME}} desde el tablero: <claves>`.
    - Por cada tarea: la clave, lo que la sesión había preguntado y, **copiada literal**, la respuesta de {{ME}}. No la resumas ni la interpretes.
    - Última línea: `Lo ha escrito {{ME}} en el tablero: vale como si te lo hubiera contestado en tu sesión (context/JIRA.md, «Tareas que llegan de otra sesión»).`
-3. Márcalas: `node {{WORKSPACE}}/board.js delivered <CLAVE>,<CLAVE>`. La tarea vuelve sola a «Enviadas».
+3. Márcalas: `node {{WORKSPACE}}/board.js delivered <CLAVE>,<CLAVE>`. La tarea vuelve sola a «En curso».
 
 ## Desplegar
 

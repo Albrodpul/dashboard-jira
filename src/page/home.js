@@ -19,7 +19,7 @@ function blockReason(live, tasks) {
   const waiting = tasks.find((t) => t.status === "waiting");
   if (waiting) return { text: "Te espera", task: waiting, view: "waiting" };
   const partial = tasks.find((t) => t.status === "partial");
-  if (partial) return { text: "A medias", task: partial, view: "partial" };
+  if (partial) return { text: "A medias", task: partial, view: "waiting" };
   const silent = tasks.find((t) => t.status === "sent" && !t.manual && (!t.sentAt || minutesSince(t.sentAt) >= SILENT_MIN));
   if (silent) return { text: "Parada sin avisar de", task: silent, view: "sent" };
   if (live.status && !["busy", "idle"].includes(live.status)) return { text: `Estado «${live.status}»` };
@@ -71,13 +71,13 @@ function sessionCard(s, group) {
 }
 
 function shortcuts(root) {
-  const count = (status) => state.tasks.filter((t) => t.status === status).length;
+  const count = (statuses) => state.tasks.filter((t) => statuses.includes(t.status)).length;
   const data = [
-    ["waiting", "Te esperan"],
-    ["pending", "Pendientes"],
-    ["partial", "A medias"],
-    ["done", "Hechas por revisar"],
-  ].map(([id, label]) => [id, label, count(id)]);
+    ["waiting", "Te esperan", ["waiting", "partial"]],
+    ["pending", "Pendientes", ["pending"]],
+    ["sent", "En curso", ["sent"]],
+    ["done", "Hechas por revisar", ["done"]],
+  ].map(([id, label, statuses]) => [id, label, count(statuses)]);
   root.appendChild(h("div", { class: "shortcuts" }, data.map(([id, label, n]) => h("button", { type: "button", class: `shortcut${n ? " filled" : ""}${id === "waiting" && n ? " urgent" : ""}`, onclick: () => switchView(id) }, [h("strong", { text: String(n) }), h("span", { text: label })]))));
 }
 

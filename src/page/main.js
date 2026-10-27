@@ -9,9 +9,8 @@ import { renderLearning } from "./learning.js";
 const TASK_TABS = [
   { id: "pending", label: "Pendientes" },
   { id: "approved", label: "Por enviar" },
-  { id: "sent", label: "Enviadas" },
+  { id: "sent", label: "En curso" },
   { id: "waiting", label: "Te esperan" },
-  { id: "partial", label: "A medias" },
   { id: "done", label: "Hechas" },
   { id: "ignored", label: "Ignoradas" },
 ];
@@ -51,9 +50,8 @@ const VIEWS = {
   home: ["Inicio", "Qué sesiones están trabajando, cuáles se han parado con algo pendiente y cuáles están libres."],
   pending: ["Pendientes", "Tareas nuevas o devueltas que puedes pasar a la sesión de su epic. Nada se envía hasta que pulsas Hacer."],
   approved: ["Por enviar", "Aprobadas con Hacer, esperando a que la sesión que orquesta las envíe."],
-  sent: ["Enviadas", "Lo que ya está en su sesión, con lo que ha contestado."],
-  waiting: ["Te esperan", "Una sesión se ha parado en estas tareas porque necesita que le contestes. Responde aquí y se lo hago llegar."],
-  partial: ["A medias", "Tareas que la sesión no ha podido terminar, con el motivo. Puedes contestarle aquí o devolverlas a Pendientes."],
+  sent: ["En curso", "Lo que ya está en su sesión, con lo que ha contestado."],
+  waiting: ["Te esperan", "Una sesión se ha parado en estas tareas: te pregunta algo o no ha podido terminarlas y dice por qué. Contéstale aquí o devuélvelas a Pendientes."],
   done: ["Hechas", "La sesión dice que ha terminado: pendientes de que tú las revises. En Jira siguen «En curso»."],
   ignored: ["Ignoradas", "Descartadas con Ignorar. Se pueden recuperar."],
   deploy: ["Desplegar", "Sube proyectos a develop, a producción o a los dos. La orden sale de aquí hacia la sesión que despliega; nada se sube hasta que pulsas Desplegar."],
@@ -91,16 +89,17 @@ const BOTTOM_BAR = [
 ];
 const MOBILE = window.matchMedia("(max-width: 760px)");
 const isTaskTab = (tab) => TASK_TABS.some((t) => t.id === tab);
+const tabOf = (status) => (status === "partial" ? "waiting" : status);
 
 try {
   const saved = localStorage.getItem("board-tab");
-  state.tab = saved || "home";
+  state.tab = tabOf(saved || "home");
 } catch (e) {}
 
 function paintTabs(counts, waitingDeploys) {
   const tabs = document.getElementById("tabs");
   tabs.textContent = "";
-  const HIGHLIGHT = ["pending", "deploy", "waiting", "partial"];
+  const HIGHLIGHT = ["pending", "deploy", "waiting"];
   for (const [group, list] of GROUPS) {
     tabs.appendChild(h("div", { class: "tab-group", text: group }));
     for (const t of list) {
@@ -159,15 +158,16 @@ function returnedRule(root) {
 
 function render() {
   const counts = Object.fromEntries(TASK_TABS.map((t) => [t.id, 0]));
-  for (const t of state.tasks) if (counts[t.status] !== undefined) counts[t.status]++;
+  for (const t of state.tasks) if (counts[tabOf(t.status)] !== undefined) counts[tabOf(t.status)]++;
   const waitingDeploys = (state.deployments || []).filter((x) => x.status === "approved").length;
   const errors = (state.followUps || []).flatMap((r) => r.errors || []).filter((e) => e.state === "proposed").length;
   const mobile = MOBILE.matches;
   if (!mobile && ["report", "today", "more"].includes(state.tab)) state.tab = "home";
   if (mobile && ["report", "home"].includes(state.tab)) state.tab = "today";
+  state.tab = tabOf(state.tab);
   const section = state.tab === "today" ? "today" : isTaskTab(state.tab) ? "tasks" : state.tab === "talk" ? "talk" : "more";
 
-  paintBottomBar(section, { today: counts.pending + counts.waiting + counts.partial + errors, more: waitingDeploys });
+  paintBottomBar(section, { today: counts.pending + counts.waiting + errors, more: waitingDeploys });
   paintTabs(counts, waitingDeploys);
   document.getElementById("tabs").appendChild(quotaBlock());
   document.querySelector(".app").setAttribute("data-view", state.tab);
