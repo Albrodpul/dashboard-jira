@@ -11,6 +11,7 @@ const REASONS = {
   sessions: { title: "Sesiones", text: "Una sesión necesita tu respuesta", tab: "waiting" },
   followup: { title: "Seguimiento", text: "Hay novedades en el seguimiento", tab: "follow-up" },
   reply: { title: "Hablar", text: "Te han contestado en Hablar", tab: "talk" },
+  deploys: { title: "Despliegues", text: "Ha terminado un despliegue", tab: "deploy" },
   test: { title: "Prueba", text: "Aviso de prueba del tablero", tab: "home" },
 };
 
