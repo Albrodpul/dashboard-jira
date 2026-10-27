@@ -16,18 +16,23 @@ const TASK_TABS = [
   { id: "ignored", label: "Ignoradas" },
 ];
 const GROUPS = [
-  ["Resumen", [{ id: "home", label: "Inicio" }]],
-  ["Tareas", TASK_TABS],
+  [
+    "General",
+    [
+      { id: "home", label: "Inicio" },
+      { id: "talk", label: "Hablar" },
+    ],
+  ],
+  ["Tareas", [...TASK_TABS, { id: "jira", label: "Traer de Jira" }]],
   [
     "Operar",
     [
       { id: "deploy", label: "Desplegar" },
       { id: "context", label: "Ordenar contexto" },
-      { id: "talk", label: "Hablar" },
     ],
   ],
   [
-    "Seguimiento",
+    "Equipo",
     [
       { id: "follow-up", label: "Seguimiento" },
       { id: "learning", label: "Aprendizaje" },
@@ -38,7 +43,6 @@ const GROUPS = [
     [
       { id: "sessions", label: "Sesiones" },
       { id: "epics", label: "Epics" },
-      { id: "jira", label: "Buscar en Jira" },
     ],
   ],
 ];
@@ -55,9 +59,9 @@ const VIEWS = {
   deploy: ["Desplegar", "Sube proyectos a develop, a producción o a los dos. La orden sale de aquí hacia la sesión que despliega; nada se sube hasta que pulsas Desplegar."],
   sessions: ["Sesiones", "Las conversaciones de VS Code que pueden recibir tareas, con el nombre que les pones tú."],
   epics: ["Epics", "Qué sesión lleva cada epic."],
-  jira: ["Buscar en Jira", "Trae a Pendientes tareas que no han salido en ninguna revisión."],
+  jira: ["Traer de Jira", "Busca en Jira tareas que no han salido en ninguna revisión y tráelas a Pendientes."],
   today: ["Hoy", "Lo que necesita algo de ti ahora mismo y, debajo, el último reporte."],
-  more: ["Más", "Operar, seguimiento y configuración."],
+  more: ["Más", "Traer de Jira, operar, equipo y configuración."],
   talk: ["Hablar", "Escribe a la sesión de reporte o a la orquestadora como si estuvieras en su pestaña de VS Code. Si no lo leen en 45 segundos, el tablero la abre y la despierta."],
   context: ["Ordenar contexto", "La orquestadora repasa y ordena context/ y el índice de AGENTS.md. Solo se puede lanzar con todo limpio: nada pendiente, por enviar, en sesión ni desplegándose."],
   "follow-up": ["Seguimiento", "Lo que ha hecho cada compañero según sus peticiones a la API: el revisor principal tiene resumen automático cada hora; los demás, cuando lo pidas."],
@@ -133,7 +137,7 @@ function statusChips(root, counts) {
 }
 
 function renderMore(root, waitingDeploys, errors) {
-  const options = GROUPS.filter(([g]) => !["Resumen", "Tareas"].includes(g)).flatMap(([, list]) => list).filter((t) => t.id !== "talk");
+  const options = [{ id: "jira", label: "Traer de Jira" }, ...GROUPS.filter(([g]) => !["General", "Tareas"].includes(g)).flatMap(([, list]) => list)];
   const menu = h(
     "div",
     { class: "more-menu" },
