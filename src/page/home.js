@@ -6,6 +6,8 @@ const GROUPS = [
   ["blocked", "Bloqueadas", "Paradas con algo pendiente: te esperan, a medias o sin avisar de una tarea enviada."],
   ["free", "Libres", "Abiertas y sin nada entre manos."],
 ];
+const BOARD = ["free", "working", "blocked"];
+const DOTS = { working: "busy", blocked: "bad", free: "on" };
 const SILENT_MIN = 5;
 
 function liveOf(conversation, sessionName) {
@@ -56,7 +58,7 @@ export function sessionSituation() {
 const vsCodeLink = (s) => (s.conversation ? h("a", { class: "btn link", href: `vscode://anthropic.claude-code/open?session=${encodeURIComponent(s.conversation)}`, text: "Ir a su pestaña" }) : null);
 
 function sessionCard(s, group) {
-  const kids = [h("div", { class: "top" }, [h("span", { class: `dot ${group === "working" ? "busy" : group === "blocked" ? "bad" : "on"}` }), h("strong", { class: "session-title", text: s.name }), h("span", { class: "time", text: s.since ? `desde ${when(s.since)}` : "" })])];
+  const kids = [h("div", { class: "top" }, [h("span", { class: `dot ${DOTS[group]}` }), h("strong", { class: "session-title", text: s.name }), h("span", { class: "time", text: s.since ? `desde ${when(s.since)}` : "" })])];
   if (s.reason) {
     const t = s.reason.task;
     kids.push(h("div", { class: "reason" }, [h("b", { text: s.reason.text + (t ? " " : "") }), t ? h("button", { class: "task-link", type: "button", text: t.key, title: t.title, onclick: () => switchView(s.reason.view) }) : null]));
@@ -82,14 +84,14 @@ export function renderHome(root) {
   shortcuts(root);
   const s = sessionSituation();
   if (!s.working.length && !s.blocked.length && !s.free.length) root.appendChild(empty("No hay sesiones de área abiertas.", "Las que abras en VS Code aparecen aquí solas."));
-  for (const [id, title, note] of GROUPS) {
-    if (!s[id].length) continue;
-    root.appendChild(
-      h("section", {}, [
-        h("div", { class: "group-head" }, [h("span", { class: "group-name", text: title }), h("span", { class: "group-key", text: String(s[id].length) }), h("span", { class: "meta", text: note })]),
-        h("div", { class: "cards" }, s[id].map((x) => sessionCard(x, id))),
-      ])
-    );
+  else {
+    const columns = BOARD.map((id) => {
+      const [, title, note] = GROUPS.find((g) => g[0] === id);
+      const head = h("div", { class: "board-head", title: note }, [h("span", { class: `dot ${DOTS[id]}` }), h("span", { text: title }), h("span", { class: "n", text: String(s[id].length) })]);
+      const cards = s[id].length ? s[id].map((x) => sessionCard(x, id)) : [h("div", { class: "board-empty", text: "Ninguna" })];
+      return h("section", { class: "board-col" }, [head, ...cards]);
+    });
+    root.appendChild(h("div", { class: "board" }, columns));
   }
   if (s.system.length) {
     root.appendChild(h("p", { class: "meta home-system", text: "Del tablero: " + s.system.map((x) => `${x.name} ${x.working ? "trabajando" : x.open ? "abierta" : "cerrada"}`).join(" · ") }));
@@ -112,7 +114,7 @@ export function sessionStrip() {
     GROUPS.flatMap(([id]) =>
       s[id].map((x) =>
         h("div", { class: "strip-row" }, [
-          h("span", { class: `dot ${id === "working" ? "busy" : id === "blocked" ? "bad" : "on"}` }),
+          h("span", { class: `dot ${DOTS[id]}` }),
           h("span", { class: "strip-name", text: x.name }),
           h("span", { class: "meta", text: x.reason ? `${x.reason.text}${x.reason.task ? " " + x.reason.task.key : ""}` : x.tasks.length ? x.tasks.map((t) => t.key).join(", ") : "" }),
         ])
