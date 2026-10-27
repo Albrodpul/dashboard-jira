@@ -27,9 +27,42 @@ async function actionsRuns(target) {
   for (const env of ENVS) {
     const match = new RegExp((target.workflows && target.workflows[env]) || env, "i");
     const x = runs.find((y) => match.test(y.workflowName));
-    if (x) out[env] = { id: x.databaseId, workflow: x.workflowName, ref: x.headBranch, status: x.status, conclusion: x.conclusion || null, startedAt: x.createdAt, updatedAt: x.updatedAt, url: x.url };
+    if (!x) continue;
+    out[env] = { id: x.databaseId, workflow: x.workflowName, ref: x.headBranch, status: x.status, conclusion: x.conclusion || null, startedAt: x.createdAt, updatedAt: x.updatedAt, url: x.url };
+    if (ACTIVE_ACTIONS.includes(x.status)) out[env].progress = await actionsProgress(target, x.databaseId);
   }
   return out;
+}
+
+async function actionsProgress(target, id) {
+  const r = await run("gh", ["run", "view", String(id), "-R", target.repo, "--json", "jobs"]);
+  if (r.error) return null;
+  try {
+    const steps = JSON.parse(r.out).jobs.flatMap((j) => j.steps || []);
+    return steps.length ? { done: steps.filter((x) => x.status === "completed").length, total: steps.length } : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+async function codedeployProgress(id) {
+  const list = await run("aws", ["deploy", "list-deployment-targets", "--deployment-id", id, "--query", "targetIds", "--output", "json"]);
+  if (list.error) return null;
+  let ids;
+  try {
+    ids = JSON.parse(list.out);
+  } catch (e) {
+    return null;
+  }
+  if (!ids || !ids.length) return null;
+  const info = await run("aws", ["deploy", "batch-get-deployment-targets", "--deployment-id", id, "--target-ids", ...ids.slice(0, 25), "--query", "deploymentTargets[].instanceTarget.lifecycleEvents[].status", "--output", "json"]);
+  if (info.error) return null;
+  try {
+    const events = JSON.parse(info.out).flat().filter(Boolean);
+    return events.length ? { done: events.filter((x) => x === "Succeeded" || x === "Skipped").length, total: events.length } : null;
+  } catch (e) {
+    return null;
+  }
 }
 
 async function codedeployLast(application, group) {
@@ -41,7 +74,8 @@ async function codedeployLast(application, group) {
   if (info.error) return { error: info.error };
   const d = JSON.parse(info.out);
   const o = d.overview || {};
-  return { id, status: d.status, startedAt: d.createTime, finishedAt: d.completeTime || null, done: o.Succeeded || 0, total: (o.Succeeded || 0) + (o.Failed || 0) + (o.InProgress || 0) + (o.Pending || 0) + (o.Ready || 0) + (o.Skipped || 0), error: d.error || null };
+  const progress = ACTIVE_CODEDEPLOY.includes(d.status) ? await codedeployProgress(id) : null;
+  return { id, status: d.status, startedAt: d.createTime, finishedAt: d.completeTime || null, done: o.Succeeded || 0, total: (o.Succeeded || 0) + (o.Failed || 0) + (o.InProgress || 0) + (o.Pending || 0) + (o.Ready || 0) + (o.Skipped || 0), progress, error: d.error || null };
 }
 
 function overall(actions, codedeploy) {
@@ -64,7 +98,8 @@ async function collect() {
       const actions = runs[env] || null;
       const group = t.codedeploy && t.codedeploy[env];
       const codedeploy = group ? await codedeployLast(t.codedeploy.application, group) : undefined;
-      item.envs[env] = { actions, codedeploy: codedeploy === undefined ? null : codedeploy, ...overall(actions, codedeploy) };
+      const current = !!(actions && codedeploy && !codedeploy.error && new Date(codedeploy.startedAt) >= new Date(actions.startedAt));
+      item.envs[env] = { actions, codedeploy: codedeploy === undefined ? null : codedeploy, hasCodedeploy: !!group, codedeployCurrent: current, ...overall(actions, codedeploy) };
     }
     items.push(item);
   }

@@ -546,8 +546,23 @@ select.epic-add { flex: none; width: auto; max-width: 100%; border-radius: 999px
 .chip.ds-failed { color: var(--danger); background: var(--danger-soft); }
 .chip.ds-cancelled { color: var(--back); background: var(--back-soft); }
 .chip.ds-unknown { color: var(--mute); background: var(--mute-soft); }
-.ds-bar { height: 6px; border-radius: 3px; background: var(--surface-2); overflow: hidden; margin-top: 4px; }
-.ds-bar i { display: block; height: 100%; background: var(--accent); }
+.ds-phases { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+.ds-phase { display: grid; grid-template-columns: 16px auto minmax(0, 1fr); align-items: center; gap: 2px 8px; font-size: 12.5px; }
+.ds-phase-n { width: 16px; height: 16px; border-radius: 50%; display: grid; place-items: center; font-size: 10px; font-weight: 600; background: var(--mute-soft); color: var(--ink-2); }
+.ds-phase.success .ds-phase-n { background: var(--ok); color: var(--surface); }
+.ds-phase.running .ds-phase-n { background: var(--accent); color: var(--accent-ink); }
+.ds-phase.failed .ds-phase-n { background: var(--danger); color: var(--surface); }
+.ds-phase-name { font-weight: 600; color: var(--ink); }
+.ds-phase-text { color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ds-phase.waiting .ds-phase-name { color: var(--ink-3); font-weight: 500; }
+.ds-bar { grid-column: 2 / -1; height: 6px; border-radius: 3px; background: var(--mute-soft); overflow: hidden; position: relative; }
+.ds-bar i { display: block; height: 100%; background: var(--accent); transition: width 0.4s; }
+.ds-bar.success i { background: var(--ok); }
+.ds-bar.failed i { background: var(--danger); }
+.ds-bar.cancelled i { background: var(--back); }
+.ds-bar.indeterminate i { width: 30% !important; animation: ds-slide 1.4s ease-in-out infinite; }
+@keyframes ds-slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(340%); } }
+@media (prefers-reduced-motion: reduce) { .ds-bar.indeterminate i { animation: none; } .ds-bar i { transition: none; } }
 .ds-link { color: var(--ink-3); text-decoration: none; font-size: 16px; padding: 0 4px; }
 .ds-link:hover { color: var(--accent); }
 .ds-refresh { margin-left: auto; }

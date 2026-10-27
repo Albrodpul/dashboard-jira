@@ -105,17 +105,55 @@ function nextVersion(id, level) {
   return `v${v.join(".")} → v${next.join(".")}`;
 }
 
+const ACTIONS_RUNNING = ["queued", "in_progress", "waiting", "requested", "pending"];
+const CODEDEPLOY_RUNNING = ["Created", "Queued", "InProgress", "Baking", "Ready"];
+const minutes = (from, to) => {
+  const m = Math.round((new Date(to) - new Date(from)) / 60000);
+  return m < 1 ? "menos de 1 min" : `${m} min`;
+};
+
+function actionsPhase(a) {
+  if (!a) return null;
+  if (ACTIONS_RUNNING.includes(a.status)) return { state: "running", text: a.progress ? `${a.progress.done} de ${a.progress.total} pasos` : "En curso", progress: a.progress };
+  if (a.conclusion === "success") return { state: "success", text: `Hecho en ${minutes(a.startedAt, a.updatedAt)}` };
+  return { state: a.conclusion === "cancelled" ? "cancelled" : "failed", text: a.conclusion === "cancelled" ? "Cancelado" : "Ha fallado" };
+}
+
+function codedeployPhase(e, first) {
+  if (!e.hasCodedeploy) return null;
+  const cd = e.codedeploy;
+  if (!e.codedeployCurrent) {
+    if (first && first.state === "running") return { state: "waiting", text: "Empieza cuando acaben las Actions" };
+    if (first && first.state !== "success") return { state: "waiting", text: "No se lanza" };
+    return { state: "running", text: "Esperando a que arranque" };
+  }
+  if (CODEDEPLOY_RUNNING.includes(cd.status)) {
+    const machines = cd.total ? ` · ${cd.done} de ${cd.total} máquinas` : "";
+    return { state: "running", text: (cd.progress ? `${cd.progress.done} de ${cd.progress.total} pasos` : "En curso") + machines, progress: cd.progress || (cd.total ? { done: cd.done, total: cd.total } : null) };
+  }
+  if (cd.status === "Succeeded") return { state: "success", text: `Hecho en ${minutes(cd.startedAt, cd.finishedAt)}` };
+  return { state: cd.status === "Stopped" ? "cancelled" : "failed", text: `${cd.status}${cd.error ? ` · ${cd.error}` : ""}` };
+}
+
+function phaseRow(n, name, p) {
+  const pct = p.progress && p.progress.total ? Math.round((p.progress.done / p.progress.total) * 100) : null;
+  const bar = h("div", { class: `ds-bar ${p.state}${p.state === "running" && pct === null ? " indeterminate" : ""}`, role: "progressbar", "aria-label": name, "aria-valuemin": "0", "aria-valuemax": "100", "aria-valuenow": String(p.state === "success" ? 100 : pct || 0) }, [h("i", { style: `width:${p.state === "success" ? 100 : p.state === "running" ? pct || 0 : p.state === "waiting" ? 0 : 100}%` })]);
+  return h("div", { class: `ds-phase ${p.state}` }, [h("span", { class: "ds-phase-n", text: String(n) }), h("span", { class: "ds-phase-name", text: name }), h("span", { class: "ds-phase-text", text: p.text }), bar]);
+}
+
 function statusRow(env, e) {
   const a = e.actions;
   const cd = e.codedeploy;
+  const first = actionsPhase(a);
+  const second = codedeployPhase(e, first);
+  const phases = [first && phaseRow(1, "GitHub Actions", first), second && phaseRow(2, "CodeDeploy", second)].filter(Boolean);
   const kids = [
     h("span", { class: `ds-dot ${e.state}`, "aria-hidden": "true" }),
     h("div", { class: "ds-main" }, [
-      h("div", { class: "ds-line" }, [h("strong", { text: DS_ENV[env] }), a ? h("code", { class: "ds-ref", text: a.ref }) : null, h("span", { class: `chip ds-${e.state}`, text: DS_STATE[e.state] || e.state })]),
-      h("div", { class: "meta", text: [e.step, a ? ago(e.state === "running" ? a.startedAt : (cd && cd.finishedAt) || a.updatedAt) : ""].filter(Boolean).join(" · ") }),
+      h("div", { class: "ds-line" }, [h("strong", { text: DS_ENV[env] }), a ? h("code", { class: "ds-ref", text: a.ref }) : null, h("span", { class: `chip ds-${e.state}`, text: DS_STATE[e.state] || e.state }), a ? h("span", { class: "meta", text: ago(e.state === "running" ? a.startedAt : (e.codedeployCurrent && cd && cd.finishedAt) || a.updatedAt) }) : null]),
+      ...(phases.length ? [h("div", { class: "ds-phases" }, phases)] : [h("div", { class: "meta", text: e.step })]),
     ]),
   ];
-  if (e.state === "running" && cd && cd.total && cd.status !== "Succeeded") kids[1].appendChild(h("div", { class: "ds-bar", role: "progressbar", "aria-valuemin": "0", "aria-valuemax": String(cd.total), "aria-valuenow": String(cd.done) }, [h("i", { style: `width:${Math.round((cd.done / cd.total) * 100)}%` })]));
   if (a && a.url) kids.push(h("a", { class: "ds-link", href: a.url, target: "_blank", rel: "noopener", title: "Ver en GitHub Actions", "aria-label": `Ver ${DS_ENV[env].toLowerCase()} en GitHub Actions`, text: "↗" }));
   return h("div", { class: `ds-row ${e.state}` }, kids);
 }
