@@ -73,8 +73,8 @@ function sessionCard(s, group) {
 function shortcuts(root) {
   const count = (statuses) => state.tasks.filter((t) => statuses.includes(t.status)).length;
   const data = [
-    ["waiting", "Te esperan", ["waiting", "partial"]],
     ["pending", "Pendientes", ["pending"]],
+    ["waiting", "Te esperan", ["waiting", "partial"]],
     ["sent", "En curso", ["sent"]],
     ["done", "Hechas por revisar", ["done"]],
   ].map(([id, label, statuses]) => [id, label, count(statuses)]);
