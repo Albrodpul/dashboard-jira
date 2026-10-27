@@ -159,7 +159,7 @@ const commands = {
     });
     console.log(r.out.join("\n"));
     if (r.auto) wakeOrchestrator();
-    if (r.pending) sendPush("tasks").then((n) => n && console.log(`aviso enviado a ${n} dispositivo(s)`));
+    if (r.pending) sendPush("tasks", false, r.pending === 1 ? "Hay una tarea nueva en Pendientes" : `Hay ${r.pending} tareas nuevas en Pendientes`).then((n) => n && console.log(`aviso enviado a ${n} dispositivo(s)`));
   },
 
   list() {
@@ -395,7 +395,7 @@ const commands = {
     });
     if (!id) fail("no hay ningún resumen de esa persona al que colgarlo: publica antes el resumen");
     console.log(`posible error ${id} añadido al último resumen; ${ME} decide si se envía a Errores sentry`);
-    sendPush("sessions").then(
+    sendPush("followup", true, `Posible error en el seguimiento de ${require("./follow-up").nameOf(person)}`).then(
       () => {},
       () => {}
     );
@@ -435,7 +435,7 @@ const commands = {
       return k;
     });
     console.log(`${n} de ${ids.length} posible(s) error(es) con su resultado guardado en el tablero`);
-    if (n) sendPush("reply").then(() => {}, () => {});
+    if (n) sendPush("followup", true, "La sesión de errores ha contestado").then(() => {}, () => {});
     if (n < ids.length) process.exit(1);
   },
 
@@ -472,7 +472,8 @@ const commands = {
     });
     if (!ok) fail(`no existe el mensaje ${a}`);
     console.log("respuesta guardada en el tablero");
-    sendPush("reply").then(
+    const target = (load().messages.find((x) => x.id === a) || {}).to;
+    sendPush("reply", true, `Te ha contestado ${MESSAGE_TARGETS[target] || "una sesión"}`).then(
       () => {},
       () => {}
     );
@@ -614,7 +615,8 @@ function sessionNotice() {
   const end = () => {
     if (errors.length) process.exit(1);
   };
-  if (cmd !== "done" && keys.length > errors.length) sendPush("sessions").then(end, end);
+  const what = { partial: "se ha quedado a medias", question: "tiene una pregunta para ti", comment: "propone un comentario para Jira" }[cmd];
+  if (cmd !== "done" && keys.length > errors.length) sendPush("sessions", true, `${keys.filter((k) => !errors.some((e) => e.startsWith(k))).join(", ")} ${what}`).then(end, end);
   else end();
 }
 

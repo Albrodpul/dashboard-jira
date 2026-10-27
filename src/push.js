@@ -6,7 +6,13 @@ const { DATA_DIR, readJson } = require("./data");
 const KEYS_FILE = path.join(DATA_DIR, "push-vapid.json");
 const SUBSCRIPTIONS_FILE = path.join(DATA_DIR, "push-subs.json");
 const LAST_FILE = path.join(DATA_DIR, "push-last.json");
-const REASONS = { tasks: "Hay tareas nuevas", sessions: "Hay sesiones que necesitan tu atención", reply: "Te han contestado en el tablero", test: "Aviso de prueba del tablero" };
+const REASONS = {
+  tasks: { title: "Tareas", text: "Hay tareas nuevas en Pendientes", tab: "pending" },
+  sessions: { title: "Sesiones", text: "Una sesión necesita tu respuesta", tab: "waiting" },
+  followup: { title: "Seguimiento", text: "Hay novedades en el seguimiento", tab: "follow-up" },
+  reply: { title: "Hablar", text: "Te han contestado en Hablar", tab: "talk" },
+  test: { title: "Prueba", text: "Aviso de prueba del tablero", tab: "home" },
+};
 
 const b64url = (buf) => Buffer.from(buf).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 
@@ -31,23 +37,26 @@ function pushKeys() {
 const subscriptions = () => readJson(SUBSCRIPTIONS_FILE, []);
 const saveSubscriptions = (subs) => fs.writeFileSync(SUBSCRIPTIONS_FILE, JSON.stringify(subs, null, 1));
 
+const entryOf = (v) => (typeof v === "string" ? { at: v } : v || {});
+
 function pushReason() {
   const last = readJson(LAST_FILE, {});
-  const recent = Object.entries(last)
-    .filter(([, at]) => Date.now() - new Date(at).getTime() < 10 * 60000)
-    .sort((a, b) => b[1].localeCompare(a[1]))
-    .map(([t]) => t);
-  if (recent.includes("tasks") && recent.includes("sessions")) return "Hay tareas nuevas y sesiones que necesitan tu atención";
-  return REASONS[recent[0]] || "Hay novedades";
+  const [type, entry] = Object.entries(last)
+    .map(([t, v]) => [t, entryOf(v)])
+    .filter(([t, v]) => REASONS[t] && v.at && Date.now() - new Date(v.at).getTime() < 10 * 60000)
+    .sort((a, b) => b[1].at.localeCompare(a[1].at))[0] || [];
+  const r = REASONS[type] || { title: "", text: "Hay novedades", tab: "home" };
+  return { title: r.title ? `Torre de control · ${r.title}` : "Torre de control", text: (entry && entry.text) || r.text, tab: r.tab, tag: type || "board" };
 }
 
-async function sendPush(type, force) {
+async function sendPush(type, force, text) {
   const subs = subscriptions();
   if (!subs.length) return 0;
   let last = readJson(LAST_FILE, {});
-  if (!force && last[type] && Date.now() - new Date(last[type]).getTime() < 60000) return 0;
+  const prev = entryOf(last[type]);
+  if (!force && prev.at && Date.now() - new Date(prev.at).getTime() < 60000) return 0;
   if (type === "test") last = {};
-  last[type] = new Date().toISOString();
+  last[type] = { at: new Date().toISOString(), text: text || null };
   fs.writeFileSync(LAST_FILE, JSON.stringify(last));
   const keys = pushKeys();
   const dead = [];
