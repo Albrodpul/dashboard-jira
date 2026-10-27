@@ -1,5 +1,5 @@
 import { state, h, post, switchView, setRender, setRefresh, empty, reviewer } from "./base.js";
-import { renderTasks, renderToday } from "./tasks.js";
+import { renderTasks, renderToday, renderBoard } from "./tasks.js";
 import { renderSessions, renderEpics } from "./sessions.js";
 import { renderSearch, renderDeploy, renderTalk, renderContext, renderFollowUp } from "./operations.js";
 import { renderReport, updateStamp, mountHeader, quotaBlock } from "./report.js";
@@ -149,6 +149,27 @@ function renderMore(root, waitingDeploys, errors) {
   root.appendChild(quotaBlock());
 }
 
+function taskView() {
+  try {
+    return localStorage.getItem("task-view") || "list";
+  } catch (e) {
+    return "list";
+  }
+}
+
+function viewSwitch(current) {
+  const pick = (v) => () => {
+    try {
+      localStorage.setItem("task-view", v);
+    } catch (e) {}
+    render();
+  };
+  return h("div", { class: "view-switch", role: "group", "aria-label": "Vista de tareas" }, [
+    h("button", { type: "button", "aria-pressed": String(current === "list"), text: "Lista", onclick: pick("list") }),
+    h("button", { type: "button", "aria-pressed": String(current === "board"), text: "Tablero", onclick: pick("board") }),
+  ]);
+}
+
 function returnedRule(root) {
   const rule = h("input", { type: "checkbox", id: "auto-returned" });
   rule.checked = !!(state.config && state.config.autoReturned);
@@ -171,7 +192,8 @@ function render() {
   paintTabs(counts, waitingDeploys);
   document.getElementById("tabs").appendChild(quotaBlock());
   document.querySelector(".app").setAttribute("data-view", state.tab);
-  const [title, sub] = VIEWS[state.tab] || VIEWS.pending;
+  const board = !mobile && isTaskTab(state.tab) && state.tab !== "ignored" && taskView() === "board";
+  const [title, sub] = board ? ["Tareas", "Todas las tareas por estado. Pulsa una para ver su tarjeta entera."] : VIEWS[state.tab] || VIEWS.pending;
   document.getElementById("view-title").textContent = title;
   document.getElementById("view-sub").textContent = sub;
 
@@ -184,8 +206,10 @@ function render() {
     return renderToday(root, errors);
   }
   if (state.tab === "more") return renderMore(root, waitingDeploys, errors);
-  if (state.tab === "pending") returnedRule(root);
+  if (!mobile && isTaskTab(state.tab) && state.tab !== "ignored") root.appendChild(viewSwitch(board ? "board" : "list"));
+  if (state.tab === "pending" || board) returnedRule(root);
   if (!state.ok) return root.appendChild(empty("El tablero no responde.", "Arráncalo con: node board.js ensure"));
+  if (board) return renderBoard(root);
   (NON_TASK_VIEWS[state.tab] || renderTasks)(root);
 }
 
