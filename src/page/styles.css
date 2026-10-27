@@ -570,8 +570,6 @@ select.epic-add { flex: none; width: auto; max-width: 100%; border-radius: 999px
 .task-board { display: flex; gap: 10px; align-items: flex-start; }
 .tasks-col { flex: 1 1 0; }
 .tasks-col.wide { flex: 1.7 1 0; }
-.tasks-col.folded { flex: 0 0 40px; padding: 10px 0; align-items: center; min-height: 260px; }
-.tasks-col.folded .board-head { writing-mode: vertical-rl; transform: rotate(180deg); padding: 0; }
 .board-epic { flex: none; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
 .board-epic-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; padding: 8px 10px; }
 .board-epic-name { font-weight: 600; font-size: 13px; flex: 1 1 auto; min-width: 0; }

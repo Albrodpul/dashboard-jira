@@ -394,8 +394,8 @@ export function renderBoard(root) {
   const columns = BOARD_COLUMNS.map(([id, title, statuses]) => {
     const list = state.tasks.filter((t) => statuses.includes(t.status)).sort((a, b) => String(b.sentAt || b.at || "").localeCompare(String(a.sentAt || a.at || "")));
     const head = h("div", { class: "board-head" }, [h("span", { text: title }), h("span", { class: "n", text: String(list.length) })]);
-    const body = id === "pending" ? pendingColumn(list) : list.map(boardCard);
-    return h("section", { class: `board-col tasks-col${id === "pending" ? " wide" : ""}${list.length ? "" : " folded"}`, title: list.length ? null : `${title}: ninguna` }, [head, ...body]);
+    const body = !list.length ? [h("div", { class: "board-empty", text: "Ninguna" })] : id === "pending" ? pendingColumn(list) : list.map(boardCard);
+    return h("section", { class: `board-col tasks-col${id === "pending" ? " wide" : ""}` }, [head, ...body]);
   });
   root.appendChild(h("div", { class: "task-board" }, columns));
   const t = openTask && state.tasks.find((x) => x.id === openTask);
