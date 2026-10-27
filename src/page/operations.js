@@ -68,15 +68,6 @@ const deploy = { picked: {}, environment: "both", version: "z", area: undefined,
 const touchesProd = (e) => e === "production" || e === "both";
 const humanList = (xs) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} y ${xs[xs.length - 1]}`);
 
-function option(type, group, value, checked, title, note, onChange, extra) {
-  const input = h("input", { type, name: group, value, id: `${group}-${value}` });
-  input.checked = checked;
-  input.addEventListener("change", () => {
-    onChange(input.checked);
-    render();
-  });
-  return h("label", { class: `option${extra ? " " + extra : ""}`, for: `${group}-${value}` }, [input, h("span", {}, [h("b", { text: title }), note ? h("small", { text: note }) : null])]);
-}
 
 const DS_STATE = { success: "Desplegado", running: "En curso", failed: "Falló", cancelled: "Cancelado", unknown: "Sin datos" };
 const DS_ENV = { develop: "Develop", production: "Producción" };
@@ -150,7 +141,7 @@ function statusRow(env, e) {
   const kids = [
     h("span", { class: `ds-dot ${e.state}`, "aria-hidden": "true" }),
     h("div", { class: "ds-main" }, [
-      h("div", { class: "ds-line" }, [h("strong", { text: DS_ENV[env] }), a ? h("code", { class: "ds-ref", text: a.ref }) : null, h("span", { class: `chip ds-${e.state}`, text: DS_STATE[e.state] || e.state }), a ? h("span", { class: "meta", text: ago(e.state === "running" ? a.startedAt : (e.codedeployCurrent && cd && cd.finishedAt) || a.updatedAt) }) : null]),
+      h("div", { class: "ds-line" }, [h("strong", { text: DS_ENV[env] }), a ? h("code", { class: "ds-ref", text: a.ref }) : null, h("span", { class: `chip ds-${e.state}`, text: DS_STATE[e.state] || e.state }), a ? h("span", { class: "meta ds-ago", text: ago(e.state === "running" ? a.startedAt : (e.codedeployCurrent && cd && cd.finishedAt) || a.updatedAt) }) : null]),
       ...(phases.length ? [h("div", { class: "ds-phases" }, phases)] : [h("div", { class: "meta", text: e.step })]),
     ]),
   ];
@@ -186,84 +177,61 @@ function deployStatusPanel(root) {
   root.appendChild(grid);
 }
 
-let historyMore = false;
+function pill(label, note, pressed, onClick, extra) {
+  return h("button", { type: "button", class: `pill${extra ? " " + extra : ""}`, "aria-pressed": String(pressed), onclick: () => (onClick(), render()) }, [h("b", { text: label }), note ? h("small", { text: note }) : null]);
+}
 
-function orderItem(x) {
-  const situation = { approved: "Esperando envío", sent: "Enviada", cancelled: "Cancelada" }[x.status] || x.status;
+function orderRow(label, kids, note) {
+  return h("div", { class: "do-row" }, [h("span", { class: "do-label", text: label }), h("div", { class: "do-controls" }, [...kids, note ? h("span", { class: "meta do-note", text: note }) : null])]);
+}
+
+function waitingOrder(x) {
   const target = areaName(x.area) || x.area;
-  const line = x.status === "sent" ? `Enviada a ${target}${x.sentAt ? ` a las ${when(x.sentAt)}` : ""}.` : x.status === "approved" ? `${whoSends(true)} la envía a ${target} en cuanto la recoge.` : "No se llegó a enviar.";
-  const envChip = touchesProd(x.environment) ? (x.environment === "both" ? "Develop + producción" : "Producción") + (x.version ? ` · ${x.version.toUpperCase()}` : "") : "Develop";
-  const kids = [
-    h("div", { class: "dh-top" }, [h("span", { class: "time", text: when(x.at) }), h("span", { class: `chip ${touchesProd(x.environment) ? "prod" : "new"}`, text: envChip }), h("span", { class: `chip ${x.status === "sent" ? "sent" : x.status === "approved" ? "returned" : "cancelled"}`, text: situation }), h("span", { class: "key", text: x.projects.join(", ") })]),
-    h("div", { class: "meta", text: line }),
-  ];
-  if (x.reply) kids.push(h("details", { class: "dh-reply" }, [h("summary", { text: "Respuesta de la sesión" }), h("div", { class: "reply", text: x.reply })]));
-  if (x.status === "approved") kids.push(h("div", { class: "actions" }, [button("Cancelar", { onClick: (b) => ((b.disabled = true), post("/api/deploy", { cancel: x.id }, "Despliegue cancelado.")) })]));
-  return h("article", { class: `dh-item${x.status === "cancelled" ? " off" : ""}` }, kids);
+  const where = x.environment === "both" ? "develop y producción" : x.environment === "production" ? "producción" : "develop";
+  return h("div", { class: "notice waiting do-waiting" }, [
+    h("b", { text: `Esperando envío · ${when(x.at)}` }),
+    h("div", { text: `${humanList(x.projects)} a ${where}${x.version && touchesProd(x.environment) ? ` (tag ${x.version.toUpperCase()})` : ""}. ${whoSends(true)} la envía a ${target} en cuanto la recoge.` }),
+    h("div", { class: "actions" }, [button("Cancelar", { onClick: (b) => ((b.disabled = true), post("/api/deploy", { cancel: x.id }, "Despliegue cancelado.")) })]),
+  ]);
 }
 
-function deployHistory(root) {
-  const history = state.deployments || [];
-  if (!history.length) return;
-  root.appendChild(h("div", { class: "group-head" }, [h("span", { class: "group-name", text: "Órdenes anteriores" })]));
-  const list = h("div", { class: "dh-list" }, history.slice(0, 5).map(orderItem));
-  root.appendChild(list);
-  if (history.length > 5) {
-    const more = h("details", { class: "dh-more" }, [h("summary", { class: "meta", text: `Ver ${history.length - 5} órdenes más` }), h("div", { class: "dh-list" }, history.slice(5).map(orderItem))]);
-    more.open = historyMore;
-    more.addEventListener("toggle", () => (historyMore = more.open));
-    root.appendChild(more);
-  }
-}
-
-export function renderDeploy(root) {
+function deployOrder(root) {
   const projects = deployProjects();
   const chosen = projects.filter((p) => deploy.picked[p]);
   const area = deploy.area !== undefined ? deploy.area : state.deployerArea || "";
   const waiting = (state.deployments || []).find((x) => x.status === "approved");
-  deployStatusPanel(root);
-  root.appendChild(h("div", { class: "group-head" }, [h("span", { class: "group-name", text: "Ordenar un despliegue" })]));
-  const box = h("div", { class: "deploy" });
+  const box = h("section", { class: "deploy-order" }, [h("div", { class: "do-head" }, [h("strong", { text: "Nueva orden" })])]);
+  if (waiting) box.appendChild(waitingOrder(waiting));
   const all = projects.length > 0 && chosen.length === projects.length;
+  const prod = touchesProd(deploy.environment);
+  box.appendChild(orderRow("Qué", [...projects.map((p) => pill(p, prod ? nextVersion(p, deploy.version) : "", !!deploy.picked[p], () => (deploy.picked[p] = !deploy.picked[p]))), button(all ? "Ninguno" : "Todos", { cls: "subtle", onClick: () => (projects.forEach((p) => (deploy.picked[p] = !all)), render()) })]));
   box.appendChild(
-    h("fieldset", { class: "field" }, [
-      h("legend", { text: "Qué subir" }),
-      h("div", { class: "options" }, projects.map((p) => option("checkbox", "project", p, !!deploy.picked[p], p, touchesProd(deploy.environment) ? nextVersion(p, deploy.version) : "", (v) => (deploy.picked[p] = v)))),
-      h("div", {}, [button(all ? "Quitar todos" : "Marcar todos", { onClick: () => (projects.forEach((p) => (deploy.picked[p] = !all)), render()) })]),
-    ])
+    orderRow(
+      "A dónde",
+      [
+        pill("Develop y producción", "", deploy.environment === "both", () => (deploy.environment = "both"), "prod"),
+        pill("Solo develop", "", deploy.environment === "develop", () => (deploy.environment = "develop")),
+        pill("Solo producción", "", deploy.environment === "production", () => (deploy.environment = "production"), "prod"),
+      ],
+      deploy.environment === "both" ? "Primero develop; luego merge a master y tag." : deploy.environment === "production" ? "Merge de develop a master y tag nuevo." : "Commit y push a develop (beta)."
+    )
   );
-  box.appendChild(
-    h("fieldset", { class: "field" }, [
-      h("legend", { text: "A dónde" }),
-      h("div", { class: "options" }, [
-        option("radio", "environment", "both", deploy.environment === "both", "Develop y producción", "Lo habitual: primero develop, luego master y tag", () => (deploy.environment = "both"), "prod"),
-        option("radio", "environment", "develop", deploy.environment === "develop", "Solo develop", "Beta: commit y push a develop", () => (deploy.environment = "develop")),
-        option("radio", "environment", "production", deploy.environment === "production", "Solo producción", "Merge de develop a master y tag nuevo", () => (deploy.environment = "production"), "prod"),
-      ]),
-    ])
-  );
-  if (touchesProd(deploy.environment)) {
-    box.appendChild(h("fieldset", { class: "field" }, [h("legend", { text: "Versión del tag" }), h("div", { class: "options" }, VERSIONS.map((v) => option("radio", "version", v.id, deploy.version === v.id, v.label, v.note, () => (deploy.version = v.id))))]));
-  }
+  if (prod) box.appendChild(orderRow("Versión", VERSIONS.map((v) => pill(v.label, v.note, deploy.version === v.id, () => (deploy.version = v.id)))));
   const sel = areaSelect("deploy-area", area, "Elige sesión…", (v) => {
     deploy.area = v;
     render();
   });
   sel.setAttribute("aria-label", "Sesión que despliega");
   const target = state.areas.find((a) => a.id === area);
-  const targetNote = !target ? "Ponle nombre en Sesiones a la conversación que hace los despliegues y elígela aquí." : target.open ? "Está abierta: recibe la orden en unos segundos." : "Está cerrada: el tablero la abre en VS Code al desplegar.";
-  box.appendChild(h("div", { class: "field" }, [h("label", { class: "field-label", for: "deploy-area", text: "Sesión que despliega" }), sel, h("span", { class: "meta", text: targetNote })]));
+  const targetNote = !target ? "Ponle nombre en Sesiones a la conversación que despliega y elígela aquí." : target.open ? "Abierta: la recibe en unos segundos." : "Cerrada: el tablero la abre al desplegar.";
+  box.appendChild(orderRow("Quién", [sel], targetNote));
 
   const ready = chosen.length && deploy.environment && target && !waiting && !deploy.busy;
   const version = VERSIONS.find((v) => v.id === deploy.version);
-  const summary = waiting
-    ? "Hay un despliegue esperando envío. Cuando salga podrás ordenar otro."
-    : !chosen.length
-      ? "Elige al menos un proyecto."
-      : `Vas a subir ${humanList(chosen)} a ${ENVIRONMENT_NAME[deploy.environment]}${touchesProd(deploy.environment) ? ` (tag de ${version.label.toLowerCase()})` : ""}.`;
+  const summary = waiting ? "Hay una orden esperando envío: cuando salga podrás dar otra." : !chosen.length ? "Elige al menos un proyecto." : `${humanList(chosen)} a ${ENVIRONMENT_NAME[deploy.environment]}${prod ? ` (tag de ${version.label.toLowerCase()})` : ""}.`;
   const label = deploy.environment === "both" ? "Desplegar a develop y producción" : deploy.environment === "production" ? "Desplegar a producción" : "Desplegar a develop";
   const go = button(label, {
-    cls: touchesProd(deploy.environment) ? "danger" : "primary",
+    cls: prod ? "danger" : "primary",
     disabled: !ready,
     onClick: () => {
       deploy.busy = true;
@@ -282,7 +250,11 @@ export function renderDeploy(root) {
   });
   box.appendChild(h("div", { class: "deploy-footer" }, [h("span", { class: "deploy-summary", text: summary }), go]));
   root.appendChild(box);
-  deployHistory(root);
+}
+
+export function renderDeploy(root) {
+  deployOrder(root);
+  deployStatusPanel(root);
 }
 
 let talkTo = "reporter";
