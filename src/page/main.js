@@ -258,5 +258,11 @@ document.addEventListener("focusout", () =>
 document.addEventListener("visibilitychange", () => !document.hidden && reload(false));
 MOBILE.addEventListener("change", render);
 render();
+const askedTab = new URLSearchParams(location.search).get("tab");
+if (askedTab) {
+  state.tab = askedTab;
+  history.replaceState(null, "", "/");
+}
+if ("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("message", (e) => e.data && e.data.tab && switchView(e.data.tab, true));
 reload(true);
 setInterval(() => reload(false), 3000);

@@ -42,16 +42,19 @@ self.addEventListener("push", (e) => {
   e.waitUntil(
     fetch("/api/push/reason", { cache: "no-store" })
       .then((r) => r.json())
-      .then((d) => d.text, () => "Hay novedades")
-      .then((t) => self.registration.showNotification("Torre de control", { body: t || "Hay novedades", tag: "board", renotify: true, icon: "/icon-192.png", badge: "/icon-192.png" }))
+      .catch(() => ({}))
+      .then((d) => self.registration.showNotification(d.title || "Torre de control", { body: d.text || "Hay novedades", tag: d.tag || "board", renotify: true, icon: "/icon-192.png", badge: "/icon-192.png", data: { tab: d.tab || "" } }))
   );
 });
 self.addEventListener("notificationclick", (e) => {
   e.notification.close();
+  const tab = (e.notification.data && e.notification.data.tab) || "";
   e.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((ws) => {
       const w = ws.find((x) => "focus" in x);
-      return w ? w.focus() : self.clients.openWindow("/");
+      if (!w) return self.clients.openWindow(tab ? "/?tab=" + tab : "/");
+      if (tab) w.postMessage({ tab });
+      return w.focus();
     })
   );
 });
@@ -181,7 +184,7 @@ function handle(req, res) {
     }
     if (url === "/manifest.webmanifest") return serveBody(res, "application/manifest+json", MANIFEST);
     if (url === "/sw.js") return serveBody(res, "text/javascript", SERVICE_WORKER);
-    if (url === "/api/push/reason") return serveBody(res, "application/json", JSON.stringify({ text: pushReason() }));
+    if (url === "/api/push/reason") return serveBody(res, "application/json", JSON.stringify(pushReason()));
     if (url === "/api/push/key") return serveBody(res, "application/json", JSON.stringify({ key: pushKeys().publicKey }));
     if (url === "/api/learning") return serveBody(res, "application/json", JSON.stringify(learning.learningSummary()));
     if (url === "/api/state") return serveBody(res, "application/json", JSON.stringify({ ...state(), voice: voice.voiceAvailable(), speech: speech.speechAvailable() }));
