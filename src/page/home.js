@@ -34,7 +34,7 @@ export function sessionSituation() {
     const live = liveOf(a.conversation, a.sessionName);
     if (!live) continue;
     const tasks = state.tasks.filter((t) => t.area === a.id && ["sent", "waiting", "partial"].includes(t.status));
-    const row = { id: a.id, name: a.unnamed ? a.vsCodeTitle || `${a.sessionName} (sin nombre)` : a.name, sessionName: a.sessionName, conversation: a.conversation, since: live.statusSince, tasks };
+    const row = { id: a.id, name: a.unnamed ? a.vsCodeTitle || `${a.sessionName} (sin nombre)` : a.name, sessionName: a.sessionName, conversation: a.conversation, since: live.statusSince, subagents: live.subagents || 0, tasks };
     if (live.status === "busy") out.working.push(row);
     else {
       const reason = blockReason(live, tasks);
@@ -63,6 +63,7 @@ function sessionCard(s, group) {
     const t = s.reason.task;
     kids.push(h("div", { class: "reason" }, [h("b", { text: s.reason.text + (t ? " " : "") }), t ? h("button", { class: "task-link", type: "button", text: t.key, title: t.title, onclick: () => switchView(s.reason.view) }) : null]));
   }
+  if (s.subagents) kids.push(h("div", { class: "meta", text: s.subagents === 1 ? "Con un subagente en marcha" : `Con ${s.subagents} subagentes en marcha` }));
   const others = s.tasks.filter((t) => !s.reason || t !== s.reason.task);
   if (others.length) kids.push(h("div", { class: "meta", text: `Con ${others.map((t) => t.key).join(", ")}` }));
   kids.push(h("div", { class: "home-footer" }, [h("span", { class: "meta", text: s.sessionName || "" }), vsCodeLink(s)]));
