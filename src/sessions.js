@@ -73,31 +73,56 @@ function conversationTitle(sessionId) {
 }
 
 const SUBAGENT_MAX_AGE = 30 * 60000;
+const SUBAGENT_BACKGROUND_AGE = 3 * 3600000;
 const subagentCache = new Map();
+let shellCommands = [];
+let shellTimer = null;
 
-function subagentRunning(file, st) {
+function refreshShellCommands() {
+  const script = "Get-CimInstance Win32_Process -Filter \"Name='bash.exe'\" | ForEach-Object { $_.CommandLine } | ConvertTo-Json -Compress";
+  cp.execFile("powershell", ["-NoProfile", "-Command", script], { windowsHide: true, timeout: 20000, maxBuffer: 8 * 1024 * 1024 }, (err, out) => {
+    if (err) return;
+    try {
+      const list = JSON.parse(String(out).trim() || "[]");
+      shellCommands = (Array.isArray(list) ? list : [list]).filter((x) => typeof x === "string" && x.includes("shell-snapshots"));
+    } catch (e) {}
+  });
+}
+
+function watchShells() {
+  if (shellTimer || process.platform !== "win32") return;
+  refreshShellCommands();
+  shellTimer = setInterval(refreshShellCommands, 20000);
+  shellTimer.unref();
+}
+
+function commandMark(command) {
+  const parts = String(command || "").split(/['"`]|&&|\|\||[;|<>]/).map((x) => x.trim());
+  return parts.sort((a, b) => b.length - a.length)[0] || "";
+}
+
+function subagentState(file, st) {
   const mark = `${st.size}:${st.mtimeMs}`;
   const previous = subagentCache.get(file);
-  if (previous && previous.mark === mark) return previous.running;
-  const length = Math.min(st.size, 256 * 1024);
-  const buf = Buffer.alloc(length);
-  const fd = fs.openSync(file, "r");
-  try {
-    fs.readSync(fd, buf, 0, length, st.size - length);
-  } finally {
-    fs.closeSync(fd);
-  }
-  let running = true;
-  const lines = buf.toString("utf8").trim().split("\n");
-  for (let i = lines.length - 1; i >= 0; i--) {
-    if (!lines[i].includes('"type":"assistant"')) continue;
+  if (previous && previous.mark === mark) return previous;
+  let ended = false;
+  const background = [];
+  for (const line of fs.readFileSync(file, "utf8").split("\n")) {
+    if (!line.includes('"type":"assistant"')) continue;
     try {
-      running = JSON.parse(lines[i]).message.stop_reason !== "end_turn";
-      break;
+      const message = JSON.parse(line).message;
+      ended = message.stop_reason === "end_turn";
+      for (const c of message.content || []) {
+        if (c.type !== "tool_use" || !c.input || !c.input.command) continue;
+        if (c.name !== "Monitor" && !c.input.run_in_background) continue;
+        const m = commandMark(c.input.command);
+        if (m.length >= 12) background.push(m);
+      }
     } catch (e) {}
   }
-  subagentCache.set(file, { mark, running });
-  return running;
+  const state = { mark, ended, background };
+  subagentCache.set(file, state);
+  return state;
 }
 
 function runningSubagents(sessionId) {
@@ -115,7 +140,16 @@ function runningSubagents(sessionId) {
     try {
       const file = path.join(dir, f);
       const st = fs.statSync(file);
-      if (Date.now() - st.mtimeMs < SUBAGENT_MAX_AGE && subagentRunning(file, st)) n++;
+      const age = Date.now() - st.mtimeMs;
+      if (age > SUBAGENT_BACKGROUND_AGE) continue;
+      const s = subagentState(file, st);
+      if (!s.ended) {
+        if (age < SUBAGENT_MAX_AGE) n++;
+        continue;
+      }
+      if (!s.background.length) continue;
+      watchShells();
+      if (s.background.some((m) => shellCommands.some((c) => c.includes(m)))) n++;
     } catch (e) {}
   }
   return n;
