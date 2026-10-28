@@ -106,6 +106,7 @@ module.exports = {
   sentry: c.sentry || null,
   devServers: c.devServers || [],
   trustedHosts: c.trustedHosts || [],
+  cluster: c.cluster || null,
   voice: c.voice || {},
   deployProjects: deployTargets.map((t) => t.id),
   deployTargets,
