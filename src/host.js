@@ -200,6 +200,10 @@ function serve() {
     });
   });
 
+  process.on("uncaughtException", (e) => {
+    log(`crash: ${(e && e.stack) || e}`);
+    process.exit(1);
+  });
   server.listen(HOST_PORT, "127.0.0.1", () => {
     log(`host listening on ${HOST_PORT}`);
     for (const e of readConfig()) if (!e.waitingForVsCode && !e.onDemand) spawn(e, true);
@@ -289,15 +293,16 @@ function hostRequest(method, route, body) {
   });
 }
 
-function ensureHost() {
-  return hostRequest("GET", "/sessions").then(
-    () => true,
-    () => {
-      const entry = path.join(__dirname, "cli.js");
-      cp.spawn(process.execPath, [entry, "host"], { detached: true, stdio: "ignore", windowsHide: true, env: require("./sessions").cleanEnv() }).unref();
-      return false;
-    }
-  );
+async function ensureHost() {
+  const up = () => hostRequest("GET", "/sessions").then(() => true, () => false);
+  if (await up()) return true;
+  const entry = path.join(__dirname, "cli.js");
+  cp.spawn(process.execPath, [entry, "host"], { detached: true, stdio: "ignore", windowsHide: true, env: require("./sessions").cleanEnv() }).unref();
+  for (let i = 0; i < 30; i++) {
+    await new Promise((r) => setTimeout(r, 500));
+    if (await up()) return true;
+  }
+  return false;
 }
 
 const hostedConversations = () => readConfig().filter((e) => !e.waitingForVsCode).map((e) => e.conversation);
