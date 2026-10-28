@@ -1,14 +1,14 @@
 const fs = require("fs");
 const path = require("path");
 const http = require("http");
-const { ROOT, ORCHESTRATOR_HEARTBEAT, REPORTER_HEARTBEAT, BASE_URL, UUID, isEmptyReport, load } = require("./data");
+const { ROOT, ORCHESTRATOR_HEARTBEAT, REPORTER_HEARTBEAT, BOARD_HEARTBEAT, BASE_URL, UUID, isEmptyReport, load } = require("./data");
 const { readQuota } = require("./quota");
 const { liveSessions, reconcile, currentRef, loadRoutes, targets, openInVsCode, wakeSession } = require("./sessions");
 const { people } = require("./follow-up");
 const config = require("./config");
 
 const ERRORS_AREA = config.errorsArea;
-const MESSAGE_TARGETS = { reporter: "la sesión de reporte", orchestrator: "la orquestadora" };
+const MESSAGE_TARGETS = { reporter: "la sesión de reporte", orchestrator: "la orquestadora", board: "la sesión del tablero" };
 const ORCHESTRATOR_NOTICE = "Aviso del reporte: arranca la orquestación. Eres la sesión orquestadora registrada: ejecuta ahora .claude/commands/orquesta.md (regla de AGENTS.md).";
 
 function heartbeatAge(file) {
@@ -46,6 +46,15 @@ function reporter(d, r) {
   const live = liveOf(d, o);
   return { session: live ? live.name : o.session || null, conversation: o.conversation || null, open: !!live, watching: heartbeatAge(REPORTER_HEARTBEAT) < 60000, paused: isPaused(d) };
 }
+
+function boardStatus(d, r) {
+  const o = r.board;
+  if (!o || !(o.conversation || o.session)) return null;
+  const live = liveOf(d, o);
+  return { title: o.title || "Tablero", session: live ? live.name : o.session || null, conversation: o.conversation || null, open: !!live, watching: !!live && heartbeatAge(BOARD_HEARTBEAT) < 60000 };
+}
+
+const talkTarget = (s, to) => ({ reporter: s.reporterStatus, orchestrator: s.orchestrator, board: s.boardStatus })[to] || null;
 
 function followUpStatus(d, r) {
   const o = r.followUp;
@@ -112,6 +121,7 @@ function state() {
     reporterRoute: r.reporter || null,
     orchestrator: orchestrator(d, r),
     reporterStatus: reporter(d, r),
+    boardStatus: boardStatus(d, r),
     followUps: d.followUps.slice(0, 80),
     people: people(d),
     followUpStatus: followUpStatus(d, r),
@@ -189,6 +199,7 @@ function ping(cb) {
 module.exports = {
   ERRORS_AREA,
   MESSAGE_TARGETS,
+  talkTarget,
   state,
   tidyBlockers,
   lastContextPass,

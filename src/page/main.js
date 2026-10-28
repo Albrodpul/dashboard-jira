@@ -213,7 +213,7 @@ function render() {
   (NON_TASK_VIEWS[state.tab] || renderTasks)(root);
 }
 
-const FIELDS = ["sessions", "aliases", "reporterRoute", "reporterStatus", "orchestrator", "epics", "allEpics", "reports", "lastReview", "config", "followUps", "contextTidy", "messages", "tidyBlockers", "lastContextPass", "followUpStatus", "refreshRequest", "deployments", "deployerArea", "quota", "people", "jiraSetup", "voice", "speech", "deployStatus"];
+const FIELDS = ["sessions", "aliases", "reporterRoute", "reporterStatus", "boardStatus", "orchestrator", "epics", "allEpics", "reports", "lastReview", "config", "followUps", "contextTidy", "messages", "tidyBlockers", "lastContextPass", "followUpStatus", "refreshRequest", "deployments", "deployerArea", "quota", "people", "jiraSetup", "voice", "speech", "deployStatus"];
 const withoutReadTime = (d) => JSON.stringify(d, (k, v) => (k === "syncedAt" ? undefined : v));
 const editing = () => {
   const a = document.activeElement;

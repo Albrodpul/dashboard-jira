@@ -1,5 +1,5 @@
 const fs = require("fs");
-const { ORCHESTRATOR_HEARTBEAT, REPORTER_HEARTBEAT, HUMAN_APPROVALS, load } = require("./data");
+const { ORCHESTRATOR_HEARTBEAT, REPORTER_HEARTBEAT, BOARD_HEARTBEAT, HUMAN_APPROVALS, load } = require("./data");
 const { followUpErrors, messageNotice } = require("./state");
 const { ENVIRONMENT_NAME } = require("./api-operations");
 const config = require("./config");
@@ -120,7 +120,12 @@ function watchDispatches() {
   );
 }
 
-const MODES = { reports: "reports", reportes: "reports", dispatches: "dispatches", envios: "dispatches" };
+function watchBoard() {
+  every(watchMessages("board"), 1000);
+  heartbeat(BOARD_HEARTBEAT);
+}
+
+const MODES = { reports: "reports", reportes: "reports", dispatches: "dispatches", envios: "dispatches", board: "board", tablero: "board" };
 
 function exitWhenOrphaned() {
   process.stdout.on("error", () => process.exit(0));
@@ -138,9 +143,10 @@ function watch(mode) {
   exitWhenOrphaned();
   const m = mode ? MODES[mode] : null;
   if (mode && !m) {
-    console.error("Uso: board.js watch [reports|dispatches]");
+    console.error("Uso: board.js watch [reports|dispatches|board]");
     process.exit(1);
   }
+  if (m === "board") return watchBoard();
   if (m !== "dispatches") watchReports();
   if (m !== "reports") watchDispatches();
 }

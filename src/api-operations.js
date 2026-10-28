@@ -1,6 +1,6 @@
 const { UUID, now, load, mutate } = require("./data");
 const { loadRoutes, changeRoutes, realArea, openInVsCode, wakeSession } = require("./sessions");
-const { ERRORS_AREA, MESSAGE_TARGETS, state, tidyBlockers, openIfClosed, wakeOrchestrator, messageNotice, wait } = require("./state");
+const { ERRORS_AREA, MESSAGE_TARGETS, talkTarget, state, tidyBlockers, openIfClosed, wakeOrchestrator, messageNotice, wait } = require("./state");
 const { DEFAULT_PERSON, people, nameOf } = require("./follow-up");
 const config = require("./config");
 
@@ -58,10 +58,7 @@ function handleTidy(res, send) {
 async function deliverMessage(id) {
   const m = load().messages.find((x) => x.id === id);
   if (!m || m.readAt) return;
-  const session = () => {
-    const s = state();
-    return m.to === "reporter" ? s.reporterStatus : s.orchestrator;
-  };
+  const session = () => talkTarget(state(), m.to);
   let e = session();
   if (!e || !UUID.test(e.conversation || "")) return;
   if (!e.open) {
@@ -88,7 +85,7 @@ function handleMessage(res, { to, text, voice }, send) {
     d.messages.unshift({ id, to, text: clean, at, readAt: null, reply: null, ...(voice ? { voice } : {}) });
     d.messages = d.messages.slice(0, 60);
   });
-  const target = to === "reporter" ? state().reporterStatus : state().orchestrator;
+  const target = talkTarget(state(), to);
   setTimeout(() => deliverMessage(id).catch(() => {}), target && target.watching ? 45000 : 1500);
   send(res, 200, { id });
 }

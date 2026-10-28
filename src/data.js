@@ -10,6 +10,7 @@ const DATA_DIR = process.env.TOWER_DATA || migrate.migrateDataDir(WORKSPACE);
 const DB_FILE = process.env.TOWER_DB || path.join(DATA_DIR, "board.db");
 const ORCHESTRATOR_HEARTBEAT = path.join(DATA_DIR, "heartbeat-orchestrator");
 const REPORTER_HEARTBEAT = path.join(DATA_DIR, "heartbeat-reporter");
+const BOARD_HEARTBEAT = path.join(DATA_DIR, "heartbeat-board");
 const ROUTES_FILE = path.join(DATA_DIR, "sessions.json");
 const SESSIONS_CLI = path.join(WORKSPACE, "sessions.js");
 const PORT = Number(process.env.TOWER_PORT || process.env.TABLERO_PORT) || 4747;
@@ -146,6 +147,7 @@ module.exports = {
   TO_COUNT_FILE,
   ORCHESTRATOR_HEARTBEAT,
   REPORTER_HEARTBEAT,
+  BOARD_HEARTBEAT,
   ROUTES_FILE,
   SESSIONS_CLI,
   PORT,
