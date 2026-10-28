@@ -125,6 +125,7 @@ function classifySegment(segment, cwd) {
   }
   if (cmd === "ssh" && /\s-[A-Za-z]*[LN]/.test(rest) && !/\bmysql\b/.test(rest)) return { kind: "allow" };
   if (cmd === "ssh" && /\bmysql\b/.test(rest)) return DB_WRITE.test(sqlOf(rest, cwd, WHOLE.text)) ? { kind: "protected", key: "bd remota escritura", label: "escribir en una base de datos remota" } : { kind: "allow" };
+  if (["ssh", "scp", "rsync", "sftp"].includes(cmd) && (config.trustedHosts || []).some((host) => rest.includes(host))) return { kind: "allow" };
   if (PROTECTED_WORDS.has(cmd)) return { kind: "protected", key: cmd, label: cmd };
   if (cmd === "mysql" || cmd === "mysqldump" || cmd === "mysqladmin") {
     const host = (/(?:-h\s*|--host[= ])(\S+)/.exec(rest) || [])[1];
