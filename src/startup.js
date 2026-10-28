@@ -51,7 +51,7 @@ async function startFollowUp() {
 }
 
 async function startReporter() {
-  if (!require("./cluster").isPrimary()) return log("este ordenador no manda: no arranco el reporte");
+  if (!(await new Promise((r) => ping(r)))) cp.spawn(process.execPath, [ENTRY, "serve"], { detached: true, stdio: "ignore", windowsHide: true }).unref();
   try {
     if (Date.now() - fs.statSync(STARTUP_LOCK).mtimeMs < 10 * 60000) return;
   } catch (e) {}
@@ -70,6 +70,7 @@ async function startReporter() {
     cp.spawn(process.execPath, [ENTRY, "serve"], { detached: true, stdio: "ignore", windowsHide: true }).unref();
     await wait(1500);
   }
+  if (!require("./cluster").isPrimary()) return log("este ordenador no manda: no arranco el reporte");
   if ((state().reporterStatus || {}).paused) return log("revisiones en pausa desde el tablero: no se arranca el reporte");
   for (let attempt = 1; attempt <= 3; attempt++) {
     const rep0 = state().reporterStatus;
