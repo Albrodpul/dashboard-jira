@@ -232,17 +232,25 @@ const editing = () => {
 let last = "";
 let deferred = null;
 
+let viaHeaders = [null, null];
+
 function showVia(via, stale) {
+  if (via !== undefined) viaHeaders = [via, stale];
+  [via, stale] = viaHeaders;
+  const c = state.cluster;
+  const takenOver = !via && !stale && c && c.role === "primary" && c.peer && !c.preferred;
   let el = document.getElementById("via");
-  if (!via && !stale) return el && el.remove();
+  if (!via && !stale && !takenOver) return el && el.remove();
   if (!el) {
     el = document.createElement("p");
     el.id = "via";
     document.body.prepend(el);
   }
-  const primary = (state.cluster && state.cluster.label) || "el ordenador que manda";
-  el.className = stale ? "via stale" : "via";
-  el.textContent = stale ? `Estás en el ${stale} y el otro ordenador no responde: ves los últimos datos copiados.` : `Estás en el ${via}: lo que ves es el tablero del ${primary}, que es el que manda.`;
+  const primary = (c && c.label) || "el ordenador que manda";
+  el.className = stale || takenOver ? "via stale" : "via";
+  if (takenOver) el.textContent = `Estás viendo el tablero del ${c.label || "otro ordenador"}: el otro ordenador está fuera de servicio y manda este.`;
+  else if (stale) el.textContent = `Estás en el ${stale} y el otro ordenador no responde: ves los últimos datos copiados. Si sigue así, en unos minutos manda el ${stale}.`;
+  else el.textContent = `Estás en el ${via}: lo que ves es el tablero del ${primary}, que es el que manda.`;
 }
 
 function apply(d) {
@@ -254,6 +262,7 @@ function apply(d) {
   renderReport();
   updateStamp();
   render();
+  showVia();
 }
 
 let lastHash = "";
