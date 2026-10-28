@@ -11,7 +11,7 @@ const norm = (p) => String(p || "").replace(/\\/g, "/").replace(/^\/([a-z])\//i,
 const EDITABLE = [config.root, REPO, path.join(os.homedir(), ".claude"), os.tmpdir()].map((p) => norm(p).replace(/\/$/, "") + "/");
 const SECRET_FILE = /(^|\/)\.env(\.[\w-]+)?$|\.(pem|key|p12|pfx)$|(^|\/)\.mcp\.json$|(^|\/)credentials(\.json)?$/i;
 
-const READ_WORDS = new Set("claude pip pip3 cd ls pwd cat head tail wc grep egrep fgrep rg find sed awk sort uniq cut tr diff cmp comm echo printf test [ true false sleep date basename dirname realpath readlink stat file du df which where whoami type jq nl tee touch mkdir cp mv rm rmdir ln node npm npx yarn pnpm php composer python python3 py pytest vendor/bin/phpunit tasklist netstat set export source . robocopy cmd tar unzip zip gzip base64 sha256sum md5sum iconv dos2unix clear exit".split(" "));
+const READ_WORDS = new Set("seq xargs env printenv cscript wscript claude pip pip3 cd ls pwd cat head tail wc grep egrep fgrep rg find sed awk sort uniq cut tr diff cmp comm echo printf test [ true false sleep date basename dirname realpath readlink stat file du df which where whoami type jq nl tee touch mkdir cp mv rm rmdir ln node npm npx yarn pnpm php composer python python3 py pytest vendor/bin/phpunit tasklist netstat set export source . robocopy cmd tar unzip zip gzip base64 sha256sum md5sum iconv dos2unix clear exit".split(" "));
 const GIT_READ = new Set("ls-remote for-each-ref reflog name-rev symbolic-ref check-ignore cherry pull status diff log show branch rev-parse rev-list worktree add fetch blame ls-files ls-tree grep remote config shortlog describe merge-base cat-file switch restore mv rm".split(" "));
 const GIT_PROTECTED = new Set("commit push merge tag rebase reset stash clean cherry-pick revert am".split(" "));
 const GH_READ = /^gh\s+(pr|issue|run|release|workflow|repo)\s+(view|list|diff|checks|status|watch)\b/;
@@ -38,6 +38,17 @@ function segments(command) {
       }
       if (ch === quote) quote = null;
       cur += ch;
+      continue;
+    }
+    if ((ch === "$" && text[i + 1] === "(") || ch === "\x60") {
+      out.push(cur);
+      cur = "";
+      if (ch === "$") i++;
+      continue;
+    }
+    if (ch === ")" && !/\(\s*$/.test(cur)) {
+      out.push(cur);
+      cur = "";
       continue;
     }
     if (ch === "'" || ch === '"') {
@@ -140,7 +151,12 @@ function classifySegment(segment, cwd) {
   }
   if (cmd === "npm" && /\bnpm\s+publish\b/.test(rest)) return { kind: "ask", key: "npm publish", label: "npm publish" };
   if (READ_WORDS.has(cmd)) return { kind: "allow" };
-  if (raw.startsWith("$") || PS_WORDS.has(cmd)) return { kind: "allow" };
+  if (raw.startsWith("$") || PS_WORDS.has(cmd) || /^[-)(<>]|[()]/.test(raw)) return { kind: "allow" };
+  if (cmd === "powershell" || cmd === "pwsh") {
+    const m = /-(?:Command|c)\s+("([^"]*)"|'([^']*)'|(.*))$/is.exec(rest);
+    const inner = m ? m[2] || m[3] || m[4] || "" : "";
+    return inner ? classifyCommand(inner, cwd) : { kind: "allow" };
+  }
   if (/^(invoke-restmethod|invoke-webrequest|irm|iwr)$/.test(cmd)) {
     const url = (/(https?:\/\/[^\s"']+)/.exec(rest) || [])[1] || "";
     return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\//i.test(url + "/") ? { kind: "allow" } : { kind: "ask", key: `${cmd} ${url.replace(/^https?:\/\/([^/]+).*/, "$1")}`, label: `${cmd} a ${url.replace(/^https?:\/\/([^/]+).*/, "$1")}` };
@@ -305,4 +321,4 @@ function forPage(d) {
   return { pending: (d.permissions || []).filter((p) => p.status === "pending"), recent: (d.permissions || []).filter((p) => p.status !== "pending").slice(0, 8), rules: d.permissionRules || [] };
 }
 
-module.exports = { classify, check, poll, decide, removeRule, forPage, expire };
+module.exports = { segments, classify, check, poll, decide, removeRule, forPage, expire };
