@@ -132,6 +132,7 @@ function serve() {
           list.push(e);
           writeConfig(list);
         }
+        if (e.waitingForVsCode) return json(res, 200, { waiting: true });
         spawn(e, true);
         return json(res, 200, { ok: true });
       }
@@ -271,7 +272,7 @@ function ensureHost() {
   );
 }
 
-const hostedConversations = () => readConfig().map((e) => e.conversation);
+const hostedConversations = () => readConfig().filter((e) => !e.waitingForVsCode).map((e) => e.conversation);
 
 function markWaiting(conversation, name) {
   const list = readConfig();
