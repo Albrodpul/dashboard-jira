@@ -134,6 +134,13 @@ function serve() {
           writeConfig(list);
         }
         if (e.waitingForVsCode) return json(res, 200, { waiting: true });
+        if (e.onDemand) {
+          const list2 = readConfig();
+          const e2 = list2.find((x) => x.conversation === e.conversation);
+          if (e2) delete e2.onDemand;
+          writeConfig(list2);
+          delete e.onDemand;
+        }
         spawn(e, true);
         return json(res, 200, { ok: true });
       }
@@ -189,7 +196,7 @@ function serve() {
 
   server.listen(HOST_PORT, "127.0.0.1", () => {
     log(`host listening on ${HOST_PORT}`);
-    for (const e of readConfig()) if (!e.waitingForVsCode) spawn(e, true);
+    for (const e of readConfig()) if (!e.waitingForVsCode && !e.onDemand) spawn(e, true);
   });
 
   setInterval(() => {
@@ -301,10 +308,16 @@ function ensureHost() {
 
 const hostedConversations = () => readConfig().filter((e) => !e.waitingForVsCode).map((e) => e.conversation);
 
+function adopt(conversation, name) {
+  const list = readConfig();
+  if (!list.some((x) => x.conversation === conversation)) list.push({ conversation, name, at: new Date().toISOString(), onDemand: true });
+  writeConfig(list);
+}
+
 function markWaiting(conversation, name) {
   const list = readConfig();
   if (!list.some((x) => x.conversation === conversation)) list.push({ conversation, name, at: new Date().toISOString(), waitingForVsCode: true });
   writeConfig(list);
 }
 
-module.exports = { serve, hostRequest, ensureHost, hostedConversations, markWaiting, vsCodeHas, HOST_PORT, readConfig };
+module.exports = { serve, hostRequest, ensureHost, hostedConversations, markWaiting, adopt, vsCodeHas, HOST_PORT, readConfig };

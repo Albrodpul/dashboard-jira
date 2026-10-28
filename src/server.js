@@ -197,6 +197,11 @@ const POST_ROUTES = {
           host.markWaiting(conversation, name);
           return { waiting: true };
         }
+        const isRole = ["reporter", "orchestrator", "followUp", "board"].some((k) => { const r = require("./sessions").loadRoutes()[k]; return r && r.conversation === conversation; });
+        if (!isRole) {
+          host.adopt(conversation, name);
+          return { adopted: true };
+        }
         return host.hostRequest("POST", "/start", { conversation, name });
       }
       if (action === "back") {
@@ -204,6 +209,7 @@ const POST_ROUTES = {
         require("./sessions").openInVsCode(conversation);
         return { ok: true };
       }
+      if (action === "open") return host.hostRequest("POST", "/start", { conversation, name });
       if (action === "restart") {
         await host.hostRequest("POST", "/stop", { conversation });
         await new Promise((r) => setTimeout(r, 1500));
