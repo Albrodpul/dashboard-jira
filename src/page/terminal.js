@@ -9,6 +9,7 @@ const KEYS = [
   ["Tab", "\t", "Tab"],
   ["Enter", "\r", "Enter"],
 ];
+const TERM_THEME = { background: "#0d1117", foreground: "#e6edf3", cursor: "#e6edf3", cursorAccent: "#0d1117", selectionBackground: "#264f78", black: "#0d1117", brightBlack: "#6e7681" };
 let loading = null;
 let overlay = null;
 const panels = new Map();
@@ -48,9 +49,8 @@ function createPanel(conversation, name, onClose) {
     KEYS.map(([label, seq, title]) => h("button", { type: "button", class: "term-key", title, text: label, onclick: () => panel.send(seq) }))
   );
   const scrollBtns = h("div", { class: "term-scroll" }, [
-    h("button", { type: "button", title: "Subir", "aria-label": "Subir", text: "⇞", onclick: () => panel.term && panel.term.scrollPages(-1) }),
-    h("button", { type: "button", title: "Bajar", "aria-label": "Bajar", text: "⇟", onclick: () => panel.term && panel.term.scrollPages(1) }),
-    h("button", { type: "button", title: "Ir al final", "aria-label": "Ir al final", text: "⤓", onclick: () => panel.term && panel.term.scrollToBottom() }),
+    h("button", { type: "button", title: "Subir (Re Pág)", "aria-label": "Subir", text: "⇞", onclick: () => panel.send("[5~") }),
+    h("button", { type: "button", title: "Bajar (Av Pág)", "aria-label": "Bajar", text: "⇟", onclick: () => panel.send("[6~") }),
   ]);
   const root = h("div", { class: "term-panel" }, [h("div", { class: "term-head" }, head), h("div", { class: "term-wrap" }, [screen, scrollBtns]), keys, h("div", { class: "term-compose" }, [input, sendBtn])]);
   const panel = { root, conversation, ws: null, term: null, fit: null, closed: false };
@@ -97,7 +97,7 @@ function createPanel(conversation, name, onClose) {
   loadXterm().then(
     () => {
       if (panel.closed) return;
-      const term = new window.Terminal({ fontSize: window.matchMedia("(max-width: 760px)").matches ? 11 : 13, fontFamily: "ui-monospace, Consolas, monospace", theme: { background: "#ffffff", foreground: "#1f2328", cursor: "#1f2328", cursorAccent: "#ffffff", selectionBackground: "#bfdbe4" }, scrollback: 5000 });
+      const term = new window.Terminal({ fontSize: window.matchMedia("(max-width: 760px)").matches ? 11 : 13, fontFamily: "ui-monospace, Consolas, monospace", theme: TERM_THEME, scrollback: 5000 });
       const fit = new window.FitAddon.FitAddon();
       term.loadAddon(fit);
       term.open(screen);
