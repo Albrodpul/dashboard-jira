@@ -177,6 +177,17 @@ const POST_ROUTES = {
     }
     send(res, 200, { sent: n });
   },
+  "/api/host/respawned": (res, { conversation }, send) => {
+    send(res, 200);
+    const r = require("./sessions").loadRoutes();
+    const s = state();
+    const is = (role) => r[role] && r[role].conversation === conversation;
+    const { wakeSession, STARTUP_NOTICE } = require("./sessions");
+    if (is("orchestrator")) return startOrchestrator(true).catch(() => {});
+    if (is("reporter") && !(s.reporterStatus && s.reporterStatus.watching) && s.reporterStatus) return wakeSession(s.reporterStatus.session, STARTUP_NOTICE).catch(() => {});
+    if (is("board") && !(s.boardStatus && s.boardStatus.watching) && s.boardStatus) return wakeSession(s.boardStatus.session, "Aviso del tablero: arranca la sesión del tablero. Eres la sesión del tablero registrada: ejecuta ahora .claude/commands/tablero.md (regla de AGENTS.md).").catch(() => {});
+    if (is("followUp")) return require("./startup").wakeFollowUp().catch(() => {});
+  },
   "/api/host/action": (res, { action, conversation, name }, send) => {
     if (!/^[0-9a-f-]{36}$/.test(String(conversation || ""))) return send(res, 400, { error: "conversación no válida" });
     const go = async () => {
