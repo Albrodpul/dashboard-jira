@@ -33,10 +33,10 @@ function permissionCard(p) {
   return h("article", { class: "card perm" }, kids);
 }
 
-export function renderPermissions(root, compact) {
+export function renderPermissions(root, compact, onlyPending) {
   const list = pendingPermissions();
-  if (list.length) root.appendChild(h("section", { class: compact ? "today-group" : "" }, [h(compact ? "h3" : "div", { class: compact ? "" : "group-head" }, compact ? `Permisos (${list.length})` : [h("span", { class: "group-name", text: `Permisos que esperan (${list.length})` })]), h("div", { class: "cards" }, list.map(permissionCard))]));
-  if (compact) return list.length;
+  if (list.length) root.appendChild(h("section", { class: compact ? "today-group" : onlyPending ? "perm-pending" : "" }, [h(compact ? "h3" : "div", { class: compact ? "" : "group-head" }, compact ? `Permisos (${list.length})` : [h("span", { class: "group-name", text: `Permisos que esperan (${list.length})` })]), h("div", { class: "cards" }, list.map(permissionCard))]));
+  if (compact || onlyPending) return list.length;
   const rules = (state.permissions && state.permissions.rules) || [];
   if (rules.length) {
     const det = h("details", { class: "perm-rules" }, [h("summary", { class: "meta", text: `Aprobados siempre (${rules.length})` })]);
