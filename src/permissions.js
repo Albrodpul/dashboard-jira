@@ -12,10 +12,11 @@ const EDITABLE = [config.root, REPO, path.join(os.homedir(), ".claude"), os.tmpd
 const SECRET_FILE = /(^|\/)\.env(\.[\w-]+)?$|\.(pem|key|p12|pfx)$|(^|\/)\.mcp\.json$|(^|\/)credentials(\.json)?$/i;
 
 const READ_WORDS = new Set("cd ls pwd cat head tail wc grep egrep fgrep rg find sed awk sort uniq cut tr diff cmp comm echo printf test [ true false sleep date basename dirname realpath readlink stat file du df which where whoami type jq nl tee touch mkdir cp mv rm rmdir ln node npm npx yarn pnpm php composer python python3 py pytest vendor/bin/phpunit tasklist netstat set export source . robocopy cmd tar unzip zip gzip base64 sha256sum md5sum iconv dos2unix clear exit".split(" "));
-const GIT_READ = new Set("status diff log show branch rev-parse rev-list worktree add fetch blame ls-files ls-tree grep remote config shortlog describe merge-base cat-file switch restore mv rm".split(" "));
-const GIT_PROTECTED = new Set("commit push merge tag rebase reset stash clean cherry-pick revert am pull".split(" "));
+const GIT_READ = new Set("pull status diff log show branch rev-parse rev-list worktree add fetch blame ls-files ls-tree grep remote config shortlog describe merge-base cat-file switch restore mv rm".split(" "));
+const GIT_PROTECTED = new Set("commit push merge tag rebase reset stash clean cherry-pick revert am".split(" "));
 const GH_READ = /^gh\s+(pr|issue|run|release|workflow|repo)\s+(view|list|diff|checks|status|watch)\b/;
 const GH_PROTECTED = /^gh\s+(pr\s+merge|release\s+create|variable|secret|api\b.*-X\s*(POST|PUT|PATCH|DELETE)|workflow\s+run)/i;
+const PS_WORDS = new Set("foreach for if else elseif while do try catch finally switch { } ( ) % ? start-sleep sleep param return break continue".split(" "));
 const PROTECTED_WORDS = new Set("aws ssh scp sftp sam eb terraform kubectl".split(" "));
 
 const JIRA_READ = /^mcp__jira__(get|search|lookup|fetch|atlassianUserInfo)/;
@@ -23,7 +24,7 @@ const JIRA_ON_TASK = /^mcp__jira__(editJiraIssue|transitionJiraIssue)$/;
 const ALWAYS_TOOLS = new Set("Read Grep Glob Agent Task Skill TaskStop TaskOutput SendMessage ListAgents ToolSearch WebSearch WebFetch AskUserQuestion ScheduleWakeup CronCreate CronDelete CronList PushNotification EnterWorktree ExitWorktree EnterPlanMode ExitPlanMode TodoWrite ReportFindings ListMcpResourcesTool ReadMcpResourceTool ReadMcpResourceDirTool LSP".split(" "));
 
 function segments(command) {
-  const text = String(command).replace(/<<-?\s*(['"]?)(\w+)\1([^\n]*)\n[\s\S]*?\n\s*\2\s*(?=\n|$)/g, "<<$2$3");
+  const text = String(command).replace(/\\\r?\n/g, " ").replace(/<<-?\s*(['"]?)(\w+)\1([^\n]*)\n[\s\S]*?\n\s*\2\s*(?=\n|$)/g, "<<$2$3");
   const out = [];
   let cur = "";
   let quote = null;
@@ -116,7 +117,7 @@ function classifySegment(segment, cwd) {
     if (remote && (cmd !== "mysql" || DB_WRITE.test(sqlOf(rest, cwd, WHOLE.text)))) return { kind: "protected", key: "bd remota escritura", label: `${cmd} con escritura contra ${host || "el puerto " + port}` };
     return { kind: "allow" };
   }
-  if (/jira-write/.test(rest)) {
+  if (cmd === "node" && /^node\s+\S*jira-write/.test(rest)) {
     const m = /jira-write(?:\.js)?\s+([\w-]+)\s+([A-Z][A-Z0-9]+-\d+)/.exec(rest);
     if (m && !/comment|mention/.test(m[1])) return { kind: "protected", key: "jira-write", jiraKey: m[2], label: `${m[1] === "assign" ? "asignarse" : "mover"} ${m[2]} en Jira` };
     return { kind: "protected", key: "jira-write", label: m ? `comentar en ${m[2]} en Jira` : "escribir en Jira" };
@@ -134,6 +135,12 @@ function classifySegment(segment, cwd) {
   }
   if (cmd === "pip" || (cmd === "npm" && /\bnpm\s+(i|install|add|uninstall|update|publish)\b/.test(rest)) || (cmd === "composer" && /\b(require|update|remove)\b/.test(rest))) return { kind: "ask", key: `${cmd} install`, label: rest.split(/\s+/).slice(0, 3).join(" ") };
   if (READ_WORDS.has(cmd)) return { kind: "allow" };
+  if (raw.startsWith("$") || PS_WORDS.has(cmd)) return { kind: "allow" };
+  if (/^(invoke-restmethod|invoke-webrequest|irm|iwr)$/.test(cmd)) {
+    const url = (/(https?:\/\/[^\s"']+)/.exec(rest) || [])[1] || "";
+    return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\//i.test(url + "/") ? { kind: "allow" } : { kind: "ask", key: `${cmd} ${url.replace(/^https?:\/\/([^/]+).*/, "$1")}`, label: `${cmd} a ${url.replace(/^https?:\/\/([^/]+).*/, "$1")}` };
+  }
+  if (/^(get|select|where|foreach|sort|measure|format|out|write|test|join|split|resolve|convertfrom|convertto|new|copy|move|remove|rename|set|add|group|compare|import|export|clear|expand|compress)-[a-z]+$/.test(cmd) && !/^(set-executionpolicy|new-service|remove-service)$/.test(cmd)) return { kind: "allow" };
   if (raw.startsWith("./") || raw.startsWith("../") || /^[a-z]:[\\/]/i.test(raw) || raw.startsWith("/")) {
     const target = path.resolve(cwd || config.root, raw);
     if (inRepo(target, config.root) || inRepo(target, REPO) || /xampp\/(mysql|php)\/bin/i.test(norm(target))) return { kind: "allow" };

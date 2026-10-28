@@ -277,7 +277,12 @@ function reload(force) {
     });
 }
 
-setRender(render);
+setRender(() => {
+  const started = performance.now();
+  render();
+  const ms = performance.now() - started;
+  if (ms > 300) reportPageError("slow-render", `${Math.round(ms)} ms`, state.tab);
+});
 setRefresh(reload);
 mountHeader();
 document.addEventListener("focusout", () =>
@@ -305,6 +310,9 @@ function reportPageError(kind, message, where) {
   fetch("/api/page-errors", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ua: navigator.userAgent, errors: pageErrors }) }).catch(() => {});
 }
 window.addEventListener("error", (e) => reportPageError("error", e.message, `${e.filename}:${e.lineno}`));
+try {
+  new PerformanceObserver((list) => list.getEntries().forEach((e) => e.duration > 500 && reportPageError("long-task", `${Math.round(e.duration)} ms`, e.name))).observe({ type: "longtask", buffered: true });
+} catch (e) {}
 window.addEventListener("unhandledrejection", (e) => reportPageError("promise", e.reason && (e.reason.stack || e.reason.message || e.reason)));
 reload(true);
 setInterval(() => reload(false), 3000);
