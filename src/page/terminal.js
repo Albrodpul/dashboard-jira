@@ -97,7 +97,7 @@ function createPanel(conversation, name, onClose) {
   loadXterm().then(
     () => {
       if (panel.closed) return;
-      const term = new window.Terminal({ fontSize: window.matchMedia("(max-width: 760px)").matches ? 11 : 13, fontFamily: "ui-monospace, Consolas, monospace", windowOptions: { setWinSizeChars: true }, theme: { background: "#ffffff", foreground: "#1f2328", cursor: "#1f2328", cursorAccent: "#ffffff", selectionBackground: "#bfdbe4" }, scrollback: 5000 });
+      const term = new window.Terminal({ fontSize: window.matchMedia("(max-width: 760px)").matches ? 11 : 13, fontFamily: "ui-monospace, Consolas, monospace", theme: { background: "#ffffff", foreground: "#1f2328", cursor: "#1f2328", cursorAccent: "#ffffff", selectionBackground: "#bfdbe4" }, scrollback: 5000 });
       const fit = new window.FitAddon.FitAddon();
       term.loadAddon(fit);
       term.open(screen);
@@ -112,7 +112,16 @@ function createPanel(conversation, name, onClose) {
           status.textContent = "En directo";
           term.reset();
         };
-        ws.onmessage = (e) => term.write(typeof e.data === "string" ? e.data : new Uint8Array(e.data));
+        ws.onmessage = (e) => {
+          if (typeof e.data === "string" && e.data.charCodeAt(0) === 0) {
+            try {
+              const { cols, rows } = JSON.parse(e.data.slice(1));
+              if (cols && rows) term.resize(cols, rows);
+            } catch (x) {}
+            return;
+          }
+          term.write(typeof e.data === "string" ? e.data : new Uint8Array(e.data));
+        };
         ws.onclose = () => {
           if (panel.closed) return;
           status.textContent = "Reconectando…";
