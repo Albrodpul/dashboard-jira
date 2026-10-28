@@ -49,6 +49,10 @@
     }
   ],
   "errorsArea": null,
+  "devServers": [
+    { "id": "api", "name": "API", "cwd": "api", "command": "php", "args": ["artisan", "serve", "--port=8000"], "port": 8000, "url": "http://localhost:8000" },
+    { "id": "web", "name": "Web", "cwd": "web", "command": "npm", "args": ["run", "dev"], "shell": true, "port": 3000, "url": "http://localhost:3000", "startSeconds": 120 }
+  ],
   "sentry": { "org": null, "projects": [], "query": "is:unresolved level:error", "period": "14d" },
   "deployProjects": [
     {
