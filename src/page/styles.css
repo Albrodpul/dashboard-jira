@@ -646,6 +646,3 @@ select.epic-add { flex: none; width: auto; max-width: 100%; border-radius: 999px
 .term-compose { display: flex; gap: 8px; flex: none; }
 .term-input { flex: 1 1 auto; min-height: 40px; max-height: 120px; resize: none; border: 1px solid #2c333a; border-radius: 6px; background: #1b2026; color: #e6e9ec; padding: 9px 10px; font: inherit; font-size: 16px; }
 .host-chip { color: var(--accent); background: var(--accent-soft); }
-.home-system { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
-.system-live { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink-2); font: inherit; font-size: 13px; cursor: pointer; }
-.system-live:hover { border-color: var(--accent); color: var(--accent); }
