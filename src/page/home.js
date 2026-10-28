@@ -70,7 +70,7 @@ function sessionCard(s, group) {
   return h("article", { class: `card home-session ${group}` }, kids);
 }
 
-function shortcuts(root) {
+export function shortcuts(root) {
   const count = (statuses) => state.tasks.filter((t) => statuses.includes(t.status)).length;
   const data = [
     ["pending", "Pendientes", ["pending"]],

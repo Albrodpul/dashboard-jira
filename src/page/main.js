@@ -3,7 +3,7 @@ import { renderTasks, renderToday, renderBoard } from "./tasks.js";
 import { renderSessions, renderEpics } from "./sessions.js";
 import { renderSearch, renderDeploy, renderTalk, renderContext, renderFollowUp } from "./operations.js";
 import { renderReport, updateStamp, mountHeader, quotaBlock } from "./report.js";
-import { renderHome, sessionStrip } from "./home.js";
+import { renderHome, sessionStrip, shortcuts } from "./home.js";
 import { renderLearning } from "./learning.js";
 
 const TASK_TABS = [
@@ -203,6 +203,7 @@ function render() {
   if (state.tab === "today") {
     const strip = sessionStrip();
     if (strip) root.appendChild(strip);
+    shortcuts(root);
     return renderToday(root, errors);
   }
   if (state.tab === "more") return renderMore(root, waitingDeploys, errors);
