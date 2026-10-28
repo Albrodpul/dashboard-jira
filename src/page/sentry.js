@@ -28,6 +28,10 @@ function load(force) {
     });
 }
 
+setInterval(() => {
+  if (state.tab === "sentry" && !document.hidden && Date.now() - loadedAt > STALE_MS) load(false);
+}, 5000);
+
 const sendOf = (id) => ((state.sentry && state.sentry.sends) || []).find((x) => x.id === id) || null;
 
 function sendState(s) {
