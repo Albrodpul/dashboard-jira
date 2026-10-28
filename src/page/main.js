@@ -298,5 +298,13 @@ if (askedTab) {
   history.replaceState(null, "", "/");
 }
 if ("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("message", (e) => e.data && e.data.tab && switchView(e.data.tab, true));
+const pageErrors = [];
+function reportPageError(kind, message, where) {
+  pageErrors.push({ at: new Date().toISOString(), kind, message: String(message || "").slice(0, 300), where: String(where || "").slice(0, 200), tab: state.tab, hidden: document.hidden });
+  if (pageErrors.length > 30) pageErrors.shift();
+  fetch("/api/page-errors", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ua: navigator.userAgent, errors: pageErrors }) }).catch(() => {});
+}
+window.addEventListener("error", (e) => reportPageError("error", e.message, `${e.filename}:${e.lineno}`));
+window.addEventListener("unhandledrejection", (e) => reportPageError("promise", e.reason && (e.reason.stack || e.reason.message || e.reason)));
 reload(true);
 setInterval(() => reload(false), 3000);

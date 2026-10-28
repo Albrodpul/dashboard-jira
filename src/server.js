@@ -158,6 +158,10 @@ const POST_ROUTES = {
     fs.writeFileSync(path.join(DATA_DIR, "layout-report.json"), JSON.stringify({ at: new Date().toISOString(), ...input }, null, 1).slice(0, 8000));
     send(res, 200);
   },
+  "/api/page-errors": (res, input, send) => {
+    fs.writeFileSync(path.join(DATA_DIR, "page-errors.json"), JSON.stringify({ at: new Date().toISOString(), ...input }, null, 1).slice(0, 20000));
+    send(res, 200);
+  },
   "/api/audio-report": (res, input, send) => {
     fs.writeFileSync(path.join(DATA_DIR, "audio-report.json"), JSON.stringify({ at: new Date().toISOString(), ...input }, null, 1).slice(0, 20000));
     send(res, 200);
