@@ -33,6 +33,7 @@ const log = (m) => {
     fs.appendFileSync(LOG_FILE, `[${new Date().toISOString()}] ${m}\n`);
   } catch (e) {}
 };
+const sizeFrame = (s) => `\u0000${JSON.stringify({ cols: s.cols, rows: s.rows })}`;
 const plain = (s) => s.replace(/\x1b\[[0-9;?]*[ -\/]*[@-~]/g, "").replace(/\x1b\][^\x07]*\x07/g, "");
 
 function serve() {
@@ -172,7 +173,7 @@ function serve() {
     if (!s) return socket.destroy();
     wss.handleUpgrade(req, socket, head, (ws) => {
       s.clients.add(ws);
-      ws.send(`\x1b[8;${s.rows};${s.cols}t`);
+      ws.send(sizeFrame(s));
       ws.send(s.buffer);
       if (!s.pty) ws.send("\r\n\x1b[33m[La sesión no está en marcha.]\x1b[0m\r\n");
       ws.on("message", (raw) => {
@@ -189,7 +190,7 @@ function serve() {
           try {
             s.pty.resize(s.cols, s.rows);
           } catch (e) {}
-          for (const c of s.clients) if (c.readyState === 1) c.send(`\x1b[8;${s.rows};${s.cols}t`);
+          for (const c of s.clients) if (c.readyState === 1) c.send(sizeFrame(s));
         }
       });
       ws.on("close", () => s.clients.delete(ws));
