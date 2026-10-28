@@ -7,6 +7,7 @@ const { DATA_DIR, SEEN_FILE, load, mutate, now } = require("./data");
 const CLUSTER = config.cluster || null;
 const STATE_FILE = path.join(DATA_DIR, "cluster.json");
 const TAKEOVER_MS = 60000;
+const YIELD_WAIT_MS = 3 * 60000;
 const SNAPSHOT_MS = 60000;
 const ROLES = [
   ["reporter", "Reporte JIRA"],
@@ -292,6 +293,13 @@ async function tick() {
     if (peer) {
       st.peerDownSince = null;
       if (peer.role === "primary") {
+        if (isPrimary() && peer.preferred) {
+          st.preferredBackSince = st.preferredBackSince || now();
+          save();
+          if (Date.now() - new Date(st.preferredBackSince).getTime() < YIELD_WAIT_MS) return;
+          log("el ordenador preferido manda pero no me ha pedido ceder");
+        }
+        st.preferredBackSince = null;
         if (isPrimary()) await demote("el otro ordenador manda");
         if (Date.now() - lastPull > SNAPSHOT_MS) {
           lastPull = Date.now();
@@ -311,7 +319,9 @@ async function tick() {
 }
 
 async function handleYield() {
-  if (CLUSTER && !CLUSTER.preferred && isPrimary()) await demote("el ordenador preferido ha vuelto");
+  if (!CLUSTER || CLUSTER.preferred || !isPrimary()) return;
+  st.preferredBackSince = null;
+  await demote("el ordenador preferido ha vuelto");
 }
 
 module.exports = { isPrimary, info, snapshot, transcripts, serveTranscript, tick, handleYield, clusterEnabled: () => !!CLUSTER };
