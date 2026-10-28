@@ -75,7 +75,7 @@ export async function openTerminal(conversation, name) {
   document.body.appendChild(root);
   document.body.classList.add("term-open");
 
-  const term = new window.Terminal({ convertEol: false, fontSize: window.matchMedia("(max-width: 760px)").matches ? 11 : 13, fontFamily: "ui-monospace, Consolas, monospace", theme: { background: "#111418" }, scrollback: 5000 });
+  const term = new window.Terminal({ convertEol: false, fontSize: window.matchMedia("(max-width: 760px)").matches ? 11 : 13, fontFamily: "ui-monospace, Consolas, monospace", theme: { background: "#ffffff", foreground: "#1f2328", cursor: "#1f2328", cursorAccent: "#ffffff", selectionBackground: "#bfdbe4" }, scrollback: 5000 });
   const fit = new window.FitAddon.FitAddon();
   term.loadAddon(fit);
   term.open(screen);
