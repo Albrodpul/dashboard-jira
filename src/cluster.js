@@ -6,7 +6,7 @@ const { DATA_DIR, SEEN_FILE, load, mutate, now } = require("./data");
 
 const CLUSTER = config.cluster || null;
 const STATE_FILE = path.join(DATA_DIR, "cluster.json");
-const TAKEOVER_MS = 5 * 60000;
+const TAKEOVER_MS = 60000;
 const SNAPSHOT_MS = 60000;
 const ROLES = [
   ["reporter", "Reporte JIRA"],
@@ -304,7 +304,7 @@ async function tick() {
     }
     st.peerDownSince = st.peerDownSince || now();
     save();
-    if (!isPrimary() && Date.now() - new Date(st.peerDownSince).getTime() > TAKEOVER_MS) await promote("el otro ordenador no responde desde hace 5 minutos");
+    if (!isPrimary() && Date.now() - new Date(st.peerDownSince).getTime() > TAKEOVER_MS) await promote("el otro ordenador no responde desde hace un minuto");
   } finally {
     busy = false;
   }

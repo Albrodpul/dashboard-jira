@@ -249,7 +249,7 @@ function showVia(via, stale) {
   const primary = (c && c.label) || "el ordenador que manda";
   el.className = stale || takenOver ? "via stale" : "via";
   if (takenOver) el.textContent = `Estás viendo el tablero del ${c.label || "otro ordenador"}: el otro ordenador está fuera de servicio y manda este.`;
-  else if (stale) el.textContent = `Estás en el ${stale} y el otro ordenador no responde: ves los últimos datos copiados. Si sigue así, en unos minutos manda el ${stale}.`;
+  else if (stale) el.textContent = `Estás en el ${stale} y el otro ordenador no responde: ves los últimos datos copiados. Si sigue así, en un minuto manda el ${stale}.`;
   else el.textContent = `Estás en el ${via}: lo que ves es el tablero del ${primary}, que es el que manda.`;
 }
 
