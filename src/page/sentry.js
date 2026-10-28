@@ -21,6 +21,7 @@ function load(force) {
     })
     .catch(() => {
       data = { available: true, issues: [], errors: ["No se pudo leer Sentry desde el tablero."] };
+      loadedAt = Date.now();
     })
     .finally(() => {
       loading = false;
