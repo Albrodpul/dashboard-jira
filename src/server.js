@@ -182,8 +182,10 @@ const POST_ROUTES = {
     send(res, 200, { sent: n });
   },
   "/api/cluster/yield": (res, input, send) => {
-    require("./cluster").handleYield().catch(() => {});
-    send(res, 200);
+    require("./cluster")
+      .handleYield()
+      .catch(() => {})
+      .then(() => send(res, 200));
   },
   "/api/host/respawned": (res, { conversation }, send) => {
     send(res, 200);
@@ -347,6 +349,13 @@ function handleLocal(req, res, url) {
     if (url.startsWith("/api/permission/perm-")) return serveBody(res, "application/json", JSON.stringify(permissions.poll(url.slice("/api/permission/".length))));
     if (url === "/api/cluster") return serveBody(res, "application/json", JSON.stringify(require("./cluster").info()));
     if (url === "/api/cluster/snapshot") return serveBody(res, "application/json", JSON.stringify(require("./cluster").snapshot()));
+    if (url === "/api/cluster/transcripts") return serveBody(res, "application/json", JSON.stringify(cluster.transcripts()));
+    if (url.startsWith("/api/cluster/transcript/")) {
+      const part = cluster.serveTranscript(url.slice("/api/cluster/transcript/".length), Number(new URLSearchParams(req.url.split("?")[1] || "").get("from")) || 0);
+      if (!part) return res.writeHead(404).end();
+      res.writeHead(200, { "content-type": "application/x-ndjson", "cache-control": "no-store", "x-tail-hash": part.tail });
+      return res.end(part.body);
+    }
     if (url === "/api/host/sessions") {
       host
         .hostRequest("GET", "/sessions")
