@@ -18,6 +18,8 @@ const deployStatus = require("./deploy-status");
 const sentry = require("./sentry");
 const devservers = require("./devservers");
 const permissions = require("./permissions");
+const host = require("./host");
+const net = require("net");
 
 const PAGE_DIR = path.join(__dirname, "page");
 const HOSTS_FILE = path.join(DATA_DIR, "board-hosts.txt");
@@ -175,6 +177,33 @@ const POST_ROUTES = {
     }
     send(res, 200, { sent: n });
   },
+  "/api/host/action": (res, { action, conversation, name }, send) => {
+    if (!/^[0-9a-f-]{36}$/.test(String(conversation || ""))) return send(res, 400, { error: "conversación no válida" });
+    const go = async () => {
+      await host.ensureHost();
+      if (action === "move") {
+        if (host.vsCodeHas(conversation)) {
+          host.markWaiting(conversation, name);
+          return { waiting: true };
+        }
+        return host.hostRequest("POST", "/start", { conversation, name });
+      }
+      if (action === "back") {
+        await host.hostRequest("POST", "/release", { conversation });
+        require("./sessions").openInVsCode(conversation);
+        return { ok: true };
+      }
+      if (action === "restart") {
+        await host.hostRequest("POST", "/stop", { conversation });
+        await new Promise((r) => setTimeout(r, 1500));
+        return host.hostRequest("POST", "/start", { conversation, name });
+      }
+      throw new Error("acción desconocida");
+    };
+    go()
+      .then((r) => send(res, 200, r))
+      .catch((e) => send(res, 500, { error: String(e.message || e) }));
+  },
   "/api/permission/check": (res, input, send) => send(res, 200, permissions.check(input)),
   "/api/permission/decide": (res, { id, decision, reason }, send) => send(res, permissions.decide(String(id), decision, reason) ? 200 : 409),
   "/api/permission/rule-remove": (res, { key }, send) => send(res, permissions.removeRule(String(key)) ? 200 : 404),
@@ -244,6 +273,22 @@ function handle(req, res) {
     if (url === "/api/push/reason") return serveBody(res, "application/json", JSON.stringify(pushReason()));
     if (url === "/api/push/key") return serveBody(res, "application/json", JSON.stringify({ key: pushKeys().publicKey }));
     if (url.startsWith("/api/permission/perm-")) return serveBody(res, "application/json", JSON.stringify(permissions.poll(url.slice("/api/permission/".length))));
+    if (url === "/api/host/sessions") {
+      host
+        .hostRequest("GET", "/sessions")
+        .then((v) => serveBody(res, "application/json", JSON.stringify({ up: true, sessions: v, hosted: host.readConfig() })))
+        .catch(() => serveBody(res, "application/json", JSON.stringify({ up: false, sessions: [], hosted: host.readConfig() })));
+      return;
+    }
+    if (VENDOR[url]) {
+      let body;
+      try {
+        body = fs.readFileSync(VENDOR[url][0]);
+      } catch (e) {
+        return res.writeHead(404).end();
+      }
+      return serveBody(res, VENDOR[url][1], body, "max-age=86400");
+    }
     if (url === "/api/devservers") {
       devservers
         .status()
@@ -297,8 +342,34 @@ function handle(req, res) {
   });
 }
 
+const NM = path.join(__dirname, "..", "node_modules", "@xterm");
+const VENDOR = {
+  "/vendor/xterm.js": [path.join(NM, "xterm", "lib", "xterm.js"), "text/javascript; charset=utf-8"],
+  "/vendor/xterm.css": [path.join(NM, "xterm", "css", "xterm.css"), "text/css; charset=utf-8"],
+  "/vendor/addon-fit.js": [path.join(NM, "addon-fit", "lib", "addon-fit.js"), "text/javascript; charset=utf-8"],
+};
+
+function proxyTerminal(req, socket, head) {
+  const m = /^\/api\/term\/([0-9a-f-]{36})$/.exec(req.url || "");
+  if (!m || !originOk(req)) return socket.destroy();
+  const upstream = net.connect(host.HOST_PORT, "127.0.0.1", () => {
+    const lines = [`GET /attach/${m[1]} HTTP/1.1`];
+    for (let i = 0; i < req.rawHeaders.length; i += 2) if (!/^host$/i.test(req.rawHeaders[i])) lines.push(`${req.rawHeaders[i]}: ${req.rawHeaders[i + 1]}`);
+    lines.push(`Host: 127.0.0.1:${host.HOST_PORT}`);
+    upstream.write(lines.join("\r\n") + "\r\n\r\n");
+    if (head && head.length) upstream.write(head);
+    upstream.pipe(socket);
+    socket.pipe(upstream);
+  });
+  upstream.on("error", () => socket.destroy());
+  socket.on("error", () => upstream.destroy());
+}
+
 function serve() {
-  http.createServer(handle).listen(PORT, "127.0.0.1", () => console.log(`Torre de control en ${BASE_URL}`));
+  const server = http.createServer(handle);
+  server.on("upgrade", proxyTerminal);
+  host.ensureHost().catch(() => {});
+  server.listen(PORT, "127.0.0.1", () => console.log(`Torre de control en ${BASE_URL}`));
   const every = (fn, ms) => {
     const once = () => Promise.resolve().then(fn).catch(() => {});
     once();

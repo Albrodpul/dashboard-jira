@@ -633,3 +633,16 @@ select.epic-add { flex: none; width: auto; max-width: 100%; border-radius: 999px
 .perm-detail { margin: 0; padding: 8px 10px; background: var(--surface-2); border-radius: 6px; font-family: var(--mono); font-size: 12px; color: var(--ink-2); white-space: pre-wrap; overflow-wrap: anywhere; max-height: 180px; overflow: auto; }
 .perm-rules { margin-top: 8px; }
 .perm-rule { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 0; border-top: 1px solid var(--line); font-size: 13.5px; }
+.term-open { overflow: hidden; }
+.term-overlay { position: fixed; inset: 0; z-index: 20; display: flex; flex-direction: column; background: #111418; color: #e6e9ec; padding: 8px 8px calc(8px + env(safe-area-inset-bottom, 0px)); gap: 8px; }
+.term-head { display: flex; align-items: center; gap: 10px; padding: 0 4px; }
+.term-head strong { font-size: 15px; }
+.term-head .btn { margin-left: auto; }
+.term-status { color: #9aa4ad; }
+.term-screen { flex: 1 1 auto; min-height: 0; overflow: hidden; border-radius: 6px; }
+.term-keys { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; flex: none; }
+.term-keys::-webkit-scrollbar { display: none; }
+.term-key { flex: none; min-width: 44px; min-height: 38px; padding: 0 10px; border: 1px solid #2c333a; border-radius: 6px; background: #1b2026; color: #e6e9ec; font: inherit; font-size: 13px; }
+.term-compose { display: flex; gap: 8px; flex: none; }
+.term-input { flex: 1 1 auto; min-height: 40px; max-height: 120px; resize: none; border: 1px solid #2c333a; border-radius: 6px; background: #1b2026; color: #e6e9ec; padding: 9px 10px; font: inherit; font-size: 16px; }
+.host-chip { color: var(--accent); background: var(--accent-soft); }

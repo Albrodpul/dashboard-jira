@@ -58,7 +58,11 @@ export function sessionSituation() {
   return out;
 }
 
-const vsCodeLink = (s) => (s.conversation ? h("a", { class: "btn link", href: `vscode://anthropic.claude-code/open?session=${encodeURIComponent(s.conversation)}`, text: "Ir a su pestaña" }) : null);
+const vsCodeLink = (s) => {
+  if (!s.conversation) return null;
+  if ((state.hosted || []).some((x) => x.conversation === s.conversation && !x.waitingForVsCode)) return h("button", { class: "btn link", type: "button", text: "Ver en directo", onclick: () => import("./terminal.js").then((m) => m.openTerminal(s.conversation, s.sessionName || s.name)) });
+  return h("a", { class: "btn link", href: `vscode://anthropic.claude-code/open?session=${encodeURIComponent(s.conversation)}`, text: "Ir a su pestaña" });
+};
 
 function sessionCard(s, group) {
   const kids = [h("div", { class: "top" }, [h("span", { class: `dot ${DOTS[group]}` }), h("strong", { class: "session-title", text: s.name }), h("span", { class: "time", text: s.since ? `desde ${when(s.since)}` : "" })])];

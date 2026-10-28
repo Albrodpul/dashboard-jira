@@ -126,6 +126,7 @@ function state() {
     boardStatus: boardStatus(d, r),
     followUps: d.followUps.slice(0, 80),
     permissions: permissions.forPage(d),
+    hosted: require("./host").readConfig(),
     sentry: { enabled: sentry.sentryAvailable(), errorsArea: ERRORS_AREA, sends: sentry.sentryIssues(d) },
     people: people(d),
     followUpStatus: followUpStatus(d, r),
