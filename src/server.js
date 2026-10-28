@@ -422,6 +422,7 @@ function serve() {
   every(learning.startReading, 3 * 60 * 60 * 1000);
   deployStatus.startDeployStatus();
   every(devservers.schedule, 60 * 1000);
+  every(require("./contextsync").syncContext, 3 * 60 * 1000);
 }
 
 module.exports = { serve };

@@ -89,6 +89,9 @@ export function shortcuts(root) {
 }
 
 export function renderHome(root) {
+  const cs = state.contextSync;
+  if (cs && cs.state === "conflict") root.appendChild(h("p", { class: "setup-note warn", text: "El contexto compartido tiene un choque entre los dos ordenadores y no se sincroniza. Hay que resolverlo a mano en palc (git status)." }));
+  else if (cs && cs.state === "error") root.appendChild(h("p", { class: "setup-note warn", text: `El contexto compartido no se sincroniza: ${String(cs.error || "").split(/\r?\n/)[0]}` }));
   shortcuts(root);
   const s = sessionSituation();
   if (!s.working.length && !s.blocked.length && !s.free.length) root.appendChild(empty("No hay sesiones de área abiertas.", "Las que abras aparecen aquí solas."));
