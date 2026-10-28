@@ -10,7 +10,8 @@ const KEYS = [
   ["Enter", "\r", "Enter"],
 ];
 let loading = null;
-let current = null;
+let overlay = null;
+const panels = new Map();
 
 function loadScript(src) {
   return new Promise((resolve, reject) => {
@@ -34,82 +35,46 @@ function loadXterm() {
   return loading;
 }
 
-export function closeTerminal() {
-  if (!current) return;
-  current.closed = true;
-  try {
-    current.ws.close();
-  } catch (e) {}
-  try {
-    current.term.dispose();
-  } catch (e) {}
-  window.removeEventListener("resize", current.onResize);
-  current.root.remove();
-  document.body.classList.remove("term-open");
-  current = null;
-}
-
-export async function openTerminal(conversation, name) {
-  closeTerminal();
-  try {
-    await loadXterm();
-  } catch (e) {
-    return toast("No se pudo cargar el visor de terminal.");
-  }
+function createPanel(conversation, name, onClose) {
   const screen = h("div", { class: "term-screen" });
   const status = h("span", { class: "meta term-status", text: "Conectando…" });
-  const close = h("button", { class: "btn subtle", type: "button", text: "Cerrar", onclick: closeTerminal });
+  const head = [h("strong", { text: name }), status];
+  if (onClose) head.push(h("button", { class: "btn subtle", type: "button", text: "Cerrar", onclick: onClose }));
+  const input = h("textarea", { class: "term-input", rows: "1", placeholder: "Escribe aquí y pulsa Enviar", "aria-label": `Escribir a ${name}` });
+  const sendBtn = h("button", { class: "btn primary", type: "button", text: "Enviar" });
   const keys = h(
     "div",
     { class: "term-keys", role: "group", "aria-label": "Teclas" },
-    KEYS.map(([label, seq, title]) => h("button", { type: "button", class: "term-key", title, text: label, onclick: () => send(seq) }))
+    KEYS.map(([label, seq, title]) => h("button", { type: "button", class: "term-key", title, text: label, onclick: () => panel.send(seq) }))
   );
-  const input = h("textarea", { class: "term-input", rows: "1", placeholder: "Escribe aquí y pulsa Enviar", "aria-label": `Escribir a ${name}` });
-  const sendBtn = h("button", { class: "btn primary", type: "button", text: "Enviar" });
-  const root = h("div", { class: "term-overlay", role: "dialog", "aria-label": `Sesión ${name} en directo` }, [
-    h("div", { class: "term-head" }, [h("strong", { text: name }), status, close]),
-    screen,
-    keys,
-    h("div", { class: "term-compose" }, [input, sendBtn]),
-  ]);
-  document.body.appendChild(root);
-  document.body.classList.add("term-open");
+  const root = h("div", { class: "term-panel" }, [h("div", { class: "term-head" }, head), screen, keys, h("div", { class: "term-compose" }, [input, sendBtn])]);
+  const panel = { root, conversation, ws: null, term: null, fit: null, closed: false };
 
-  const term = new window.Terminal({ convertEol: false, fontSize: window.matchMedia("(max-width: 760px)").matches ? 11 : 13, fontFamily: "ui-monospace, Consolas, monospace", theme: { background: "#ffffff", foreground: "#1f2328", cursor: "#1f2328", cursorAccent: "#ffffff", selectionBackground: "#bfdbe4" }, scrollback: 5000 });
-  const fit = new window.FitAddon.FitAddon();
-  term.loadAddon(fit);
-  term.open(screen);
-  const proto = location.protocol === "https:" ? "wss" : "ws";
-  const ws = new WebSocket(`${proto}://${location.host}/api/term/${conversation}`);
-  const state = { ws, term, root, closed: false };
-  current = state;
-
-  function send(data) {
-    if (ws.readyState === 1) ws.send(JSON.stringify({ type: "input", data }));
-  }
-  function resize() {
+  panel.send = (data) => {
+    if (panel.ws && panel.ws.readyState === 1) panel.ws.send(JSON.stringify({ type: "input", data }));
+  };
+  panel.resize = () => {
+    if (!panel.term || !root.isConnected) return;
     try {
-      fit.fit();
+      panel.fit.fit();
     } catch (e) {}
-    if (ws.readyState === 1) ws.send(JSON.stringify({ type: "resize", cols: term.cols, rows: term.rows }));
-  }
-  state.onResize = () => setTimeout(resize, 50);
-  window.addEventListener("resize", state.onResize);
-
-  ws.onopen = () => {
-    status.textContent = "En directo";
-    resize();
+    if (panel.ws && panel.ws.readyState === 1) panel.ws.send(JSON.stringify({ type: "resize", cols: panel.term.cols, rows: panel.term.rows }));
   };
-  ws.onmessage = (e) => term.write(typeof e.data === "string" ? e.data : new Uint8Array(e.data));
-  ws.onclose = () => {
-    if (!state.closed) status.textContent = "Desconectado: ciérralo y vuelve a abrirlo";
+  panel.dispose = () => {
+    panel.closed = true;
+    try {
+      panel.ws && panel.ws.close();
+    } catch (e) {}
+    try {
+      panel.term && panel.term.dispose();
+    } catch (e) {}
+    root.remove();
   };
-  term.onData((d) => send(d));
   const submit = () => {
     const text = input.value;
-    if (!text.trim()) return send("\r");
-    send(text);
-    setTimeout(() => send("\r"), 150);
+    if (!text.trim()) return panel.send("\r");
+    panel.send(text);
+    setTimeout(() => panel.send("\r"), 150);
     input.value = "";
   };
   sendBtn.addEventListener("click", submit);
@@ -119,9 +84,68 @@ export async function openTerminal(conversation, name) {
       submit();
     }
   });
-  setTimeout(resize, 100);
+
+  loadXterm().then(
+    () => {
+      if (panel.closed) return;
+      const term = new window.Terminal({ fontSize: window.matchMedia("(max-width: 760px)").matches ? 11 : 13, fontFamily: "ui-monospace, Consolas, monospace", theme: { background: "#ffffff", foreground: "#1f2328", cursor: "#1f2328", cursorAccent: "#ffffff", selectionBackground: "#bfdbe4" }, scrollback: 5000 });
+      const fit = new window.FitAddon.FitAddon();
+      term.loadAddon(fit);
+      term.open(screen);
+      Object.assign(panel, { term, fit });
+      term.onData((d) => panel.send(d));
+      const connect = () => {
+        if (panel.closed) return;
+        const proto = location.protocol === "https:" ? "wss" : "ws";
+        const ws = new WebSocket(`${proto}://${location.host}/api/term/${conversation}`);
+        panel.ws = ws;
+        ws.onopen = () => {
+          status.textContent = "En directo";
+          term.reset();
+          setTimeout(panel.resize, 50);
+        };
+        ws.onmessage = (e) => term.write(typeof e.data === "string" ? e.data : new Uint8Array(e.data));
+        ws.onclose = () => {
+          if (panel.closed) return;
+          status.textContent = "Reconectando…";
+          setTimeout(connect, 3000);
+        };
+      };
+      connect();
+      setTimeout(panel.resize, 100);
+    },
+    () => toast("No se pudo cargar el visor de terminal.")
+  );
+  return panel;
 }
 
-document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape" && current && document.activeElement && document.activeElement.classList.contains("term-input")) closeTerminal();
+window.addEventListener("resize", () => {
+  for (const p of panels.values()) setTimeout(p.resize, 50);
+  if (overlay) setTimeout(overlay.resize, 50);
 });
+
+export function livePanel(conversation, name) {
+  let p = panels.get(conversation);
+  if (!p || p.closed) {
+    p = createPanel(conversation, name);
+    p.root.classList.add("term-inline");
+    panels.set(conversation, p);
+  }
+  setTimeout(p.resize, 50);
+  return p.root;
+}
+
+export function closeTerminal() {
+  if (!overlay) return;
+  overlay.dispose();
+  overlay = null;
+  document.body.classList.remove("term-open");
+}
+
+export function openTerminal(conversation, name) {
+  closeTerminal();
+  overlay = createPanel(conversation, name, closeTerminal);
+  overlay.root.classList.add("term-overlay");
+  document.body.appendChild(overlay.root);
+  document.body.classList.add("term-open");
+}
