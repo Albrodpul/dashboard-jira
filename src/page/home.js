@@ -28,7 +28,7 @@ function blockReason(live, tasks) {
 
 export function sessionSituation() {
   const out = { working: [], blocked: [], free: [], system: [] };
-  const systemConversations = new Set([state.reporterRoute, state.orchestrator, state.followUpStatus].filter(Boolean).map((r) => r.conversation));
+  const systemConversations = new Set([state.reporterRoute, state.orchestrator, state.followUpStatus, state.boardStatus].filter(Boolean).map((r) => r.conversation));
   for (const a of state.areas) {
     if (!a.open || systemConversations.has(a.conversation)) continue;
     const live = liveOf(a.conversation, a.sessionName);
@@ -46,6 +46,7 @@ export function sessionSituation() {
     ["Reporte de Jira", state.reporterRoute],
     ["Orquestadora", state.orchestrator],
     [`Seguimiento de ${reviewer()}`, state.followUpStatus],
+    ["Tablero", state.boardStatus],
   ];
   for (const [name, r] of roles) {
     if (!r || !r.conversation) continue;

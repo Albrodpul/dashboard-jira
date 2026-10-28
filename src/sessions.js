@@ -241,7 +241,7 @@ function reconcile(live) {
   const r = loadRoutes();
   let changed = false;
   const taken = new Set(Object.values(r.areas).map((a) => a.conversation).filter(Boolean));
-  for (const role of [r.reporter, r.orchestrator, r.followUp]) if (role && role.conversation) taken.add(role.conversation);
+  for (const role of [r.reporter, r.orchestrator, r.followUp, r.board]) if (role && role.conversation) taken.add(role.conversation);
   const single = (l) => (l.length === 1 ? l[0] : null);
   const registeredInThisProcess = (x, v) => x.session === v.name && x.since && new Date(x.since).getTime() >= new Date(v.started).getTime() - 2000;
   const link = (x, v) => {
@@ -288,7 +288,7 @@ function targets(d, r) {
   for (const s of open) count[s.name] = (count[s.name] || 0) + 1;
   const byConversation = new Map(open.filter((s) => s.conversation).map((s) => [s.conversation, s]));
   const openNames = new Set(open.map((s) => s.name));
-  const roles = [r.reporter, r.orchestrator, r.followUp].filter(Boolean);
+  const roles = [r.reporter, r.orchestrator, r.followUp, r.board].filter(Boolean);
   const out = [];
   const usedConversations = new Set();
   const usedNames = new Set();
