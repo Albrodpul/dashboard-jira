@@ -25,9 +25,11 @@ const PAGE_DIR = path.join(__dirname, "page");
 const HOSTS_FILE = path.join(DATA_DIR, "board-hosts.txt");
 const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8" };
 
+const LABEL = (require("./config").cluster || {}).label || "";
 const MANIFEST = JSON.stringify({
-  name: "Torre de control",
-  short_name: "Torre",
+  id: LABEL ? `/?torre=${LABEL.toLowerCase()}` : "/",
+  name: LABEL ? `Torre de control · ${LABEL}` : "Torre de control",
+  short_name: LABEL ? `Torre ${LABEL}` : "Torre",
   description: "Tareas de Jira que se pueden pasar a la sesión que lleva su epic.",
   lang: "es",
   start_url: "/",
@@ -88,7 +90,7 @@ const icons = new Map();
 
 function icon(side) {
   if (icons.has(side)) return icons.get(side);
-  const background = [11, 110, 138];
+  const background = (require("./config").cluster || {}).color || [11, 110, 138];
   const paper = [255, 255, 255];
   const accent = [255, 196, 87];
   const row = side * 4 + 1;
