@@ -116,7 +116,11 @@ function classifySegment(segment, cwd) {
     if (remote && (cmd !== "mysql" || DB_WRITE.test(sqlOf(rest, cwd, WHOLE.text)))) return { kind: "protected", key: "bd remota escritura", label: `${cmd} con escritura contra ${host || "el puerto " + port}` };
     return { kind: "allow" };
   }
-  if (/jira-write/.test(rest)) return { kind: "protected", key: "jira-write", label: "escribir en Jira" };
+  if (/jira-write/.test(rest)) {
+    const m = /jira-write(?:\.js)?\s+([\w-]+)\s+([A-Z][A-Z0-9]+-\d+)/.exec(rest);
+    if (m && !/comment|mention/.test(m[1])) return { kind: "protected", key: "jira-write", jiraKey: m[2], label: `${m[1] === "assign" ? "asignarse" : "mover"} ${m[2]} en Jira` };
+    return { kind: "protected", key: "jira-write", label: m ? `comentar en ${m[2]} en Jira` : "escribir en Jira" };
+  }
   if (cmd === "curl" || cmd === "wget") {
     const url = (/(https?:\/\/[^\s"']+)/.exec(rest) || [])[1] || "";
     if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\//i.test(url + "/")) return { kind: "allow" };
