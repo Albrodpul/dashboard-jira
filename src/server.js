@@ -318,13 +318,16 @@ function peerHeaders(req, peer) {
 function forwardToPrimary(req, res, fallback) {
   const peer = new URL(cluster.info().peer);
   const out = https.request({ host: peer.hostname, port: peer.port || 443, method: req.method, path: req.url, headers: peerHeaders(req, peer), timeout: 15000 }, (up) => {
-    res.writeHead(up.statusCode, up.headers);
+    res.writeHead(up.statusCode, { ...up.headers, "x-tower-via": LABEL || "otro" });
     up.pipe(res);
   });
   out.on("timeout", () => out.destroy(new Error("timeout")));
   out.on("error", () => {
     if (res.headersSent) return res.destroy();
-    if (req.method === "GET") return fallback();
+    if (req.method === "GET") {
+      res.setHeader("x-tower-stale", LABEL || "otro");
+      return fallback();
+    }
     send(res, 502, { error: "el ordenador que manda no responde" });
   });
   req.pipe(out);
