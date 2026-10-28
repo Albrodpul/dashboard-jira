@@ -30,13 +30,16 @@ function repoGit(args) {
   });
 }
 
+let runningHead = null;
+try {
+  runningHead = cp.execFileSync("git", ["-C", REPO, "rev-parse", "HEAD"], { windowsHide: true }).toString().trim();
+} catch (e) {}
+
 async function updateBoard() {
-  const before = await repoGit(["rev-parse", "HEAD"]);
-  const pull = await repoGit(["pull", "--ff-only", "-q"]);
-  if (!pull.ok) return;
+  await repoGit(["pull", "--ff-only", "-q"]);
   const after = await repoGit(["rev-parse", "HEAD"]);
-  if (!before.ok || before.out.trim() === after.out.trim()) return;
-  const changed = await repoGit(["diff", "--name-only", before.out.trim(), after.out.trim()]);
+  if (!runningHead || !after.ok || runningHead === after.out.trim()) return;
+  const changed = await repoGit(["diff", "--name-only", runningHead, after.out.trim()]);
   if (/package(-lock)?\.json/.test(changed.out)) await new Promise((r) => cp.execFile(process.platform === "win32" ? "npm.cmd" : "npm", ["ci", "--no-audit", "--no-fund"], { cwd: REPO, shell: process.platform === "win32", windowsHide: true, timeout: 300000 }, () => r()));
   cp.spawn(process.execPath, [path.join(REPO, "src", "cli.js"), "restart"], { detached: true, stdio: "ignore", windowsHide: true, env: { ...process.env, TOWER_WORKSPACE: config.workspace } }).unref();
 }
