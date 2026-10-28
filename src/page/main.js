@@ -243,10 +243,22 @@ function apply(d) {
   render();
 }
 
+let lastHash = "";
+let inFlight = null;
 function reload(force) {
-  return fetch("/api/state", { cache: "no-store" })
-    .then((r) => r.json())
+  if (inFlight && !force) return inFlight;
+  const headers = force || !lastHash ? {} : { "x-state-hash": lastHash };
+  inFlight = fetch("/api/state", { cache: "no-store", headers })
+    .then((r) => {
+      if (r.status === 204) return null;
+      lastHash = r.headers.get("x-state-hash") || "";
+      return r.json();
+    })
     .then((d) => {
+      if (!d) {
+        state.ok = true;
+        return updateStamp();
+      }
       state.ok = true;
       const raw = withoutReadTime(d);
       if (raw === last && !force) {
@@ -273,8 +285,11 @@ function reload(force) {
     .catch(() => {
       state.ok = false;
       last = "";
+      lastHash = "";
       render();
-    });
+    })
+    .finally(() => (inFlight = null));
+  return inFlight;
 }
 
 setRender(() => {
@@ -315,4 +330,9 @@ try {
 } catch (e) {}
 window.addEventListener("unhandledrejection", (e) => reportPageError("promise", e.reason && (e.reason.stack || e.reason.message || e.reason)));
 reload(true);
-setInterval(() => reload(false), 3000);
+let ticks = 0;
+setInterval(() => {
+  ticks++;
+  if (document.hidden && ticks % 5) return;
+  reload(false);
+}, 3000);

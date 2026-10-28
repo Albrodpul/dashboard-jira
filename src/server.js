@@ -321,7 +321,13 @@ function handle(req, res) {
       return;
     }
     if (url === "/api/learning") return serveBody(res, "application/json", JSON.stringify(learning.learningSummary()));
-    if (url === "/api/state") return serveBody(res, "application/json", JSON.stringify({ ...state(), voice: voice.voiceAvailable(), speech: speech.speechAvailable(), deployStatus: deployStatus.readStatus() }));
+    if (url === "/api/state") {
+      const body = JSON.stringify({ ...state(), voice: voice.voiceAvailable(), speech: speech.speechAvailable(), deployStatus: deployStatus.readStatus() });
+      const hash = require("crypto").createHash("sha1").update(body.replace(/"syncedAt":"[^"]*"/g, "")).digest("hex");
+      if (req.headers["x-state-hash"] === hash) return res.writeHead(204, { "x-state-hash": hash, "cache-control": "no-store" }).end();
+      res.writeHead(200, { "content-type": "application/json", "cache-control": "no-store", "x-state-hash": hash });
+      return res.end(body);
+    }
     if (url.startsWith("/api/voice/")) return voice.serveVoice(res, url);
     if (url.startsWith("/api/speech/")) return speech.serveSpeech(res, url);
     if (["/icon-192.png", "/icon-512.png", "/favicon.ico"].includes(url)) return serveBody(res, "image/png", icon(url === "/icon-512.png" ? 512 : 192), "max-age=86400");
