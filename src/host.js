@@ -2,7 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const http = require("http");
 const cp = require("child_process");
-const { DATA_DIR, ROOT } = require("./data");
+const { DATA_DIR, ROOT, BASE_URL } = require("./data");
 
 const HOST_PORT = Number(process.env.TOWER_HOST_PORT) || 4749;
 const HOST_URL = `http://127.0.0.1:${HOST_PORT}`;
@@ -39,9 +39,10 @@ function serve() {
   const { WebSocketServer } = require("ws");
   const sessions = new Map();
 
-  function spawn(entry) {
+  function spawn(entry, notify) {
     const prev = sessions.get(entry.conversation);
     if (prev && prev.pty) return prev;
+    if (notify) setTimeout(() => tellBoard(entry.conversation), 20000);
     const s = prev || { conversation: entry.conversation, name: entry.name, buffer: "", clients: new Set(), cols: 120, rows: 40, restarts: 0 };
     s.name = entry.name;
     s.stopping = false;
@@ -81,7 +82,7 @@ function serve() {
       const still = readConfig().find((x) => x.conversation === entry.conversation);
       if (!s.stopping && still) {
         s.restarts++;
-        setTimeout(() => readConfig().some((x) => x.conversation === entry.conversation) && spawn(still), RESTART_MS * Math.min(6, s.restarts));
+        setTimeout(() => readConfig().some((x) => x.conversation === entry.conversation) && spawn(still, true), RESTART_MS * Math.min(6, s.restarts));
       }
     });
     sessions.set(entry.conversation, s);
@@ -131,7 +132,7 @@ function serve() {
           list.push(e);
           writeConfig(list);
         }
-        spawn(e);
+        spawn(e, true);
         return json(res, 200, { ok: true });
       }
       if (req.method === "POST" && req.url === "/stop") return json(res, 200, { stopped: stop(input.conversation) });
@@ -197,11 +198,19 @@ function serve() {
       if (!vsCodeHas(e.conversation)) {
         delete e.waitingForVsCode;
         changed = true;
-        spawn(e);
+        spawn(e, true);
       }
     }
     if (changed) writeConfig(list);
   }, 3000);
+}
+
+function tellBoard(conversation) {
+  const data = JSON.stringify({ conversation });
+  const req = http.request(`${BASE_URL}/api/host/respawned`, { method: "POST", timeout: 5000, headers: { origin: BASE_URL, "content-type": "application/json", "content-length": Buffer.byteLength(data) } }, (res) => res.resume());
+  req.on("error", () => {});
+  req.on("timeout", () => req.destroy());
+  req.end(data);
 }
 
 function vsCodeHas(conversation) {
