@@ -12,10 +12,11 @@ const EDITABLE = [config.root, REPO, path.join(os.homedir(), ".claude"), os.tmpd
 const SECRET_FILE = /(^|\/)\.env(\.[\w-]+)?$|\.(pem|key|p12|pfx)$|(^|\/)\.mcp\.json$|(^|\/)credentials(\.json)?$/i;
 
 const READ_WORDS = new Set("cd ls pwd cat head tail wc grep egrep fgrep rg find sed awk sort uniq cut tr diff cmp comm echo printf test [ true false sleep date basename dirname realpath readlink stat file du df which where whoami type jq nl tee touch mkdir cp mv rm rmdir ln node npm npx yarn pnpm php composer python python3 py pytest vendor/bin/phpunit tasklist netstat set export source . robocopy cmd tar unzip zip gzip base64 sha256sum md5sum iconv dos2unix clear exit".split(" "));
-const GIT_READ = new Set("pull status diff log show branch rev-parse rev-list worktree add fetch blame ls-files ls-tree grep remote config shortlog describe merge-base cat-file switch restore mv rm".split(" "));
+const GIT_READ = new Set("ls-remote for-each-ref reflog name-rev symbolic-ref check-ignore cherry pull status diff log show branch rev-parse rev-list worktree add fetch blame ls-files ls-tree grep remote config shortlog describe merge-base cat-file switch restore mv rm".split(" "));
 const GIT_PROTECTED = new Set("commit push merge tag rebase reset stash clean cherry-pick revert am".split(" "));
 const GH_READ = /^gh\s+(pr|issue|run|release|workflow|repo)\s+(view|list|diff|checks|status|watch)\b/;
 const GH_PROTECTED = /^gh\s+(pr\s+merge|release\s+create|variable|secret|api\b.*-X\s*(POST|PUT|PATCH|DELETE)|workflow\s+run)/i;
+const SHELL_WORDS = new Set("then fi do done else elif esac case in function select until local declare readonly unset shift wait trap read true false : !".split(" "));
 const PS_WORDS = new Set("foreach for if else elseif while do try catch finally switch { } ( ) % ? start-sleep sleep param return break continue".split(" "));
 const PROTECTED_WORDS = new Set("aws ssh scp sftp sam eb terraform kubectl".split(" "));
 
@@ -64,7 +65,9 @@ function segments(command) {
 
 function words(segment) {
   let s = segment.replace(/^(\(|\{)\s*/, "");
-  while (/^[A-Z_][A-Z0-9_]*=\S*\s+/.test(s)) s = s.replace(/^[A-Z_][A-Z0-9_]*=\S*\s+/, "");
+  s = s.replace(/^(function\s+)?[A-Za-z_][\w-]*\s*\(\)\s*\{?\s*/, "");
+  while (/^(then|do|else|elif|\{|\}|!)\s+/.test(s)) s = s.replace(/^(then|do|else|elif|\{|\}|!)\s+/, "");
+  while (/^[A-Za-z_]\w*=("[^"]*"|'[^']*'|\S*)\s+/.test(s)) s = s.replace(/^[A-Za-z_]\w*=("[^"]*"|'[^']*'|\S*)\s+/, "");
   s = s.replace(/^(timeout\s+\S+|time|nice|nohup|exec|command)\s+/, "");
   const first = (s.split(/\s+/)[0] || "").replace(/^["']|["']$/g, "");
   return { rest: s, cmd: path.basename(first.replace(/\\/g, "/")).replace(/\.(exe|cmd|bat)$/i, "").toLowerCase(), raw: first };
@@ -89,6 +92,8 @@ function inRepo(p, repo) {
 function classifySegment(segment, cwd) {
   const { rest, cmd, raw } = words(segment);
   if (!cmd) return { kind: "allow" };
+  if (/^["']/.test(rest) || /^[A-Za-z_][\w-]*\s*\(\)\s*\{?\s*$/.test(rest) || /^[A-Za-z_]\w*=/.test(rest)) return { kind: "allow" };
+  if (SHELL_WORDS.has(cmd)) return { kind: "allow" };
   if (cmd === "git") {
     const m = /^git\s+(?:(?:-C\s+("[^"]+"|\S+)|-c\s+\S+|--no-pager)\s+)*([\w-]+)/.exec(rest);
     const sub = m ? m[2] : "";
@@ -160,15 +165,17 @@ function classifyCommand(command, cwd) {
   command = expandVars(command);
   WHOLE.text = command;
   const parts = [];
+  const defined = new Set([...command.matchAll(/(?:^|[\n;&|]\s*)(?:function\s+)?([A-Za-z_][\w-]*)\s*\(\)\s*\{/g)].map((m) => m[1].toLowerCase()));
   let where = cwd;
   for (const seg of segments(command)) {
     if (/^([A-Za-z_]\w*=("[^"]*"|'[^']*'|\S*)\s*)+$/.test(seg)) continue;
     const cd = /^cd\s+(?:\/d\s+)?("[^"]+"|'[^']+'|\S+)\s*$/i.exec(seg);
     if (cd) {
-      where = path.resolve(where || config.root, cd[1].replace(/["']/g, ""));
+      where = path.resolve(where || config.root, cd[1].replace(/["']/g, "").replace(/^\/([a-z])\//i, "$1:/"));
       continue;
     }
-    parts.push(classifySegment(seg, where));
+    const c = classifySegment(seg, where);
+    parts.push(c.kind === "ask" && defined.has(c.key) ? { kind: "allow" } : c);
   }
   return parts.find((p) => p.kind === "protected") || parts.find((p) => p.kind === "ask") || { kind: "allow" };
 }
@@ -227,7 +234,7 @@ function check({ session_id: conversation, tool_name: tool, tool_input: input, c
   if (c.kind === "protected" && hasOrder(c, area, d)) return { decision: "allow" };
   const id = "perm-" + now().replace(/[^0-9]/g, "").slice(0, 17) + Math.floor(Math.random() * 90 + 10);
   mutate((x) => {
-    x.permissions = [{ id, conversation, area: area && area.id, areaName: area ? area.name : null, tool, label: c.label, key: c.key, protected: c.kind === "protected", detail: detailOf(tool, input).slice(0, 1500), status: "pending", at: now() }, ...(x.permissions || [])].slice(0, 100);
+    x.permissions = [{ id, conversation, area: area && area.id, areaName: area ? area.name : null, tool, label: c.label, key: c.key, protected: c.kind === "protected", detail: detailOf(tool, input).slice(0, 1500), input: JSON.stringify(input || {}).length < 30000 ? input : null, cwd: cwd || null, status: "pending", at: now() }, ...(x.permissions || [])].slice(0, 100);
   });
   require("./push")
     .sendPush("permission", true, `${area ? area.name : "Una sesión"} pide permiso: ${c.label}`)
@@ -246,7 +253,22 @@ function poll(id) {
     mutate((d) => expire(d));
     return { status: "expired" };
   }
+  if (p.status === "pending" && recheck(p)) return { status: "allowed", reason: null };
   return { status: p.status, reason: p.reason || null };
+}
+
+function recheck(p) {
+  const input = p.input || (p.detail.length < 1500 && ["Bash", "PowerShell", "Monitor"].includes(p.tool) ? { command: p.detail } : null);
+  if (!input) return false;
+  const c = classify(p.tool, input, p.cwd);
+  const d = load();
+  const passes = c.kind === "allow" || (c.kind === "ask" && (d.permissionRules || []).some((r) => r.key === c.key)) || (c.kind === "protected" && hasOrder(c, p.area ? { id: p.area } : null, d));
+  if (!passes) return false;
+  mutate((x) => {
+    const q = (x.permissions || []).find((y) => y.id === p.id);
+    if (q && q.status === "pending") Object.assign(q, { status: "allowed", reason: "Ya no hacía falta: el filtro corregido lo deja pasar solo", decidedAt: now(), auto: true });
+  });
+  return true;
 }
 
 function decide(id, decision, reason) {
@@ -269,6 +291,8 @@ function removeRule(key) {
 }
 
 function forPage(d) {
+  const stale = (d.permissions || []).filter((p) => p.status === "pending" && recheck(p));
+  if (stale.length) d = load();
   return { pending: (d.permissions || []).filter((p) => p.status === "pending"), recent: (d.permissions || []).filter((p) => p.status !== "pending").slice(0, 8), rules: d.permissionRules || [] };
 }
 
