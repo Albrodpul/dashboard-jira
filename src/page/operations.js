@@ -1,4 +1,4 @@
-import { state, drafts, h, button, when, minutesSince, toast, requestOrFail, post, whoSends, areaName, areaSelect, render, refresh, renderMd, empty, fmtDay, ticketUrl, reviewer, deployProjects, exampleKey } from "./base.js";
+import { state, drafts, h, button, when, minutesSince, toast, request, requestOrFail, post, whoSends, areaName, areaSelect, render, refresh, renderMd, empty, fmtDay, ticketUrl, reviewer, deployProjects, exampleKey } from "./base.js";
 
 const search = { q: "", onlyAvailable: true, skipReview: true, results: null, busy: false, capped: false };
 
@@ -449,12 +449,15 @@ const elapsed = (from) => {
 
 let player = null;
 
+const KEEP_AWAKE_SECONDS = 30;
+
 function silentWav() {
   const rate = 8000;
-  const out = new DataView(new ArrayBuffer(44 + rate * 2));
+  const samples = rate * KEEP_AWAKE_SECONDS;
+  const out = new DataView(new ArrayBuffer(44 + samples * 2));
   const str = (o, t) => [...t].forEach((ch, i) => out.setUint8(o + i, ch.charCodeAt(0)));
   str(0, "RIFF");
-  out.setUint32(4, 36 + rate * 2, true);
+  out.setUint32(4, 36 + samples * 2, true);
   str(8, "WAVEfmt ");
   out.setUint32(16, 16, true);
   out.setUint16(20, 1, true);
@@ -464,8 +467,18 @@ function silentWav() {
   out.setUint16(32, 2, true);
   out.setUint16(34, 16, true);
   str(36, "data");
-  out.setUint32(40, rate * 2, true);
+  out.setUint32(40, samples * 2, true);
+  for (let i = 0; i < samples; i++) out.setInt16(44 + i * 2, i % 2 ? 1 : -1, true);
   return URL.createObjectURL(new Blob([out], { type: "audio/wav" }));
+}
+
+const audioLog = [];
+let audioLogTimer = null;
+function logAudio(event) {
+  audioLog.push({ at: new Date().toISOString(), event, hidden: document.hidden, src: player && player.loop ? "silence" : playingReply ? `${playingReply.id}/${playingReply.index}` : "", time: player ? Math.round(player.currentTime * 10) / 10 : null, duration: player && isFinite(player.duration) ? Math.round(player.duration * 10) / 10 : null });
+  if (audioLog.length > 60) audioLog.shift();
+  clearTimeout(audioLogTimer);
+  audioLogTimer = setTimeout(() => request("/api/audio-report", { ua: navigator.userAgent, events: audioLog }).catch(() => {}), 3000);
 }
 
 function getPlayer() {
@@ -474,9 +487,18 @@ function getPlayer() {
   player.preload = "auto";
   player.addEventListener("ended", () => {
     if (player.loop) return;
+    logAudio("ended");
     playingReply = null;
     playNext();
   });
+  for (const e of ["pause", "stalled", "error", "abort", "emptied", "waiting"]) player.addEventListener(e, () => logAudio(e));
+  if ("mediaSession" in navigator) {
+    navigator.mediaSession.setActionHandler("play", () => player.play().catch(() => {}));
+    navigator.mediaSession.setActionHandler("pause", () => player.pause());
+  }
+  document.addEventListener("visibilitychange", () => logAudio(document.hidden ? "page-hidden" : "page-visible"));
+  window.addEventListener("pagehide", () => logAudio("pagehide"));
+  document.addEventListener("freeze", () => logAudio("freeze"));
   document.body.appendChild(player);
   return player;
 }
@@ -512,6 +534,7 @@ function playNext() {
       p.dataset.blob = URL.createObjectURL(blob);
       p.loop = false;
       p.src = p.dataset.blob;
+      logAudio("reply-start");
       if ("mediaSession" in navigator) navigator.mediaSession.metadata = new MediaMetadata({ title: next.text.slice(0, 80), artist: `Respuesta de la ${TALK_NAMES[next.to].toLowerCase()}` });
       return p.play();
     })
