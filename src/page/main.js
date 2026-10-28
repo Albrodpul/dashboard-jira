@@ -1,7 +1,7 @@
 import { state, h, post, switchView, setRender, setRefresh, empty, reviewer } from "./base.js";
 import { renderTasks, renderToday, renderBoard } from "./tasks.js";
 import { renderSessions, renderEpics } from "./sessions.js";
-import { renderSearch, renderDeploy, renderTalk, renderContext, renderFollowUp } from "./operations.js";
+import { renderDeploy, renderTalk, renderContext, renderFollowUp } from "./operations.js";
 import { renderReport, updateStamp, mountHeader, quotaBlock } from "./report.js";
 import { renderHome, sessionStrip, shortcuts } from "./home.js";
 import { renderLearning } from "./learning.js";
@@ -25,7 +25,7 @@ const GROUPS = [
       { id: "talk", label: "Hablar" },
     ],
   ],
-  ["Tareas", [...TASK_TABS, { id: "jira", label: "Traer de Jira" }]],
+  ["Tareas", TASK_TABS],
   [
     "Operar",
     [
@@ -62,10 +62,9 @@ const VIEWS = {
   deploy: ["Desplegar", "Sube proyectos a develop, a producción o a los dos. La orden sale de aquí hacia la sesión que despliega; nada se sube hasta que pulsas Desplegar."],
   sessions: ["Sesiones", "Las sesiones que pueden recibir tareas, con el nombre que les pones tú."],
   epics: ["Epics", "Qué sesión lleva cada epic."],
-  jira: ["Traer de Jira", "Busca en Jira tareas que no han salido en ninguna revisión y tráelas a Pendientes."],
   find: ["Buscar", "Lo que coincide en las tareas del tablero, en las sesiones y en Jira. Lo de Jira se puede traer a Pendientes."],
   today: ["Hoy", "Lo que necesita algo de ti ahora mismo y, debajo, el último reporte."],
-  more: ["Más", "Traer de Jira, operar, equipo y configuración."],
+  more: ["Más", "Buscar, operar, equipo y configuración."],
   talk: ["Hablar", "Las sesiones del tablero en directo: las fijas y cualquier otra que esté abierta. Escríbeles o córtalas, o abre una nueva para hablar."],
   projects: ["Proyectos", "Los servidores locales que usan las sesiones: MySQL, super-app, Donatella, backoffice y landing."],
   sentry: ["Sentry", "Errores sin resolver de landing, backoffice y super-app. Elige la sesión y pulsa Enviar: la orquestadora se lo pasa con el enlace y te cuenta aquí lo que ha encontrado."],
@@ -77,7 +76,6 @@ const NON_TASK_VIEWS = {
   home: renderHome,
   sessions: renderSessions,
   epics: renderEpics,
-  jira: renderSearch,
   find: renderFind,
   deploy: renderDeploy,
   sentry: renderSentry,
@@ -100,7 +98,7 @@ const BOTTOM_BAR = [
 ];
 const MOBILE = window.matchMedia("(max-width: 760px)");
 const isTaskTab = (tab) => TASK_TABS.some((t) => t.id === tab);
-const tabOf = (status) => (status === "partial" ? "waiting" : status);
+const tabOf = (status) => (status === "partial" ? "waiting" : status === "jira" ? "find" : status);
 
 try {
   const saved = localStorage.getItem("board-tab");
@@ -148,7 +146,7 @@ function statusChips(root, counts) {
 }
 
 function renderMore(root, waitingDeploys, errors) {
-  const options = [{ id: "jira", label: "Traer de Jira" }, ...GROUPS.filter(([g]) => !["General", "Tareas"].includes(g)).flatMap(([, list]) => list)];
+  const options = [...GROUPS.filter(([g]) => !["General", "Tareas"].includes(g)).flatMap(([, list]) => list)];
   const menu = h(
     "div",
     { class: "more-menu" },
