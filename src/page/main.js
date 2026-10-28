@@ -22,10 +22,10 @@ const GROUPS = [
     "General",
     [
       { id: "home", label: "Inicio" },
+      { id: "tasks", label: "Tareas" },
       { id: "talk", label: "Hablar" },
     ],
   ],
-  ["Tareas", TASK_TABS],
   [
     "Operar",
     [
@@ -113,11 +113,32 @@ function paintTabs(counts, waitingDeploys) {
   for (const [group, list] of GROUPS) {
     tabs.appendChild(h("div", { class: "tab-group", text: group }));
     for (const t of list) {
+      if (t.id === "tasks") {
+        tabs.appendChild(tasksTab(counts));
+        continue;
+      }
       const n = isTaskTab(t.id) ? counts[t.id] : t.id === "deploy" ? waitingDeploys || undefined : undefined;
       const cls = `tab${n && HIGHLIGHT.includes(t.id) ? " has" : ""}${n && t.id === "waiting" ? " urgent" : ""}`;
       tabs.appendChild(h("button", { class: cls, role: "tab", "aria-selected": String(state.tab === t.id), type: "button", onclick: () => switchView(t.id) }, [t.label, n === undefined ? null : h("span", { class: "n", text: String(n) })]));
     }
   }
+}
+
+function lastTaskTab() {
+  try {
+    const t = localStorage.getItem("last-task-tab");
+    return isTaskTab(t) ? t : "pending";
+  } catch (e) {
+    return "pending";
+  }
+}
+
+function tasksTab(counts) {
+  const badges = [];
+  if (counts.pending) badges.push(h("span", { class: "n", title: "Pendientes", text: String(counts.pending) }));
+  if (counts.waiting) badges.push(h("span", { class: "n alert", title: "Te esperan", text: String(counts.waiting) }));
+  const cls = `tab${counts.pending ? " has" : ""}`;
+  return h("button", { class: cls, role: "tab", "aria-selected": String(isTaskTab(state.tab)), type: "button", onclick: () => switchView(lastTaskTab()) }, ["Tareas", h("span", { class: "tab-badges" }, badges)]);
 }
 
 function paintBottomBar(section, attention) {
@@ -137,9 +158,17 @@ function paintBottomBar(section, attention) {
   }
 }
 
-function statusChips(root, counts) {
+function statusChips(root, counts, board) {
   const chips = h("div", { class: "status-chips", role: "group", "aria-label": "Listas de tareas" });
-  for (const t of TASK_TABS) chips.appendChild(h("button", { type: "button", class: counts[t.id] ? "" : "zero", "aria-pressed": String(state.tab === t.id), text: t.label + (counts[t.id] ? ` ${counts[t.id]}` : ""), onclick: () => switchView(t.id) }));
+  const open = (id) => () => {
+    if (board) {
+      try {
+        localStorage.setItem("task-view", "list");
+      } catch (e) {}
+    }
+    switchView(id);
+  };
+  for (const t of TASK_TABS) chips.appendChild(h("button", { type: "button", class: `${counts[t.id] ? "" : "zero"}${t.id === "waiting" && counts.waiting ? " alert" : ""}`, "aria-pressed": String(!board && state.tab === t.id), text: t.label + (counts[t.id] ? ` ${counts[t.id]}` : ""), onclick: open(t.id) }));
   root.appendChild(chips);
   const sel = chips.querySelector('[aria-pressed="true"]');
   if (sel && sel.scrollIntoView) sel.scrollIntoView({ block: "nearest", inline: "center" });
@@ -211,7 +240,12 @@ function render() {
 
   const root = document.getElementById("groups");
   root.textContent = "";
-  if (mobile && section === "tasks") statusChips(root, counts);
+  if (section === "tasks") {
+    try {
+      localStorage.setItem("last-task-tab", state.tab);
+    } catch (e) {}
+    statusChips(root, counts, board);
+  }
   if (state.tab === "today") {
     const strip = sessionStrip();
     if (strip) root.appendChild(strip);

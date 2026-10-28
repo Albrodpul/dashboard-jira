@@ -393,6 +393,7 @@ function pendingColumn(list) {
 }
 
 export function renderBoard(root) {
+  renderPermissions(root, false, true);
   const columns = BOARD_COLUMNS.map(([id, title, statuses]) => {
     const list = state.tasks.filter((t) => statuses.includes(t.status)).sort((a, b) => String(b.sentAt || b.at || "").localeCompare(String(a.sentAt || a.at || "")));
     const head = h("div", { class: "board-head" }, [h("span", { text: title }), h("span", { class: "n", text: String(list.length) })]);

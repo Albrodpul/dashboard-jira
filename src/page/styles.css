@@ -671,3 +671,13 @@ select.epic-add { flex: none; width: auto; max-width: 100%; border-radius: 999px
 .find-box { margin: 0 0 12px; }
 .find-input { width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); font: inherit; font-size: 14px; }
 .find-input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+@media (min-width: 761px) {
+  .status-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; }
+  .status-chips button { padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink-2); font: inherit; font-size: 13.5px; cursor: pointer; }
+  .status-chips button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+  .status-chips button.zero { color: var(--ink-3); }
+}
+.status-chips button.alert { border-color: var(--danger); color: var(--danger); font-weight: 600; }
+.tab-badges { display: inline-flex; gap: 4px; }
+.tab .n.alert { background: var(--danger); color: #fff; }
+.perm-pending { margin-bottom: 16px; }
