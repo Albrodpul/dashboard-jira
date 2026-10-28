@@ -11,7 +11,7 @@ const norm = (p) => String(p || "").replace(/\\/g, "/").replace(/^\/([a-z])\//i,
 const EDITABLE = [config.root, REPO, path.join(os.homedir(), ".claude"), os.tmpdir()].map((p) => norm(p).replace(/\/$/, "") + "/");
 const SECRET_FILE = /(^|\/)\.env(\.[\w-]+)?$|\.(pem|key|p12|pfx)$|(^|\/)\.mcp\.json$|(^|\/)credentials(\.json)?$/i;
 
-const READ_WORDS = new Set("cd ls pwd cat head tail wc grep egrep fgrep rg find sed awk sort uniq cut tr diff cmp comm echo printf test [ true false sleep date basename dirname realpath readlink stat file du df which where whoami type jq nl tee touch mkdir cp mv rm rmdir ln node npm npx yarn pnpm php composer python python3 py pytest vendor/bin/phpunit tasklist netstat set export source . robocopy cmd tar unzip zip gzip base64 sha256sum md5sum iconv dos2unix clear exit".split(" "));
+const READ_WORDS = new Set("pip pip3 cd ls pwd cat head tail wc grep egrep fgrep rg find sed awk sort uniq cut tr diff cmp comm echo printf test [ true false sleep date basename dirname realpath readlink stat file du df which where whoami type jq nl tee touch mkdir cp mv rm rmdir ln node npm npx yarn pnpm php composer python python3 py pytest vendor/bin/phpunit tasklist netstat set export source . robocopy cmd tar unzip zip gzip base64 sha256sum md5sum iconv dos2unix clear exit".split(" "));
 const GIT_READ = new Set("ls-remote for-each-ref reflog name-rev symbolic-ref check-ignore cherry pull status diff log show branch rev-parse rev-list worktree add fetch blame ls-files ls-tree grep remote config shortlog describe merge-base cat-file switch restore mv rm".split(" "));
 const GIT_PROTECTED = new Set("commit push merge tag rebase reset stash clean cherry-pick revert am".split(" "));
 const GH_READ = /^gh\s+(pr|issue|run|release|workflow|repo)\s+(view|list|diff|checks|status|watch)\b/;
@@ -138,7 +138,7 @@ function classifySegment(segment, cwd) {
     if (!script || script.startsWith("-")) return { kind: "allow" };
     return inRepo(path.resolve(cwd || config.root, script), config.root) || inRepo(path.resolve(cwd || config.root, script), REPO) ? { kind: "allow" } : { kind: "ask", key: `bash ${path.basename(script)}`, label: `bash ${script}` };
   }
-  if (cmd === "pip" || (cmd === "npm" && /\bnpm\s+(i|install|add|uninstall|update|publish)\b/.test(rest)) || (cmd === "composer" && /\b(require|update|remove)\b/.test(rest))) return { kind: "ask", key: `${cmd} install`, label: rest.split(/\s+/).slice(0, 3).join(" ") };
+  if (cmd === "npm" && /\bnpm\s+publish\b/.test(rest)) return { kind: "ask", key: "npm publish", label: "npm publish" };
   if (READ_WORDS.has(cmd)) return { kind: "allow" };
   if (raw.startsWith("$") || PS_WORDS.has(cmd)) return { kind: "allow" };
   if (/^(invoke-restmethod|invoke-webrequest|irm|iwr)$/.test(cmd)) {
