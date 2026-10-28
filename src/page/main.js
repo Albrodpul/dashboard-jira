@@ -7,6 +7,7 @@ import { renderHome, sessionStrip, shortcuts } from "./home.js";
 import { renderLearning } from "./learning.js";
 import { renderSentry } from "./sentry.js";
 import { renderProjects } from "./projects.js";
+import { renderFind, searchBox } from "./find.js";
 
 const TASK_TABS = [
   { id: "pending", label: "Pendientes" },
@@ -62,6 +63,7 @@ const VIEWS = {
   sessions: ["Sesiones", "Las sesiones que pueden recibir tareas, con el nombre que les pones tú."],
   epics: ["Epics", "Qué sesión lleva cada epic."],
   jira: ["Traer de Jira", "Busca en Jira tareas que no han salido en ninguna revisión y tráelas a Pendientes."],
+  find: ["Buscar", "Lo que coincide en las tareas del tablero, en las sesiones y en Jira. Lo de Jira se puede traer a Pendientes."],
   today: ["Hoy", "Lo que necesita algo de ti ahora mismo y, debajo, el último reporte."],
   more: ["Más", "Traer de Jira, operar, equipo y configuración."],
   talk: ["Hablar", "Las sesiones del tablero en directo: las fijas y cualquier otra que esté abierta. Escríbeles o córtalas, o abre una nueva para hablar."],
@@ -76,6 +78,7 @@ const NON_TASK_VIEWS = {
   sessions: renderSessions,
   epics: renderEpics,
   jira: renderSearch,
+  find: renderFind,
   deploy: renderDeploy,
   sentry: renderSentry,
   projects: renderProjects,
@@ -107,6 +110,7 @@ try {
 function paintTabs(counts, waitingDeploys) {
   const tabs = document.getElementById("tabs");
   tabs.textContent = "";
+  tabs.appendChild(searchBox());
   const HIGHLIGHT = ["pending", "deploy", "waiting"];
   for (const [group, list] of GROUPS) {
     tabs.appendChild(h("div", { class: "tab-group", text: group }));
@@ -153,6 +157,7 @@ function renderMore(root, waitingDeploys, errors) {
       return h("button", { type: "button", onclick: () => switchView(t.id, true) }, [h("strong", { text: t.label + extra }), h("span", { text: VIEWS[t.id][1] })]);
     })
   );
+  root.appendChild(searchBox());
   root.appendChild(menu);
   root.appendChild(quotaBlock());
 }

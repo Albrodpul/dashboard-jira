@@ -46,7 +46,6 @@ function row(s) {
   const kids = [
     h("div", { class: "top" }, [h("span", { class: `dot ${DOT[s.state]}` }), h("strong", { text: s.name }), h("span", { class: "meta", text: `:${s.port}${s.autoStart ? "" : " · lo arranca la sesión que lo necesita"}` }), h("span", { class: "meta dev-state", text: working ? "…" : STATE_LABEL[s.state] })]),
   ];
-  if (s.state === "down" && s.log) kids.push(h("pre", { class: "dev-log", text: s.log }));
   kids.push(h("div", { class: "actions" }, actions));
   return h("article", { class: "card dev-server" }, kids);
 }
