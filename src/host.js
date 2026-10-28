@@ -172,6 +172,7 @@ function serve() {
     if (!s) return socket.destroy();
     wss.handleUpgrade(req, socket, head, (ws) => {
       s.clients.add(ws);
+      ws.send(`\x1b[8;${s.rows};${s.cols}t`);
       ws.send(s.buffer);
       if (!s.pty) ws.send("\r\n\x1b[33m[La sesión no está en marcha.]\x1b[0m\r\n");
       ws.on("message", (raw) => {
@@ -188,6 +189,7 @@ function serve() {
           try {
             s.pty.resize(s.cols, s.rows);
           } catch (e) {}
+          for (const c of s.clients) if (c.readyState === 1) c.send(`\x1b[8;${s.rows};${s.cols}t`);
         }
       });
       ws.on("close", () => s.clients.delete(ws));

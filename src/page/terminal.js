@@ -47,19 +47,28 @@ function createPanel(conversation, name, onClose) {
     { class: "term-keys", role: "group", "aria-label": "Teclas" },
     KEYS.map(([label, seq, title]) => h("button", { type: "button", class: "term-key", title, text: label, onclick: () => panel.send(seq) }))
   );
-  const root = h("div", { class: "term-panel" }, [h("div", { class: "term-head" }, head), screen, keys, h("div", { class: "term-compose" }, [input, sendBtn])]);
+  const scrollBtns = h("div", { class: "term-scroll" }, [
+    h("button", { type: "button", title: "Subir", "aria-label": "Subir", text: "⇞", onclick: () => panel.term && panel.term.scrollPages(-1) }),
+    h("button", { type: "button", title: "Bajar", "aria-label": "Bajar", text: "⇟", onclick: () => panel.term && panel.term.scrollPages(1) }),
+    h("button", { type: "button", title: "Ir al final", "aria-label": "Ir al final", text: "⤓", onclick: () => panel.term && panel.term.scrollToBottom() }),
+  ]);
+  const root = h("div", { class: "term-panel" }, [h("div", { class: "term-head" }, head), h("div", { class: "term-wrap" }, [screen, scrollBtns]), keys, h("div", { class: "term-compose" }, [input, sendBtn])]);
   const panel = { root, conversation, ws: null, term: null, fit: null, closed: false };
 
-  panel.send = (data) => {
-    if (panel.ws && panel.ws.readyState === 1) panel.ws.send(JSON.stringify({ type: "input", data }));
-  };
-  panel.resize = () => {
-    if (!panel.term || !root.isConnected) return;
+  panel.claim = () => {
+    if (!panel.term || !root.isConnected || !panel.ws || panel.ws.readyState !== 1) return;
+    let dims = null;
     try {
-      panel.fit.fit();
+      dims = panel.fit.proposeDimensions();
     } catch (e) {}
-    if (panel.ws && panel.ws.readyState === 1) panel.ws.send(JSON.stringify({ type: "resize", cols: panel.term.cols, rows: panel.term.rows }));
+    if (dims && dims.cols && dims.rows && (dims.cols !== panel.term.cols || dims.rows !== panel.term.rows)) panel.ws.send(JSON.stringify({ type: "resize", cols: dims.cols, rows: dims.rows }));
   };
+  panel.send = (data) => {
+    if (!panel.ws || panel.ws.readyState !== 1) return;
+    panel.claim();
+    panel.ws.send(JSON.stringify({ type: "input", data }));
+  };
+  panel.resize = () => {};
   panel.dispose = () => {
     panel.closed = true;
     try {
@@ -88,7 +97,7 @@ function createPanel(conversation, name, onClose) {
   loadXterm().then(
     () => {
       if (panel.closed) return;
-      const term = new window.Terminal({ fontSize: window.matchMedia("(max-width: 760px)").matches ? 11 : 13, fontFamily: "ui-monospace, Consolas, monospace", theme: { background: "#ffffff", foreground: "#1f2328", cursor: "#1f2328", cursorAccent: "#ffffff", selectionBackground: "#bfdbe4" }, scrollback: 5000 });
+      const term = new window.Terminal({ fontSize: window.matchMedia("(max-width: 760px)").matches ? 11 : 13, fontFamily: "ui-monospace, Consolas, monospace", windowOptions: { setWinSizeChars: true }, theme: { background: "#ffffff", foreground: "#1f2328", cursor: "#1f2328", cursorAccent: "#ffffff", selectionBackground: "#bfdbe4" }, scrollback: 5000 });
       const fit = new window.FitAddon.FitAddon();
       term.loadAddon(fit);
       term.open(screen);
@@ -102,7 +111,6 @@ function createPanel(conversation, name, onClose) {
         ws.onopen = () => {
           status.textContent = "En directo";
           term.reset();
-          setTimeout(panel.resize, 50);
         };
         ws.onmessage = (e) => term.write(typeof e.data === "string" ? e.data : new Uint8Array(e.data));
         ws.onclose = () => {
