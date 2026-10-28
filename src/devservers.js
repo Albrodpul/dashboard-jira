@@ -36,20 +36,12 @@ const { listeningPids, killTree: kill } = require("./platform");
 
 const logFile = (id) => path.join(LOG_DIR, `${id}.log`);
 
-function tail(id, lines = 8) {
-  try {
-    return fs.readFileSync(logFile(id), "utf8").split(/\r?\n/).filter(Boolean).slice(-lines).join("\n");
-  } catch (e) {
-    return "";
-  }
-}
-
 async function status() {
   const out = [];
   for (const s of servers()) {
     const up = await portOpen(s.port);
     const st = starting.get(s.id);
-    out.push({ id: s.id, name: s.name, port: s.port, url: s.url || null, autoStart: s.autoStart !== false, state: up ? "up" : st && Date.now() - st < (s.startSeconds || 90) * 1000 ? "starting" : "down", log: up ? "" : tail(s.id) });
+    out.push({ id: s.id, name: s.name, port: s.port, url: s.url || null, autoStart: s.autoStart !== false, state: up ? "up" : st && Date.now() - st < (s.startSeconds || 90) * 1000 ? "starting" : "down" });
   }
   const d = load().devServers || {};
   return { servers: out, autoStartedOn: d.autoStartedOn || null, autoStoppedOn: d.autoStoppedOn || null, at: now() };

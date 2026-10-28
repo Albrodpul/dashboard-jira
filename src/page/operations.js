@@ -1,5 +1,5 @@
 import { livePanel } from "./terminal.js";
-import { state, h, button, when, minutesSince, toast, request, requestOrFail, post, whoSends, areaName, areaSelect, render, refresh, renderMd, empty, ticketUrl, reviewer, deployProjects, exampleKey } from "./base.js";
+import { state, h, button, when, minutesSince, toast, request, requestOrFail, post, whoSends, areaName, areaSelect, render, refresh, renderMd, empty, ticketUrl, reviewer, deployProjects, exampleKey, switchView } from "./base.js";
 
 const search = { q: "", onlyAvailable: true, skipReview: true, results: null, busy: false, capped: false };
 
@@ -42,6 +42,19 @@ export function renderSearch(root) {
   q.addEventListener("keydown", (e) => e.key === "Enter" && runSearch());
   const go = button(search.busy ? "Buscando…" : "Buscar", { cls: "primary", disabled: search.busy, onClick: runSearch });
   root.appendChild(h("div", { class: "toolbar search" }, [q, go, checkbox("jira-available", "Solo sin asignar o mías", "onlyAvailable"), checkbox("jira-skip-review", "Ocultar las que están en revisión", "skipReview")]));
+  resultRows(root);
+}
+
+export function jiraResults(root, q) {
+  if (search.globalQ !== q) {
+    Object.assign(search, { globalQ: q, q, onlyAvailable: false, skipReview: false, results: null });
+    runSearch();
+  }
+  if (search.busy) return root.appendChild(empty("Buscando en Jira…", ""));
+  resultRows(root);
+}
+
+function resultRows(root) {
   if (!search.results) return;
   if (!search.results.length) return root.appendChild(empty("Ninguna tarea coincide.", "Prueba con otro texto o quita algún filtro."));
   const eligible = search.results.filter((x) => x.available && !x.onBoard);
@@ -298,6 +311,11 @@ const areaTalk = (id) => {
 };
 const talkSession = (to) => ({ reporter: state.reporterStatus, orchestrator: state.orchestrator, board: state.boardStatus, followUp: state.followUpStatus, deploy: areaTalk(state.deployerArea), errors: areaTalk(state.sentry && state.sentry.errorsArea) })[to] || null;
 const FIXED_TALK = ["board", "reporter", "orchestrator", "followUp", "deploy", "errors"];
+
+export function openTalk(conversation) {
+  setTalk(FIXED_TALK.find((k) => (talkSession(k) || {}).conversation === conversation) || conversation);
+  switchView("talk", true);
+}
 
 function otherLiveSessions() {
   const fixed = new Set(FIXED_TALK.map((k) => (talkSession(k) || {}).conversation).filter(Boolean));
