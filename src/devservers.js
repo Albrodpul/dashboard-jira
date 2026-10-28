@@ -68,7 +68,7 @@ async function status() {
   for (const s of servers()) {
     const up = await portOpen(s.port);
     const st = starting.get(s.id);
-    out.push({ id: s.id, name: s.name, port: s.port, url: s.url || null, state: up ? "up" : st && Date.now() - st < (s.startSeconds || 90) * 1000 ? "starting" : "down", log: up ? "" : tail(s.id) });
+    out.push({ id: s.id, name: s.name, port: s.port, url: s.url || null, autoStart: s.autoStart !== false, state: up ? "up" : st && Date.now() - st < (s.startSeconds || 90) * 1000 ? "starting" : "down", log: up ? "" : tail(s.id) });
   }
   const d = load().devServers || {};
   return { servers: out, autoStartedOn: d.autoStartedOn || null, autoStoppedOn: d.autoStoppedOn || null, at: now() };
@@ -83,7 +83,7 @@ async function start(id) {
   fs.writeSync(fd, `[${now()}] ${s.command} ${(s.args || []).join(" ")}\n`);
   const cwd = path.resolve(config.root, s.cwd || ".");
   const command = s.command.startsWith(".") ? path.resolve(cwd, s.command) : s.command;
-  const child = cp.spawn(command, s.args || [], { cwd, detached: true, windowsHide: true, shell: !!s.shell, stdio: ["ignore", fd, fd] });
+  const child = cp.spawn(command, s.args || [], { cwd, detached: false, windowsHide: true, shell: !!s.shell, stdio: ["ignore", fd, fd] });
   child.on("error", (e) => fs.appendFileSync(logFile(id), `\n${e.message}\n`));
   child.unref();
   fs.closeSync(fd);
@@ -113,9 +113,9 @@ async function restart(id) {
   return start(id);
 }
 
-async function startAll() {
+async function startAll(auto) {
   const started = [];
-  for (const s of servers()) if (await start(s.id)) started.push(s.id);
+  for (const s of servers()) if (!(auto && s.autoStart === false) && (await start(s.id))) started.push(s.id);
   return started;
 }
 
@@ -139,7 +139,7 @@ async function schedule() {
   const stopAt = STOP_AT.hour * 60 + STOP_AT.minute;
   if (t.minutes < stopAt && ds.autoStartedOn !== t.day && firstReportToday(d, t.day)) {
     mutate((x) => (x.devServers = { ...(x.devServers || {}), autoStartedOn: t.day }));
-    await startAll();
+    await startAll(true);
   }
   if (t.minutes >= stopAt && t.minutes < stopAt + STOP_WINDOW_MIN && ds.autoStoppedOn !== t.day) {
     mutate((x) => (x.devServers = { ...(x.devServers || {}), autoStoppedOn: t.day }));
