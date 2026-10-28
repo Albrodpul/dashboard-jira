@@ -150,30 +150,24 @@ function exitWhenOrphaned() {
 }
 
 const REPO = path.join(__dirname, "..");
-const CODE_DIRS = [__dirname, path.join(REPO, "templates", "commands")];
 
-function codeStamps() {
-  const out = {};
-  for (const dir of CODE_DIRS) {
-    for (const f of fs.readdirSync(dir)) {
-      if (!/\.(js|md)$/.test(f)) continue;
-      try {
-        out[path.join(dir, f)] = fs.statSync(path.join(dir, f)).mtimeMs;
-      } catch (e) {}
-    }
+function head() {
+  try {
+    return require("child_process").execFileSync("git", ["-C", REPO, "rev-parse", "HEAD"], { encoding: "utf8", windowsHide: true, stdio: ["ignore", "pipe", "ignore"] }).trim();
+  } catch (e) {
+    return null;
   }
-  return out;
 }
 
 function exitWhenCodeChanges() {
-  const start = codeStamps();
+  const start = head();
+  if (!start) return;
   setInterval(() => {
-    const now = codeStamps();
-    const changed = Object.keys({ ...start, ...now }).filter((f) => start[f] !== now[f]);
-    if (!changed.length) return;
-    console.log(`RESTART: ha cambiado el código del tablero (${changed.map((f) => path.basename(f)).join(", ")}). Vuelve a armar este Monitor con el mismo comando y relee tu comando de .claude/commands por si ha cambiado.`);
+    const now = head();
+    if (!now || now === start) return;
+    console.log(`RESTART: hay código nuevo del tablero (commit ${now.slice(0, 7)}). Vuelve a armar este Monitor con el mismo comando y relee tu comando de .claude/commands por si ha cambiado.`);
     process.exit(0);
-  }, 10000);
+  }, 15000);
 }
 
 function watch(mode) {

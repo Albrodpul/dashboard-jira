@@ -627,3 +627,6 @@ select.epic-add { flex: none; width: auto; max-width: 100%; border-radius: 999px
 .ds-summary { font-size: 12.5px; }
 .ds-row { padding-top: 8px; }
 .ds-card { gap: 8px; }
+.dev-server .top strong { font-weight: 600; }
+.dev-state { margin-left: auto; }
+.dev-log { margin: 0; padding: 8px 10px; background: var(--surface-2); border-radius: 6px; font-family: var(--mono); font-size: 11.5px; color: var(--ink-2); white-space: pre-wrap; overflow-wrap: anywhere; max-height: 140px; overflow: auto; }

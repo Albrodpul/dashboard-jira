@@ -104,6 +104,7 @@ module.exports = {
   followUp: c.followUp || [],
   errorsArea: c.errorsArea || null,
   sentry: c.sentry || null,
+  devServers: c.devServers || [],
   voice: c.voice || {},
   deployProjects: deployTargets.map((t) => t.id),
   deployTargets,

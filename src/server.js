@@ -16,6 +16,7 @@ const voice = require("./voice");
 const speech = require("./speech");
 const deployStatus = require("./deploy-status");
 const sentry = require("./sentry");
+const devservers = require("./devservers");
 
 const PAGE_DIR = path.join(__dirname, "page");
 const HOSTS_FILE = path.join(DATA_DIR, "board-hosts.txt");
@@ -169,6 +170,13 @@ const POST_ROUTES = {
     }
     send(res, 200, { sent: n });
   },
+  "/api/devservers": (res, { action, id }, send) => {
+    const run = { start: () => devservers.start(id), stop: () => devservers.stop(id), restart: () => devservers.restart(id), startAll: devservers.startAll, stopAll: devservers.stopAll }[action];
+    if (!run) return send(res, 400, { error: "acción desconocida" });
+    run()
+      .then((r) => send(res, 200, { result: r }))
+      .catch((e) => send(res, 500, { error: String(e.message || e) }));
+  },
   "/api/sentry/status": (res, { issueId, id, status }, send) => {
     sentry
       .setStatus(issueId, String(id || ""), status)
@@ -227,6 +235,13 @@ function handle(req, res) {
     if (url === "/sw.js") return serveBody(res, "text/javascript", SERVICE_WORKER);
     if (url === "/api/push/reason") return serveBody(res, "application/json", JSON.stringify(pushReason()));
     if (url === "/api/push/key") return serveBody(res, "application/json", JSON.stringify({ key: pushKeys().publicKey }));
+    if (url === "/api/devservers") {
+      devservers
+        .status()
+        .then((v) => serveBody(res, "application/json", JSON.stringify(v)))
+        .catch((e) => serveBody(res, "application/json", JSON.stringify({ servers: [], error: String(e.message || e) })));
+      return;
+    }
     if (url === "/api/sentry" || url === "/api/sentry?force=1") {
       sentry
         .listIssues(url.endsWith("force=1"))
@@ -286,6 +301,7 @@ function serve() {
   every(fetchQuota, 3 * 60 * 1000);
   every(learning.startReading, 3 * 60 * 60 * 1000);
   deployStatus.startDeployStatus();
+  every(devservers.schedule, 60 * 1000);
 }
 
 module.exports = { serve };
