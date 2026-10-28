@@ -7,6 +7,7 @@ const { liveSessions, reconcile, currentRef, loadRoutes, targets, openInVsCode, 
 const { people } = require("./follow-up");
 const config = require("./config");
 const sentry = require("./sentry");
+const permissions = require("./permissions");
 
 const ERRORS_AREA = config.errorsArea;
 const MESSAGE_TARGETS = { reporter: "la sesión de reporte", orchestrator: "la orquestadora", board: "la sesión del tablero" };
@@ -124,6 +125,7 @@ function state() {
     reporterStatus: reporter(d, r),
     boardStatus: boardStatus(d, r),
     followUps: d.followUps.slice(0, 80),
+    permissions: permissions.forPage(d),
     sentry: { enabled: sentry.sentryAvailable(), errorsArea: ERRORS_AREA, sends: sentry.sentryIssues(d) },
     people: people(d),
     followUpStatus: followUpStatus(d, r),

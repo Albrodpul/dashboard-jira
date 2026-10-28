@@ -1,3 +1,4 @@
+import { renderPermissions } from "./permissions.js";
 import { state, choice, drafts, h, button, when, minutesSince, fmtDay, reviewer, reviewStatus, toast, request, requestOrFail, post, saveTask, whoSends, areaName, areaSelect, render, refresh, switchView, empty } from "./base.js";
 import { createSession } from "./sessions.js";
 
@@ -306,7 +307,8 @@ function deleteBar(root, list) {
 
 export function renderTasks(root) {
   const list = state.tasks.filter((t) => t.status === state.tab || (state.tab === "waiting" && t.status === "partial"));
-  if (!list.length) return root.appendChild(empty(...EMPTY_LISTS[state.tab]));
+  const permissionsShown = state.tab === "waiting" ? renderPermissions(root) : 0;
+  if (!list.length) return permissionsShown ? null : root.appendChild(empty(...EMPTY_LISTS[state.tab]));
   const deletable = list.filter((t) => t.status !== "waiting");
   if (["sent", "ignored", "done", "waiting"].includes(state.tab) && deletable.length) deleteBar(root, deletable);
   const byEpic = new Map();
@@ -325,7 +327,7 @@ export function renderTasks(root) {
 }
 
 export function renderToday(root, errors) {
-  let any = false;
+  let any = renderPermissions(root, true) > 0;
   for (const [statuses, title] of [[["waiting", "partial"], "Te esperan"], [["pending"], "Pendientes"]]) {
     const list = state.tasks.filter((t) => statuses.includes(t.status));
     if (!list.length) continue;

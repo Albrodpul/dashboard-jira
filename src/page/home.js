@@ -35,7 +35,9 @@ export function sessionSituation() {
     if (!live) continue;
     const tasks = state.tasks.filter((t) => t.area === a.id && ["sent", "waiting", "partial"].includes(t.status));
     const row = { id: a.id, name: a.unnamed ? a.vsCodeTitle || `${a.sessionName} (sin nombre)` : a.name, sessionName: a.sessionName, conversation: a.conversation, since: live.statusSince, subagents: live.subagents || 0, tasks };
-    if (live.status === "busy") out.working.push(row);
+    const asking = ((state.permissions && state.permissions.pending) || []).find((p) => p.conversation === a.conversation);
+    if (asking) out.blocked.push({ ...row, reason: { text: `Espera tu permiso: ${asking.label}`, view: "waiting" } });
+    else if (live.status === "busy") out.working.push(row);
     else {
       const reason = blockReason(live, tasks);
       if (reason) out.blocked.push({ ...row, reason });
@@ -78,7 +80,7 @@ export function shortcuts(root) {
     ["waiting", "Te esperan", ["waiting", "partial"]],
     ["sent", "En curso", ["sent"]],
     ["done", "Hechas por revisar", ["done"]],
-  ].map(([id, label, statuses]) => [id, label, count(statuses)]);
+  ].map(([id, label, statuses]) => [id, label, count(statuses) + (id === "waiting" ? ((state.permissions && state.permissions.pending) || []).length : 0)]);
   root.appendChild(h("div", { class: "shortcuts" }, data.map(([id, label, n]) => h("button", { type: "button", class: `shortcut${n ? " filled" : ""}${id === "waiting" && n ? " urgent" : ""}`, onclick: () => switchView(id) }, [h("strong", { text: String(n) }), h("span", { text: label })]))));
 }
 

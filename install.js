@@ -36,6 +36,7 @@ const launchers = {
   "sessions.js": nodeLauncher("bin/sessions.js"),
   "jira-window.js": nodeLauncher("bin/jira-window.js"),
   "jira-write.js": nodeLauncher("bin/jira-write.js"),
+  "permission-hook.js": nodeLauncher("bin/permission-hook.js"),
   "jira.sh": `#!/usr/bin/env bash\nexport TOWER_WORKSPACE="$(cd "$(dirname "$0")" && pwd -W 2>/dev/null || pwd)"\nexec bash ${JSON.stringify(slashes(path.join(REPO, "bin", "jira.sh")))} "$@"\n`,
 };
 if (args.includes("--legacy-launchers")) {
