@@ -307,7 +307,7 @@ function newTalkSession(b) {
   requestOrFail("/api/new-session", { title: name.trim() })
     .then((d) => {
       if (d.conversation) setTalk(d.conversation);
-      toast(d.open ? `Sesión «${name.trim()}» creada. También sale en el historial de VS Code.` : `Sesión «${name.trim()}» creada; está arrancando.`);
+      toast(d.open ? `Sesión «${name.trim()}» creada.` : `Sesión «${name.trim()}» creada; está arrancando.`);
       return refresh(true);
     })
     .catch(() => toast("No se pudo crear la sesión."))

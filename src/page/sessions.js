@@ -20,7 +20,7 @@ export function createSession(name, epic, btn) {
   return requestOrFail("/api/new-session", { title: clean, epicKey: epic ? epic.key : undefined, epicName: epic ? epic.name : undefined })
     .then((d) => {
       created = d.area;
-      toast(d.open ? `Sesión «${clean}» creada y en marcha en el tablero. También sale en el historial de VS Code.` : `Sesión «${clean}» creada, pero todavía no ha arrancado. Ábrela desde su tarjeta.`);
+      toast(d.open ? `Sesión «${clean}» creada y en marcha.` : `Sesión «${clean}» creada, pero todavía no ha arrancado. Ábrela desde su tarjeta.`);
     })
     .catch(() => toast("No se pudo crear la sesión."))
     .then(() => {
@@ -66,7 +66,7 @@ function roleChip(r) {
 function sessionBody(r, keys) {
   if (r.isSystem) return h("p", { class: "session-note", text: r.isOrchestrator ? "Envía a cada sesión las tareas y los despliegues que apruebas, y guarda lo que contestan." : r.isBoard ? "Atiende lo que le pides en Hablar sobre el propio tablero: mejoras, fallos y rediseños. No recibe tareas de Jira." : "Lee Jira cada 5 minutos, publica el reporte y deja las tarjetas." });
   if (r.unnamed) {
-    const note = h("p", { class: "session-note", text: r.vsCodeTitle ? `En VS Code se llama «${r.vsCodeTitle}». Escribe un nombre arriba para poder darle epics.` : "Escribe un nombre arriba para poder darle epics." });
+    const note = h("p", { class: "session-note", text: r.vsCodeTitle ? `Se llama «${r.vsCodeTitle}». Escribe un nombre arriba para poder darle epics.` : "Escribe un nombre arriba para poder darle epics." });
     if (!r.vsCodeTitle) return note;
     const use = button(`Usar «${r.vsCodeTitle}»`, {
       onClick: (b) => {
@@ -161,9 +161,9 @@ function sessionCard(r, byConversation, openUnnamed) {
     actions.push(
       button("Quitar", {
         cls: "subtle",
-        title: "La quita del tablero. La conversación de VS Code no se toca.",
+        title: "La quita del tablero. La conversación no se borra.",
         onClick: (b) => {
-          if (!window.confirm(`¿Quitar «${r.name}» del tablero?\n\nLa conversación de VS Code no se borra; solo deja de salir aquí con ese nombre.`)) return;
+          if (!window.confirm(`¿Quitar «${r.name}» del tablero?\n\nLa conversación no se borra; solo deja de salir aquí con ese nombre.`)) return;
           b.disabled = true;
           post("/api/session", { name: r.sessionName || r.name, areaId: r.id, remove: true }, `«${r.name}» quitada del tablero.`);
         },
@@ -234,7 +234,7 @@ export function renderSessions(root) {
   if (b) system.push({ id: "board", name: b.title, sessionName: b.session, open: b.open, epics: {}, isSystem: true, isBoard: true, conversation: b.conversation });
   section(root, "Del tablero", "Las sesiones que lo hacen funcionar.", system.map(toCard));
 
-  if (!openUnnamed.length && !withEpics.length && !withoutEpics.length && !system.length) root.appendChild(empty("Sin sesiones.", "Crea una arriba o abre una conversación en VS Code."));
+  if (!openUnnamed.length && !withEpics.length && !withoutEpics.length && !system.length) root.appendChild(empty("Sin sesiones.", "Crea una arriba."));
 }
 
 let epicQuery = "";

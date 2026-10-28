@@ -91,7 +91,7 @@ export function shortcuts(root) {
 export function renderHome(root) {
   shortcuts(root);
   const s = sessionSituation();
-  if (!s.working.length && !s.blocked.length && !s.free.length) root.appendChild(empty("No hay sesiones de área abiertas.", "Las que abras en VS Code aparecen aquí solas."));
+  if (!s.working.length && !s.blocked.length && !s.free.length) root.appendChild(empty("No hay sesiones de área abiertas.", "Las que abras aparecen aquí solas."));
   else {
     const columns = BOARD.map((id) => {
       const [, title, note] = GROUPS.find((g) => g[0] === id);
