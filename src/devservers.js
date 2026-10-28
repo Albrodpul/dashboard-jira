@@ -32,26 +32,7 @@ function portOpen(port) {
   });
 }
 
-function listeningPids(port) {
-  let out = "";
-  try {
-    out = cp.execFileSync("netstat", ["-ano", "-p", "tcp"], { encoding: "utf8", windowsHide: true });
-  } catch (e) {
-    return [];
-  }
-  const pids = new Set();
-  for (const line of out.split(/\r?\n/)) {
-    const m = /^\s*TCP\s+\S+:(\d+)\s+\S+\s+LISTENING\s+(\d+)/.exec(line);
-    if (m && Number(m[1]) === port && m[2] !== "0") pids.add(m[2]);
-  }
-  return [...pids];
-}
-
-function kill(pid) {
-  try {
-    cp.execFileSync("taskkill", ["/PID", String(pid), "/T", "/F"], { windowsHide: true, stdio: "ignore" });
-  } catch (e) {}
-}
+const { listeningPids, killTree: kill } = require("./platform");
 
 const logFile = (id) => path.join(LOG_DIR, `${id}.log`);
 

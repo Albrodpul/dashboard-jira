@@ -347,9 +347,10 @@ function openInVsCode(conversation) {
   }
   const url = conversation ? `vscode://anthropic.claude-code/open?session=${conversation}` : "vscode://anthropic.claude-code/open";
   const env = envWithoutVsCode();
-  const launch = () => cp.spawn("cmd", ["/c", "start", "", url], { detached: true, stdio: "ignore", windowsHide: true, env }).unref();
+  const platform = require("./platform");
+  const launch = () => platform.openUrl(url, env);
   try {
-    cp.spawn("cmd", ["/c", "code", ROOT], { detached: true, stdio: "ignore", windowsHide: true, env }).unref();
+    platform.openFolderInEditor(ROOT, env);
     setTimeout(launch, 2500);
   } catch (e) {
     launch();
@@ -371,7 +372,7 @@ function claudeBinary() {
     return 0;
   });
   for (const d of dirs) {
-    const exe = path.join(folder, d, "resources", "native-binary", "claude.exe");
+    const exe = path.join(folder, d, "resources", "native-binary", `claude${require("./platform").EXE}`);
     if (fs.existsSync(exe)) return exe;
   }
   return null;
