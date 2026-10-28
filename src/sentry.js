@@ -29,6 +29,7 @@ async function projectIssues(slug, auth) {
   if (!r.ok) throw new Error(`Sentry respondió ${r.status} para ${slug}`);
   return (await r.json()).map((x) => ({
     id: x.shortId,
+    issueId: x.id,
     title: x.title,
     culprit: x.culprit || "",
     project: slug,
@@ -52,6 +53,19 @@ async function listIssues(force) {
   const value = { available: true, projects: config.sentry.projects, issues, errors, at: now() };
   cache = { at: Date.now(), value };
   return value;
+}
+
+const STATUSES = ["resolved", "ignored"];
+
+async function setStatus(issueId, id, status) {
+  if (!STATUSES.includes(status) || !/^\d+$/.test(String(issueId))) throw new Error("estado o error no válido");
+  const r = await fetch(`${API}/organizations/${config.sentry.org}/issues/${issueId}/`, { method: "PUT", headers: { authorization: `Bearer ${token()}`, "content-type": "application/json" }, body: JSON.stringify({ status }) });
+  if (!r.ok) throw new Error(`Sentry respondió ${r.status}`);
+  if (cache) cache.value.issues = cache.value.issues.filter((x) => String(x.issueId) !== String(issueId));
+  mutate((d) => {
+    const x = (d.sentry || {})[id];
+    if (x) Object.assign(x, { closedAs: status, closedAt: now() });
+  });
 }
 
 function sentryIssues(d) {
@@ -110,4 +124,4 @@ function discard(id) {
   });
 }
 
-module.exports = { sentryAvailable, listIssues, sentryIssues, sendIssues, markSent, saveResult, discard };
+module.exports = { sentryAvailable, listIssues, sentryIssues, sendIssues, markSent, saveResult, discard, setStatus };

@@ -57,6 +57,25 @@ function sendIssue(issue, area, b) {
     });
 }
 
+const STATUS_LABEL = { resolved: "resuelto", ignored: "ignorado" };
+
+function closeIssue(issue, status, b) {
+  if (!window.confirm(`¿Marcar ${issue.id} como ${STATUS_LABEL[status]} en Sentry?
+
+${status === "resolved" ? "Si vuelve a pasar, Sentry lo reabre solo." : "Sentry deja de avisar de él."}`)) return;
+  b.disabled = true;
+  requestOrFail("/api/sentry/status", { issueId: issue.issueId, id: issue.id, status })
+    .then(() => {
+      data.issues = data.issues.filter((x) => x.id !== issue.id);
+      toast(`${issue.id} marcado como ${STATUS_LABEL[status]} en Sentry.`);
+      render();
+    })
+    .catch((e) => {
+      b.disabled = false;
+      toast(`No se pudo cambiar en Sentry: ${e.message}`);
+    });
+}
+
 function issueCard(issue) {
   const s = sendOf(issue.id);
   const pendingSend = s && s.state === "approved";
@@ -83,6 +102,14 @@ function issueCard(issue) {
         sel,
         button(s ? "Volver a enviar" : "Enviar", { cls: "primary", onClick: (b) => sendIssue(issue, chosen[issue.id] || current, b) }),
         h("a", { class: "btn link", href: issue.url, target: "_blank", rel: "noopener", text: "Ver en Sentry" }),
+      ])
+    );
+  }
+  if (issue.issueId) {
+    kids.push(
+      h("div", { class: "actions sentry-close" }, [
+        button("Resuelto", { cls: s && s.result ? "" : "subtle", title: "Lo marca como resuelto en Sentry: sale de la lista y, si vuelve a pasar, Sentry lo reabre", onClick: (b) => closeIssue(issue, "resolved", b) }),
+        button("Ignorar", { cls: "subtle", title: "Lo ignora en Sentry: sale de la lista y deja de avisar", onClick: (b) => closeIssue(issue, "ignored", b) }),
       ])
     );
   }
