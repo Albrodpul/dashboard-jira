@@ -57,13 +57,14 @@ function roleChip(r) {
     const watching = r.open && state.orchestrator.watching;
     return h("span", { class: `chip ${watching ? "sent" : "returned"}`, text: !r.open ? "Orquesta · cerrada" : watching ? "Orquesta" : "Orquesta · sin vigilar" });
   }
+  if (r.isBoard) return h("span", { class: `chip ${r.open && state.boardStatus.watching ? "sent" : "returned"}`, text: !r.open ? "Tablero · cerrada" : state.boardStatus.watching ? "Tablero" : "Tablero · sin vigilar" });
   if (r.isSystem) return h("span", { class: "chip new", text: "Reporte" });
   if (r.id === state.deployerArea) return h("span", { class: "chip prod", text: "Despliega" });
   return null;
 }
 
 function sessionBody(r, keys) {
-  if (r.isSystem) return h("p", { class: "session-note", text: r.isOrchestrator ? "Envía a cada sesión las tareas y los despliegues que apruebas, y guarda lo que contestan." : "Lee Jira cada 5 minutos, publica el reporte y deja las tarjetas." });
+  if (r.isSystem) return h("p", { class: "session-note", text: r.isOrchestrator ? "Envía a cada sesión las tareas y los despliegues que apruebas, y guarda lo que contestan." : r.isBoard ? "Atiende lo que le pides en Hablar sobre el propio tablero: mejoras, fallos y rediseños. No recibe tareas de Jira." : "Lee Jira cada 5 minutos, publica el reporte y deja las tarjetas." });
   if (r.unnamed) {
     const note = h("p", { class: "session-note", text: r.vsCodeTitle ? `En VS Code se llama «${r.vsCodeTitle}». Escribe un nombre arriba para poder darle epics.` : "Escribe un nombre arriba para poder darle epics." });
     if (!r.vsCodeTitle) return note;
@@ -107,7 +108,7 @@ function sessionCard(r, byConversation, openUnnamed) {
   const situation = !r.open ? "Cerrada" : busy ? "Trabajando" : "Abierta";
   const head = [
     h("span", { class: `dot ${!r.open ? "off" : busy ? "busy" : "on"}`, title: situation }),
-    system ? h("span", { class: "session-title", text: r.isOrchestrator ? r.name : "Reporte de Jira" }) : nameField(r),
+    system ? h("span", { class: "session-title", text: r.isOrchestrator || r.isBoard ? r.name : "Reporte de Jira" }) : nameField(r),
     roleChip(r),
   ];
   const since = s ? `desde ${when(s.started)}` : r.since && r.open ? `desde ${when(r.since)}` : null;
@@ -138,7 +139,7 @@ function sessionCard(r, byConversation, openUnnamed) {
       })
     );
   }
-  if (r.conversation && (!system || r.isOrchestrator)) actions.push(h("a", { class: "btn link", href: `vscode://anthropic.claude-code/open?session=${encodeURIComponent(r.conversation)}`, text: r.open ? "Ir a su pestaña" : "Abrir en VS Code" }));
+  if (r.conversation && (!system || r.isOrchestrator || r.isBoard)) actions.push(h("a", { class: "btn link", href: `vscode://anthropic.claude-code/open?session=${encodeURIComponent(r.conversation)}`, text: r.open ? "Ir a su pestaña" : "Abrir en VS Code" }));
   const footer = [h("span", { class: "meta session-auto", text: [r.sessionName || null, since, situation].filter(Boolean).join(" · ") }), h("span", { class: "session-actions" }, actions)];
   return h("article", { class: `session${r.open ? "" : " off"}${r.unnamed ? " anon" : ""}` }, [h("div", { class: "session-top" }, head), sessionBody(r, keys), h("div", { class: "session-footer" }, footer)]);
 }
@@ -196,7 +197,9 @@ export function renderSessions(root) {
   if (rep && rep.session) system.push({ id: "reporter", name: rep.session, sessionName: rep.session, ref: rep.ref, open: true, epics: {}, isSystem: true, since: rep.since, conversation: rep.conversation });
   const o = state.orchestrator;
   if (o) system.push({ id: "orchestrator", name: o.title, sessionName: o.session, ref: o.ref, open: o.open, epics: {}, isSystem: true, isOrchestrator: true, since: o.since, conversation: o.conversation });
-  section(root, "Del tablero", "Las dos sesiones que lo hacen funcionar.", system.map(toCard));
+  const b = state.boardStatus;
+  if (b) system.push({ id: "board", name: b.title, sessionName: b.session, open: b.open, epics: {}, isSystem: true, isBoard: true, conversation: b.conversation });
+  section(root, "Del tablero", "Las sesiones que lo hacen funcionar.", system.map(toCard));
 
   if (!openUnnamed.length && !withEpics.length && !withoutEpics.length && !system.length) root.appendChild(empty("Sin sesiones.", "Crea una arriba o abre una conversación en VS Code."));
 }
