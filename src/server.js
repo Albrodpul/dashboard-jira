@@ -41,9 +41,12 @@ const SERVICE_WORKER = `self.addEventListener("install", () => self.skipWaiting(
 self.addEventListener("activate", (e) => e.waitUntil(self.clients.claim()));
 self.addEventListener("fetch", () => {});
 self.addEventListener("push", (e) => {
+  let sent = null;
+  try {
+    sent = e.data ? e.data.json() : null;
+  } catch (x) {}
   e.waitUntil(
-    fetch("/api/push/reason", { cache: "no-store" })
-      .then((r) => r.json())
+    (sent ? Promise.resolve(sent) : fetch("/api/push/reason", { cache: "no-store" }).then((r) => r.json()))
       .catch(() => ({}))
       .then((d) => self.registration.showNotification(d.title || "Torre de control", { body: d.text || "Hay novedades", tag: d.tag || "board", renotify: true, icon: "/icon-192.png", badge: "/icon-192.png", data: { tab: d.tab || "" } }))
   );
