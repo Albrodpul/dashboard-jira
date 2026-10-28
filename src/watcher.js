@@ -1,6 +1,7 @@
 const fs = require("fs");
 const { ORCHESTRATOR_HEARTBEAT, REPORTER_HEARTBEAT, BOARD_HEARTBEAT, HUMAN_APPROVALS, load } = require("./data");
 const { followUpErrors, messageNotice } = require("./state");
+const { sentryIssues } = require("./sentry");
 const { ENVIRONMENT_NAME } = require("./api-operations");
 const config = require("./config");
 
@@ -84,6 +85,14 @@ function watchDispatches() {
       () => followUpErrors(load()).filter((e) => e.state === "approved" && e.approvedVia === "board"),
       (e) => e.id,
       (xs) => `ERRORS ${xs.map((e) => e.id).join(",")}: ${ME} ha pulsado «Enviar a Errores sentry» en la pestaña Seguimiento. Envíalos ya con los pasos de «Errores para Errores sentry» de ${ORCHESTRA}.`
+    ),
+    1000
+  );
+  every(
+    announceNew(
+      () => sentryIssues(load()).filter((x) => x.state === "approved" && x.approvedVia === "board"),
+      (x) => `${x.id}@${x.at}`,
+      (xs) => `SENTRY ${xs.map((x) => x.id).join(",")}: ${ME} ha pulsado Enviar en la pestaña Sentry. Envíalos ya con los pasos de «Errores de Sentry» de ${ORCHESTRA}.`
     ),
     1000
   );

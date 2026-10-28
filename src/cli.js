@@ -7,6 +7,7 @@ const { sendPush, subscriptions } = require("./push");
 const { TASK_STATUS, TASK_KIND, CAUSE } = require("./migrate");
 const config = require("./config");
 const { ERRORS_AREA, MESSAGE_TARGETS, state, tidyBlockers, lastContextPass, followUpErrors, wakeOrchestrator, ping } = require("./state");
+const { sentryIssues, markSent: markSentrySent, saveResult: saveSentryResult } = require("./sentry");
 
 const ALIASES = {
   informe: "report",
@@ -231,7 +232,10 @@ const commands = {
       const errors = followUpErrors(load())
         .filter((e) => e.state === "approved" && e.approvedVia === "board")
         .map((e) => ({ id: e.id, text: e.text, seenAt: e.at, destination: destination(ERRORS_AREA) }));
-      json({ tasks, deployments, answers, errors });
+      const sentry = sentryIssues(load())
+        .filter((x) => x.state === "approved" && x.approvedVia === "board")
+        .map((x) => ({ id: x.id, title: x.title, culprit: x.culprit, project: x.project, url: x.url, events: x.count, users: x.users, lastSeen: x.lastSeen, again: x.rounds > 1, destination: destination(x.area) }));
+      json({ tasks, deployments, answers, errors, sentry });
     })();
   },
 
@@ -420,6 +424,26 @@ const commands = {
     });
     console.log(`${n} de ${ids.length} posible(s) error(es) marcados como enviados a Errores sentry`);
     if (n < ids.length) process.exit(1);
+  },
+
+  "sentry-sent"() {
+    const ids = keyList(process.argv.slice(3).join(","));
+    const n = markSentrySent(ids);
+    console.log(`${n} de ${ids.length} error(es) de Sentry marcados como enviados`);
+    if (n < ids.length) process.exit(1);
+  },
+
+  "sentry-result"() {
+    const ids = keyList(a);
+    const text = rest(4).slice(0, 1500);
+    if (!ids.length || !text) fail("Uso: board.js sentry-result <ID>[,<ID>…] <qué se ha encontrado o hecho, en pocas líneas>");
+    const n = saveSentryResult(ids, text);
+    console.log(`resultado guardado en ${n} de ${ids.length} error(es) de Sentry`);
+    if (!n) process.exit(1);
+    sendPush("sentry", true, `Resultado de Sentry: ${ids.join(", ")}`).then(
+      () => {},
+      () => {}
+    );
   },
 
   "error-result"() {
@@ -675,5 +699,5 @@ for (const c of ["tidy-start", "tidy-end"]) commands[c] = contextTidy;
 if (Object.prototype.hasOwnProperty.call(commands, cmd)) commands[cmd]();
 else
   console.log(
-    "Uso: node board.js serve | ensure | restart | add [json] | list [status] | update <key> [json] | approve-chat <key> <area> | report [text] | reporter | board-session | watch [reports|dispatches|board] | refresh-request | sessions [json] | epics [json] | jira-epics | open <session> | areas | dispatches | attachments <key> | done | partial | question | comment | delivered | sent | reply | changes | orchestrator | deployments | deployment-update | startup | push-test | followup | followup-error | error-sent | error-result | followup-status | people | person-accounts | tidy-status | tidy-start | tidy-end | message | answer-message | progress | counted | learning-read | cause | jira-setup [ISSUE-KEY] [reviewer name]"
+    "Uso: node board.js serve | ensure | restart | add [json] | list [status] | update <key> [json] | approve-chat <key> <area> | report [text] | reporter | board-session | watch [reports|dispatches|board] | refresh-request | sessions [json] | epics [json] | jira-epics | open <session> | areas | dispatches | attachments <key> | done | partial | question | comment | delivered | sent | reply | changes | orchestrator | deployments | deployment-update | startup | push-test | followup | followup-error | error-sent | error-result | sentry-sent | sentry-result | followup-status | people | person-accounts | tidy-status | tidy-start | tidy-end | message | answer-message | progress | counted | learning-read | cause | jira-setup [ISSUE-KEY] [reviewer name]"
   );
