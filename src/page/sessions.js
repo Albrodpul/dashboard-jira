@@ -100,6 +100,35 @@ function sessionBody(r, keys) {
   ]);
 }
 
+export const hostedOf = (conversation) => (state.hosted || []).find((x) => x.conversation === conversation) || null;
+
+function hostAction(action, conversation, name, b, okText) {
+  if (b) b.disabled = true;
+  return requestOrFail("/api/host/action", { action, conversation, name })
+    .then((r) => {
+      toast(r && r.waiting ? `Cierra la pestaña de «${name}» en VS Code: en cuanto la cierres, sigue aquí en el tablero.` : okText);
+      return refresh(true);
+    })
+    .catch((e) => {
+      if (b) b.disabled = false;
+      toast(`No se pudo: ${e.message}`);
+    });
+}
+
+export function hostButtons(conversation, name) {
+  if (!/^[0-9a-f-]{36}$/.test(conversation || "")) return [];
+  const hosted = hostedOf(conversation);
+  if (hosted && hosted.waitingForVsCode)
+    return [h("span", { class: "meta", text: "Cierra su pestaña en VS Code para que siga aquí" }), button("Cancelar", { cls: "subtle", onClick: (b) => hostAction("back", conversation, name, b, "Se queda en VS Code.") })];
+  if (hosted)
+    return [
+      button("Ver en directo", { cls: "primary", onClick: () => import("./terminal.js").then((m) => m.openTerminal(conversation, name)) }),
+      button("Reiniciar", { cls: "subtle", title: "Cierra y vuelve a abrir la sesión en el tablero, con su conversación", onClick: (b) => window.confirm(`¿Reiniciar «${name}»? Si está a mitad de algo, se corta.`) && hostAction("restart", conversation, name, b, "Reiniciando la sesión…") }),
+      button("Devolver a VS Code", { cls: "subtle", onClick: (b) => window.confirm(`¿Devolver «${name}» a VS Code? Se cierra aquí y se abre su pestaña allí.`) && hostAction("back", conversation, name, b, "Vuelve a VS Code.") }),
+    ];
+  return [button("Llevar al tablero", { title: "La sesión pasa a funcionar dentro del tablero: la ves en directo desde aquí o el móvil sin VS Code", onClick: (b) => hostAction("move", conversation, name, b, "Ya funciona en el tablero.") })];
+}
+
 function sessionCard(r, byConversation, openUnnamed) {
   const s = byConversation[r.conversation || r.sessionName];
   const busy = r.open && s && s.status === "busy";
@@ -110,6 +139,7 @@ function sessionCard(r, byConversation, openUnnamed) {
     h("span", { class: `dot ${!r.open ? "off" : busy ? "busy" : "on"}`, title: situation }),
     system ? h("span", { class: "session-title", text: r.isOrchestrator || r.isBoard ? r.name : "Reporte de Jira" }) : nameField(r),
     roleChip(r),
+    hostedOf(r.conversation) ? h("span", { class: "chip host-chip", text: "En el tablero" }) : null,
   ];
   const since = s ? `desde ${when(s.started)}` : r.since && r.open ? `desde ${when(r.since)}` : null;
   const actions = [];
@@ -139,7 +169,9 @@ function sessionCard(r, byConversation, openUnnamed) {
       })
     );
   }
-  if (r.conversation && (!system || r.isOrchestrator || r.isBoard)) actions.push(h("a", { class: "btn link", href: `vscode://anthropic.claude-code/open?session=${encodeURIComponent(r.conversation)}`, text: r.open ? "Ir a su pestaña" : "Abrir en VS Code" }));
+  const hostName = (s && s.name) || r.sessionName || r.name;
+  if (r.conversation && !r.unnamed) actions.push(...hostButtons(r.conversation, hostName));
+  if (r.conversation && !hostedOf(r.conversation) && (!system || r.isOrchestrator || r.isBoard)) actions.push(h("a", { class: "btn link", href: `vscode://anthropic.claude-code/open?session=${encodeURIComponent(r.conversation)}`, text: r.open ? "Ir a su pestaña" : "Abrir en VS Code" }));
   const footer = [h("span", { class: "meta session-auto", text: [r.sessionName || null, since, situation].filter(Boolean).join(" · ") }), h("span", { class: "session-actions" }, actions)];
   return h("article", { class: `session${r.open ? "" : " off"}${r.unnamed ? " anon" : ""}` }, [h("div", { class: "session-top" }, head), sessionBody(r, keys), h("div", { class: "session-footer" }, footer)]);
 }

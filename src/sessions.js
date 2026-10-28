@@ -340,6 +340,11 @@ function cleanEnv() {
 }
 
 function openInVsCode(conversation) {
+  const host = require("./host");
+  if (conversation && host.hostedConversations().includes(conversation)) {
+    host.ensureHost().then(() => host.hostRequest("POST", "/start", { conversation }).catch(() => {}));
+    return;
+  }
   const url = conversation ? `vscode://anthropic.claude-code/open?session=${conversation}` : "vscode://anthropic.claude-code/open";
   const env = envWithoutVsCode();
   const launch = () => cp.spawn("cmd", ["/c", "start", "", url], { detached: true, stdio: "ignore", windowsHide: true, env }).unref();
@@ -397,6 +402,7 @@ function wakeSession(name, notice) {
 }
 
 module.exports = {
+  cleanEnv,
   STARTUP_NOTICE,
   titleKey,
   conversationTitle,

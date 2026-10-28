@@ -208,6 +208,10 @@ const commands = {
     require("./watcher").watch(a);
   },
 
+  host() {
+    require("./host").serve();
+  },
+
   dispatches() {
     const s = state();
     const destination = destinationOf(s);
@@ -699,5 +703,5 @@ for (const c of ["tidy-start", "tidy-end"]) commands[c] = contextTidy;
 if (Object.prototype.hasOwnProperty.call(commands, cmd)) commands[cmd]();
 else
   console.log(
-    "Uso: node board.js serve | ensure | restart | add [json] | list [status] | update <key> [json] | approve-chat <key> <area> | report [text] | reporter | board-session | watch [reports|dispatches|board] | refresh-request | sessions [json] | epics [json] | jira-epics | open <session> | areas | dispatches | attachments <key> | done | partial | question | comment | delivered | sent | reply | changes | orchestrator | deployments | deployment-update | startup | push-test | followup | followup-error | error-sent | error-result | sentry-sent | sentry-result | followup-status | people | person-accounts | tidy-status | tidy-start | tidy-end | message | answer-message | progress | counted | learning-read | cause | jira-setup [ISSUE-KEY] [reviewer name]"
+    "Uso: node board.js serve | ensure | restart | add [json] | list [status] | update <key> [json] | approve-chat <key> <area> | report [text] | reporter | board-session | watch [reports|dispatches|board] | host | refresh-request | sessions [json] | epics [json] | jira-epics | open <session> | areas | dispatches | attachments <key> | done | partial | question | comment | delivered | sent | reply | changes | orchestrator | deployments | deployment-update | startup | push-test | followup | followup-error | error-sent | error-result | sentry-sent | sentry-result | followup-status | people | person-accounts | tidy-status | tidy-start | tidy-end | message | answer-message | progress | counted | learning-read | cause | jira-setup [ISSUE-KEY] [reviewer name]"
   );
