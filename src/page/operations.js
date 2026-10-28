@@ -286,12 +286,18 @@ const TALK_NAMES = {
   reporter: "Sesión de reporte",
   orchestrator: "Orquestadora",
   board: "Tablero",
+  deploy: "Despliegue",
+  errors: "Errores sentry",
   get followUp() {
     return `Seguimiento de ${reviewer()}`;
   },
 };
-const talkSession = (to) => ({ reporter: state.reporterStatus, orchestrator: state.orchestrator, board: state.boardStatus, followUp: state.followUpStatus })[to] || null;
-const FIXED_TALK = ["board", "reporter", "orchestrator", "followUp"];
+const areaTalk = (id) => {
+  const a = id && state.areas.find((x) => x.id === id);
+  return a && a.conversation ? { conversation: a.conversation, session: a.sessionName || a.name } : null;
+};
+const talkSession = (to) => ({ reporter: state.reporterStatus, orchestrator: state.orchestrator, board: state.boardStatus, followUp: state.followUpStatus, deploy: areaTalk(state.deployerArea), errors: areaTalk(state.sentry && state.sentry.errorsArea) })[to] || null;
+const FIXED_TALK = ["board", "reporter", "orchestrator", "followUp", "deploy", "errors"];
 
 function otherLiveSessions() {
   const fixed = new Set(FIXED_TALK.map((k) => (talkSession(k) || {}).conversation).filter(Boolean));
@@ -360,6 +366,31 @@ export function renderTalk(root) {
   if (!target || !target.conversation) return root.appendChild(empty(`${TALK_NAMES[talkTo]} no está registrada.`, "Regístrala con su comando para poder verla aquí."));
   const hosted = (state.hosted || []).some((x) => x.conversation === target.conversation && !x.waitingForVsCode);
   if (!hosted) return root.appendChild(empty(`${TALK_NAMES[talkTo]} no vive en el tablero.`, "Llévala al tablero desde Sesiones para verla aquí en directo."));
+  const running = ((state.sessions && state.sessions.list) || []).some((x) => x.conversation === target.conversation);
+  if (!running) {
+    const name = target.session || TALK_NAMES[talkTo];
+    root.appendChild(empty(`${TALK_NAMES[talkTo]} está dormida.`, "Se abre sola cuando le llega algo. Si quieres hablar con ella ahora, ábrela."));
+    root.appendChild(
+      h("div", { class: "talk-actions" }, [
+        button("Abrir", {
+          cls: "primary",
+          onClick: (b) => {
+            b.disabled = true;
+            requestOrFail("/api/host/action", { action: "open", conversation: target.conversation, name })
+              .then(() => {
+                toast(`Abriendo «${name}»…`);
+                return refresh(true);
+              })
+              .catch((e) => {
+                b.disabled = false;
+                toast(`No se pudo abrir: ${e.message}`);
+              });
+          },
+        }),
+      ])
+    );
+    return;
+  }
   root.appendChild(livePanel(target.conversation, target.session || TALK_NAMES[talkTo]));
 }
 
