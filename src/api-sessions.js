@@ -61,12 +61,15 @@ function handleSession(res, { name, ref, alias, area, title, areaId, conversatio
 
 function linkNew(res, { clean, epicKey, epicName, created }, send) {
   const before = new Set((liveSessions() || []).map((s) => s.conversation));
-  openInVsCode(created);
+  if (created) {
+    const host = require("./host");
+    host.ensureHost().then(() => host.hostRequest("POST", "/start", { conversation: created, name: clean }).catch(() => {}));
+  } else openInVsCode(created);
   let attempts = 0;
   const timer = setInterval(() => {
     attempts++;
     const found = (liveSessions() || []).find((s) => (created ? s.conversation === created : !before.has(s.conversation)));
-    if (!found && attempts < 10) return;
+    if (!found && attempts < 15) return;
     clearInterval(timer);
     const area = changeRoutes((r) => {
       const k = areaKey(r, clean);
@@ -79,7 +82,7 @@ function linkNew(res, { clean, epicKey, epicName, created }, send) {
       }
       return k;
     });
-    send(res, 200, { area, open: !!found, window: found ? found.name : null, named: !!created });
+    send(res, 200, { area, open: !!found, window: found ? found.name : null, named: !!created, conversation: found ? found.conversation : created || null });
   }, 2000);
 }
 

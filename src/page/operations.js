@@ -275,22 +275,48 @@ export function renderDeploy(root) {
 let talkTo = "board";
 const TALK_NAMES = { reporter: "Sesión de reporte", orchestrator: "Orquestadora", board: "Tablero" };
 const talkSession = (to) => ({ reporter: state.reporterStatus, orchestrator: state.orchestrator, board: state.boardStatus })[to] || null;
+function otherLiveSessions() {
+  const fixed = new Set(["board", "reporter", "orchestrator"].map((k) => (talkSession(k) || {}).conversation).filter(Boolean));
+  const live = new Map(((state.sessions && state.sessions.list) || []).map((s) => [s.conversation, s]));
+  return (state.hosted || []).filter((x) => !x.waitingForVsCode && !fixed.has(x.conversation) && live.has(x.conversation)).map((x) => ({ conversation: x.conversation, name: (live.get(x.conversation).title || live.get(x.conversation).name || x.name) }));
+}
+
+function newTalkSession(b) {
+  const name = window.prompt("Nombre de la sesión nueva", "");
+  if (!name || !name.trim()) return;
+  b.disabled = true;
+  b.textContent = "Creando…";
+  requestOrFail("/api/new-session", { title: name.trim() })
+    .then((d) => {
+      if (d.conversation) talkTo = d.conversation;
+      toast(d.open ? `Sesión «${name.trim()}» creada. También sale en el historial de VS Code.` : `Sesión «${name.trim()}» creada; está arrancando.`);
+      return refresh(true);
+    })
+    .catch(() => toast("No se pudo crear la sesión."))
+    .then(() => render());
+}
+
 export function renderTalk(root) {
   const picker = h("div", { class: "people-chips chat-picker", role: "group", "aria-label": "Qué sesión ver" });
-  for (const k of ["board", "reporter", "orchestrator"]) {
+  const pick = (k, label) =>
     picker.appendChild(
       h("button", {
         type: "button",
         "aria-pressed": k === talkTo ? "true" : "false",
-        text: TALK_NAMES[k],
+        text: label,
         onclick: () => {
           talkTo = k;
           render();
         },
       })
     );
-  }
+  for (const k of ["board", "reporter", "orchestrator"]) pick(k, TALK_NAMES[k]);
+  const others = otherLiveSessions();
+  for (const o of others) pick(o.conversation, o.name);
+  picker.appendChild(h("button", { type: "button", class: "chat-new", title: "Abre una sesión nueva en el tablero para hablar con ella", text: "+ Nueva", onclick: (e) => newTalkSession(e.currentTarget) }));
   root.appendChild(picker);
+  const other = others.find((o) => o.conversation === talkTo) || (/^[0-9a-f-]{36}$/.test(talkTo) ? { conversation: talkTo, name: "Sesión nueva" } : null);
+  if (other) return root.appendChild(livePanel(other.conversation, other.name));
   const target = talkSession(talkTo);
   if (!target || !target.conversation) return root.appendChild(empty(`${TALK_NAMES[talkTo]} no está registrada.`, "Regístrala con su comando para poder verla aquí."));
   const hosted = (state.hosted || []).some((x) => x.conversation === target.conversation && !x.waitingForVsCode);

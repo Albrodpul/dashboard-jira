@@ -15,12 +15,12 @@ export function createSession(name, epic, btn) {
   let created = null;
   if (btn) {
     btn.disabled = true;
-    btn.textContent = "Abriendo en VS Code…";
+    btn.textContent = "Creando…";
   }
   return requestOrFail("/api/new-session", { title: clean, epicKey: epic ? epic.key : undefined, epicName: epic ? epic.name : undefined })
     .then((d) => {
       created = d.area;
-      toast(d.open ? `Sesión «${clean}» creada y abierta en VS Code${d.named ? ", con ese nombre en la pestaña." : ". No se le pudo poner el nombre a la pestaña."}` : `Sesión «${clean}» creada, pero VS Code no abrió la conversación. Ábrela a mano.`);
+      toast(d.open ? `Sesión «${clean}» creada y en marcha en el tablero. También sale en el historial de VS Code.` : `Sesión «${clean}» creada, pero todavía no ha arrancado. Ábrela desde su tarjeta.`);
     })
     .catch(() => toast("No se pudo crear la sesión."))
     .then(() => {
@@ -185,7 +185,7 @@ function section(root, title, note, cards) {
 
 function newSessionBar(root, openCount, total) {
   const name = h("input", { type: "text", id: "new-session", maxlength: "60", placeholder: "Nombre de la sesión nueva", "aria-label": "Nombre de la sesión nueva" });
-  const create = button("Crear y abrir en VS Code", { cls: "primary", onClick: (b) => createSession(name.value, null, b) });
+  const create = button("Crear", { cls: "primary", onClick: (b) => createSession(name.value, null, b) });
   name.addEventListener("keydown", (e) => e.key === "Enter" && create.click());
   const toggle = h("input", { type: "checkbox", id: "show-closed" });
   toggle.checked = showClosed;
