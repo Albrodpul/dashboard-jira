@@ -60,7 +60,7 @@ const VIEWS = {
   jira: ["Traer de Jira", "Busca en Jira tareas que no han salido en ninguna revisión y tráelas a Pendientes."],
   today: ["Hoy", "Lo que necesita algo de ti ahora mismo y, debajo, el último reporte."],
   more: ["Más", "Traer de Jira, operar, equipo y configuración."],
-  talk: ["Hablar", "Escribe a la sesión de reporte o a la orquestadora como si estuvieras en su pestaña de VS Code. Si no lo leen en 45 segundos, el tablero la abre y la despierta."],
+  talk: ["Hablar", "Escribe a la sesión del tablero, a la de reporte o a la orquestadora como si estuvieras en su pestaña de VS Code. Si no lo leen en 45 segundos, el tablero la abre y la despierta."],
   context: ["Ordenar contexto", "La orquestadora repasa y ordena context/ y el índice de AGENTS.md. Solo se puede lanzar con todo limpio: nada pendiente, por enviar, en sesión ni desplegándose."],
   "follow-up": ["Seguimiento", "Lo que ha hecho cada compañero según sus peticiones a la API: el revisor principal tiene resumen automático cada hora; los demás, cuando lo pidas."],
 };
