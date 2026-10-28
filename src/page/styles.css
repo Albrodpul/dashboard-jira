@@ -621,3 +621,5 @@ select.epic-add { flex: none; width: auto; max-width: 100%; border-radius: 999px
   .ds-card { padding: 10px 12px; }
 }
 .chip.prod { color: var(--danger); background: var(--danger-soft); }
+.sentry-title { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; }
+.sentry-culprit { font-family: var(--mono); font-size: 12px; overflow-wrap: anywhere; }

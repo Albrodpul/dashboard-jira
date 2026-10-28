@@ -5,6 +5,7 @@ import { renderSearch, renderDeploy, renderTalk, renderContext, renderFollowUp }
 import { renderReport, updateStamp, mountHeader, quotaBlock } from "./report.js";
 import { renderHome, sessionStrip, shortcuts } from "./home.js";
 import { renderLearning } from "./learning.js";
+import { renderSentry } from "./sentry.js";
 
 const TASK_TABS = [
   { id: "pending", label: "Pendientes" },
@@ -27,6 +28,7 @@ const GROUPS = [
     "Operar",
     [
       { id: "deploy", label: "Desplegar" },
+      { id: "sentry", label: "Sentry" },
       { id: "context", label: "Ordenar contexto" },
     ],
   ],
@@ -61,6 +63,7 @@ const VIEWS = {
   today: ["Hoy", "Lo que necesita algo de ti ahora mismo y, debajo, el último reporte."],
   more: ["Más", "Traer de Jira, operar, equipo y configuración."],
   talk: ["Hablar", "Escribe a la sesión del tablero, a la de reporte o a la orquestadora como si estuvieras en su pestaña de VS Code. Si no lo leen en 45 segundos, el tablero la abre y la despierta."],
+  sentry: ["Sentry", "Errores sin resolver de landing, backoffice y super-app. Elige la sesión y pulsa Enviar: la orquestadora se lo pasa con el enlace y te cuenta aquí lo que ha encontrado."],
   context: ["Ordenar contexto", "La orquestadora repasa y ordena context/ y el índice de AGENTS.md. Solo se puede lanzar con todo limpio: nada pendiente, por enviar, en sesión ni desplegándose."],
   "follow-up": ["Seguimiento", "Lo que ha hecho cada compañero según sus peticiones a la API: el revisor principal tiene resumen automático cada hora; los demás, cuando lo pidas."],
 };
@@ -71,6 +74,7 @@ const NON_TASK_VIEWS = {
   epics: renderEpics,
   jira: renderSearch,
   deploy: renderDeploy,
+  sentry: renderSentry,
   "follow-up": renderFollowUp,
   context: renderContext,
   talk: renderTalk,
@@ -214,7 +218,7 @@ function render() {
   (NON_TASK_VIEWS[state.tab] || renderTasks)(root);
 }
 
-const FIELDS = ["sessions", "aliases", "reporterRoute", "reporterStatus", "boardStatus", "orchestrator", "epics", "allEpics", "reports", "lastReview", "config", "followUps", "contextTidy", "messages", "tidyBlockers", "lastContextPass", "followUpStatus", "refreshRequest", "deployments", "deployerArea", "quota", "people", "jiraSetup", "voice", "speech", "deployStatus"];
+const FIELDS = ["sessions", "aliases", "reporterRoute", "reporterStatus", "boardStatus", "orchestrator", "epics", "allEpics", "reports", "lastReview", "config", "followUps", "sentry", "contextTidy", "messages", "tidyBlockers", "lastContextPass", "followUpStatus", "refreshRequest", "deployments", "deployerArea", "quota", "people", "jiraSetup", "voice", "speech", "deployStatus"];
 const withoutReadTime = (d) => JSON.stringify(d, (k, v) => (k === "syncedAt" ? undefined : v));
 const editing = () => {
   const a = document.activeElement;

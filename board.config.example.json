@@ -49,6 +49,7 @@
     }
   ],
   "errorsArea": null,
+  "sentry": { "org": null, "projects": [], "query": "is:unresolved level:error", "period": "14d" },
   "deployProjects": [
     {
       "id": "api",

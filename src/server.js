@@ -5,7 +5,7 @@ const zlib = require("zlib");
 const { DATA_DIR, PORT, BASE_URL } = require("./data");
 const { syncJiraEpics, refreshAttachments } = require("./jira");
 const { pushReason, pushKeys, handlePush } = require("./push");
-const { state, startOrchestrator } = require("./state");
+const { state, startOrchestrator, openIfClosed, wakeOrchestrator } = require("./state");
 const tasks = require("./api-tasks");
 const sessions = require("./api-sessions");
 const operations = require("./api-operations");
@@ -15,6 +15,7 @@ const learning = require("./learning");
 const voice = require("./voice");
 const speech = require("./speech");
 const deployStatus = require("./deploy-status");
+const sentry = require("./sentry");
 
 const PAGE_DIR = path.join(__dirname, "page");
 const HOSTS_FILE = path.join(DATA_DIR, "board-hosts.txt");
@@ -141,6 +142,16 @@ const POST_ROUTES = {
     fs.writeFileSync(path.join(DATA_DIR, "audio-report.json"), JSON.stringify({ at: new Date().toISOString(), ...input }, null, 1).slice(0, 20000));
     send(res, 200);
   },
+  "/api/sentry/send": (res, { issues, area }, send) => {
+    if (!Array.isArray(issues) || !issues.length || !area) return send(res, 400, { error: "faltan los errores o la sesión" });
+    const n = sentry.sendIssues(issues.slice(0, 50), String(area));
+    if (n) {
+      openIfClosed(String(area));
+      wakeOrchestrator();
+    }
+    send(res, 200, { sent: n });
+  },
+  "/api/sentry/discard": (res, { id }, send) => send(res, sentry.discard(String(id)) ? 200 : 409),
   "/api/learning-read": (res, input, send) => send(res, 200, { started: learning.startReading() }),
   "/api/push/subscribe": (res, input, send) => handlePush(res, "/api/push/subscribe", input, send),
   "/api/push/unsubscribe": (res, input, send) => handlePush(res, "/api/push/unsubscribe", input, send),
@@ -192,6 +203,13 @@ function handle(req, res) {
     if (url === "/sw.js") return serveBody(res, "text/javascript", SERVICE_WORKER);
     if (url === "/api/push/reason") return serveBody(res, "application/json", JSON.stringify(pushReason()));
     if (url === "/api/push/key") return serveBody(res, "application/json", JSON.stringify({ key: pushKeys().publicKey }));
+    if (url === "/api/sentry" || url === "/api/sentry?force=1") {
+      sentry
+        .listIssues(url.endsWith("force=1"))
+        .then((v) => serveBody(res, "application/json", JSON.stringify(v)))
+        .catch((e) => serveBody(res, "application/json", JSON.stringify({ available: true, issues: [], errors: [String(e.message || e)] })));
+      return;
+    }
     if (url === "/api/learning") return serveBody(res, "application/json", JSON.stringify(learning.learningSummary()));
     if (url === "/api/state") return serveBody(res, "application/json", JSON.stringify({ ...state(), voice: voice.voiceAvailable(), speech: speech.speechAvailable(), deployStatus: deployStatus.readStatus() }));
     if (url.startsWith("/api/voice/")) return voice.serveVoice(res, url);

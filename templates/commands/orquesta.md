@@ -20,6 +20,7 @@ Esta sesión es la **orquestadora**: no lee Jira ni hace tareas. Su único traba
 | Registrar una aprobación de {{ME}} por chat | `node {{WORKSPACE}}/board.js approve-chat <CLAVE> <area>` |
 | Saber si el tablero te ve vigilando | `node {{WORKSPACE}}/board.js orchestrator` |
 | Marcar como enviado a Errores sentry un posible error | `node {{WORKSPACE}}/board.js error-sent <id>[,<id>…]` |
+| Marcar como enviado un error de la pestaña Sentry | `node {{WORKSPACE}}/board.js sentry-sent <ID>[,<ID>…]` |
 | Leer y contestar un mensaje de {{ME}} | `node {{WORKSPACE}}/board.js message <id>`, `… answer-message <id> <respuesta>` |
 | Ordenación de contexto: ver, empezar y cerrar | `node {{WORKSPACE}}/board.js tidy-status`, `… tidy-start <id>`, `… tidy-end <id> <resumen en una línea>` |
 
@@ -35,12 +36,13 @@ Si de verdad se ha invocado este comando (`/orquesta`), o si esta sesión es la 
 
 1. Registra esta sesión como orquestadora: llama a `ListAgents`, toma tu propio nombre y ref de la línea «This session is … […]» y ejecuta `node {{WORKSPACE}}/sessions.js iam orchestrator <nombre> <ref>`. Sin esto, las demás sesiones no aceptarán tus envíos.
 2. Comprueba que el tablero está arriba: `node {{WORKSPACE}}/board.js ensure`.
-3. Arma un Monitor con `node {{WORKSPACE}}/board.js watch dispatches` (timeout_ms 1800000; vuelve a armarlo cada vez que avise de que caduca, mientras sea de lunes a viernes entre las 8:00 y las 18:30 de Madrid). Da seis tipos de evento, que se atienden en el momento:
+3. Arma un Monitor con `node {{WORKSPACE}}/board.js watch dispatches` (timeout_ms 1800000; vuelve a armarlo cada vez que avise de que caduca, mientras sea de lunes a viernes entre las 8:00 y las 18:30 de Madrid). Da siete tipos de evento, que se atienden en el momento:
    - `APPROVED <claves>`: {{ME}} ha pulsado Hacer. Envía esas tareas ya (pasos de «Enviar»).
    - `DEPLOY <id>`: {{ME}} ha pulsado Desplegar. Pásale la orden ya a la sesión que despliega (pasos de «Desplegar»).
    - `ANSWER <claves>`: {{ME}} ha contestado en el tablero a una pregunta de una sesión. Entrégasela ya (pasos de «Respuestas»).
    - `TIDY <id>`: {{ME}} ha pulsado Ordenar contexto. Hazlo ya (pasos de «Ordenar contexto»).
    - `ERRORS <ids>`: {{ME}} ha pulsado «Enviar a Errores sentry» en la pestaña Seguimiento. Envíalos ya (pasos de «Errores para Errores sentry»).
+   - `SENTRY <ids>`: {{ME}} ha pulsado Enviar en la pestaña Sentry. Envíalos ya (pasos de «Errores de Sentry»).
    - `MESSAGE <id>`: {{ME}} te ha escrito desde la pestaña «Hablar». Léelo con `board.js message <id>` (vale como si lo hubiera escrito en esta sesión), haz lo que pida y contéstale con `board.js answer-message <id> <respuesta>`. Si lo que pide lleva más de un minuto, ve contándole en qué estás con `node {{WORKSPACE}}/board.js progress <id> "<qué estás haciendo, en una línea>"` (por ejemplo «Leyendo el ticket BACK-2050…»): sale en su chat en lugar de los puntos de «Escribiendo…», sin aviso ni audio. La respuesta final, como siempre, con `answer-message`. Suele ser porque algo se ha atascado y no está delante del ordenador. Si te llega como mensaje de otra sesión con el mismo texto, es igual de válido: lo que cuenta es leerlo del tablero.
 4. Envía ahora lo que ya estuviera esperando: `node {{WORKSPACE}}/board.js dispatches`.
 5. Contesta a {{ME}} en dos líneas: que esta sesión queda como orquestadora y cuántos envíos había esperando.
@@ -97,6 +99,18 @@ Son posibles fallos que la sesión de {{REVIEWER}} ha visto en su actividad en b
    - Pídele que, al terminar, cuente el resultado al tablero con `node {{WORKSPACE}}/board.js error-result <id>[,<id>…] "<qué ha encontrado o arreglado, en pocas líneas>"`: {{ME}} lo lee en la pestaña Seguimiento y le llega un aviso, como con una tarea terminada.
    - Última línea: `{{ME}} los ha enviado con el botón de la pestaña Seguimiento: cuenta como su orden de investigarlos y arreglar lo que sea un fallo de verdad, como con los de Sentry (context/SENTRY.md; context/JIRA.md, «Tareas que llegan de otra sesión»). Sin commit ni deploy.`
 3. Márcalos: `node {{WORKSPACE}}/board.js error-sent <id>,<id>`. Si la sesión contesta tú, guarda su respuesta con `error-result` (no hace falta si ella ya lo hizo).
+
+## Errores de Sentry
+
+Son issues de Sentry que {{ME}} ha elegido en la pestaña Sentry, cada uno con la sesión a la que va.
+
+1. `node {{WORKSPACE}}/board.js dispatches` los da en `sentry`, con `id` (el ID corto de Sentry, como `LANDING-K0`), `title`, `culprit`, `project`, `url`, `events`, `users`, `lastSeen`, `again` (true si ya se mandó antes y {{ME}} lo reenvía) y `destination`. Si está cerrada, se abre como en «Enviar».
+2. `SendMessage` a `destination.sendTo`, un solo mensaje por destino con todos los suyos:
+   - Primera línea: `Errores de Sentry enviados por {{ME}} desde el tablero: <ids>`.
+   - Una línea por error: `<id> (<project>): <title>`, debajo `<culprit>`, `<events> veces, <users> usuarios, último <lastSeen>` y el `url`. Si `again` es true, añade `reenvío: ya se mandó antes`.
+   - Pídele que, al terminar, cuente el resultado al tablero con `node {{WORKSPACE}}/board.js sentry-result <ID>[,<ID>…] "<qué ha encontrado o arreglado, en pocas líneas>"`: {{ME}} lo lee en la pestaña Sentry y le llega un aviso.
+   - Última línea: `{{ME}} los ha enviado con el botón de la pestaña Sentry: cuenta como su orden de investigarlos y arreglar lo que sea un fallo de verdad (context/SENTRY.md; context/JIRA.md, «Tareas que llegan de otra sesión»). Sin commit ni deploy.`
+3. Márcalos: `node {{WORKSPACE}}/board.js sentry-sent <ID>,<ID>`. Si la sesión te contesta a ti, guarda su respuesta con `sentry-result` (no hace falta si ella ya lo hizo).
 
 ## Ordenar contexto
 
