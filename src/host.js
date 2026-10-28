@@ -188,7 +188,7 @@ function serve() {
 
   server.listen(HOST_PORT, "127.0.0.1", () => {
     log(`host listening on ${HOST_PORT}`);
-    for (const e of readConfig()) if (!e.waitingForVsCode) spawn(e);
+    for (const e of readConfig()) if (!e.waitingForVsCode) spawn(e, true);
   });
 
   setInterval(() => {
@@ -206,7 +206,33 @@ function serve() {
   }, 3000);
 }
 
+function killOrphanWatchers() {
+  let rows;
+  try {
+    const out = cp.execFileSync("powershell", ["-NoProfile", "-Command", "Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,Name,CommandLine | ConvertTo-Json -Compress"], { encoding: "utf8", windowsHide: true, timeout: 20000, maxBuffer: 64 * 1024 * 1024 });
+    rows = JSON.parse(out);
+  } catch (e) {
+    return 0;
+  }
+  const byPid = new Map(rows.map((r) => [r.ProcessId, r]));
+  const SHELLS = /^(node|bash|sh|cmd|powershell|pwsh|conhost|timeout)\.exe$/i;
+  let killed = 0;
+  for (const r of rows) {
+    if (!/\bwatch\s+(reports|dispatches|board)\b/.test(r.CommandLine || "") || !/^node\.exe$/i.test(r.Name || "")) continue;
+    let p = byPid.get(r.ParentProcessId);
+    while (p && SHELLS.test(p.Name || "")) p = byPid.get(p.ParentProcessId);
+    if (p) continue;
+    try {
+      cp.execFileSync("taskkill", ["/PID", String(r.ProcessId), "/T", "/F"], { stdio: "ignore", windowsHide: true });
+      killed++;
+    } catch (e) {}
+  }
+  if (killed) log(`killed ${killed} orphan watcher(s)`);
+  return killed;
+}
+
 function tellBoard(conversation) {
+  killOrphanWatchers();
   const data = JSON.stringify({ conversation });
   const req = http.request(`${BASE_URL}/api/host/respawned`, { method: "POST", timeout: 5000, headers: { origin: BASE_URL, "content-type": "application/json", "content-length": Buffer.byteLength(data) } }, (res) => res.resume());
   req.on("error", () => {});

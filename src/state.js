@@ -202,6 +202,7 @@ function ping(cb) {
 }
 
 module.exports = {
+  ORCHESTRATOR_NOTICE,
   ERRORS_AREA,
   MESSAGE_TARGETS,
   talkTarget,

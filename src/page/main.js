@@ -3,7 +3,7 @@ import { renderTasks, renderToday, renderBoard } from "./tasks.js";
 import { renderSessions, renderEpics } from "./sessions.js";
 import { renderSearch, renderDeploy, renderTalk, renderContext, renderFollowUp } from "./operations.js";
 import { renderReport, updateStamp, mountHeader, quotaBlock } from "./report.js";
-import { renderHome, sessionStrip, shortcuts } from "./home.js";
+import { renderHome, sessionStrip, shortcuts, systemLine, sessionSituation } from "./home.js";
 import { renderLearning } from "./learning.js";
 import { renderSentry } from "./sentry.js";
 import { renderProjects } from "./projects.js";
@@ -212,6 +212,8 @@ function render() {
   if (state.tab === "today") {
     const strip = sessionStrip();
     if (strip) root.appendChild(strip);
+    const system = sessionSituation().system;
+    if (system.some((x) => (state.hosted || []).some((y) => y.conversation === x.conversation))) root.appendChild(systemLine(system));
     shortcuts(root);
     return renderToday(root, errors);
   }
