@@ -232,6 +232,19 @@ const editing = () => {
 let last = "";
 let deferred = null;
 
+function showVia(via, stale) {
+  let el = document.getElementById("via");
+  if (!via && !stale) return el && el.remove();
+  if (!el) {
+    el = document.createElement("p");
+    el.id = "via";
+    document.body.prepend(el);
+  }
+  const primary = (state.cluster && state.cluster.label) || "el ordenador que manda";
+  el.className = stale ? "via stale" : "via";
+  el.textContent = stale ? `Estás en el ${stale} y el otro ordenador no responde: ves los últimos datos copiados.` : `Estás en el ${via}: lo que ves es el tablero del ${primary}, que es el que manda.`;
+}
+
 function apply(d) {
   for (const k of FIELDS) state[k] = d[k];
   state.areas = [...d.areas].sort((a, b) => a.name.localeCompare(b.name, "es"));
@@ -250,6 +263,7 @@ function reload(force) {
   const headers = force || !lastHash ? {} : { "x-state-hash": lastHash };
   inFlight = fetch("/api/state", { cache: "no-store", headers })
     .then((r) => {
+      showVia(r.headers.get("x-tower-via"), r.headers.get("x-tower-stale"));
       if (r.status === 204) return null;
       lastHash = r.headers.get("x-state-hash") || "";
       return r.json();

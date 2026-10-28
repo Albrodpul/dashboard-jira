@@ -35,7 +35,7 @@ const log = (m) => {
 };
 
 const isPrimary = () => !CLUSTER || st.role === "primary";
-const info = () => ({ role: isPrimary() ? "primary" : "follower", since: st.since, preferred: !!(CLUSTER && CLUSTER.preferred), host: os.hostname(), self: CLUSTER ? CLUSTER.self : null, peer: CLUSTER ? CLUSTER.peer : null });
+const info = () => ({ label: CLUSTER ? CLUSTER.label || null : null, role: isPrimary() ? "primary" : "follower", since: st.since, preferred: !!(CLUSTER && CLUSTER.preferred), host: os.hostname(), self: CLUSTER ? CLUSTER.self : null, peer: CLUSTER ? CLUSTER.peer : null });
 
 async function peerGet(route, ms = 8000) {
   const ctrl = new AbortController();

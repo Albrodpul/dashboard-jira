@@ -665,3 +665,6 @@ select.epic-add { flex: none; width: auto; max-width: 100%; border-radius: 999px
   .term-inline { height: calc(100dvh - 215px); }
   .app[data-view="talk"] .main-head .sub { display: none; }
 }
+
+.via { margin: 0; padding: 6px 16px; font-size: 13px; text-align: center; background: var(--accent-soft); color: var(--accent); border-bottom: 1px solid var(--line); }
+.via.stale { background: var(--back-soft); color: var(--back); }
