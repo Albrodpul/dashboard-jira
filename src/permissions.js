@@ -208,6 +208,15 @@ function areaOf(conversation) {
   return null;
 }
 
+function liveName(conversation) {
+  try {
+    const live = (require("./sessions").liveSessions() || []).find((s) => s.conversation === conversation);
+    return live ? `${live.title || live.name} (sin registrar)` : null;
+  } catch (e) {
+    return null;
+  }
+}
+
 function hasOrder(c, area, d) {
   if (!area) return false;
   const recent = (iso) => iso && Date.now() - new Date(iso).getTime() < ORDER_HOURS * 3600000;
@@ -234,7 +243,7 @@ function check({ session_id: conversation, tool_name: tool, tool_input: input, c
   if (c.kind === "protected" && hasOrder(c, area, d)) return { decision: "allow" };
   const id = "perm-" + now().replace(/[^0-9]/g, "").slice(0, 17) + Math.floor(Math.random() * 90 + 10);
   mutate((x) => {
-    x.permissions = [{ id, conversation, area: area && area.id, areaName: area ? area.name : null, tool, label: c.label, key: c.key, protected: c.kind === "protected", detail: detailOf(tool, input).slice(0, 1500), input: JSON.stringify(input || {}).length < 30000 ? input : null, cwd: cwd || null, status: "pending", at: now() }, ...(x.permissions || [])].slice(0, 100);
+    x.permissions = [{ id, conversation, area: area && area.id, areaName: area ? area.name : liveName(conversation), tool, label: c.label, key: c.key, protected: c.kind === "protected", detail: detailOf(tool, input).slice(0, 1500), input: JSON.stringify(input || {}).length < 30000 ? input : null, cwd: cwd || null, status: "pending", at: now() }, ...(x.permissions || [])].slice(0, 100);
   });
   require("./push")
     .sendPush("permission", true, `${area ? area.name : "Una sesión"} pide permiso: ${c.label}`)
