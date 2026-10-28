@@ -30,8 +30,11 @@ function segments(command) {
   for (let i = 0; i < text.length; i++) {
     const ch = text[i];
     if (quote) {
+      if (ch === "\\" && quote === '"' && i + 1 < text.length) {
+        cur += ch + text[++i];
+        continue;
+      }
       if (ch === quote) quote = null;
-      else if (ch === "\\" && quote === '"') cur += text[i++];
       cur += ch;
       continue;
     }
@@ -66,15 +69,15 @@ function words(segment) {
   return { rest: s, cmd: path.basename(first.replace(/\\/g, "/")).replace(/\.(exe|cmd|bat)$/i, "").toLowerCase(), raw: first };
 }
 
-const DB_WRITE = /\b(insert|update|delete|alter|drop|truncate|create|replace|grant|revoke|rename|load\s+data)\b/i;
+const DB_WRITE = /(^|[;\n("'`]|\s-e\s*["']?)\s*(insert|update|delete|alter|drop|truncate|create|replace\s+into|grant|revoke|rename\s+table|load\s+data|set\s+global)\b/im;
 
-function sqlOf(rest, cwd) {
+function sqlOf(rest, cwd, whole) {
   const file = (/<\s*("[^"]+"|'[^']+'|\S+\.sql)/.exec(rest) || [])[1];
   if (!file) return rest;
   try {
     return rest + "\n" + require("fs").readFileSync(path.resolve(cwd || config.root, file.replace(/["']/g, "")), "utf8");
   } catch (e) {
-    return rest + "\nUNREADABLE update";
+    return rest + "\n" + (whole || "");
   }
 }
 
@@ -104,13 +107,13 @@ function classifySegment(segment, cwd) {
     return { kind: "ask", key: `gh ${rest.split(/\s+/)[1] || ""}`.trim(), label: rest.split(/\s+/).slice(0, 3).join(" ") };
   }
   if (cmd === "ssh" && /\s-[A-Za-z]*[LN]/.test(rest) && !/\bmysql\b/.test(rest)) return { kind: "allow" };
-  if (cmd === "ssh" && /\bmysql\b/.test(rest)) return DB_WRITE.test(sqlOf(rest, cwd)) ? { kind: "protected", key: "bd remota escritura", label: "escribir en una base de datos remota" } : { kind: "allow" };
+  if (cmd === "ssh" && /\bmysql\b/.test(rest)) return DB_WRITE.test(sqlOf(rest, cwd, WHOLE.text)) ? { kind: "protected", key: "bd remota escritura", label: "escribir en una base de datos remota" } : { kind: "allow" };
   if (PROTECTED_WORDS.has(cmd)) return { kind: "protected", key: cmd, label: cmd };
   if (cmd === "mysql" || cmd === "mysqldump" || cmd === "mysqladmin") {
     const host = (/(?:-h\s*|--host[= ])(\S+)/.exec(rest) || [])[1];
     const port = (/(?:-P\s*|--port[= ])(\d+)/.exec(rest) || [])[1];
     const remote = (host && !/^(localhost|127\.0\.0\.1|::1)$/i.test(host.replace(/["']/g, ""))) || (port && port !== "3306");
-    if (remote && (cmd !== "mysql" || DB_WRITE.test(sqlOf(rest, cwd)))) return { kind: "protected", key: "bd remota escritura", label: `${cmd} con escritura contra ${host || "el puerto " + port}` };
+    if (remote && (cmd !== "mysql" || DB_WRITE.test(sqlOf(rest, cwd, WHOLE.text)))) return { kind: "protected", key: "bd remota escritura", label: `${cmd} con escritura contra ${host || "el puerto " + port}` };
     return { kind: "allow" };
   }
   if (/jira-write/.test(rest)) return { kind: "protected", key: "jira-write", label: "escribir en Jira" };
@@ -134,10 +137,21 @@ function classifySegment(segment, cwd) {
   return { kind: "ask", key: cmd, label: cmd };
 }
 
+const WHOLE = { text: "" };
+
+function expandVars(command) {
+  const vars = {};
+  for (const m of String(command).matchAll(/(?:^|[;&|\n]\s*)([A-Za-z_]\w*)=("[^"]*"|'[^']*'|[^\s;&|]+)/g)) vars[m[1]] = m[2].replace(/^["']|["']$/g, "");
+  return String(command).replace(/\$\{?([A-Za-z_]\w*)\}?/g, (all, k) => (k in vars ? vars[k] : all));
+}
+
 function classifyCommand(command, cwd) {
+  command = expandVars(command);
+  WHOLE.text = command;
   const parts = [];
   let where = cwd;
   for (const seg of segments(command)) {
+    if (/^([A-Za-z_]\w*=("[^"]*"|'[^']*'|\S*)\s*)+$/.test(seg)) continue;
     const cd = /^cd\s+(?:\/d\s+)?("[^"]+"|'[^']+'|\S+)\s*$/i.exec(seg);
     if (cd) {
       where = path.resolve(where || config.root, cd[1].replace(/["']/g, ""));
