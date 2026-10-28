@@ -273,6 +273,15 @@ export function renderDeploy(root) {
 }
 
 let talkTo = "board";
+try {
+  talkTo = localStorage.getItem("talk-to") || "board";
+} catch (e) {}
+const setTalk = (k) => {
+  talkTo = k;
+  try {
+    localStorage.setItem("talk-to", k);
+  } catch (e) {}
+};
 const TALK_NAMES = {
   reporter: "Sesión de reporte",
   orchestrator: "Orquestadora",
@@ -297,7 +306,7 @@ function newTalkSession(b) {
   b.textContent = "Creando…";
   requestOrFail("/api/new-session", { title: name.trim() })
     .then((d) => {
-      if (d.conversation) talkTo = d.conversation;
+      if (d.conversation) setTalk(d.conversation);
       toast(d.open ? `Sesión «${name.trim()}» creada. También sale en el historial de VS Code.` : `Sesión «${name.trim()}» creada; está arrancando.`);
       return refresh(true);
     })
@@ -314,7 +323,7 @@ export function renderTalk(root) {
         "aria-pressed": k === talkTo ? "true" : "false",
         text: label,
         onclick: () => {
-          talkTo = k;
+          setTalk(k);
           render();
         },
       })
@@ -325,7 +334,28 @@ export function renderTalk(root) {
   picker.appendChild(h("button", { type: "button", class: "chat-new", title: "Abre una sesión nueva en el tablero para hablar con ella", text: "+ Nueva", onclick: (e) => newTalkSession(e.currentTarget) }));
   root.appendChild(picker);
   const other = others.find((o) => o.conversation === talkTo) || (/^[0-9a-f-]{36}$/.test(talkTo) ? { conversation: talkTo, name: "Sesión nueva" } : null);
-  if (other) return root.appendChild(livePanel(other.conversation, other.name));
+  if (other) {
+    const close = button("Cerrar sesión", {
+      cls: "subtle",
+      title: "La cierra y la quita de Hablar. Su conversación sigue en el historial y se puede volver a abrir desde Sesiones.",
+      onClick: (b) => {
+        if (!window.confirm(`¿Cerrar «${other.name}»? Si está a mitad de algo, se corta. La conversación no se borra.`)) return;
+        b.disabled = true;
+        requestOrFail("/api/host/action", { action: "sleep", conversation: other.conversation, name: other.name })
+          .then(() => {
+            setTalk("board");
+            toast(`«${other.name}» cerrada. Está en Sesiones si la quieres volver a abrir.`);
+            return refresh(true);
+          })
+          .catch((e) => {
+            b.disabled = false;
+            toast(`No se pudo cerrar: ${e.message}`);
+          });
+      },
+    });
+    root.appendChild(h("div", { class: "talk-actions" }, [close]));
+    return root.appendChild(livePanel(other.conversation, other.name));
+  }
   const target = talkSession(talkTo);
   if (!target || !target.conversation) return root.appendChild(empty(`${TALK_NAMES[talkTo]} no está registrada.`, "Regístrala con su comando para poder verla aquí."));
   const hosted = (state.hosted || []).some((x) => x.conversation === target.conversation && !x.waitingForVsCode);

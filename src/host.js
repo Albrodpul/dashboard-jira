@@ -311,6 +311,13 @@ function ensureHost() {
 
 const hostedConversations = () => readConfig().filter((e) => !e.waitingForVsCode).map((e) => e.conversation);
 
+function markOnDemand(conversation) {
+  const list = readConfig();
+  const e = list.find((x) => x.conversation === conversation);
+  if (e) e.onDemand = true;
+  writeConfig(list);
+}
+
 function adopt(conversation, name) {
   const list = readConfig();
   if (!list.some((x) => x.conversation === conversation)) list.push({ conversation, name, at: new Date().toISOString(), onDemand: true });
@@ -323,4 +330,4 @@ function markWaiting(conversation, name) {
   writeConfig(list);
 }
 
-module.exports = { serve, hostRequest, ensureHost, hostedConversations, markWaiting, adopt, vsCodeHas, HOST_PORT, readConfig };
+module.exports = { serve, hostRequest, ensureHost, hostedConversations, markWaiting, adopt, markOnDemand, vsCodeHas, HOST_PORT, readConfig };

@@ -657,3 +657,4 @@ select.epic-add { flex: none; width: auto; max-width: 100%; border-radius: 999px
 .term-wrap .term-screen { flex: 1 1 auto; overflow: auto; }
 .term-scroll { position: absolute; right: 10px; bottom: 10px; display: flex; flex-direction: column; gap: 6px; }
 .term-scroll button { width: 36px; height: 36px; border: 1px solid var(--line); border-radius: 50%; background: var(--surface); color: var(--ink-2); font-size: 16px; opacity: 0.85; cursor: pointer; }
+.talk-actions { display: flex; justify-content: flex-end; margin: -6px 0 6px; }
