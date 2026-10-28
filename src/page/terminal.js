@@ -112,6 +112,7 @@ function createPanel(conversation, name, onClose) {
         ws.onopen = () => {
           status.textContent = "En directo";
           term.reset();
+          if (!document.hidden) setTimeout(panel.claim, 400);
         };
         ws.onmessage = (e) => {
           if (typeof e.data === "string" && e.data.charCodeAt(0) === 0) {
@@ -137,10 +138,14 @@ function createPanel(conversation, name, onClose) {
   return panel;
 }
 
-window.addEventListener("resize", () => {
-  for (const p of panels.values()) setTimeout(p.resize, 50);
-  if (overlay) setTimeout(overlay.resize, 50);
-});
+function claimVisible() {
+  if (document.hidden) return;
+  for (const p of panels.values()) if (p.root.isConnected) setTimeout(p.claim, 150);
+  if (overlay) setTimeout(overlay.claim, 150);
+}
+window.addEventListener("resize", claimVisible);
+window.addEventListener("focus", claimVisible);
+document.addEventListener("visibilitychange", claimVisible);
 
 export function livePanel(conversation, name) {
   let p = panels.get(conversation);
@@ -149,7 +154,7 @@ export function livePanel(conversation, name) {
     p.root.classList.add("term-inline");
     panels.set(conversation, p);
   }
-  setTimeout(p.resize, 50);
+  setTimeout(p.claim, 150);
   return p.root;
 }
 
