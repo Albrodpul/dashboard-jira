@@ -53,7 +53,7 @@ export function sessionSituation() {
   for (const [name, r] of roles) {
     if (!r || !r.conversation) continue;
     const live = liveOf(r.conversation, r.session);
-    out.system.push({ name, open: !!live, working: !!live && live.status === "busy" });
+    out.system.push({ name, open: !!live, working: !!live && live.status === "busy", conversation: r.conversation, session: live ? live.name : r.session || name });
   }
   return out;
 }
@@ -102,8 +102,19 @@ export function renderHome(root) {
     root.appendChild(h("div", { class: "board" }, columns));
   }
   if (s.system.length) {
-    root.appendChild(h("p", { class: "meta home-system", text: "Del tablero: " + s.system.map((x) => `${x.name} ${x.working ? "trabajando" : x.open ? "abierta" : "cerrada"}`).join(" · ") }));
+    root.appendChild(systemLine(s.system));
   }
+}
+
+const isHosted = (conversation) => (state.hosted || []).some((x) => x.conversation === conversation && !x.waitingForVsCode);
+
+export function systemLine(system) {
+  const items = system.map((x) => {
+    const label = `${x.name} ${x.working ? "trabajando" : x.open ? "abierta" : "cerrada"}`;
+    if (!isHosted(x.conversation)) return h("span", { class: "meta", text: label });
+    return h("button", { type: "button", class: "system-live", title: "Ver en directo", onclick: () => import("./terminal.js").then((m) => m.openTerminal(x.conversation, x.session)) }, [h("span", { class: `dot ${x.working ? "busy" : x.open ? "on" : "off"}` }), `${label} · Ver`]);
+  });
+  return h("div", { class: "home-system" }, [h("span", { class: "meta", text: "Del tablero:" }), ...items]);
 }
 
 export function sessionStrip() {

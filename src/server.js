@@ -183,9 +183,9 @@ const POST_ROUTES = {
     const s = state();
     const is = (role) => r[role] && r[role].conversation === conversation;
     const { wakeSession, STARTUP_NOTICE } = require("./sessions");
-    if (is("orchestrator")) return startOrchestrator(true).catch(() => {});
-    if (is("reporter") && !(s.reporterStatus && s.reporterStatus.watching) && s.reporterStatus) return wakeSession(s.reporterStatus.session, STARTUP_NOTICE).catch(() => {});
-    if (is("board") && !(s.boardStatus && s.boardStatus.watching) && s.boardStatus) return wakeSession(s.boardStatus.session, "Aviso del tablero: arranca la sesión del tablero. Eres la sesión del tablero registrada: ejecuta ahora .claude/commands/tablero.md (regla de AGENTS.md).").catch(() => {});
+    if (is("orchestrator") && s.orchestrator) return wakeSession(s.orchestrator.session, require("./state").ORCHESTRATOR_NOTICE).catch(() => {});
+    if (is("reporter") && s.reporterStatus) return wakeSession(s.reporterStatus.session, STARTUP_NOTICE).catch(() => {});
+    if (is("board") && s.boardStatus) return wakeSession(s.boardStatus.session, "Aviso del tablero: arranca la sesión del tablero. Eres la sesión del tablero registrada: ejecuta ahora .claude/commands/tablero.md (regla de AGENTS.md).").catch(() => {});
     if (is("followUp")) return require("./startup").wakeFollowUp().catch(() => {});
   },
   "/api/host/action": (res, { action, conversation, name }, send) => {
