@@ -706,6 +706,9 @@ export function renderTalk(root) {
 
   const chat = h("section", { class: "chat", "aria-label": `Conversación con la ${TALK_NAMES[talkTo].toLowerCase()}` });
   const head = [h("strong", { text: TALK_NAMES[talkTo] }), h("span", { class: "meta", text: sessionStatus(talkTo) })];
+  const target = talkSession(talkTo);
+  const hosted = target && target.conversation && (state.hosted || []).some((x) => x.conversation === target.conversation && !x.waitingForVsCode);
+  if (hosted) head.push(h("button", { class: "chat-aloud chat-live", type: "button", title: "Ver la sesión en directo: cómo piensa, qué hace, y escribirle o cortarla", text: "▶ Ver en directo", onclick: () => import("./terminal.js").then((m) => m.openTerminal(target.conversation, target.session || TALK_NAMES[talkTo])) }));
   if (state.speech || window.speechSynthesis) {
     const aloud = h("button", { class: "chat-aloud", type: "button", "aria-pressed": readAloud ? "true" : "false", title: "Manos libres: las respuestas que lleguen suenan solas, también con otra app delante o el móvil bloqueado", text: readAloud ? "🔊 Manos libres" : "🔇 Manos libres" });
     aloud.addEventListener("click", () => {

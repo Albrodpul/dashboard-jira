@@ -11,6 +11,7 @@ const LOG_FILE = path.join(DATA_DIR, "host.log");
 const BUFFER_BYTES = 400 * 1024;
 const RESTART_MS = 5000;
 const WORKDIR = ROOT.replace(/\\/g, "/").replace(/^([A-Z]):/, (m, d) => `${d.toLowerCase()}:`);
+const PERMISSION_MODE = "acceptEdits";
 const CLAUDE = process.env.CLAUDE_BIN || path.join(require("os").homedir(), ".local", "bin", "claude.exe");
 const DIALOGS = [
   [/Claude ?in ?Chrome/i, "\x1b"],
@@ -48,7 +49,7 @@ function serve() {
     s.stopping = false;
     s.startedAt = new Date().toISOString();
     s.dialogMark = s.buffer.length;
-    const args = entry.fresh ? ["--session-id", entry.conversation, "-n", entry.name] : ["--resume", entry.conversation, "-n", entry.name];
+    const args = [...(entry.fresh ? ["--session-id", entry.conversation] : ["--resume", entry.conversation]), "-n", entry.name, "--permission-mode", PERMISSION_MODE];
     if (entry.fresh) {
       const list = readConfig();
       const e = list.find((x) => x.conversation === entry.conversation);
