@@ -22,7 +22,7 @@ function decide(p, decision, b) {
 
 function permissionCard(p) {
   const kids = [
-    h("div", { class: "top" }, [h("strong", { text: p.areaName || "Sesión sin registrar" }), p.protected ? h("span", { class: "chip waiting", text: "Necesita tu orden" }) : h("span", { class: "chip approved", text: "Permiso" }), h("span", { class: "time", text: when(p.at) })]),
+    h("div", { class: "top" }, [h("strong", { text: p.areaName || "Sesión sin registrar" }), p.native ? h("span", { class: "chip waiting", text: "Claude Code" }) : p.protected ? h("span", { class: "chip waiting", text: "Necesita tu orden" }) : h("span", { class: "chip approved", text: "Permiso" }), h("span", { class: "time", text: when(p.at) })]),
     h("div", { class: "title", text: `Quiere: ${p.label}` }),
     h("pre", { class: "perm-detail", text: p.detail }),
   ];

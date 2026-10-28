@@ -307,6 +307,23 @@ function decide(id, decision, reason) {
   });
 }
 
+function nativePrompt({ conversation, name, question, text, cleared }) {
+  return mutate((d) => {
+    d.permissions = d.permissions || [];
+    const open = d.permissions.filter((p) => p.native && p.conversation === conversation && p.status === "pending");
+    if (cleared) {
+      for (const p of open) Object.assign(p, { status: "answered", decidedAt: now(), reason: "Contestada en la propia sesión" });
+      return null;
+    }
+    for (const p of open) Object.assign(p, { status: "answered", decidedAt: now() });
+    const area = areaOf(conversation);
+    const id = "perm-" + now().replace(/[^0-9]/g, "").slice(0, 17) + Math.floor(Math.random() * 90 + 10);
+    d.permissions.unshift({ id, conversation, area: area && area.id, areaName: area ? area.name : name || liveName(conversation), tool: "Claude Code", label: `Claude Code pregunta: ${String(question || "").slice(0, 160)}`, key: null, protected: true, native: true, detail: String(text || "").slice(0, 1500), status: "pending", at: now() });
+    d.permissions = d.permissions.slice(0, 100);
+    return id;
+  });
+}
+
 function removeRule(key) {
   return mutate((d) => {
     const before = (d.permissionRules || []).length;
@@ -321,4 +338,4 @@ function forPage(d) {
   return { pending: (d.permissions || []).filter((p) => p.status === "pending"), recent: (d.permissions || []).filter((p) => p.status !== "pending").slice(0, 8), rules: d.permissionRules || [] };
 }
 
-module.exports = { segments, classify, check, poll, decide, removeRule, forPage, expire };
+module.exports = { nativePrompt, segments, classify, check, poll, decide, removeRule, forPage, expire };

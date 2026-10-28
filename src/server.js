@@ -228,7 +228,18 @@ const POST_ROUTES = {
       .catch((e) => send(res, 500, { error: String(e.message || e) }));
   },
   "/api/permission/check": (res, input, send) => send(res, 200, permissions.check(input)),
-  "/api/permission/decide": (res, { id, decision, reason }, send) => send(res, permissions.decide(String(id), decision, reason) ? 200 : 409),
+  "/api/permission/decide": (res, { id, decision, reason }, send) => {
+    const ok = permissions.decide(String(id), decision, reason);
+    if (!ok) return send(res, 409);
+    const p = (require("./data").load().permissions || []).find((x) => x.id === String(id));
+    if (p && p.native) host.hostRequest("POST", "/input", { conversation: p.conversation, data: decision === "deny" ? "\x1b" : "1" }).catch(() => {});
+    send(res, 200);
+  },
+  "/api/host/prompt": (res, input, send) => {
+    const id = permissions.nativePrompt(input || {});
+    if (id) require("./push").sendPush("permission", true, `${input.name || "Una sesión"} pide permiso: ${String(input.question || "").slice(0, 80)}`).catch(() => {});
+    send(res, 200);
+  },
   "/api/permission/rule-remove": (res, { key }, send) => send(res, permissions.removeRule(String(key)) ? 200 : 404),
   "/api/devservers": (res, { action, id }, send) => {
     const run = { start: () => devservers.start(id), stop: () => devservers.stop(id), restart: () => devservers.restart(id), startAll: () => devservers.startAll(false), stopAll: devservers.stopAll }[action];
