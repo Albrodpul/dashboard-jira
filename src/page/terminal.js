@@ -51,6 +51,7 @@ function createPanel(conversation, name, onClose) {
   const scrollBtns = h("div", { class: "term-scroll" }, [
     h("button", { type: "button", title: "Subir (Re Pág)", "aria-label": "Subir", text: "⇞", onclick: () => panel.send("[5~") }),
     h("button", { type: "button", title: "Bajar (Av Pág)", "aria-label": "Bajar", text: "⇟", onclick: () => panel.send("[6~") }),
+    h("button", { type: "button", title: "Ir al final (Ctrl+Fin)", "aria-label": "Ir al final", text: "⤓", onclick: () => panel.send("[1;5F") }),
   ]);
   const root = h("div", { class: "term-panel" }, [h("div", { class: "term-head" }, head), h("div", { class: "term-wrap" }, [screen, scrollBtns]), keys, h("div", { class: "term-compose" }, [input, sendBtn])]);
   const panel = { root, conversation, ws: null, term: null, fit: null, closed: false };
@@ -61,7 +62,7 @@ function createPanel(conversation, name, onClose) {
     try {
       dims = panel.fit.proposeDimensions();
     } catch (e) {}
-    if (dims && dims.cols && dims.rows && (dims.cols !== panel.term.cols || dims.rows !== panel.term.rows)) panel.ws.send(JSON.stringify({ type: "resize", cols: dims.cols, rows: dims.rows }));
+    if (dims && dims.cols && dims.rows && (dims.cols - 1 !== panel.term.cols || dims.rows !== panel.term.rows)) panel.ws.send(JSON.stringify({ type: "resize", cols: Math.max(20, dims.cols - 1), rows: dims.rows }));
   };
   panel.send = (data) => {
     if (!panel.ws || panel.ws.readyState !== 1) return;
