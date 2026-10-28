@@ -171,7 +171,7 @@ const POST_ROUTES = {
     send(res, 200, { sent: n });
   },
   "/api/devservers": (res, { action, id }, send) => {
-    const run = { start: () => devservers.start(id), stop: () => devservers.stop(id), restart: () => devservers.restart(id), startAll: devservers.startAll, stopAll: devservers.stopAll }[action];
+    const run = { start: () => devservers.start(id), stop: () => devservers.stop(id), restart: () => devservers.restart(id), startAll: () => devservers.startAll(false), stopAll: devservers.stopAll }[action];
     if (!run) return send(res, 400, { error: "acción desconocida" });
     run()
       .then((r) => send(res, 200, { result: r }))
