@@ -68,7 +68,7 @@ function changesList(t, title) {
 function askNewSession(promptText, defaultName, epic, onCreated) {
   const n = window.prompt(promptText, defaultName);
   if (!n || !n.trim()) return render();
-  toast("Abriendo la sesión nueva en VS Code…");
+  toast("Creando la sesión nueva en el tablero…");
   createSession(n, epic, null).then((area) => {
     if (area) onCreated(area);
     render();
