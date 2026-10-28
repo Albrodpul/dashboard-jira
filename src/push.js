@@ -12,6 +12,7 @@ const REASONS = {
   followup: { title: "Seguimiento", text: "Hay novedades en el seguimiento", tab: "follow-up" },
   reply: { title: "Hablar", text: "Te han contestado en Hablar", tab: "talk" },
   deploys: { title: "Despliegues", text: "Ha terminado un despliegue", tab: "deploy" },
+  permission: { title: "Permiso", text: "Una sesión pide permiso", tab: "waiting" },
   sentry: { title: "Sentry", text: "Una sesión ha contestado sobre un error de Sentry", tab: "sentry" },
   test: { title: "Prueba", text: "Aviso de prueba del tablero", tab: "home" },
 };

@@ -17,6 +17,7 @@ const speech = require("./speech");
 const deployStatus = require("./deploy-status");
 const sentry = require("./sentry");
 const devservers = require("./devservers");
+const permissions = require("./permissions");
 
 const PAGE_DIR = path.join(__dirname, "page");
 const HOSTS_FILE = path.join(DATA_DIR, "board-hosts.txt");
@@ -170,6 +171,9 @@ const POST_ROUTES = {
     }
     send(res, 200, { sent: n });
   },
+  "/api/permission/check": (res, input, send) => send(res, 200, permissions.check(input)),
+  "/api/permission/decide": (res, { id, decision, reason }, send) => send(res, permissions.decide(String(id), decision, reason) ? 200 : 409),
+  "/api/permission/rule-remove": (res, { key }, send) => send(res, permissions.removeRule(String(key)) ? 200 : 404),
   "/api/devservers": (res, { action, id }, send) => {
     const run = { start: () => devservers.start(id), stop: () => devservers.stop(id), restart: () => devservers.restart(id), startAll: () => devservers.startAll(false), stopAll: devservers.stopAll }[action];
     if (!run) return send(res, 400, { error: "acción desconocida" });
@@ -235,6 +239,7 @@ function handle(req, res) {
     if (url === "/sw.js") return serveBody(res, "text/javascript", SERVICE_WORKER);
     if (url === "/api/push/reason") return serveBody(res, "application/json", JSON.stringify(pushReason()));
     if (url === "/api/push/key") return serveBody(res, "application/json", JSON.stringify({ key: pushKeys().publicKey }));
+    if (url.startsWith("/api/permission/perm-")) return serveBody(res, "application/json", JSON.stringify(permissions.poll(url.slice("/api/permission/".length))));
     if (url === "/api/devservers") {
       devservers
         .status()
