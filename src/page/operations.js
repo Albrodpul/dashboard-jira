@@ -1,5 +1,5 @@
 import { livePanel } from "./terminal.js";
-import { state, h, button, when, minutesSince, toast, request, requestOrFail, post, whoSends, areaName, areaSelect, render, refresh, renderMd, empty, ticketUrl, reviewer, deployProjects, exampleKey, switchView } from "./base.js";
+import { state, h, button, when, minutesSince, toast, request, requestOrFail, post, whoSends, areaName, areaSelect, render, refresh, renderMd, empty, ticketUrl, reviewer, deployProjects, switchView } from "./base.js";
 
 const search = { q: "", onlyAvailable: true, skipReview: true, results: null, busy: false, capped: false };
 
@@ -26,23 +26,6 @@ function importTasks(keys) {
     })
     .catch(() => toast("No se pudieron traer las tareas."))
     .then(runSearch);
-}
-
-function checkbox(id, label, field) {
-  const c = h("input", { type: "checkbox", id });
-  c.checked = search[field];
-  c.addEventListener("change", () => (search[field] = c.checked));
-  return h("label", { class: "checkbox", for: id }, [c, label]);
-}
-
-export function renderSearch(root) {
-  root.appendChild(h("p", { class: "setup-note", text: "Busca en Jira tareas sin terminar que no hayan salido en ninguna revisión y tráelas a Pendientes para hacerlas desde aquí. Sin texto, lista todas las que cumplan los filtros." }));
-  const q = h("input", { type: "search", id: "jira-q", placeholder: `Texto del título o clave (por ejemplo: login, ${exampleKey()})`, value: search.q, "aria-label": "Buscar en Jira" });
-  q.addEventListener("input", () => (search.q = q.value));
-  q.addEventListener("keydown", (e) => e.key === "Enter" && runSearch());
-  const go = button(search.busy ? "Buscando…" : "Buscar", { cls: "primary", disabled: search.busy, onClick: runSearch });
-  root.appendChild(h("div", { class: "toolbar search" }, [q, go, checkbox("jira-available", "Solo sin asignar o mías", "onlyAvailable"), checkbox("jira-skip-review", "Ocultar las que están en revisión", "skipReview")]));
-  resultRows(root);
 }
 
 export function jiraResults(root, q) {
