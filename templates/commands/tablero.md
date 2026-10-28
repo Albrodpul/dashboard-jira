@@ -12,7 +12,7 @@ Si se ha invocado este comando (`/tablero`), o si te llega de otra sesión «Avi
 
 1. Regístrate: llama a `ListAgents`, toma tu nombre y ref de la línea «This session is … […]» y ejecuta `node {{WORKSPACE}}/sessions.js iam board <nombre> <ref>`.
 2. `node {{WORKSPACE}}/board.js ensure`.
-3. Arma un Monitor con `node {{WORKSPACE}}/board.js watch board` (timeout_ms 1800000) y vuelve a armarlo cada vez que avise de que caduca. Solo da eventos `MESSAGE <id>`; mientras está armado, `board.js board-session` dice `"watching": true` y el tablero te pasa los mensajes al momento en vez de despertarte.
+3. Arma un Monitor con `node {{WORKSPACE}}/board.js watch board` (timeout_ms 1800000) y vuelve a armarlo cada vez que avise de que caduca o dé `RESTART` (ha cambiado el código del tablero). Solo da eventos `MESSAGE <id>`; mientras está armado, `board.js board-session` dice `"watching": true` y el tablero te pasa los mensajes al momento en vez de despertarte.
 
 Si te llega un mensaje del tablero sin tener el Monitor armado (por ejemplo, tras reiniciar VS Code), atiéndelo y arma el Monitor después.
 
