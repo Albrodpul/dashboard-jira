@@ -22,6 +22,24 @@ function record(patch) {
 }
 
 let running = false;
+const REPO = path.join(__dirname, "..");
+
+function repoGit(args) {
+  return new Promise((resolve) => {
+    cp.execFile("git", ["-C", REPO, ...args], { windowsHide: true, timeout: 120000 }, (err, stdout, stderr) => resolve({ ok: !err, out: String(stdout || "") + String(stderr || "") }));
+  });
+}
+
+async function updateBoard() {
+  const before = await repoGit(["rev-parse", "HEAD"]);
+  const pull = await repoGit(["pull", "--ff-only", "-q"]);
+  if (!pull.ok) return;
+  const after = await repoGit(["rev-parse", "HEAD"]);
+  if (!before.ok || before.out.trim() === after.out.trim()) return;
+  const changed = await repoGit(["diff", "--name-only", before.out.trim(), after.out.trim()]);
+  if (/package(-lock)?\.json/.test(changed.out)) await new Promise((r) => cp.execFile(process.platform === "win32" ? "npm.cmd" : "npm", ["ci", "--no-audit", "--no-fund"], { cwd: REPO, shell: process.platform === "win32", windowsHide: true, timeout: 300000 }, () => r()));
+  cp.spawn(process.execPath, [path.join(REPO, "src", "cli.js"), "restart"], { detached: true, stdio: "ignore", windowsHide: true, env: { ...process.env, TOWER_WORKSPACE: config.workspace } }).unref();
+}
 
 async function syncContext() {
   if (running || !enabled()) return;
@@ -49,6 +67,7 @@ async function syncContext() {
       if (!pushed.ok) return record({ state: "error", error: pushed.out.slice(0, 300) });
     }
     record({ state: "ok", error: null, lastOk: now() });
+    await updateBoard();
   } finally {
     running = false;
   }
