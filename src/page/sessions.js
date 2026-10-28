@@ -52,7 +52,16 @@ function nameField(r) {
   return input;
 }
 
+const FIXED_NOTES = {
+  deploy: "Recibe los despliegues que ordenas en la pestaña Desplegar.",
+  errors: "Recibe los errores de Sentry y los posibles errores del seguimiento que envías.",
+  followUp: "Mira cada hora lo que ha hecho Enric en beta y lo publica en Seguimiento.",
+};
+
 function roleChip(r) {
+  if (r.fixedRole === "deploy") return h("span", { class: "chip prod", text: "Despliega" });
+  if (r.fixedRole === "errors") return h("span", { class: "chip waiting", text: "Errores" });
+  if (r.fixedRole === "followUp") return h("span", { class: "chip new", text: "Seguimiento" });
   if (r.isOrchestrator) {
     const watching = r.open && state.orchestrator.watching;
     return h("span", { class: `chip ${watching ? "sent" : "returned"}`, text: !r.open ? "Orquesta · cerrada" : watching ? "Orquesta" : "Orquesta · sin vigilar" });
@@ -60,11 +69,13 @@ function roleChip(r) {
   if (r.isBoard) return h("span", { class: `chip ${r.open && state.boardStatus.watching ? "sent" : "returned"}`, text: !r.open ? "Tablero · cerrada" : state.boardStatus.watching ? "Tablero" : "Tablero · sin vigilar" });
   if (r.isSystem) return h("span", { class: "chip new", text: "Reporte" });
   if (r.id === state.deployerArea) return h("span", { class: "chip prod", text: "Despliega" });
+
   return null;
 }
 
 function sessionBody(r, keys) {
-  if (r.isSystem) return h("p", { class: "session-note", text: r.isOrchestrator ? "Envía a cada sesión las tareas y los despliegues que apruebas, y guarda lo que contestan." : r.isBoard ? "Atiende lo que le pides en Hablar sobre el propio tablero: mejoras, fallos y rediseños. No recibe tareas de Jira." : "Lee Jira cada 5 minutos, publica el reporte y deja las tarjetas." });
+  if (r.fixedRole) return h("p", { class: "session-note", text: FIXED_NOTES[r.fixedRole] });
+  if (r.isSystem) return h("p", { class: "session-note", text: r.isOrchestrator ? "Envía a cada sesión las tareas y los despliegues que apruebas, y guarda lo que contestan." : r.isBoard ? "Atiende lo que le pides sobre el propio tablero: mejoras, fallos y rediseños. No recibe tareas de Jira." : "Lee Jira cada 5 minutos, publica el reporte y deja las tarjetas." });
   if (r.unnamed) {
     const note = h("p", { class: "session-note", text: r.vsCodeTitle ? `Se llama «${r.vsCodeTitle}». Escribe un nombre arriba para poder darle epics.` : "Escribe un nombre arriba para poder darle epics." });
     if (!r.vsCodeTitle) return note;
@@ -138,7 +149,7 @@ function sessionCard(r, byConversation, openUnnamed) {
   const situation = !r.open ? "Cerrada" : busy ? "Trabajando" : "Abierta";
   const head = [
     h("span", { class: `dot ${!r.open ? "off" : busy ? "busy" : "on"}`, title: situation }),
-    system ? h("span", { class: "session-title", text: r.isOrchestrator || r.isBoard ? r.name : "Reporte de Jira" }) : nameField(r),
+    system ? h("span", { class: "session-title", text: r.isOrchestrator || r.isBoard || r.fixedRole ? r.name : "Reporte de Jira" }) : nameField(r),
     roleChip(r),
     hostedOf(r.conversation) ? h("span", { class: "chip host-chip", text: "En el tablero" }) : null,
   ];
@@ -157,7 +168,7 @@ function sessionCard(r, byConversation, openUnnamed) {
       })
     );
   }
-  if (!system && !r.unnamed && !keys.length && r.id !== state.deployerArea) {
+  if (!system && !r.unnamed && !r.fixedRole && !keys.length && r.id !== state.deployerArea) {
     actions.push(
       button("Quitar", {
         cls: "subtle",
@@ -203,7 +214,10 @@ export function renderSessions(root) {
   const byConversation = {};
   for (const s of state.sessions.list || []) byConversation[s.conversation || s.name] = s;
   const openUnnamed = state.areas.filter((a) => a.open && a.unnamed);
-  const named = state.areas.filter((a) => !a.unnamed);
+  const followUpConversation = state.followUpStatus && state.followUpStatus.conversation;
+  const fixedAreas = new Set([state.deployerArea, state.sentry && state.sentry.errorsArea].filter(Boolean));
+  const isFixedArea = (a) => fixedAreas.has(a.id) || (followUpConversation && a.conversation === followUpConversation);
+  const named = state.areas.filter((a) => !a.unnamed && !isFixedArea(a));
   newSessionBar(root, named.filter((a) => a.open).length, named.length);
 
   const sync = state.sessions.syncedAt;
@@ -225,7 +239,7 @@ export function renderSessions(root) {
   section(root, "Con epics", "Reciben las tareas de sus epics.", withEpics.map(toCard));
   section(root, "Sin epics", null, withoutEpics.map(toCard));
 
-  const system = [];
+  const system = state.areas.filter((a) => !a.unnamed && isFixedArea(a)).map((a) => ({ ...a, isSystem: true, fixedRole: a.id === state.deployerArea ? "deploy" : state.sentry && a.id === state.sentry.errorsArea ? "errors" : "followUp" }));
   const rep = state.reporterRoute;
   if (rep && rep.session) system.push({ id: "reporter", name: rep.session, sessionName: rep.session, ref: rep.ref, open: true, epics: {}, isSystem: true, since: rep.since, conversation: rep.conversation });
   const o = state.orchestrator;
