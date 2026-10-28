@@ -20,6 +20,9 @@ const devservers = require("./devservers");
 const permissions = require("./permissions");
 const host = require("./host");
 const net = require("net");
+const https = require("https");
+const tls = require("tls");
+const cluster = require("./cluster");
 
 const PAGE_DIR = path.join(__dirname, "page");
 const HOSTS_FILE = path.join(DATA_DIR, "board-hosts.txt");
@@ -27,7 +30,6 @@ const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; ch
 
 const LABEL = (require("./config").cluster || {}).label || "";
 const MANIFEST = JSON.stringify({
-  id: LABEL ? `/?torre=${LABEL.toLowerCase()}` : "/",
   name: LABEL ? `Torre de control · ${LABEL}` : "Torre de control",
   short_name: LABEL ? `Torre ${LABEL}` : "Torre",
   description: "Tareas de Jira que se pueden pasar a la sesión que lleva su epic.",
@@ -298,6 +300,35 @@ function pageFile(url) {
 function handle(req, res) {
   if (!hostOk(req.headers.host || "")) return res.writeHead(403).end("host no permitido");
   const url = req.url.split("?")[0];
+  if (forwardsToPrimary(url)) return forwardToPrimary(req, res, () => handleLocal(req, res, url));
+  handleLocal(req, res, url);
+}
+
+const LOCAL_API = /^\/api\/(cluster|push\/|host\/|permission|quit)/;
+const forwardsToPrimary = (url) => url.startsWith("/api/") && !LOCAL_API.test(url) && !cluster.isPrimary() && !!cluster.info().peer;
+
+function peerHeaders(req, peer) {
+  const headers = { ...req.headers, host: peer.host };
+  if (headers.origin) headers.origin = peer.origin;
+  return headers;
+}
+
+function forwardToPrimary(req, res, fallback) {
+  const peer = new URL(cluster.info().peer);
+  const out = https.request({ host: peer.hostname, port: peer.port || 443, method: req.method, path: req.url, headers: peerHeaders(req, peer), timeout: 15000 }, (up) => {
+    res.writeHead(up.statusCode, up.headers);
+    up.pipe(res);
+  });
+  out.on("timeout", () => out.destroy(new Error("timeout")));
+  out.on("error", () => {
+    if (res.headersSent) return res.destroy();
+    if (req.method === "GET") return fallback();
+    send(res, 502, { error: "el ordenador que manda no responde" });
+  });
+  req.pipe(out);
+}
+
+function handleLocal(req, res, url) {
   if (req.method === "GET") {
     const file = pageFile(url);
     if (file) {
@@ -401,10 +432,25 @@ const VENDOR = {
 function proxyTerminal(req, socket, head) {
   const m = /^\/api\/term\/([0-9a-f-]{36})$/.exec(req.url || "");
   if (!m || !originOk(req)) return socket.destroy();
+  if (forwardsToPrimary(req.url)) return proxyTerminalToPrimary(req, socket, head);
   const upstream = net.connect(host.HOST_PORT, "127.0.0.1", () => {
     const lines = [`GET /attach/${m[1]} HTTP/1.1`];
     for (let i = 0; i < req.rawHeaders.length; i += 2) if (!/^host$/i.test(req.rawHeaders[i])) lines.push(`${req.rawHeaders[i]}: ${req.rawHeaders[i + 1]}`);
     lines.push(`Host: 127.0.0.1:${host.HOST_PORT}`);
+    upstream.write(lines.join("\r\n") + "\r\n\r\n");
+    if (head && head.length) upstream.write(head);
+    upstream.pipe(socket);
+    socket.pipe(upstream);
+  });
+  upstream.on("error", () => socket.destroy());
+  socket.on("error", () => upstream.destroy());
+}
+
+function proxyTerminalToPrimary(req, socket, head) {
+  const peer = new URL(cluster.info().peer);
+  const headers = peerHeaders(req, peer);
+  const upstream = tls.connect({ host: peer.hostname, port: Number(peer.port) || 443, servername: peer.hostname }, () => {
+    const lines = [`GET ${req.url} HTTP/1.1`, ...Object.entries(headers).map(([k, v]) => `${k}: ${v}`)];
     upstream.write(lines.join("\r\n") + "\r\n\r\n");
     if (head && head.length) upstream.write(head);
     upstream.pipe(socket);
