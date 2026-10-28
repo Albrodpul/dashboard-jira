@@ -2,9 +2,9 @@ const fs = require("fs");
 const { ROUTES_FILE } = require("../src/data");
 
 const ALIASES = { soy: "iam", ruta: "route", "quitar-ruta": "unroute", libera: "release", de: "of", lista: "list" };
-const ROLES = { reporte: "reporter", reporter: "reporter", orquestador: "orchestrator", orchestrator: "orchestrator", seguimiento: "followUp", followup: "followUp", "follow-up": "followUp" };
-const ROLE_LABEL = { reporter: "REPORTE", orchestrator: "ORQUESTADORA", followUp: "SEGUIMIENTO" };
-const ROLE_TITLE = { orchestrator: "Orquestar agentes", followUp: "Seguimiento" };
+const ROLES = { reporte: "reporter", reporter: "reporter", orquestador: "orchestrator", orchestrator: "orchestrator", seguimiento: "followUp", followup: "followUp", "follow-up": "followUp", tablero: "board", board: "board" };
+const ROLE_LABEL = { reporter: "REPORTE", orchestrator: "ORQUESTADORA", followUp: "SEGUIMIENTO", board: "TABLERO" };
+const ROLE_TITLE = { orchestrator: "Orquestar agentes", followUp: "Seguimiento", board: "Tablero" };
 const cmd = ALIASES[process.argv[2]] || process.argv[2];
 const args = process.argv.slice(3);
 
@@ -56,7 +56,7 @@ function newArea(data, text) {
 
 if (cmd === "iam") {
   const [areaText, session, ref] = args;
-  if (!areaText || !session) fail("Uso: node sessions.js iam <área|reporter|orchestrator|followup> <nombre-de-sesión> [ref]");
+  if (!areaText || !session) fail("Uso: node sessions.js iam <área|reporter|orchestrator|followup|board> <nombre-de-sesión> [ref]");
   const data = load();
   const role = ROLES[slug(areaText)];
   if (role) {
@@ -121,6 +121,7 @@ if (cmd === "iam") {
   console.log(`Reporte: ${role(data.reporter)}`);
   console.log(`Orquestador: ${role(data.orchestrator)}`);
   console.log(`Seguimiento: ${role(data.followUp)}`);
+  console.log(`Tablero: ${role(data.board)}`);
   for (const [k, a] of Object.entries(data.areas)) {
     const epics = Object.entries(a.epics || {}).map(([key, n]) => `${key} ${n}`);
     console.log(`- ${a.title} (${k}) | sesión: ${a.session ? withRef(a.session, a.ref) : "sin registrar"} | épicas: ${epics.join("; ") || "ninguna"}`);

@@ -258,7 +258,8 @@ export function renderDeploy(root) {
 }
 
 let talkTo = "reporter";
-const TALK_NAMES = { orchestrator: "Orquestadora", reporter: "Sesión de reporte" };
+const TALK_NAMES = { reporter: "Sesión de reporte", orchestrator: "Orquestadora", board: "Tablero" };
+const talkSession = (to) => ({ reporter: state.reporterStatus, orchestrator: state.orchestrator, board: state.boardStatus })[to] || null;
 const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 const DICTATION_ERRORS = { "not-allowed": "El navegador no deja usar el micrófono: dale permiso en los ajustes del sitio.", "service-not-allowed": "El navegador no deja usar el micrófono: dale permiso en los ajustes del sitio.", network: "No hay conexión con el servicio de dictado del navegador.", "audio-capture": "No se encuentra ningún micrófono." };
 let dictation = null;
@@ -612,7 +613,7 @@ function iconButton(kind, label, cls, onClick) {
 }
 
 function sessionStatus(to) {
-  const s = to === "orchestrator" ? state.orchestrator : state.reporterStatus;
+  const s = talkSession(to);
   if (!s) return "sin registrar";
   if (s.watching) return "vigilando";
   return s.open ? "abierta" : "cerrada: se abre al escribirle";
@@ -656,7 +657,7 @@ function sendTalk(box, b) {
 
 export function renderTalk(root) {
   const picker = h("div", { class: "people-chips chat-picker", role: "group", "aria-label": "Con quién hablar" });
-  for (const k of ["reporter", "orchestrator"]) {
+  for (const k of ["reporter", "orchestrator", "board"]) {
     const b = h("button", { type: "button", "aria-pressed": k === talkTo ? "true" : "false", text: TALK_NAMES[k] });
     b.addEventListener("click", () => {
       talkTo = k;
@@ -706,7 +707,7 @@ export function renderTalk(root) {
   const lastMine = list[list.length - 1];
   const pending = lastMine && !(lastMine.replies || []).length && !lastMine.reply && Date.now() - new Date((lastMine.progress && lastMine.progress.at) || lastMine.readAt || lastMine.at).getTime() < 15 * 60000;
   if (pending) {
-    const target = talkTo === "reporter" ? state.reporterStatus : state.orchestrator;
+    const target = talkSession(talkTo);
     const live = target && (state.sessions.list || []).find((x) => x.conversation === target.conversation);
     const busy = live && live.status === "busy" && !live.subagents;
     const label = lastMine.progress ? lastMine.progress.text : lastMine.readAt ? "Escribiendo…" : busy ? "Está ocupada con otra cosa: lo leerá al terminar" : lastMine.wokenUp ? "Despertando la sesión…" : "Esperando a que lo lea…";

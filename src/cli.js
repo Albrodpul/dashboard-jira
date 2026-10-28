@@ -342,6 +342,10 @@ const commands = {
     json(state().reporterStatus);
   },
 
+  "board-session"() {
+    json(state().boardStatus);
+  },
+
   startup() {
     require("./startup").launchStartup(a === "--child" || a === "--hijo");
   },
@@ -530,7 +534,7 @@ const commands = {
   open() {
     const st = state();
     const asTarget = (x) => x && { name: x.title, conversation: x.conversation, open: x.open, sessionName: x.session };
-    const role = ["orchestrator", "orquestador"].includes(a) ? asTarget(st.orchestrator) : ["followup", "seguimiento"].includes(a) ? asTarget(st.followUpStatus) : null;
+    const role = ["orchestrator", "orquestador"].includes(a) ? asTarget(st.orchestrator) : ["followup", "seguimiento"].includes(a) ? asTarget(st.followUpStatus) : ["board", "tablero"].includes(a) ? asTarget(st.boardStatus) : null;
     const target = role || st.areas.find((x) => x.id === a || (x.name && titleKey(x.name) === titleKey(a)));
     if (!target) fail(`sesión desconocida: ${a}`);
     if (!UUID.test(target.conversation || "")) fail(`«${target.name}» no tiene una conversación enlazada: ábrela a mano en VS Code una vez.`);
@@ -671,5 +675,5 @@ for (const c of ["tidy-start", "tidy-end"]) commands[c] = contextTidy;
 if (Object.prototype.hasOwnProperty.call(commands, cmd)) commands[cmd]();
 else
   console.log(
-    "Uso: node board.js serve | ensure | restart | add [json] | list [status] | update <key> [json] | approve-chat <key> <area> | report [text] | reporter | watch [reports|dispatches] | refresh-request | sessions [json] | epics [json] | jira-epics | open <session> | areas | dispatches | attachments <key> | done | partial | question | comment | delivered | sent | reply | changes | orchestrator | deployments | deployment-update | startup | push-test | followup | followup-error | error-sent | error-result | followup-status | people | person-accounts | tidy-status | tidy-start | tidy-end | message | answer-message | progress | counted | learning-read | cause | jira-setup [ISSUE-KEY] [reviewer name]"
+    "Uso: node board.js serve | ensure | restart | add [json] | list [status] | update <key> [json] | approve-chat <key> <area> | report [text] | reporter | board-session | watch [reports|dispatches|board] | refresh-request | sessions [json] | epics [json] | jira-epics | open <session> | areas | dispatches | attachments <key> | done | partial | question | comment | delivered | sent | reply | changes | orchestrator | deployments | deployment-update | startup | push-test | followup | followup-error | error-sent | error-result | followup-status | people | person-accounts | tidy-status | tidy-start | tidy-end | message | answer-message | progress | counted | learning-read | cause | jira-setup [ISSUE-KEY] [reviewer name]"
   );

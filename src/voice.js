@@ -43,7 +43,7 @@ function readBody(req) {
 async function handleVoice(req, res, send, createMessage) {
   if (!voiceAvailable()) return send(res, 503, { error: "Whisper no está instalado en este ordenador" });
   const to = new URL(req.url, "http://x").searchParams.get("to");
-  if (!["reporter", "orchestrator"].includes(to)) return send(res, 400, { error: "destino desconocido" });
+  if (!["reporter", "orchestrator", "board"].includes(to)) return send(res, 400, { error: "destino desconocido" });
   const body = await readBody(req);
   if (body.length < 44 || body.toString("ascii", 0, 4) !== "RIFF") return send(res, 400, { error: "audio no válido" });
   const hash = require("crypto").createHash("sha1").update(body).digest("hex");

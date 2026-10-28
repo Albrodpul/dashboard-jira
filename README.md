@@ -114,7 +114,7 @@ Also set `statuses.rejectLabel`, the label reviewers add when they reject a tick
 node dashboard-jira/install.js C:/work/acme/board
 ```
 
-This time it renders `/resumen-jira`, `/orquesta`, `/soy` and `/seguimiento` into `<root>/.claude/commands/`. The templates refer to `AGENTS.md` and `context/*.md` in your root for your team's rules (how to take a ticket, how to deploy). Write those for your team, or edit the templates.
+This time it renders `/resumen-jira`, `/orquesta`, `/soy`, `/seguimiento` and `/tablero` into `<root>/.claude/commands/`. The templates refer to `AGENTS.md` and `context/*.md` in your root for your team's rules (how to take a ticket, how to deploy). Write those for your team, or edit the templates.
 
 ### 7. Start everything
 
@@ -176,6 +176,7 @@ In Claude Code:
 - `/orquesta` turns a session into the **orchestrator** (sends approved cards, deployments and your answers).
 - `/soy <area>` registers a session as the one that owns an area; epics are routed to areas from the board.
 - `/seguimiento` turns a session into the **follow-up** one (hourly activity summary of a colleague).
+- `/tablero` turns a session into the **board** one: it takes the changes you ask for the board itself from the Talk tab, so the reporter only deals with Jira.
 
 `node <workspace>/board.js` without arguments lists every command. The old Spanish command names (`informe`, `envios`, `hecha`…) still work as aliases.
 
