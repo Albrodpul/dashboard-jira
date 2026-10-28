@@ -138,6 +138,9 @@ async function promote(reason) {
     .sendPush("sessions", true, `${os.hostname()} pasa a mandar: ${reason}`)
     .catch(() => {});
   await startRoles();
+  const board = require("./sessions").loadRoutes().board;
+  if (board && board.session) require("./sessions").wakeSession(board.session, "Aviso del tablero: arranca la sesión del tablero. Eres la sesión del tablero registrada: ejecuta ahora .claude/commands/tablero.md (regla de AGENTS.md).").catch(() => {});
+  require("./startup").launchStartup();
 }
 
 async function demote(reason) {
