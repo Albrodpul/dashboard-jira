@@ -20,7 +20,18 @@ function call(method, url, body) {
   });
 }
 
+function trace(event, result) {
+  try {
+    const dir = process.env.TOWER_WORKSPACE ? require("path").join(process.env.TOWER_WORKSPACE, "data") : null;
+    if (dir) require("fs").appendFileSync(require("path").join(dir, "hook.log"), `${new Date().toISOString()} ${String(event.session_id || "").slice(0, 8)} ${event.tool_name} ${result}
+`);
+  } catch (e) {}
+}
+
+let current = null;
+
 function decide(decision, reason) {
+  if (current) trace(current, decision);
   process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: decision, permissionDecisionReason: reason || "" } }));
   process.exit(0);
 }
@@ -34,10 +45,12 @@ async function main() {
   } catch (e) {
     return process.exit(0);
   }
+  current = event;
   let r;
   try {
     r = await call("POST", "/api/permission/check", { session_id: event.session_id, tool_name: event.tool_name, tool_input: event.tool_input, cwd: event.cwd });
   } catch (e) {
+    trace(event, "sin-tablero");
     return process.exit(0);
   }
   if (r.decision === "allow") return decide("allow", "Permitido por el filtro del tablero");
