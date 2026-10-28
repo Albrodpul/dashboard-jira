@@ -14,6 +14,9 @@ const ROLES = [
   ["followUp", "Seguimiento"],
   ["board", "Tablero"],
 ];
+const ROUTE_ROLES = ["reporter", "orchestrator", "followUp", "board"];
+const PROJECTS = path.join(os.homedir(), ".claude", "projects");
+const projectDir = () => path.join(PROJECTS, config.root.replace(/\\/g, "/").replace(/^([A-Z]):/, (m, d) => `${d.toLowerCase()}:`).replace(/[^a-zA-Z0-9]/g, "-"));
 const SYNC_KEYS = ["tasks", "aliases", "seenEpics", "reports", "refreshRequest", "jiraEpics", "deployments", "followUps", "messages", "lastReview", "config", "contextTidy", "deleted", "permissionRules", "sentry"];
 
 const readState = () => {
@@ -57,6 +60,118 @@ async function peerPost(route, body) {
   }
 }
 
+function transcriptPath(conversation) {
+  const own = path.join(projectDir(), `${conversation}.jsonl`);
+  if (fs.existsSync(own)) return own;
+  try {
+    for (const dir of fs.readdirSync(PROJECTS)) {
+      const f = path.join(PROJECTS, dir, `${conversation}.jsonl`);
+      if (fs.existsSync(f)) return f;
+    }
+  } catch (e) {}
+  return null;
+}
+
+function transcripts() {
+  const out = [];
+  for (const e of require("./host").readConfig()) {
+    const f = transcriptPath(e.conversation);
+    if (!f) continue;
+    const st2 = fs.statSync(f);
+    out.push({ conversation: e.conversation, name: e.name, size: st2.size, mtime: st2.mtimeMs });
+  }
+  return out;
+}
+
+const TAIL = 4096;
+
+function tailHash(file, end) {
+  const start = Math.max(0, end - TAIL);
+  const buf = Buffer.alloc(end - start);
+  const fd = fs.openSync(file, "r");
+  try {
+    fs.readSync(fd, buf, 0, buf.length, start);
+  } finally {
+    fs.closeSync(fd);
+  }
+  return require("crypto").createHash("sha1").update(buf).digest("hex");
+}
+
+function serveTranscript(conversation, from) {
+  if (!/^[0-9a-f-]{36}$/.test(conversation || "")) return null;
+  const f = transcriptPath(conversation);
+  if (!f) return null;
+  const size = fs.statSync(f).size;
+  const at = from > 0 && from <= size ? from : 0;
+  const body = Buffer.alloc(size - at);
+  const fd = fs.openSync(f, "r");
+  try {
+    fs.readSync(fd, body, 0, body.length, at);
+  } finally {
+    fs.closeSync(fd);
+  }
+  return { tail: at ? tailHash(f, at) : "", body };
+}
+
+async function pullTranscripts(onlyNewerThan) {
+  const list = await peerGet("/api/cluster/transcripts", 15000);
+  if (!Array.isArray(list)) return [];
+  const host = require("./host");
+  const changed = [];
+  for (const t of list) {
+    if (onlyNewerThan && t.mtime < onlyNewerThan) continue;
+    const local = transcriptPath(t.conversation);
+    const size = local ? fs.statSync(local).size : -1;
+    if (size === t.size) continue;
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 120000);
+    try {
+      const get = (from) => fetch(`${CLUSTER.peer}/api/cluster/transcript/${t.conversation}?from=${from}`, { signal: ctrl.signal, cache: "no-store" });
+      const file = local || path.join(projectDir(), `${t.conversation}.jsonl`);
+      let r = size > 0 && size < t.size ? await get(size) : null;
+      let append = !!(r && r.ok && r.headers.get("x-tail-hash") === tailHash(local, size));
+      if (!append) r = await get(0);
+      if (!r.ok) continue;
+      changed.push({ ...t, append, body: Buffer.from(await r.arrayBuffer()), file });
+    } catch (e) {
+    } finally {
+      clearTimeout(timer);
+    }
+    host.adopt(t.conversation, t.name);
+  }
+  return changed;
+}
+
+function writeTranscripts(changed) {
+  fs.mkdirSync(projectDir(), { recursive: true });
+  for (const c of changed) {
+    if (c.append) {
+      fs.appendFileSync(c.file, c.body);
+      continue;
+    }
+    fs.writeFileSync(c.file + ".sync", c.body);
+    fs.renameSync(c.file + ".sync", c.file);
+  }
+}
+
+async function runningConversations() {
+  const list = await require("./host").hostRequest("GET", "/sessions").catch(() => []);
+  return new Set((list || []).filter((x) => x.running).map((x) => x.conversation));
+}
+
+async function refreshFromPeer(onlyNewerThan) {
+  const changed = await pullTranscripts(onlyNewerThan);
+  if (!changed.length) return 0;
+  const host = require("./host");
+  const running = await runningConversations();
+  const restart = changed.filter((c) => running.has(c.conversation));
+  for (const c of restart) await host.hostRequest("POST", "/stop", { conversation: c.conversation }).catch(() => {});
+  writeTranscripts(changed);
+  for (const c of restart) await host.hostRequest("POST", "/start", { conversation: c.conversation, name: c.name }).catch(() => {});
+  log(`${changed.length} conversaciones traídas de ${CLUSTER.peer}${restart.length ? `, ${restart.length} retomadas` : ""}`);
+  return changed.length;
+}
+
 function snapshot() {
   const d = load();
   const docs = {};
@@ -68,7 +183,10 @@ function snapshot() {
   const routes = require("./sessions").loadRoutes();
   const areas = {};
   for (const [id, a] of Object.entries(routes.areas || {})) areas[id] = { title: a.title, epics: a.epics || {} };
-  return { at: now(), host: os.hostname(), docs, seen, areas, deployer: routes.deployer || null };
+  for (const [id, a] of Object.entries(routes.areas || {})) if (a.conversation) Object.assign(areas[id], { conversation: a.conversation, session: a.session || null });
+  const roles = {};
+  for (const role of ROUTE_ROLES) if (routes[role] && routes[role].conversation) roles[role] = { conversation: routes[role].conversation, session: routes[role].session || null, title: routes[role].title || null, since: routes[role].since || null };
+  return { at: now(), host: os.hostname(), docs, seen, areas, roles, deployer: routes.deployer || null };
 }
 
 function applySnapshot(s) {
@@ -79,7 +197,12 @@ function applySnapshot(s) {
   if (s.seen) fs.writeFileSync(SEEN_FILE, JSON.stringify(s.seen, null, 1));
   require("./sessions").changeRoutes((r) => {
     r.areas = r.areas || {};
-    for (const [id, a] of Object.entries(s.areas || {})) r.areas[id] = { ...(r.areas[id] || {}), title: a.title, epics: a.epics };
+    for (const [id, a] of Object.entries(s.areas || {})) {
+      const next = { ...(r.areas[id] || {}), title: a.title, epics: a.epics };
+      if (a.conversation) Object.assign(next, { conversation: a.conversation, session: a.session || next.session, ref: null });
+      r.areas[id] = next;
+    }
+    for (const [role, v] of Object.entries(s.roles || {})) r[role] = { ...(r[role] || {}), ...v, ref: null };
     if (s.deployer) r.deployer = s.deployer;
     return true;
   });
@@ -118,15 +241,11 @@ async function startRoles() {
 }
 
 async function stopRoles() {
-  const sessions = require("./sessions");
   const host = require("./host");
-  const r = sessions.loadRoutes();
-  for (const [role] of ROLES) {
-    const c = r[role] && r[role].conversation;
-    if (!c) continue;
-    await host.hostRequest("POST", "/stop", { conversation: c }).catch(() => {});
-    host.adopt(c, r[role].session || role);
-    host.markOnDemand(c);
+  const running = await runningConversations();
+  for (const e of host.readConfig()) {
+    if (running.has(e.conversation)) await host.hostRequest("POST", "/stop", { conversation: e.conversation }).catch(() => {});
+    host.markOnDemand(e.conversation);
   }
 }
 
@@ -160,8 +279,9 @@ async function tick() {
     const peer = await peerGet("/api/cluster");
     if (CLUSTER.preferred) {
       if (peer && peer.role === "primary") {
-        await pullSnapshot();
         await peerPost("/api/cluster/yield", { from: os.hostname() });
+        await pullSnapshot();
+        await refreshFromPeer(new Date(peer.since).getTime() - 60000);
         if (!isPrimary()) await promote("el ordenador preferido vuelve y recupera el mando");
         else log("el otro ordenador mandaba mientras yo no respondía: datos traídos y le pido que ceda");
       } else if (!isPrimary()) await promote("ordenador preferido");
@@ -177,6 +297,7 @@ async function tick() {
           lastPull = Date.now();
           await pullSnapshot();
         }
+        await refreshFromPeer();
       } else if (!isPrimary()) await promote("ninguno mandaba");
       save();
       return;
@@ -193,4 +314,4 @@ async function handleYield() {
   if (CLUSTER && !CLUSTER.preferred && isPrimary()) await demote("el ordenador preferido ha vuelto");
 }
 
-module.exports = { isPrimary, info, snapshot, tick, handleYield, clusterEnabled: () => !!CLUSTER };
+module.exports = { isPrimary, info, snapshot, transcripts, serveTranscript, tick, handleYield, clusterEnabled: () => !!CLUSTER };
