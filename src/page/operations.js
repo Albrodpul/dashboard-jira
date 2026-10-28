@@ -257,7 +257,7 @@ export function renderDeploy(root) {
   deployStatusPanel(root);
 }
 
-let talkTo = "reporter";
+let talkTo = "board";
 const TALK_NAMES = { reporter: "Sesión de reporte", orchestrator: "Orquestadora", board: "Tablero" };
 const talkSession = (to) => ({ reporter: state.reporterStatus, orchestrator: state.orchestrator, board: state.boardStatus })[to] || null;
 const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -657,7 +657,7 @@ function sendTalk(box, b) {
 
 export function renderTalk(root) {
   const picker = h("div", { class: "people-chips chat-picker", role: "group", "aria-label": "Con quién hablar" });
-  for (const k of ["reporter", "orchestrator", "board"]) {
+  for (const k of ["board", "reporter", "orchestrator"]) {
     const b = h("button", { type: "button", "aria-pressed": k === talkTo ? "true" : "false", text: TALK_NAMES[k] });
     b.addEventListener("click", () => {
       talkTo = k;
