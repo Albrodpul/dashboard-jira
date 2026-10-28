@@ -210,6 +210,12 @@ const POST_ROUTES = {
         return { ok: true };
       }
       if (action === "open") return host.hostRequest("POST", "/start", { conversation, name });
+      if (action === "sleep") {
+        await host.hostRequest("POST", "/stop", { conversation });
+        host.adopt(conversation, name);
+        host.markOnDemand(conversation);
+        return { ok: true };
+      }
       if (action === "restart") {
         await host.hostRequest("POST", "/stop", { conversation });
         await new Promise((r) => setTimeout(r, 1500));
