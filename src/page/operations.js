@@ -132,17 +132,31 @@ function phaseRow(n, name, p) {
   return h("div", { class: `ds-phase ${p.state}` }, [h("span", { class: "ds-phase-n", text: String(n) }), h("span", { class: "ds-phase-name", text: name }), h("span", { class: "ds-phase-text", text: p.text }), bar]);
 }
 
+const PHASE_SHORT = { "GitHub Actions": "Actions", CodeDeploy: "CodeDeploy" };
+
 function statusRow(env, e) {
   const a = e.actions;
   const cd = e.codedeploy;
   const first = actionsPhase(a);
   const second = codedeployPhase(e, first);
-  const phases = [first && phaseRow(1, "GitHub Actions", first), second && phaseRow(2, "CodeDeploy", second)].filter(Boolean);
+  const named = [first && ["GitHub Actions", first], second && ["CodeDeploy", second]].filter(Boolean);
+  const allDone = named.length && named.every(([, p]) => p.state === "success");
+  const ref = a && a.ref && a.ref !== env ? a.ref.replace(/-release$/, "") : null;
+  const details = !named.length
+    ? [h("div", { class: "meta", text: e.step })]
+    : allDone
+      ? [h("div", { class: "meta ds-summary", text: named.map(([n, p]) => `${PHASE_SHORT[n]} ${p.text.replace(/^Hecho en /, "").replace("menos de 1 min", "<1 min")}`).join(" · ") })]
+      : [h("div", { class: "ds-phases" }, named.map(([n, p], i) => phaseRow(i + 1, n, p)))];
   const kids = [
-    h("span", { class: `ds-dot ${e.state}`, "aria-hidden": "true" }),
+    h("span", { class: `ds-dot ${e.state}`, title: DS_STATE[e.state] || e.state, "aria-hidden": "true" }),
     h("div", { class: "ds-main" }, [
-      h("div", { class: "ds-line" }, [h("strong", { text: DS_ENV[env] }), a ? h("code", { class: "ds-ref", text: a.ref }) : null, h("span", { class: `chip ds-${e.state}`, text: DS_STATE[e.state] || e.state }), a ? h("span", { class: "meta ds-ago", text: ago(e.state === "running" ? a.startedAt : (e.codedeployCurrent && cd && cd.finishedAt) || a.updatedAt) }) : null]),
-      ...(phases.length ? [h("div", { class: "ds-phases" }, phases)] : [h("div", { class: "meta", text: e.step })]),
+      h("div", { class: "ds-line" }, [
+        h("strong", { text: DS_ENV[env] }),
+        ref ? h("code", { class: "ds-ref", text: ref, title: a.ref }) : null,
+        e.state === "success" ? h("span", { class: "visually-hidden", text: DS_STATE.success }) : h("span", { class: `chip ds-${e.state}`, text: DS_STATE[e.state] || e.state }),
+        a ? h("span", { class: "meta ds-ago", text: ago(e.state === "running" ? a.startedAt : (e.codedeployCurrent && cd && cd.finishedAt) || a.updatedAt) }) : null,
+      ]),
+      ...details,
     ]),
   ];
   if (a && a.url) kids.push(h("a", { class: "ds-link", href: a.url, target: "_blank", rel: "noopener", title: "Ver en GitHub Actions", "aria-label": `Ver ${DS_ENV[env].toLowerCase()} en GitHub Actions`, text: "↗" }));

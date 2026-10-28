@@ -623,3 +623,7 @@ select.epic-add { flex: none; width: auto; max-width: 100%; border-radius: 999px
 .chip.prod { color: var(--danger); background: var(--danger-soft); }
 .sentry-title { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; }
 .sentry-culprit { font-family: var(--mono); font-size: 12px; overflow-wrap: anywhere; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.ds-summary { font-size: 12.5px; }
+.ds-row { padding-top: 8px; }
+.ds-card { gap: 8px; }
