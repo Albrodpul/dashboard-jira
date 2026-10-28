@@ -36,7 +36,7 @@ Si de verdad se ha invocado este comando (`/orquesta`), o si esta sesión es la 
 
 1. Registra esta sesión como orquestadora: llama a `ListAgents`, toma tu propio nombre y ref de la línea «This session is … […]» y ejecuta `node {{WORKSPACE}}/sessions.js iam orchestrator <nombre> <ref>`. Sin esto, las demás sesiones no aceptarán tus envíos.
 2. Comprueba que el tablero está arriba: `node {{WORKSPACE}}/board.js ensure`.
-3. Arma un Monitor con `node {{WORKSPACE}}/board.js watch dispatches` (timeout_ms 1800000; vuelve a armarlo cada vez que avise de que caduca, mientras sea de lunes a viernes entre las 8:00 y las 18:30 de Madrid). Da siete tipos de evento, que se atienden en el momento:
+3. Arma un Monitor con `node {{WORKSPACE}}/board.js watch dispatches` (timeout_ms 1800000; vuelve a armarlo cada vez que avise de que caduca o dé `RESTART` (ha cambiado el código del tablero: rearma y relee este fichero), mientras sea de lunes a viernes entre las 8:00 y las 18:30 de Madrid). Da siete tipos de evento, que se atienden en el momento:
    - `APPROVED <claves>`: {{ME}} ha pulsado Hacer. Envía esas tareas ya (pasos de «Enviar»).
    - `DEPLOY <id>`: {{ME}} ha pulsado Desplegar. Pásale la orden ya a la sesión que despliega (pasos de «Desplegar»).
    - `ANSWER <claves>`: {{ME}} ha contestado en el tablero a una pregunta de una sesión. Entrégasela ya (pasos de «Respuestas»).
