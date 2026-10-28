@@ -273,10 +273,19 @@ export function renderDeploy(root) {
 }
 
 let talkTo = "board";
-const TALK_NAMES = { reporter: "Sesión de reporte", orchestrator: "Orquestadora", board: "Tablero" };
-const talkSession = (to) => ({ reporter: state.reporterStatus, orchestrator: state.orchestrator, board: state.boardStatus })[to] || null;
+const TALK_NAMES = {
+  reporter: "Sesión de reporte",
+  orchestrator: "Orquestadora",
+  board: "Tablero",
+  get followUp() {
+    return `Seguimiento de ${reviewer()}`;
+  },
+};
+const talkSession = (to) => ({ reporter: state.reporterStatus, orchestrator: state.orchestrator, board: state.boardStatus, followUp: state.followUpStatus })[to] || null;
+const FIXED_TALK = ["board", "reporter", "orchestrator", "followUp"];
+
 function otherLiveSessions() {
-  const fixed = new Set(["board", "reporter", "orchestrator"].map((k) => (talkSession(k) || {}).conversation).filter(Boolean));
+  const fixed = new Set(FIXED_TALK.map((k) => (talkSession(k) || {}).conversation).filter(Boolean));
   const live = new Map(((state.sessions && state.sessions.list) || []).map((s) => [s.conversation, s]));
   return (state.hosted || []).filter((x) => !x.waitingForVsCode && !fixed.has(x.conversation) && live.has(x.conversation)).map((x) => ({ conversation: x.conversation, name: (live.get(x.conversation).title || live.get(x.conversation).name || x.name) }));
 }
@@ -310,7 +319,7 @@ export function renderTalk(root) {
         },
       })
     );
-  for (const k of ["board", "reporter", "orchestrator"]) pick(k, TALK_NAMES[k]);
+  for (const k of FIXED_TALK) pick(k, TALK_NAMES[k]);
   const others = otherLiveSessions();
   for (const o of others) pick(o.conversation, o.name);
   picker.appendChild(h("button", { type: "button", class: "chat-new", title: "Abre una sesión nueva en el tablero para hablar con ella", text: "+ Nueva", onclick: (e) => newTalkSession(e.currentTarget) }));
