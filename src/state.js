@@ -127,6 +127,7 @@ function state() {
     followUps: d.followUps.slice(0, 80),
     permissions: permissions.forPage(d),
     contextSync: d.contextSync || null,
+    cluster: require("./cluster").info(),
     hosted: require("./host").readConfig(),
     sentry: { enabled: sentry.sentryAvailable(), errorsArea: ERRORS_AREA, sends: sentry.sentryIssues(d) },
     people: people(d),
@@ -160,6 +161,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 let lastOrchestratorNotice = 0;
 
 async function startOrchestrator(force) {
+  if (!require("./cluster").isPrimary()) return false;
   let o = state().orchestrator;
   if (!o || !UUID.test(o.conversation || "") || o.watching) return false;
   if (!force && Date.now() - lastOrchestratorNotice < 5 * 60000) return false;
@@ -182,6 +184,7 @@ function messageNotice(id) {
 }
 
 async function wakeReporter(notice) {
+  if (!require("./cluster").isPrimary()) return false;
   let e = state().reporterStatus;
   if (!e || !UUID.test(e.conversation || "")) return false;
   if (!e.open) {

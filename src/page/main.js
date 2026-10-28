@@ -232,7 +232,16 @@ const editing = () => {
 let last = "";
 let deferred = null;
 
+function followPrimary(c) {
+  if (!c || c.role !== "follower" || !c.peer || /[?&]local=1/.test(location.search)) return false;
+  const target = new URL(c.peer);
+  if (target.origin === location.origin) return false;
+  location.replace(target.origin + location.pathname + location.search + location.hash);
+  return true;
+}
+
 function apply(d) {
+  if (followPrimary(d.cluster)) return;
   for (const k of FIELDS) state[k] = d[k];
   state.areas = [...d.areas].sort((a, b) => a.name.localeCompare(b.name, "es"));
   state.tasks = d.tasks.map((v) => ({ ...v, id: v.key }));

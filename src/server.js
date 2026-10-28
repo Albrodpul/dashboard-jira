@@ -177,8 +177,13 @@ const POST_ROUTES = {
     }
     send(res, 200, { sent: n });
   },
+  "/api/cluster/yield": (res, input, send) => {
+    require("./cluster").handleYield().catch(() => {});
+    send(res, 200);
+  },
   "/api/host/respawned": (res, { conversation }, send) => {
     send(res, 200);
+    if (!require("./cluster").isPrimary()) return;
     const r = require("./sessions").loadRoutes();
     const s = state();
     const is = (role) => r[role] && r[role].conversation === conversation;
@@ -307,6 +312,8 @@ function handle(req, res) {
     if (url === "/api/push/reason") return serveBody(res, "application/json", JSON.stringify(pushReason()));
     if (url === "/api/push/key") return serveBody(res, "application/json", JSON.stringify({ key: pushKeys().publicKey }));
     if (url.startsWith("/api/permission/perm-")) return serveBody(res, "application/json", JSON.stringify(permissions.poll(url.slice("/api/permission/".length))));
+    if (url === "/api/cluster") return serveBody(res, "application/json", JSON.stringify(require("./cluster").info()));
+    if (url === "/api/cluster/snapshot") return serveBody(res, "application/json", JSON.stringify(require("./cluster").snapshot()));
     if (url === "/api/host/sessions") {
       host
         .hostRequest("GET", "/sessions")
@@ -423,6 +430,7 @@ function serve() {
   deployStatus.startDeployStatus();
   every(devservers.schedule, 60 * 1000);
   every(require("./contextsync").syncContext, 3 * 60 * 1000);
+  every(require("./cluster").tick, 30 * 1000);
 }
 
 module.exports = { serve };

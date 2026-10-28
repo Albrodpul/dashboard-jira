@@ -37,6 +37,7 @@ async function openAndWait(read, who) {
 }
 
 async function startFollowUp() {
+  if (!require("./cluster").isPrimary()) return log("este ordenador no manda: no arranco el seguimiento");
   const t = madridTime();
   if (t.weekend || t.min < 7 * 60 + 50 || t.min >= 18 * 60 + 30) return;
   const e0 = state().followUpStatus;
@@ -50,6 +51,7 @@ async function startFollowUp() {
 }
 
 async function startReporter() {
+  if (!require("./cluster").isPrimary()) return log("este ordenador no manda: no arranco el reporte");
   try {
     if (Date.now() - fs.statSync(STARTUP_LOCK).mtimeMs < 10 * 60000) return;
   } catch (e) {}

@@ -380,7 +380,7 @@ function claudeBinary() {
 
 function createConversation(name) {
   return new Promise((resolve) => {
-    const exe = claudeBinary();
+    const exe = claudeBinary() || require("./platform").claudeCli();
     if (!exe) return resolve(null);
     const id = crypto.randomUUID();
     const env = cleanEnv();
@@ -393,7 +393,7 @@ function createConversation(name) {
 
 function wakeSession(name, notice) {
   return new Promise((resolve) => {
-    const exe = claudeBinary();
+    const exe = claudeBinary() || require("./platform").claudeCli();
     if (!exe) return resolve(false);
     const prompt = `Usa la herramienta SendMessage (cárgala con ToolSearch si hace falta) con to «${name}» y message exactamente «${notice || STARTUP_NOTICE}». No hagas nada más y responde solo ok.`;
     const args = ["-p", prompt, "--no-session-persistence", "--model", "claude-haiku-4-5-20251001", "--allowedTools=SendMessage,ListAgents,ToolSearch"];
