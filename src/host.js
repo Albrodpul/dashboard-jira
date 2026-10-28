@@ -64,6 +64,8 @@ function serve() {
       s.buffer += d;
       if (s.buffer.length > BUFFER_BYTES) s.buffer = s.buffer.slice(-BUFFER_BYTES);
       for (const ws of s.clients) if (ws.readyState === 1) ws.send(d);
+      clearTimeout(s.promptTimer);
+      s.promptTimer = setTimeout(() => checkPrompt(s), 900);
       if (Date.now() - new Date(s.startedAt).getTime() < 60000) {
         const fresh = plain(s.buffer.slice(Math.min(s.dialogMark, s.buffer.length)));
         for (const [re, keys] of DIALOGS) {
@@ -240,6 +242,35 @@ function killOrphanWatchers() {
   }
   if (killed) log(`killed ${killed} orphan watcher(s)`);
   return killed;
+}
+
+const PROMPT = /Do you want to [^?\n]{1,160}\?/i;
+
+function postBoard(route, body) {
+  const data = JSON.stringify(body);
+  const req = http.request(`${BASE_URL}${route}`, { method: "POST", timeout: 5000, headers: { origin: BASE_URL, "content-type": "application/json", "content-length": Buffer.byteLength(data) } }, (res) => res.resume());
+  req.on("error", () => {});
+  req.on("timeout", () => req.destroy());
+  req.end(data);
+}
+
+function checkPrompt(s) {
+  const text = plain(s.buffer.slice(-6000));
+  const m = PROMPT.exec(text.slice(-2500));
+  const asking = m && /1\.\s*Yes/i.test(text.slice(-2500));
+  if (asking) {
+    const tail = text.slice(-2500);
+    const at = tail.search(PROMPT);
+    const question = tail.slice(Math.max(0, at - 700), at + 400).replace(/[─━╌│╭╮╰╯]+/g, " ").replace(/\s+/g, " ").trim();
+    const key = m[0] + question.slice(0, 200);
+    if (s.promptKey === key) return;
+    s.promptKey = key;
+    log(`native prompt in ${s.name}: ${m[0]}`);
+    postBoard("/api/host/prompt", { conversation: s.conversation, name: s.name, question: m[0], text: question.slice(-1500) });
+  } else if (s.promptKey) {
+    s.promptKey = null;
+    postBoard("/api/host/prompt", { conversation: s.conversation, cleared: true });
+  }
 }
 
 function tellBoard(conversation) {
