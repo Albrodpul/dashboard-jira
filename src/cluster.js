@@ -283,22 +283,22 @@ async function demote(reason) {
   await stopRoles();
 }
 
-let awake = null;
+
 
 function keepAwake() {
   if (!CLUSTER || CLUSTER.preferred || process.platform !== "darwin") return;
   const p = Object.fromEntries(new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Madrid", weekday: "short", hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(new Date()).map((x) => [x.type, x.value]));
   const min = Number(p.hour) * 60 + Number(p.minute);
   const want = !["Sat", "Sun"].includes(p.weekday) && min >= 7 * 60 + 45 && min < 18 * 60 + 30;
-  if (want && !awake) {
-    awake = require("child_process").spawn("/usr/bin/caffeinate", ["-i", "-w", String(process.pid)], { stdio: "ignore" });
-    awake.on("exit", () => (awake = null));
-    log("caffeinate: el Mac no se dormirá solo hasta las 18:30");
-  } else if (!want && awake) {
-    awake.kill();
-    awake = null;
-    log("caffeinate: fuera de horario, el Mac ya puede dormirse");
-  }
+  if (!want) return;
+  const cp = require("child_process");
+  try {
+    cp.execFileSync("/usr/bin/pgrep", ["-f", "caffeinate -i -t"], { stdio: "ignore" });
+    return;
+  } catch (e) {}
+  const seconds = (18 * 60 + 30 - min) * 60;
+  cp.spawn("/usr/bin/caffeinate", ["-i", "-t", String(seconds)], { detached: true, stdio: "ignore" }).unref();
+  log("caffeinate: el Mac no se dormirá solo hasta las 18:30");
 }
 
 let busy = false;
