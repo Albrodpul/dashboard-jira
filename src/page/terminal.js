@@ -10,6 +10,7 @@ const KEYS = [
   ["Enter", "\r", "Enter"],
 ];
 const TERM_THEME = { background: "#0d1117", foreground: "#e6edf3", cursor: "#e6edf3", cursorAccent: "#0d1117", selectionBackground: "#264f78", black: "#0d1117", brightBlack: "#6e7681" };
+const PENDING_MAX = 4 * 1024 * 1024;
 let loading = null;
 let overlay = null;
 const panels = new Map();
@@ -55,7 +56,22 @@ function createPanel(conversation, name, onClose) {
     h("button", { type: "button", title: "Ir al final (Ctrl+Fin)", "aria-label": "Ir al final", text: "⤓", onclick: () => panel.send("[1;5F") }),
   ]);
   const root = h("div", { class: "term-panel" }, [h("div", { class: "term-head" }, head), h("div", { class: "term-wrap" }, [screen, scrollBtns]), keys, h("div", { class: "term-compose" }, [attachButton(input), input, sendBtn, mentions(input)])]);
-  const panel = { root, conversation, ws: null, term: null, fit: null, closed: false };
+  const panel = { root, conversation, ws: null, term: null, fit: null, closed: false, pending: [], pendingBytes: 0, overflowed: false, replaying: false };
+  panel.visible = () => !document.hidden && root.isConnected;
+  panel.catchUp = () => {
+    if (!panel.term || !panel.visible()) return;
+    if (panel.overflowed) {
+      panel.overflowed = false;
+      panel.replaying = true;
+      if (panel.ws) panel.ws.close();
+      return;
+    }
+    if (!panel.pending.length) return;
+    const chunks = panel.pending;
+    panel.pending = [];
+    panel.pendingBytes = 0;
+    for (const c of chunks) panel.term.write(c);
+  };
   root.addEventListener("pointerdown", () => setTimeout(() => panel.claim("clic"), 50));
 
   adjust.addEventListener("click", () => panel.claim("ajustar"));
@@ -128,7 +144,8 @@ function createPanel(conversation, name, onClose) {
         ws.onopen = () => {
           status.textContent = "En directo";
           term.reset();
-          if (!document.hidden) setTimeout(() => panel.claim("conectar"), 400);
+          if (!document.hidden && !panel.replaying) setTimeout(() => panel.claim("conectar"), 400);
+          panel.replaying = false;
         };
         ws.onmessage = (e) => {
           if (typeof e.data === "string" && e.data.charCodeAt(0) === 0) {
@@ -139,12 +156,21 @@ function createPanel(conversation, name, onClose) {
             } catch (x) {}
             return;
           }
-          term.write(typeof e.data === "string" ? e.data : new Uint8Array(e.data));
+          const data = typeof e.data === "string" ? e.data : new Uint8Array(e.data);
+          if (panel.visible()) return term.write(data);
+          if (panel.overflowed) return;
+          panel.pending.push(data);
+          panel.pendingBytes += data.length;
+          if (panel.pendingBytes > PENDING_MAX) {
+            panel.pending = [];
+            panel.pendingBytes = 0;
+            panel.overflowed = true;
+          }
         };
         ws.onclose = () => {
           if (panel.closed) return;
           status.textContent = "Reconectando…";
-          setTimeout(connect, 3000);
+          setTimeout(connect, panel.replaying ? 0 : 3000);
         };
       };
       connect();
@@ -297,6 +323,10 @@ function claimVisible() {
   if (overlay) setTimeout(() => overlay.claim("ventana"), 150);
 }
 let lastWidth = window.innerWidth;
+document.addEventListener("visibilitychange", () => {
+  for (const p of panels.values()) p.catchUp();
+  if (overlay) overlay.catchUp();
+});
 window.addEventListener("resize", () => {
   for (const p of panels.values()) fitInline(p);
   if (window.innerWidth === lastWidth) return;
@@ -315,6 +345,7 @@ export function livePanel(conversation, name) {
   p.seenAt = state.renderSeq;
   requestAnimationFrame(() => {
     fitInline(p);
+    p.catchUp();
     if (p.checkFit) p.checkFit();
     if (entering) setTimeout(() => p.claim("entrar"), 150);
   });
