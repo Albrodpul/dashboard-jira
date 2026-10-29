@@ -16,11 +16,6 @@ function lastWorkday(from = new Date()) {
   return dayOf(d);
 }
 
-function nextDay(day) {
-  const d = new Date(`${day}T12:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + 1);
-  return d.toISOString().slice(0, 10);
-}
 
 function git(dir, args) {
   try {
@@ -37,17 +32,10 @@ function commitsOf(day) {
     if (!fs.existsSync(path.join(dir, ".git"))) continue;
     const email = git(dir, ["config", "user.email"]);
     if (!email) continue;
-    const log = git(dir, ["log", "--all", "--no-merges", `--author=${email}`, `--since=${day} 00:00`, `--until=${nextDay(day)} 00:00`, "--format=%s"]);
-    for (const line of log.split("\n").filter(Boolean)) out.push(`${name}: ${line}`);
+    const log = git(dir, ["log", "--all", "--no-merges", `--author=${email}`, `--since=${day} 00:00`, "--date=short", "--format=%ad|%s"]);
+    for (const line of log.split("\n").filter((l) => l.startsWith(`${day}|`))) out.push(`${name}: ${line.slice(day.length + 1)}`);
   }
   return [...new Set(out)];
-}
-
-async function jiraOf(day) {
-  const { jiraSearch } = require("./jira");
-  const jql = `assignee = currentUser() AND status CHANGED DURING ("${day}", "${nextDay(day)}") ORDER BY updated DESC`;
-  const issues = await jiraSearch(jql, 50).catch(() => []);
-  return issues.map((i) => `${i.key} (${(i.fields.status || {}).name || "?"}): ${i.fields.summary}${i.fields.parent ? ` — epic ${i.fields.parent.fields ? i.fields.parent.fields.summary : i.fields.parent.key}` : ""}`);
 }
 
 function errorsOf(day) {
@@ -59,7 +47,7 @@ function errorsOf(day) {
   const followUp = (d.followUps || [])
     .flatMap((r) => r.errors || [])
     .filter((e) => on(e.sentAt))
-    .map((e) => `Seguimiento: ${String(e.text || "").replace(/s+/g, " ").slice(0, 200)}`);
+    .map((e) => `Seguimiento: ${String(e.text || "").replace(/\s+/g, " ").slice(0, 200)}`);
   return [...sentry, ...followUp];
 }
 
@@ -76,9 +64,9 @@ function write(prompt) {
 let running = null;
 
 async function makeDaily(day) {
-  const [jira, commits] = await Promise.all([jiraOf(day), Promise.resolve(commitsOf(day))]);
+  const commits = commitsOf(day);
   const errors = errorsOf(day);
-  if (!jira.length && !commits.length && !errors.length) {
+  if (!commits.length && !errors.length) {
     mutate((d) => (d.daily = { day, text: "", empty: true, at: now() }));
     return;
   }
@@ -92,10 +80,7 @@ async function makeDaily(day) {
     "No menciones despliegues: van implícitos en lo hecho.",
     "Ejemplos de su estilo: «- He estado revisando la interfaz de los destacados de las membresías de backoffice y web, además de añadir algún validador en back» y «- He revisado membresías de F1 en web y he corregido errores de Sentry»",
     "",
-    "Tareas de Jira suyas que cambiaron de estado ese día:",
-    ...(jira.length ? jira : ["(ninguna)"]),
-    "",
-    "Sus commits de ese día por proyecto:",
+    "Sus commits de ese día por proyecto (es lo que hizo ese día; están en inglés y son técnicos, cuéntalo como lo contaría él):",
     ...(commits.length ? commits : ["(ninguno)"]),
     "",
     "Errores de Sentry o del seguimiento que mandó arreglar ese día:",
