@@ -50,8 +50,17 @@ async function jiraOf(day) {
   return issues.map((i) => `${i.key} (${(i.fields.status || {}).name || "?"}): ${i.fields.summary}${i.fields.parent ? ` — epic ${i.fields.parent.fields ? i.fields.parent.fields.summary : i.fields.parent.key}` : ""}`);
 }
 
-function deploysOf(day) {
-  return (load().deployments || []).filter((x) => x.at && dayOf(new Date(x.at)) === day && x.status !== "cancelled").map((x) => `${(x.projects || []).join(", ")} a ${x.environment}`);
+function errorsOf(day) {
+  const d = load();
+  const on = (iso) => iso && dayOf(new Date(iso)) === day;
+  const sentry = Object.values(d.sentry || {})
+    .filter((x) => on(x.sentAt) || on(x.closedAt))
+    .map((x) => `Sentry: ${String(x.title || "").slice(0, 160)}${x.result ? ` — ${String(x.result).slice(0, 200)}` : ""}`);
+  const followUp = (d.followUps || [])
+    .flatMap((r) => r.errors || [])
+    .filter((e) => on(e.sentAt))
+    .map((e) => `Seguimiento: ${String(e.text || "").replace(/s+/g, " ").slice(0, 200)}`);
+  return [...sentry, ...followUp];
 }
 
 function write(prompt) {
@@ -68,16 +77,20 @@ let running = null;
 
 async function makeDaily(day) {
   const [jira, commits] = await Promise.all([jiraOf(day), Promise.resolve(commitsOf(day))]);
-  const deploys = deploysOf(day);
-  if (!jira.length && !commits.length && !deploys.length) {
+  const errors = errorsOf(day);
+  if (!jira.length && !commits.length && !errors.length) {
     mutate((d) => (d.daily = { day, text: "", empty: true, at: now() }));
     return;
   }
   const prompt = [
     `Escribe el mensaje que Alberto se manda a sí mismo en Slack para la daily, sobre lo que hizo el ${day}.`,
     "Empieza exactamente por «Cosas a comentar en la daily:» y sigue con guiones, en primera persona, en español de España, con su forma natural de escribir: frases cortas y llanas, como habla él, sin claves de Jira, sin nombres de ficheros ni jerga técnica innecesaria, sin emojis ni negritas.",
-    "Agrupa lo relacionado en una sola línea (por ejemplo, back y front de la misma cosa) y no inventes nada que no salga de los datos. Como mucho 6 líneas. Devuelve solo el mensaje.",
-    "Ejemplo de su estilo: «- He estado revisando la interfaz de los destacados de las membresías de backoffice y web, además de añadir algún validador en back»",
+    "Corto y general: una idea por línea, como mucho 5 líneas, sin enumerar detalles. Agrupa lo relacionado (back y front de la misma cosa, varias tareas de la misma área) y no inventes nada que no salga de los datos. Devuelve solo el mensaje.",
+    "Lo que ahora hace el producto va en impersonal («Ahora en invitaciones se respeta…, se permite…»), no como «he respetado».",
+    "Los cambios de textos son «copies»: no cuentes qué dicen.",
+    "Si hay errores de Sentry en los datos, resúmelos como «he corregido errores de Sentry»; si hay del seguimiento, como «he corregido lo que vio el seguimiento». Sin detallarlos y sin mencionar el que no aparezca en los datos.",
+    "No menciones despliegues: van implícitos en lo hecho.",
+    "Ejemplos de su estilo: «- He estado revisando la interfaz de los destacados de las membresías de backoffice y web, además de añadir algún validador en back» y «- He revisado membresías de F1 en web y he corregido errores de Sentry»",
     "",
     "Tareas de Jira suyas que cambiaron de estado ese día:",
     ...(jira.length ? jira : ["(ninguna)"]),
@@ -85,8 +98,8 @@ async function makeDaily(day) {
     "Sus commits de ese día por proyecto:",
     ...(commits.length ? commits : ["(ninguno)"]),
     "",
-    "Despliegues de ese día:",
-    ...(deploys.length ? deploys : ["(ninguno)"]),
+    "Errores de Sentry o del seguimiento que mandó arreglar ese día:",
+    ...(errors.length ? errors : ["(ninguno)"]),
   ].join("\n");
   const text = await write(prompt);
   if (text) mutate((d) => (d.daily = { day, text, at: now() }));
