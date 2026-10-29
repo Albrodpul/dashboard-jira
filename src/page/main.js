@@ -112,7 +112,11 @@ try {
 function paintTabs(counts, waitingDeploys) {
   const tabs = document.getElementById("tabs");
   tabs.textContent = "";
-  tabs.appendChild(searchBox());
+  if (!document.getElementById("nav-search")) {
+    const box = searchBox();
+    box.id = "nav-search";
+    tabs.before(box);
+  }
   const HIGHLIGHT = ["pending", "deploy", "waiting"];
   for (const [group, list] of GROUPS) {
     tabs.appendChild(h("div", { class: "tab-group", text: group }));
@@ -269,7 +273,7 @@ const FIELDS = ["sessions", "aliases", "reporterRoute", "reporterStatus", "board
 const withoutReadTime = (d) => JSON.stringify(d, (k, v) => (k === "syncedAt" ? undefined : v));
 const editing = () => {
   const a = document.activeElement;
-  return a && ["INPUT", "SELECT", "TEXTAREA"].includes(a.tagName);
+  return !!a && ["INPUT", "SELECT", "TEXTAREA"].includes(a.tagName) && !!a.closest("#groups");
 };
 let last = "";
 let deferred = null;
