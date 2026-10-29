@@ -176,6 +176,7 @@ function serve() {
     if (!s) return socket.destroy();
     wss.handleUpgrade(req, socket, head, (ws) => {
       s.clients.add(ws);
+      const who = `${req.headers.origin || "?"} ${String(req.headers["user-agent"] || "?").replace("Mozilla/5.0 ", "").slice(0, 70)}`;
       ws.send(sizeFrame(s));
       ws.send(s.buffer);
       if (!s.pty) ws.send("\r\n\x1b[33m[La sesión no está en marcha.]\x1b[0m\r\n");
@@ -188,6 +189,7 @@ function serve() {
         }
         if (msg.type === "input" && s.pty) s.pty.write(String(msg.data));
         if (msg.type === "resize" && s.pty && msg.cols > 20 && msg.rows > 5) {
+          log(`resize ${s.name} ${s.cols}x${s.rows} -> ${msg.cols}x${msg.rows} by ${who}`);
           s.cols = Math.min(300, msg.cols | 0);
           s.rows = Math.min(120, msg.rows | 0);
           try {
