@@ -56,6 +56,12 @@ function createPanel(conversation, name, onClose) {
   const root = h("div", { class: "term-panel" }, [h("div", { class: "term-head" }, head), h("div", { class: "term-wrap" }, [screen, scrollBtns]), keys, h("div", { class: "term-compose" }, [input, sendBtn])]);
   const panel = { root, conversation, ws: null, term: null, fit: null, closed: false };
   root.addEventListener("pointerdown", () => setTimeout(() => panel.claim(), 50));
+  let movedAt = 0;
+  root.addEventListener("pointermove", () => {
+    if (Date.now() - movedAt < 1500) return;
+    movedAt = Date.now();
+    panel.claim();
+  });
   root.addEventListener("focusin", () => setTimeout(() => panel.claim(), 50));
 
   panel.claim = () => {
