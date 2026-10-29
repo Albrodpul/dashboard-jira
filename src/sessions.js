@@ -172,7 +172,7 @@ function liveSessions() {
         name: j.name,
         conversation: j.sessionId,
         started: new Date(Number(j.startedAt)).toISOString(),
-        status: subagents ? "busy" : j.status || "",
+        status: subagents || j.status === "shell" ? "busy" : j.status || "",
         subagents,
         statusSince: j.statusUpdatedAt ? new Date(Number(j.statusUpdatedAt)).toISOString() : null,
         title: conversationTitle(j.sessionId),
