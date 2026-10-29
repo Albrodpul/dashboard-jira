@@ -414,7 +414,7 @@ async function command(target, action) {
 function tailscaleDevices() {
   const exe = process.platform === "darwin" ? "/Applications/Tailscale.app/Contents/MacOS/Tailscale" : "tailscale";
   return new Promise((resolve) =>
-    require("child_process").execFile(exe, ["status", "--json"], { windowsHide: true, timeout: 10000 }, (err, out) => {
+    require("child_process").execFile(exe, ["status", "--json"], { windowsHide: true, timeout: 10000, env: { ...process.env, TERM: process.env.TERM || "xterm-256color" } }, (err, out) => {
       if (err) return resolve(null);
       try {
         const j = JSON.parse(out);
