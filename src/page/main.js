@@ -222,6 +222,7 @@ function returnedRule(root) {
 }
 
 function render() {
+  state.renderSeq = (state.renderSeq || 0) + 1;
   const counts = Object.fromEntries(TASK_TABS.map((t) => [t.id, 0]));
   for (const t of state.tasks) if (counts[tabOf(t.status)] !== undefined) counts[tabOf(t.status)]++;
   counts.waiting += ((state.permissions && state.permissions.pending) || []).length;

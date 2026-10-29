@@ -646,7 +646,7 @@ select.epic-add { flex: none; width: auto; max-width: 100%; border-radius: 999px
 .term-input { flex: 1 1 auto; min-height: 40px; max-height: 120px; resize: none; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink); padding: 9px 10px; font: inherit; font-size: 16px; }
 .host-chip { color: var(--accent); background: var(--accent-soft); }
 .term-panel { display: flex; flex-direction: column; gap: 8px; min-height: 0; }
-.term-inline { height: calc(100vh - 230px); min-height: 360px; }
+.term-inline { height: calc(100vh - 230px); min-height: 260px; }
 .term-overlay .term-head .btn, .term-overlay .term-head button { margin-left: auto; }
 @media (max-width: 760px) {
   .app[data-view="talk"] .main { padding-bottom: 76px; }
