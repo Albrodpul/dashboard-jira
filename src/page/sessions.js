@@ -1,4 +1,4 @@
-import { state, h, button, when, toast, requestOrFail, post, areaName, areaSelect, areaSelectFrom, render, refresh, empty, ticketUrl, exampleKey } from "./base.js";
+import { state, h, button, when, toast, requestOrFail, post, areaName, taskAreaSelect, areaSelectFrom, render, refresh, empty, ticketUrl, exampleKey } from "./base.js";
 
 let showClosed = true;
 try {
@@ -254,7 +254,7 @@ export function renderSessions(root) {
 let epicQuery = "";
 
 function epicRow(e) {
-  const sel = areaSelect(`epic-${e.key}`, e.area || "", "Sin sesión", (v) => post("/api/epic", { key: e.key, name: e.name, area: v }, v ? `${e.key} va a la sesión «${areaName(v)}».` : `${e.key} ya no tiene sesión.`));
+  const sel = taskAreaSelect(`epic-${e.key}`, e.area || "", "Sin sesión", (v) => post("/api/epic", { key: e.key, name: e.name, area: v }, v ? `${e.key} va a la sesión «${areaName(v)}».` : `${e.key} ya no tiene sesión.`));
   sel.setAttribute("aria-label", `Sesión de ${e.key} ${e.name}`);
   const create = e.area
     ? null

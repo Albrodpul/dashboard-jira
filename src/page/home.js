@@ -1,4 +1,4 @@
-import { state, h, when, minutesSince, switchView, empty, reviewer } from "./base.js";
+import { state, h, when, minutesSince, switchView, empty, reviewer, fixedAreaIds } from "./base.js";
 
 
 const GROUPS = [
@@ -26,9 +26,15 @@ function blockReason(live, tasks) {
   return null;
 }
 
+function fixedArea(id) {
+  const a = id && state.areas.find((x) => x.id === id);
+  return a && a.conversation ? { conversation: a.conversation, session: a.sessionName || a.name } : null;
+}
+
 export function sessionSituation() {
   const out = { working: [], blocked: [], free: [], system: [] };
-  const systemConversations = new Set([state.reporterRoute, state.orchestrator, state.followUpStatus, state.boardStatus].filter(Boolean).map((r) => r.conversation));
+  const fixed = fixedAreaIds();
+  const systemConversations = new Set([state.reporterRoute, state.orchestrator, state.followUpStatus, state.boardStatus, ...state.areas.filter((a) => fixed.has(a.id))].filter(Boolean).map((r) => r.conversation));
   for (const a of state.areas) {
     if (!a.open || systemConversations.has(a.conversation)) continue;
     const live = liveOf(a.conversation, a.sessionName);
@@ -49,6 +55,8 @@ export function sessionSituation() {
     ["Orquestadora", state.orchestrator],
     [`Seguimiento de ${reviewer()}`, state.followUpStatus],
     ["Tablero", state.boardStatus],
+    ["Despliegue", fixedArea(state.deployerArea)],
+    ["Errores sentry", fixedArea(state.sentry && state.sentry.errorsArea)],
   ];
   for (const [name, r] of roles) {
     if (!r || !r.conversation) continue;

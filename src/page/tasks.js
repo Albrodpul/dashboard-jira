@@ -1,5 +1,5 @@
 import { renderPermissions } from "./permissions.js";
-import { state, choice, drafts, h, button, when, minutesSince, fmtDay, reviewer, reviewStatus, toast, request, requestOrFail, post, saveTask, whoSends, areaName, areaSelect, render, refresh, switchView, empty } from "./base.js";
+import { state, choice, drafts, h, button, when, minutesSince, fmtDay, reviewer, reviewStatus, toast, request, requestOrFail, post, saveTask, whoSends, areaName, taskAreaSelect, render, refresh, switchView, empty } from "./base.js";
 import { createSession } from "./sessions.js";
 
 const PENDING_CHIP = { returned: "Devuelta", comment: "Comentario", resend: "Ya enviada" };
@@ -77,7 +77,7 @@ function askNewSession(promptText, defaultName, epic, onCreated) {
 
 function pendingActions(t) {
   const current = chosenSession(t);
-  const sel = areaSelect(`sel-${t.id}`, current, "Elige sesión…", (v) => {
+  const sel = taskAreaSelect(`sel-${t.id}`, current, "Elige sesión…", (v) => {
     if (v !== "__new__") {
       choice[t.id] = v;
       return render();
@@ -252,7 +252,7 @@ function batchControls(g) {
   const common = values.every((v) => v === values[0]) ? values[0] : "";
   const ready = values.every((v) => v && v !== "__new__");
   const emptyLabel = common ? "Elige sesión…" : values.some(Boolean) ? "Sesiones distintas…" : "Sesión para todas…";
-  const sel = areaSelect(`batch-${g.key || "no-epic"}`, common, emptyLabel, (v) => {
+  const sel = taskAreaSelect(`batch-${g.key || "no-epic"}`, common, emptyLabel, (v) => {
     if (v !== "__new__") {
       g.items.forEach((t) => (choice[t.id] = v));
       return render();
