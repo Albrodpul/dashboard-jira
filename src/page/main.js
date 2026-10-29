@@ -115,7 +115,7 @@ function paintTabs(counts, waitingDeploys) {
   if (!document.getElementById("nav-search")) {
     const box = searchBox();
     box.id = "nav-search";
-    tabs.before(box);
+    document.getElementById("top-search").appendChild(box);
   }
   const HIGHLIGHT = ["pending", "deploy", "waiting"];
   for (const [group, list] of GROUPS) {
@@ -240,7 +240,9 @@ function render() {
 
   paintBottomBar(section, { today: counts.pending + counts.waiting + errors, more: waitingDeploys });
   paintTabs(counts, waitingDeploys);
-  document.getElementById("tabs").appendChild(quotaBlock());
+  const right = document.getElementById("top-right");
+  right.textContent = "";
+  right.appendChild(quotaBlock());
   document.querySelector(".app").setAttribute("data-view", state.tab);
   const board = !mobile && isTaskTab(state.tab) && state.tab !== "ignored" && taskView() === "board";
   const [title, sub] = board ? ["Tareas", "Todas las tareas por estado. Pulsa una para ver su tarjeta entera."] : VIEWS[state.tab] || VIEWS.pending;
