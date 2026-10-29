@@ -65,6 +65,8 @@ async function codedeployProgress(id) {
   }
 }
 
+const isoTime = (t) => (t == null ? null : typeof t === "number" ? new Date(t * 1000).toISOString() : t);
+
 async function codedeployLast(application, group) {
   const list = await run("aws", ["deploy", "list-deployments", "--application-name", application, "--deployment-group-name", group, "--max-items", "1", "--query", "deployments[0]", "--output", "text"]);
   if (list.error) return { error: list.error };
@@ -75,7 +77,7 @@ async function codedeployLast(application, group) {
   const d = JSON.parse(info.out);
   const o = d.overview || {};
   const progress = ACTIVE_CODEDEPLOY.includes(d.status) ? await codedeployProgress(id) : null;
-  return { id, status: d.status, startedAt: d.createTime, finishedAt: d.completeTime || null, done: o.Succeeded || 0, total: (o.Succeeded || 0) + (o.Failed || 0) + (o.InProgress || 0) + (o.Pending || 0) + (o.Ready || 0) + (o.Skipped || 0), progress, error: d.error || null };
+  return { id, status: d.status, startedAt: isoTime(d.createTime), finishedAt: isoTime(d.completeTime), done: o.Succeeded || 0, total: (o.Succeeded || 0) + (o.Failed || 0) + (o.InProgress || 0) + (o.Pending || 0) + (o.Ready || 0) + (o.Skipped || 0), progress, error: d.error || null };
 }
 
 function overall(actions, codedeploy) {
