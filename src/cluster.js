@@ -36,7 +36,7 @@ const log = (m) => {
 };
 
 const isPrimary = () => !CLUSTER || st.role === "primary";
-const info = () => ({ label: CLUSTER ? CLUSTER.label || null : null, role: isPrimary() ? "primary" : "follower", since: st.since, manual: !!(isPrimary() && st.manual), lastSnapshot: st.lastSnapshot || null, lastTranscripts: st.lastTranscripts || null, preferred: !!(CLUSTER && CLUSTER.preferred), host: os.hostname(), self: CLUSTER ? CLUSTER.self : null, peer: CLUSTER ? CLUSTER.peer : null });
+const info = () => ({ label: CLUSTER ? CLUSTER.label || null : null, role: isPrimary() ? "primary" : "follower", since: st.since, manual: !!(isPrimary() && st.manual), lastSnapshot: st.lastSnapshot || null, lastTranscripts: st.lastTranscripts || null, pendingPull: st.pendingPull || null, preferred: !!(CLUSTER && CLUSTER.preferred), host: os.hostname(), self: CLUSTER ? CLUSTER.self : null, peer: CLUSTER ? CLUSTER.peer : null });
 
 async function peerGet(route, ms = 8000) {
   const ctrl = new AbortController();
@@ -116,31 +116,37 @@ function serveTranscript(conversation, from) {
 
 async function pullTranscripts(onlyNewerThan) {
   const list = await peerGet("/api/cluster/transcripts", 15000);
-  if (!Array.isArray(list)) return [];
+  if (!Array.isArray(list)) return { changed: [], failed: ["la lista"] };
   const host = require("./host");
   const changed = [];
+  const failed = [];
   for (const t of list) {
     if (onlyNewerThan && t.mtime < onlyNewerThan) continue;
     const local = transcriptPath(t.conversation);
     const size = local ? fs.statSync(local).size : -1;
     if (size === t.size) continue;
     const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 120000);
+    const timer = setTimeout(() => ctrl.abort(), 15 * 60000);
     try {
       const get = (from) => fetch(`${CLUSTER.peer}/api/cluster/transcript/${t.conversation}?from=${from}`, { signal: ctrl.signal, cache: "no-store" });
       const file = local || path.join(projectDir(), `${t.conversation}.jsonl`);
       let r = size > 0 && size < t.size ? await get(size) : null;
       let append = !!(r && r.ok && r.headers.get("x-tail-hash") === tailHash(local, size));
       if (!append) r = await get(0);
-      if (!r.ok) continue;
+      if (!r.ok) {
+        failed.push(t.name);
+        continue;
+      }
       changed.push({ ...t, append, body: Buffer.from(await r.arrayBuffer()), file });
     } catch (e) {
+      failed.push(t.name);
     } finally {
       clearTimeout(timer);
     }
     host.adopt(t.conversation, t.name);
   }
-  return changed;
+  if (failed.length) log(`no se pudieron traer: ${failed.join(", ")}`);
+  return { changed, failed };
 }
 
 function writeTranscripts(changed) {
@@ -150,6 +156,7 @@ function writeTranscripts(changed) {
       fs.appendFileSync(c.file, c.body);
       continue;
     }
+    if (fs.existsSync(c.file)) fs.copyFileSync(c.file, c.file + ".prev");
     fs.writeFileSync(c.file + ".sync", c.body);
     fs.renameSync(c.file + ".sync", c.file);
   }
@@ -161,9 +168,9 @@ async function runningConversations() {
 }
 
 async function refreshFromPeer(onlyNewerThan) {
-  const changed = await pullTranscripts(onlyNewerThan);
+  const { changed, failed } = await pullTranscripts(onlyNewerThan);
   st.lastTranscripts = now();
-  if (!changed.length) return 0;
+  if (!changed.length) return failed.length ? -1 : 0;
   const host = require("./host");
   const running = await runningConversations();
   const restart = changed.filter((c) => running.has(c.conversation));
@@ -171,7 +178,7 @@ async function refreshFromPeer(onlyNewerThan) {
   writeTranscripts(changed);
   for (const c of restart) await host.hostRequest("POST", "/start", { conversation: c.conversation, name: c.name }).catch(() => {});
   log(`${changed.length} conversaciones traídas de ${CLUSTER.peer}${restart.length ? `, ${restart.length} retomadas` : ""}`);
-  return changed.length;
+  return failed.length ? -1 : changed.length;
 }
 
 function snapshot() {
@@ -318,12 +325,18 @@ async function tick() {
         }
         await peerPost("/api/cluster/yield", { from: os.hostname() });
         if (peerNewer) {
+          st.pendingPull = peer.since;
+          save();
           await pullSnapshot();
-          await refreshFromPeer(new Date(peer.since).getTime() - 60000);
+          if ((await refreshFromPeer(new Date(peer.since).getTime() - 60000)) >= 0) st.pendingPull = null;
         }
         if (!isPrimary()) await promote("el ordenador preferido vuelve y recupera el mando");
         else log("el otro ordenador mandaba mientras yo no respondía: datos traídos y le pido que ceda");
       } else if (!isPrimary()) await promote("ordenador preferido");
+      else if (st.pendingPull && peer && (await refreshFromPeer(new Date(st.pendingPull).getTime() - 60000)) >= 0) {
+        log("conversaciones del otro ordenador traídas al reintentar");
+        st.pendingPull = null;
+      }
       st.peerDownSince = null;
       save();
       return;
@@ -343,7 +356,7 @@ async function tick() {
           lastPull = Date.now();
           await pullSnapshot();
         }
-        await refreshFromPeer();
+        if (!peer.pendingPull) await refreshFromPeer();
       } else if (!isPrimary()) await promote("ninguno mandaba");
       save();
       return;

@@ -313,7 +313,10 @@ function newTalkSession(b) {
   b.textContent = "Creando…";
   requestOrFail("/api/new-session", { title: name.trim() })
     .then((d) => {
-      if (d.conversation) setTalk(d.conversation);
+      if (d.conversation) {
+        justCreated.add(d.conversation);
+        setTalk(d.conversation);
+      }
       toast(d.open ? `Sesión «${name.trim()}» creada.` : `Sesión «${name.trim()}» creada; está arrancando.`);
       return refresh(true);
     })
@@ -341,6 +344,12 @@ export function renderTalk(root) {
   picker.appendChild(h("button", { type: "button", class: "chat-new", title: "Abre una sesión nueva en el tablero para hablar con ella", text: "+ Nueva", onclick: (e) => newTalkSession(e.currentTarget) }));
   root.appendChild(picker);
   const other = others.find((o) => o.conversation === talkTo) || (/^[0-9a-f-]{36}$/.test(talkTo) ? { conversation: talkTo, name: "Sesión nueva" } : null);
+  const sleeping = other && !others.includes(other) && !justCreated.has(other.conversation);
+  if (sleeping) {
+    const known = (state.hosted || []).find((x) => x.conversation === other.conversation) || state.areas.find((a) => a.conversation === other.conversation);
+    const name = (known && (known.name || known.sessionName)) || "Sesión";
+    return sleepingTalk(root, other.conversation, name, `«${name}» está dormida.`);
+  }
   if (other) {
     const close = button("Cerrar sesión", {
       cls: "subtle",
@@ -368,31 +377,33 @@ export function renderTalk(root) {
   const hosted = (state.hosted || []).some((x) => x.conversation === target.conversation && !x.waitingForVsCode);
   if (!hosted) return root.appendChild(empty(`${TALK_NAMES[talkTo]} no vive en el tablero.`, "Llévala al tablero desde Sesiones para verla aquí en directo."));
   const running = ((state.sessions && state.sessions.list) || []).some((x) => x.conversation === target.conversation);
-  if (!running) {
-    const name = target.session || TALK_NAMES[talkTo];
-    root.appendChild(empty(`${TALK_NAMES[talkTo]} está dormida.`, "Se abre sola cuando le llega algo. Si quieres hablar con ella ahora, ábrela."));
-    root.appendChild(
-      h("div", { class: "talk-actions" }, [
-        button("Abrir", {
-          cls: "primary",
-          onClick: (b) => {
-            b.disabled = true;
-            requestOrFail("/api/host/action", { action: "open", conversation: target.conversation, name })
-              .then(() => {
-                toast(`Abriendo «${name}»…`);
-                return refresh(true);
-              })
-              .catch((e) => {
-                b.disabled = false;
-                toast(`No se pudo abrir: ${e.message}`);
-              });
-          },
-        }),
-      ])
-    );
-    return;
-  }
+  if (!running) return sleepingTalk(root, target.conversation, target.session || TALK_NAMES[talkTo], `${TALK_NAMES[talkTo]} está dormida.`);
   root.appendChild(livePanel(target.conversation, target.session || TALK_NAMES[talkTo]));
+}
+
+const justCreated = new Set();
+
+function sleepingTalk(root, conversation, name, title) {
+  root.appendChild(empty(title, "Se abre sola cuando le llega algo. Si quieres hablar con ella ahora, ábrela."));
+  root.appendChild(
+    h("div", { class: "talk-actions" }, [
+      button("Abrir", {
+        cls: "primary",
+        onClick: (b) => {
+          b.disabled = true;
+          requestOrFail("/api/host/action", { action: "open", conversation, name })
+            .then(() => {
+              toast(`Abriendo «${name}»…`);
+              return refresh(true);
+            })
+            .catch((e) => {
+              b.disabled = false;
+              toast(`No se pudo abrir: ${e.message}`);
+            });
+        },
+      }),
+    ])
+  );
 }
 
 export function renderContext(root) {
