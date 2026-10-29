@@ -707,3 +707,7 @@ select.epic-add { flex: none; width: auto; max-width: 100%; border-radius: 999px
 @media (min-width: 761px) and (max-width: 1240px) {
   .report { top: auto; height: auto; }
 }
+.top-right { display: flex; align-items: center; gap: 16px; }
+.commander { font-size: 12.5px; font-weight: 600; padding: 3px 10px; border-radius: 999px; color: var(--accent); background: var(--accent-soft); white-space: nowrap; }
+.commander.backup { color: var(--back); background: var(--back-soft); }
+.commander.warn { color: var(--danger); background: var(--danger-soft); }

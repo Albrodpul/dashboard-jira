@@ -18,8 +18,20 @@ function readQuota() {
   }
 }
 
+function readCredentials() {
+  if (fs.existsSync(CREDENTIALS)) return fs.readFileSync(CREDENTIALS, "utf8");
+  if (process.platform !== "darwin") return null;
+  try {
+    return require("child_process").execFileSync("/usr/bin/security", ["find-generic-password", "-s", "Claude Code-credentials", "-w"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], timeout: 10000 });
+  } catch (e) {
+    return null;
+  }
+}
+
 async function fetchQuota() {
-  const oauth = JSON.parse(fs.readFileSync(CREDENTIALS, "utf8")).claudeAiOauth;
+  const raw = readCredentials();
+  if (!raw) return null;
+  const oauth = JSON.parse(raw).claudeAiOauth;
   if (!oauth || !oauth.accessToken || (oauth.expiresAt && oauth.expiresAt < Date.now())) return null;
   const r = await fetch(USAGE_URL, { headers: { Authorization: `Bearer ${oauth.accessToken}`, "anthropic-beta": "oauth-2025-04-20" } });
   if (!r.ok) throw new Error(`la consulta de cuota respondió ${r.status}`);

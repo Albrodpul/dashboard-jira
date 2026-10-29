@@ -242,6 +242,12 @@ function render() {
   paintTabs(counts, waitingDeploys);
   const right = document.getElementById("top-right");
   right.textContent = "";
+  const c = state.cluster;
+  if (c && c.peer) {
+    const stale = viaHeaders[1];
+    const text = stale ? `${stale}: el otro no responde` : c.role === "primary" ? `Manda el ${c.label || "ordenador"}${c.manual ? " (a mano)" : ""}` : "Sin ordenador al mando";
+    right.appendChild(h("span", { class: `commander${stale || c.role !== "primary" ? " warn" : ""}${c.preferred ? "" : " backup"}`, title: c.role === "primary" ? `Manda desde ${new Date(c.since).toLocaleString("es-ES")}` : "", text }));
+  }
   right.appendChild(quotaBlock());
   document.querySelector(".app").setAttribute("data-view", state.tab);
   const board = !mobile && isTaskTab(state.tab) && state.tab !== "ignored" && taskView() === "board";
