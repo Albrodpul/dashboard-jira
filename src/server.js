@@ -524,6 +524,7 @@ function serve() {
   every(require("./autosleep").sleepIdleSessions, 5 * 60 * 1000);
   every(require("./hostfresh").refreshHostWhenQuiet, 3 * 60 * 1000);
   setTimeout(() => require("./files").warmFiles(), 5000);
+  setTimeout(() => require("./smoke").smokeAfterUpdate().catch(() => {}), 30000);
 }
 
 module.exports = { serve };
