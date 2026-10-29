@@ -72,6 +72,7 @@ async function startReporter() {
   }
   if (!require("./cluster").isPrimary()) return log("este ordenador no manda: no arranco el reporte");
   if ((state().reporterStatus || {}).paused) return log("revisiones en pausa desde el tablero: no se arranca el reporte");
+  await require("./rotate").rotateDaily().catch((e) => log("error al empezar las conversaciones del día: " + (e.message || e)));
   for (let attempt = 1; attempt <= 3; attempt++) {
     const rep0 = state().reporterStatus;
     if (rep0 && rep0.watching) return log("la sesión de reporte ya vigila");

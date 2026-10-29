@@ -522,6 +522,7 @@ function serve() {
   every(require("./contextsync").syncContext, 3 * 60 * 1000);
   every(require("./cluster").tick, 30 * 1000);
   every(require("./autosleep").sleepIdleSessions, 5 * 60 * 1000);
+  every(require("./hostfresh").refreshHostWhenQuiet, 3 * 60 * 1000);
   setTimeout(() => require("./files").warmFiles(), 5000);
 }
 
