@@ -369,8 +369,13 @@ export function renderTalk(root) {
           });
       },
     });
-    root.appendChild(h("div", { class: "talk-actions" }, [close]));
-    return root.appendChild(livePanel(other.conversation, other.name));
+    const panel = livePanel(other.conversation, other.name);
+    const head = panel.querySelector(".term-head");
+    const old = head.querySelector(".talk-close");
+    if (old) old.remove();
+    close.classList.add("talk-close");
+    head.appendChild(close);
+    return root.appendChild(panel);
   }
   const target = talkSession(talkTo);
   if (!target || !target.conversation) return root.appendChild(empty(`${TALK_NAMES[talkTo]} no está registrada.`, "Regístrala con su comando para poder verla aquí."));

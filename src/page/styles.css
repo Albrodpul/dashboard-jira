@@ -637,6 +637,7 @@ select.epic-add { flex: none; width: auto; max-width: 100%; border-radius: 999px
 .term-head { display: flex; align-items: center; gap: 10px; padding: 0 4px; }
 .term-head strong { font-size: 15px; }
 .term-head .btn { margin-left: auto; }
+.term-head .talk-close { padding: 4px 10px; font-size: 13px; }
 .term-status { color: var(--ink-3); }
 .term-screen { flex: 1 1 auto; min-height: 0; overflow: hidden; border-radius: 6px; border: 1px solid var(--line); background: #0d1117; padding: 4px; }
 .term-keys { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; flex: none; }
