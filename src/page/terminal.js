@@ -1,4 +1,4 @@
-import { h, toast } from "./base.js";
+import { h, toast, state } from "./base.js";
 
 const KEYS = [
   ["Esc", "\x1b", "Interrumpe lo que esté haciendo (como Escape en VS Code)"],
@@ -55,6 +55,8 @@ function createPanel(conversation, name, onClose) {
   ]);
   const root = h("div", { class: "term-panel" }, [h("div", { class: "term-head" }, head), h("div", { class: "term-wrap" }, [screen, scrollBtns]), keys, h("div", { class: "term-compose" }, [input, sendBtn])]);
   const panel = { root, conversation, ws: null, term: null, fit: null, closed: false };
+  root.addEventListener("pointerdown", () => setTimeout(() => panel.claim(), 50));
+  root.addEventListener("focusin", () => setTimeout(() => panel.claim(), 50));
 
   panel.claim = () => {
     if (!panel.term || !root.isConnected || !panel.ws || panel.ws.readyState !== 1) return;
@@ -138,6 +140,21 @@ function createPanel(conversation, name, onClose) {
   return panel;
 }
 
+function fitInline(p) {
+  if (!p.root.isConnected) return;
+  let scroller = p.root.parentElement;
+  while (scroller && scroller !== document.body && !/(auto|scroll)/.test(getComputedStyle(scroller).overflowY)) scroller = scroller.parentElement;
+  const inBody = !scroller || scroller === document.body;
+  const vh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+  const visible = inBody ? vh : Math.min(vh, scroller.clientHeight);
+  const bar = document.getElementById("bottom");
+  const barHeight = bar && getComputedStyle(bar).display !== "none" ? bar.getBoundingClientRect().height : 0;
+  const top = inBody ? p.root.getBoundingClientRect().top + window.scrollY : p.root.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop;
+  const left = Math.floor(visible - top - barHeight - 12);
+  const height = Math.max(260, left >= 360 ? left : visible - barHeight - 24);
+  if (p.root.style.height !== `${height}px`) p.root.style.height = `${height}px`;
+}
+
 function claimVisible() {
   if (document.hidden) return;
   for (const p of panels.values()) if (p.root.isConnected) setTimeout(p.claim, 150);
@@ -145,6 +162,7 @@ function claimVisible() {
 }
 let lastWidth = window.innerWidth;
 window.addEventListener("resize", () => {
+  for (const p of panels.values()) fitInline(p);
   if (window.innerWidth === lastWidth) return;
   lastWidth = window.innerWidth;
   claimVisible();
@@ -158,8 +176,13 @@ export function livePanel(conversation, name) {
     p = createPanel(conversation, name);
     p.root.classList.add("term-inline");
     panels.set(conversation, p);
-    setTimeout(p.claim, 150);
   }
+  const entering = p.seenAt !== state.renderSeq - 1;
+  p.seenAt = state.renderSeq;
+  requestAnimationFrame(() => {
+    fitInline(p);
+    if (entering) setTimeout(p.claim, 150);
+  });
   return p.root;
 }
 
