@@ -143,7 +143,12 @@ function claimVisible() {
   for (const p of panels.values()) if (p.root.isConnected) setTimeout(p.claim, 150);
   if (overlay) setTimeout(overlay.claim, 150);
 }
-window.addEventListener("resize", claimVisible);
+let lastWidth = window.innerWidth;
+window.addEventListener("resize", () => {
+  if (window.innerWidth === lastWidth) return;
+  lastWidth = window.innerWidth;
+  claimVisible();
+});
 window.addEventListener("focus", claimVisible);
 document.addEventListener("visibilitychange", claimVisible);
 
@@ -153,8 +158,8 @@ export function livePanel(conversation, name) {
     p = createPanel(conversation, name);
     p.root.classList.add("term-inline");
     panels.set(conversation, p);
+    setTimeout(p.claim, 150);
   }
-  setTimeout(p.claim, 150);
   return p.root;
 }
 
