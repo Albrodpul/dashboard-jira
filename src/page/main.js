@@ -3,7 +3,7 @@ import { renderTasks, renderToday, renderBoard } from "./tasks.js";
 import { renderSessions, renderEpics } from "./sessions.js";
 import { renderDeploy, renderTalk, renderContext, renderFollowUp } from "./operations.js";
 import { renderReport, updateStamp, mountHeader, quotaBlock } from "./report.js";
-import { renderHome, sessionStrip, shortcuts } from "./home.js";
+import { renderHome, sessionStrip, shortcuts, dailyCard } from "./home.js";
 import { renderLearning } from "./learning.js";
 import { renderSentry } from "./sentry.js";
 import { renderProjects } from "./projects.js";
@@ -267,6 +267,7 @@ function render() {
     const strip = sessionStrip();
     if (strip) root.appendChild(strip);
     shortcuts(root);
+    dailyCard(root);
     return renderToday(root, errors);
   }
   if (state.tab === "more") return renderMore(root, waitingDeploys, errors);
@@ -277,7 +278,7 @@ function render() {
   (NON_TASK_VIEWS[state.tab] || renderTasks)(root);
 }
 
-const FIELDS = ["cluster", "sessions", "aliases", "reporterRoute", "reporterStatus", "boardStatus", "orchestrator", "epics", "allEpics", "reports", "lastReview", "config", "followUps", "sentry", "permissions", "hosted", "contextSync", "contextTidy", "messages", "tidyBlockers", "lastContextPass", "followUpStatus", "refreshRequest", "deployments", "deployerArea", "quota", "people", "jiraSetup", "voice", "speech", "deployStatus"];
+const FIELDS = ["cluster", "daily", "sessions", "aliases", "reporterRoute", "reporterStatus", "boardStatus", "orchestrator", "epics", "allEpics", "reports", "lastReview", "config", "followUps", "sentry", "permissions", "hosted", "contextSync", "contextTidy", "messages", "tidyBlockers", "lastContextPass", "followUpStatus", "refreshRequest", "deployments", "deployerArea", "quota", "people", "jiraSetup", "voice", "speech", "deployStatus"];
 const withoutReadTime = (d) => JSON.stringify(d, (k, v) => (k === "syncedAt" ? undefined : v));
 const editing = () => {
   const a = document.activeElement;

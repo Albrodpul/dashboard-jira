@@ -1,4 +1,4 @@
-import { state, h, when, minutesSince, switchView, empty, reviewer, fixedAreaIds } from "./base.js";
+import { state, h, when, minutesSince, switchView, empty, reviewer, fixedAreaIds, button, post, toast } from "./base.js";
 
 
 const GROUPS = [
@@ -96,11 +96,45 @@ export function shortcuts(root) {
   root.appendChild(h("div", { class: "shortcuts" }, data.map(([id, label, n]) => h("button", { type: "button", class: `shortcut${n ? " filled" : ""}${id === "waiting" && n ? " urgent" : ""}`, onclick: () => switchView(id) }, [h("strong", { text: String(n) }), h("span", { text: label })]))));
 }
 
+let dailyAsked = null;
+
+export function dailyCard(root) {
+  const d = state.daily;
+  const busy = dailyAsked && (!d || d.at < dailyAsked);
+  const day = d && d.day ? d.day.split("-").reverse().slice(0, 2).join("/") : "";
+  const ask = (today) => {
+    dailyAsked = new Date().toISOString();
+    post("/api/daily", { today }, today ? "Preparando el resumen de hoy…" : "Rehaciendo el resumen…");
+  };
+  const actions = [];
+  if (d && d.text) actions.push(button("Copiar", { onClick: () => navigator.clipboard.writeText(d.text).then(() => toast("Copiado.")) }));
+  actions.push(button(busy ? "Preparando…" : "Rehacer", { cls: "subtle", disabled: !!busy, onClick: () => ask(false) }));
+  actions.push(button("El de hoy", { cls: "subtle", disabled: !!busy, title: "Lo que llevas hecho hoy, por si apagas antes y quieres tenerlo ya", onClick: () => ask(true) }));
+  const body = !d ? "Se prepara solo cada mañana con lo del último día laborable." : d.empty ? "Ese día no hay movimiento en Jira, commits ni despliegues tuyos." : d.text;
+  const det = h("details", { class: "card daily-card" }, [
+    h("summary", {}, [h("strong", { text: "Para la daily" }), h("span", { class: "meta", text: day ? ` · ${day}` : "" })]),
+    h("p", { class: "daily-text", text: body }),
+    h("div", { class: "actions" }, actions),
+  ]);
+  try {
+    det.open = localStorage.getItem("daily-open") !== "0";
+  } catch (e) {
+    det.open = true;
+  }
+  det.addEventListener("toggle", () => {
+    try {
+      localStorage.setItem("daily-open", det.open ? "1" : "0");
+    } catch (e) {}
+  });
+  root.appendChild(det);
+}
+
 export function renderHome(root) {
   const cs = state.contextSync;
   if (cs && cs.state === "conflict") root.appendChild(h("p", { class: "setup-note warn", text: "El contexto compartido tiene un choque entre los dos ordenadores y no se sincroniza. Hay que resolverlo a mano en palc (git status)." }));
   else if (cs && cs.state === "error") root.appendChild(h("p", { class: "setup-note warn", text: `El contexto compartido no se sincroniza: ${String(cs.error || "").split(/\r?\n/)[0]}` }));
   shortcuts(root);
+  dailyCard(root);
   const s = sessionSituation();
   if (!s.working.length && !s.blocked.length && !s.free.length) root.appendChild(empty("No hay sesiones de área abiertas.", "Las que abras aparecen aquí solas."));
   else {

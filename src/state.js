@@ -127,6 +127,7 @@ function state() {
     followUps: d.followUps.slice(0, 80),
     permissions: permissions.forPage(d),
     contextSync: d.contextSync || null,
+    daily: d.daily || null,
     cluster: require("./cluster").info(),
     hosted: require("./host").readConfig(),
     sentry: { enabled: sentry.sentryAvailable(), errorsArea: ERRORS_AREA, sends: sentry.sentryIssues(d) },
