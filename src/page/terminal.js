@@ -53,7 +53,7 @@ function createPanel(conversation, name, onClose) {
     h("button", { type: "button", title: "Bajar (Av Pág)", "aria-label": "Bajar", text: "⇟", onclick: () => panel.send("[6~") }),
     h("button", { type: "button", title: "Ir al final (Ctrl+Fin)", "aria-label": "Ir al final", text: "⤓", onclick: () => panel.send("[1;5F") }),
   ]);
-  const root = h("div", { class: "term-panel" }, [h("div", { class: "term-head" }, head), h("div", { class: "term-wrap" }, [screen, scrollBtns]), keys, h("div", { class: "term-compose" }, [input, sendBtn])]);
+  const root = h("div", { class: "term-panel" }, [h("div", { class: "term-head" }, head), h("div", { class: "term-wrap" }, [screen, scrollBtns]), keys, h("div", { class: "term-compose" }, [input, sendBtn, mentions(input)])]);
   const panel = { root, conversation, ws: null, term: null, fit: null, closed: false };
   root.addEventListener("pointerdown", () => setTimeout(() => panel.claim(), 50));
   let movedAt = 0;
@@ -97,6 +97,7 @@ function createPanel(conversation, name, onClose) {
   };
   sendBtn.addEventListener("click", submit);
   input.addEventListener("keydown", (e) => {
+    if (e.defaultPrevented) return;
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       submit();
@@ -144,6 +145,79 @@ function createPanel(conversation, name, onClose) {
     () => toast("No se pudo cargar el visor de terminal.")
   );
   return panel;
+}
+
+const MENTION = /(^|\s)@([^\s@]{1,80})$/;
+
+function mentions(input) {
+  const list = h("ul", { class: "term-mentions", role: "listbox", hidden: true });
+  let items = [];
+  let picked = 0;
+  let timer = null;
+  let asked = "";
+  const close = () => {
+    list.hidden = true;
+    items = [];
+  };
+  const paint = () => {
+    list.textContent = "";
+    items.forEach((f, i) => {
+      const slash = f.lastIndexOf("/");
+      const li = h("li", { role: "option", "aria-selected": String(i === picked) }, [h("strong", { text: f.slice(slash + 1) }), h("span", { text: slash > 0 ? f.slice(0, slash) : "" })]);
+      li.addEventListener("pointerdown", (e) => {
+        e.preventDefault();
+        choose(i);
+      });
+      list.appendChild(li);
+    });
+    list.hidden = !items.length;
+  };
+  const choose = (i) => {
+    const caret = input.selectionStart;
+    const before = input.value.slice(0, caret);
+    const m = MENTION.exec(before);
+    if (!m) return close();
+    const start = caret - m[2].length - 1;
+    const text = `@${items[i]} `;
+    input.value = input.value.slice(0, start) + text + input.value.slice(caret);
+    input.selectionStart = input.selectionEnd = start + text.length;
+    close();
+    input.focus();
+  };
+  input.addEventListener("input", () => {
+    const m = MENTION.exec(input.value.slice(0, input.selectionStart));
+    clearTimeout(timer);
+    if (!m) return close();
+    const q = m[2];
+    timer = setTimeout(() => {
+      asked = q;
+      fetch(`/api/files?q=${encodeURIComponent(q)}`, { cache: "no-store" })
+        .then((r) => r.json())
+        .then((found) => {
+          if (asked !== q) return;
+          items = Array.isArray(found) ? found : [];
+          picked = 0;
+          paint();
+        })
+        .catch(close);
+    }, 150);
+  });
+  input.addEventListener("keydown", (e) => {
+    if (list.hidden || !items.length) return;
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      picked = (picked + (e.key === "ArrowDown" ? 1 : items.length - 1)) % items.length;
+      paint();
+    } else if (e.key === "Enter" || e.key === "Tab") {
+      e.preventDefault();
+      choose(picked);
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      close();
+    }
+  });
+  input.addEventListener("blur", () => setTimeout(close, 150));
+  return list;
 }
 
 function fitInline(p) {

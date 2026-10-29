@@ -407,6 +407,13 @@ function handleLocal(req, res, url) {
         .catch((e) => serveBody(res, "application/json", JSON.stringify({ available: true, issues: [], errors: [String(e.message || e)] })));
       return;
     }
+    if (url === "/api/files") {
+      require("./files")
+        .searchFiles(new URLSearchParams(req.url.split("?")[1] || "").get("q"))
+        .then((v) => serveBody(res, "application/json", JSON.stringify(v)))
+        .catch(() => serveBody(res, "application/json", "[]"));
+      return;
+    }
     if (url === "/api/learning") return serveBody(res, "application/json", JSON.stringify(learning.learningSummary()));
     if (url === "/api/state") {
       const body = JSON.stringify({ ...state(), voice: voice.voiceAvailable(), speech: speech.speechAvailable(), deployStatus: deployStatus.readStatus() });
@@ -509,6 +516,7 @@ function serve() {
   every(devservers.schedule, 60 * 1000);
   every(require("./contextsync").syncContext, 3 * 60 * 1000);
   every(require("./cluster").tick, 30 * 1000);
+  setTimeout(() => require("./files").warmFiles(), 5000);
 }
 
 module.exports = { serve };
