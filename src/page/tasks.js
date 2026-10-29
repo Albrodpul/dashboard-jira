@@ -344,8 +344,8 @@ export function renderToday(root, errors) {
 const BOARD_COLUMNS = [
   ["pending", "Pendientes", ["pending"]],
   ["approved", "Por enviar", ["approved"]],
-  ["sent", "En curso", ["sent"]],
   ["waiting", "Te esperan", ["waiting", "partial"]],
+  ["sent", "En curso", ["sent"]],
   ["done", "Hechas", ["done"]],
 ];
 let openTask = null;
