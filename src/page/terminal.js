@@ -39,7 +39,8 @@ function loadXterm() {
 function createPanel(conversation, name, onClose) {
   const screen = h("div", { class: "term-screen" });
   const status = h("span", { class: "meta term-status", text: "Conectando…" });
-  const head = [h("strong", { text: name }), status];
+  const adjust = h("button", { class: "btn subtle term-adjust", type: "button", hidden: true, text: "Ajustar a esta pantalla", title: "Otro dispositivo tiene la sesión a su tamaño. Pulsa para ponerla al de esta pantalla." });
+  const head = [h("strong", { text: name }), status, adjust];
   if (onClose) head.push(h("button", { class: "btn subtle", type: "button", text: "Cerrar", onclick: onClose }));
   const input = h("textarea", { class: "term-input", rows: "1", placeholder: "Escribe aquí y pulsa Enviar", "aria-label": `Escribir a ${name}` });
   const sendBtn = h("button", { class: "btn primary", type: "button", text: "Enviar" });
@@ -56,14 +57,15 @@ function createPanel(conversation, name, onClose) {
   const root = h("div", { class: "term-panel" }, [h("div", { class: "term-head" }, head), h("div", { class: "term-wrap" }, [screen, scrollBtns]), keys, h("div", { class: "term-compose" }, [input, sendBtn, mentions(input)])]);
   const panel = { root, conversation, ws: null, term: null, fit: null, closed: false };
   root.addEventListener("pointerdown", () => setTimeout(() => panel.claim("clic"), 50));
-  let movedAt = 0;
-  root.addEventListener("pointermove", () => {
-    if (Date.now() - movedAt < 1500) return;
-    movedAt = Date.now();
-    panel.claim("ratón");
-  });
-  root.addEventListener("focusin", () => setTimeout(() => panel.claim("foco"), 50));
 
+  adjust.addEventListener("click", () => panel.claim("ajustar"));
+  panel.checkFit = () => {
+    let dims = null;
+    try {
+      dims = panel.term && panel.fit.proposeDimensions();
+    } catch (e) {}
+    adjust.hidden = !dims || (Math.abs(dims.cols - 1 - panel.term.cols) < 3 && Math.abs(dims.rows - panel.term.rows) < 3);
+  };
   panel.claim = (why = "?") => {
     if (!panel.term || !root.isConnected || !panel.ws || panel.ws.readyState !== 1) return;
     if (document.hidden && why !== "escribir") return;
@@ -133,6 +135,7 @@ function createPanel(conversation, name, onClose) {
             try {
               const { cols, rows } = JSON.parse(e.data.slice(1));
               if (cols && rows) term.resize(cols, rows);
+              setTimeout(panel.checkFit, 50);
             } catch (x) {}
             return;
           }
@@ -252,8 +255,6 @@ window.addEventListener("resize", () => {
   lastWidth = window.innerWidth;
   claimVisible();
 });
-window.addEventListener("focus", claimVisible);
-document.addEventListener("visibilitychange", claimVisible);
 
 export function livePanel(conversation, name) {
   let p = panels.get(conversation);
@@ -266,6 +267,7 @@ export function livePanel(conversation, name) {
   p.seenAt = state.renderSeq;
   requestAnimationFrame(() => {
     fitInline(p);
+    if (p.checkFit) p.checkFit();
     if (entering) setTimeout(() => p.claim("entrar"), 150);
   });
   return p.root;
