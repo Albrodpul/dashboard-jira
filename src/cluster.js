@@ -36,7 +36,7 @@ const log = (m) => {
 };
 
 const isPrimary = () => !CLUSTER || st.role === "primary";
-const info = () => ({ label: CLUSTER ? CLUSTER.label || null : null, role: isPrimary() ? "primary" : "follower", since: st.since, preferred: !!(CLUSTER && CLUSTER.preferred), host: os.hostname(), self: CLUSTER ? CLUSTER.self : null, peer: CLUSTER ? CLUSTER.peer : null });
+const info = () => ({ label: CLUSTER ? CLUSTER.label || null : null, role: isPrimary() ? "primary" : "follower", since: st.since, manual: !!(isPrimary() && st.manual), lastSnapshot: st.lastSnapshot || null, lastTranscripts: st.lastTranscripts || null, preferred: !!(CLUSTER && CLUSTER.preferred), host: os.hostname(), self: CLUSTER ? CLUSTER.self : null, peer: CLUSTER ? CLUSTER.peer : null });
 
 async function peerGet(route, ms = 8000) {
   const ctrl = new AbortController();
@@ -162,6 +162,7 @@ async function runningConversations() {
 
 async function refreshFromPeer(onlyNewerThan) {
   const changed = await pullTranscripts(onlyNewerThan);
+  st.lastTranscripts = now();
   if (!changed.length) return 0;
   const host = require("./host");
   const running = await runningConversations();
@@ -250,10 +251,15 @@ async function stopRoles() {
   }
 }
 
-async function promote(reason) {
-  st = { ...st, role: "primary", since: now() };
+async function promote(reason, manual) {
+  st = { ...st, role: "primary", since: now(), manual: !!manual };
   save();
   log(`paso a mandar: ${reason}`);
+  if (manual) {
+    await peerPost("/api/cluster/yield", { force: true });
+    await pullSnapshot();
+    await refreshFromPeer();
+  }
   require("./push")
     .sendPush("sessions", true, `${os.hostname()} pasa a mandar: ${reason}`)
     .catch(() => {});
@@ -264,7 +270,7 @@ async function promote(reason) {
 }
 
 async function demote(reason) {
-  st = { ...st, role: "follower", since: now() };
+  st = { ...st, role: "follower", since: now(), manual: false };
   save();
   log(`dejo de mandar: ${reason}`);
   await stopRoles();
@@ -299,9 +305,22 @@ async function tick() {
     const peer = await peerGet("/api/cluster");
     if (CLUSTER.preferred) {
       if (peer && peer.role === "primary") {
+        const peerNewer = !isPrimary() || new Date(peer.since) > new Date(st.since);
+        if (peer.manual && peerNewer) {
+          if (isPrimary()) await demote("el otro ordenador manda porque lo has pedido");
+          if (Date.now() - lastPull > SNAPSHOT_MS) {
+            lastPull = Date.now();
+            await pullSnapshot();
+          }
+          await refreshFromPeer();
+          save();
+          return;
+        }
         await peerPost("/api/cluster/yield", { from: os.hostname() });
-        await pullSnapshot();
-        await refreshFromPeer(new Date(peer.since).getTime() - 60000);
+        if (peerNewer) {
+          await pullSnapshot();
+          await refreshFromPeer(new Date(peer.since).getTime() - 60000);
+        }
         if (!isPrimary()) await promote("el ordenador preferido vuelve y recupera el mando");
         else log("el otro ordenador mandaba mientras yo no respondía: datos traídos y le pido que ceda");
       } else if (!isPrimary()) await promote("ordenador preferido");
@@ -337,10 +356,70 @@ async function tick() {
   }
 }
 
-async function handleYield() {
-  if (!CLUSTER || CLUSTER.preferred || !isPrimary()) return;
+async function handleYield(input) {
+  if (!CLUSTER || !isPrimary()) return;
+  if (input && input.force) return demote("el otro ordenador toma el mando porque lo has pedido");
+  if (CLUSTER.preferred) return;
   st.preferredBackSince = null;
   await demote("el ordenador preferido ha vuelto");
 }
 
-module.exports = { isPrimary, info, snapshot, transcripts, serveTranscript, tick, handleYield, clusterEnabled: () => !!CLUSTER };
+async function takeHere() {
+  if (!CLUSTER) return { ok: false, error: "no hay dos ordenadores configurados" };
+  if (CLUSTER.preferred) {
+    await peerPost("/api/cluster/auto", {});
+    if (!isPrimary()) tick().catch(() => {});
+    return { ok: true };
+  }
+  if (isPrimary()) {
+    st.manual = true;
+    save();
+    log("sigo mandando, ahora porque lo has pedido");
+    return { ok: true };
+  }
+  promote("lo has pedido desde el tablero", true).catch((e) => log("error al tomar el mando: " + (e.message || e)));
+  return { ok: true };
+}
+
+function backToAuto() {
+  if (!st.manual) return { ok: true };
+  st.manual = false;
+  save();
+  log("vuelvo al automático");
+  return { ok: true };
+}
+
+async function command(target, action) {
+  const self = CLUSTER && CLUSTER.label;
+  if (target && target !== self) {
+    const ok = await peerPost(action === "auto" ? "/api/cluster/auto" : "/api/cluster/take", {});
+    return ok ? { ok: true } : { ok: false, error: `el ${target} no responde` };
+  }
+  return action === "auto" ? backToAuto() : takeHere();
+}
+
+function tailscaleDevices() {
+  const exe = process.platform === "darwin" ? "/Applications/Tailscale.app/Contents/MacOS/Tailscale" : "tailscale";
+  return new Promise((resolve) =>
+    require("child_process").execFile(exe, ["status", "--json"], { windowsHide: true, timeout: 10000 }, (err, out) => {
+      if (err) return resolve(null);
+      try {
+        const j = JSON.parse(out);
+        resolve(
+          [j.Self, ...Object.values(j.Peer || {})]
+            .filter((d) => d && !/^(android|ios)$/i.test(d.OS || ""))
+            .map((d) => ({ name: d.HostName, os: d.OS, online: d === j.Self || !!d.Online, lastSeen: d.LastSeen && !d.LastSeen.startsWith("0001") ? d.LastSeen : null, ip: (d.TailscaleIPs || [])[0] || null, dns: String(d.DNSName || "").replace(/\.$/, ""), self: d === j.Self }))
+        );
+      } catch (e) {
+        resolve(null);
+      }
+    })
+  );
+}
+
+async function machines() {
+  const [devices, peer] = await Promise.all([tailscaleDevices(), CLUSTER ? peerGet("/api/cluster", 5000) : null]);
+  return { self: info(), peer, devices };
+}
+
+module.exports = { isPrimary, info, snapshot, transcripts, serveTranscript, tick, handleYield, command, takeHere, backToAuto, machines, clusterEnabled: () => !!CLUSTER };
