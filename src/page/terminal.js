@@ -55,26 +55,31 @@ function createPanel(conversation, name, onClose) {
   ]);
   const root = h("div", { class: "term-panel" }, [h("div", { class: "term-head" }, head), h("div", { class: "term-wrap" }, [screen, scrollBtns]), keys, h("div", { class: "term-compose" }, [input, sendBtn, mentions(input)])]);
   const panel = { root, conversation, ws: null, term: null, fit: null, closed: false };
-  root.addEventListener("pointerdown", () => setTimeout(() => panel.claim(), 50));
+  root.addEventListener("pointerdown", () => setTimeout(() => panel.claim("clic"), 50));
   let movedAt = 0;
   root.addEventListener("pointermove", () => {
     if (Date.now() - movedAt < 1500) return;
     movedAt = Date.now();
-    panel.claim();
+    panel.claim("ratón");
   });
-  root.addEventListener("focusin", () => setTimeout(() => panel.claim(), 50));
+  root.addEventListener("focusin", () => setTimeout(() => panel.claim("foco"), 50));
 
-  panel.claim = () => {
+  panel.claim = (why = "?") => {
     if (!panel.term || !root.isConnected || !panel.ws || panel.ws.readyState !== 1) return;
+    if (document.hidden && why !== "escribir") return;
     let dims = null;
     try {
       dims = panel.fit.proposeDimensions();
     } catch (e) {}
-    if (dims && dims.cols && dims.rows && (dims.cols - 1 !== panel.term.cols || dims.rows !== panel.term.rows)) panel.ws.send(JSON.stringify({ type: "resize", cols: Math.max(20, dims.cols - 1), rows: dims.rows }));
+    if (dims && dims.cols && dims.rows && (dims.cols - 1 !== panel.term.cols || dims.rows !== panel.term.rows)) {
+      const size = { cols: Math.max(20, dims.cols - 1), rows: dims.rows };
+      panel.ws.send(JSON.stringify({ type: "resize", ...size }));
+      fetch("/api/term-claim", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ conversation, why, ...size, from: `${panel.term.cols}x${panel.term.rows}`, device: `${location.host} ${window.innerWidth}x${window.innerHeight} ${navigator.platform}` }) }).catch(() => {});
+    }
   };
   panel.send = (data) => {
     if (!panel.ws || panel.ws.readyState !== 1) return;
-    panel.claim();
+    panel.claim("escribir");
     panel.ws.send(JSON.stringify({ type: "input", data }));
   };
   panel.resize = () => {};
@@ -121,7 +126,7 @@ function createPanel(conversation, name, onClose) {
         ws.onopen = () => {
           status.textContent = "En directo";
           term.reset();
-          if (!document.hidden) setTimeout(panel.claim, 400);
+          if (!document.hidden) setTimeout(() => panel.claim("conectar"), 400);
         };
         ws.onmessage = (e) => {
           if (typeof e.data === "string" && e.data.charCodeAt(0) === 0) {
@@ -237,8 +242,8 @@ function fitInline(p) {
 
 function claimVisible() {
   if (document.hidden) return;
-  for (const p of panels.values()) if (p.root.isConnected) setTimeout(p.claim, 150);
-  if (overlay) setTimeout(overlay.claim, 150);
+  for (const p of panels.values()) if (p.root.isConnected) setTimeout(() => p.claim("ventana"), 150);
+  if (overlay) setTimeout(() => overlay.claim("ventana"), 150);
 }
 let lastWidth = window.innerWidth;
 window.addEventListener("resize", () => {
@@ -261,7 +266,7 @@ export function livePanel(conversation, name) {
   p.seenAt = state.renderSeq;
   requestAnimationFrame(() => {
     fitInline(p);
-    if (entering) setTimeout(p.claim, 150);
+    if (entering) setTimeout(() => p.claim("entrar"), 150);
   });
   return p.root;
 }
