@@ -140,7 +140,7 @@ function classifySegment(segment, cwd) {
   if (cmd === "node" && /^node\s+\S*jira-write/.test(rest)) {
     const m = /jira-write(?:\.js)?\s+([\w-]+)\s+([A-Z][A-Z0-9]+-\d+)/.exec(rest);
     if (/jira-write(?:\.js)?\s+assign\s/.test(rest)) return { kind: "allow" };
-    if (m && !/comment|mention/.test(m[1])) return { kind: "protected", key: "jira-write", jiraKey: m[2], label: `${m[1] === "assign" ? "asignarse" : "mover"} ${m[2]} en Jira` };
+    if (!/\b(comment|mention)\b/.test(rest)) return { kind: "allow" };
     return { kind: "protected", key: "jira-write", label: m ? `comentar en ${m[2]} en Jira` : "escribir en Jira" };
   }
   if (cmd === "curl" || cmd === "wget") {
@@ -220,8 +220,8 @@ function classify(tool, input, cwd) {
   }
   if (ALWAYS_TOOLS.has(tool)) return { kind: "allow" };
   if (JIRA_READ.test(tool) || /^mcp__playwright__/.test(tool) || /^mcp__sentry__(?!update_issue)/.test(tool) || tool === "mcp__claude-vscode__getDiagnostics") return { kind: "allow" };
-  if (JIRA_ON_TASK.test(tool)) return { kind: "protected", key: tool, jiraKey: input.issueIdOrKey || input.issueKey || null, label: tool === "mcp__jira__transitionJiraIssue" ? "mover una tarea en Jira" : "editar una tarea en Jira" };
-  if (/^mcp__jira__/.test(tool)) return { kind: "protected", key: tool, label: "escribir en Jira" };
+  if (/^mcp__jira__(addCommentToJiraIssue|createConfluence\w*Comment)$/.test(tool)) return { kind: "protected", key: tool, label: "comentar en Jira" };
+  if (/^mcp__jira__/.test(tool)) return { kind: "allow" };
   if (tool === "mcp__sentry__update_issue") return { kind: "protected", key: tool, label: "cambiar un error en Sentry" };
   if (/^Artifact/.test(tool)) return { kind: "ask", key: tool, label: "publicar en claude.ai (la cuenta es compartida)" };
   return { kind: "ask", key: tool, label: tool };
