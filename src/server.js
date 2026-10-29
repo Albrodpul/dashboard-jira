@@ -437,6 +437,10 @@ function handleLocal(req, res, url) {
     setTimeout(() => process.exit(0), 50);
     return;
   }
+  if (req.method === "POST" && url === "/api/upload") {
+    if (!originOk(req)) return res.writeHead(403).end("origen no permitido");
+    return require("./uploads").handleUpload(req, res, send);
+  }
   if (req.method === "POST" && url === "/api/voice") {
     if (!originOk(req) || !(req.headers["content-type"] || "").startsWith("audio/")) return res.writeHead(403).end("origen no permitido");
     return voice.handleVoice(req, res, send, operations.handleMessage).catch((e) => send(res, 500, { error: String(e.message || e) }));
