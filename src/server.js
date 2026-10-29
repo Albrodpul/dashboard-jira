@@ -164,6 +164,11 @@ const POST_ROUTES = {
     fs.writeFileSync(path.join(DATA_DIR, "layout-report.json"), JSON.stringify({ at: new Date().toISOString(), ...input }, null, 1).slice(0, 8000));
     send(res, 200);
   },
+  "/api/term-claim": (res, input, send) => {
+    fs.appendFileSync(path.join(DATA_DIR, "term-claims.log"), `${new Date().toISOString()} ${String(input.conversation || "").slice(0, 8)} ${input.why} ${input.from} -> ${input.cols}x${input.rows} ${String(input.device || "").slice(0, 120)}
+`);
+    send(res, 200);
+  },
   "/api/page-errors": (res, input, send) => {
     fs.writeFileSync(path.join(DATA_DIR, "page-errors.json"), JSON.stringify({ at: new Date().toISOString(), ...input }, null, 1).slice(0, 20000));
     send(res, 200);
