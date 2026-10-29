@@ -37,6 +37,12 @@ const log = (m) => {
 const sizeFrame = (s) => `\u0000${JSON.stringify({ cols: s.cols, rows: s.rows })}`;
 const plain = (s) => s.replace(/\x1b\[[0-9;?]*[ -\/]*[@-~]/g, "").replace(/\x1b\][^\x07]*\x07/g, "");
 
+let HOST_HEAD = null;
+const HOST_STARTED = new Date().toISOString();
+try {
+  HOST_HEAD = cp.execFileSync("git", ["-C", path.join(__dirname, ".."), "rev-parse", "HEAD"], { windowsHide: true }).toString().trim();
+} catch (e) {}
+
 function serve() {
   const pty = require("@lydell/node-pty");
   const { WebSocketServer } = require("ws");
@@ -128,6 +134,7 @@ function serve() {
         input = body ? JSON.parse(body) : {};
       } catch (e) {}
       if (req.method === "GET" && req.url === "/sessions") return json(res, 200, summary());
+      if (req.method === "GET" && req.url === "/version") return json(res, 200, { head: HOST_HEAD, startedAt: HOST_STARTED });
       if (req.method === "POST" && req.url === "/start") {
         const list = readConfig();
         let e = list.find((x) => x.conversation === input.conversation);
