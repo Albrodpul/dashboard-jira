@@ -11,13 +11,15 @@ const norm = (p) => String(p || "").replace(/\\/g, "/").replace(/^\/([a-z])\//i,
 const EDITABLE = [config.root, REPO, path.join(os.homedir(), ".claude"), os.tmpdir()].map((p) => norm(p).replace(/\/$/, "") + "/");
 const SECRET_FILE = /(^|\/)\.env(\.[\w-]+)?$|\.(pem|key|p12|pfx)$|(^|\/)\.mcp\.json$|(^|\/)credentials(\.json)?$/i;
 
-const READ_WORDS = new Set("seq xargs env printenv cscript wscript claude pip pip3 cd ls pwd cat head tail wc grep egrep fgrep rg find sed awk sort uniq cut tr diff cmp comm echo printf test [ true false sleep date basename dirname realpath readlink stat file du df which where whoami type jq nl tee touch mkdir cp mv rm rmdir ln node npm npx yarn pnpm php composer python python3 py pytest vendor/bin/phpunit tasklist netstat set export source . robocopy cmd tar unzip zip gzip base64 sha256sum md5sum iconv dos2unix clear exit".split(" "));
+const READ_WORDS = new Set("seq xargs env printenv cscript wscript claude pip pip3 cd ls pwd cat head tail wc grep egrep fgrep rg find sed awk sort uniq cut tr diff cmp comm echo printf test [ true false sleep date basename dirname realpath readlink stat file du df which where whoami type jq nl tee touch mkdir cp mv rm rmdir ln node npm npx yarn pnpm php composer python python3 py pytest vendor/bin/phpunit tasklist netstat set export source . robocopy cmd tar unzip zip gzip base64 sha256sum md5sum iconv dos2unix clear exit ps pgrep uptime hostname uname sw_vers lsof id".split(" "));
 const GIT_READ = new Set("ls-remote for-each-ref reflog name-rev symbolic-ref check-ignore cherry pull status diff log show branch rev-parse rev-list worktree add fetch blame ls-files ls-tree grep remote config shortlog describe merge-base cat-file switch restore mv rm".split(" "));
 const GIT_PROTECTED = new Set("commit push merge tag rebase reset stash clean cherry-pick revert am".split(" "));
 const GH_READ = /^gh\s+(pr|issue|run|release|workflow|repo)\s+(view|list|diff|checks|status|watch)\b/;
 const GH_PROTECTED = /^gh\s+(pr\s+merge|release\s+create|variable|secret|api\b.*-X\s*(POST|PUT|PATCH|DELETE)|workflow\s+run)/i;
 const SHELL_WORDS = new Set("then fi do done else elif esac case in function select until local declare readonly unset shift wait trap read true false : !".split(" "));
 const PS_WORDS = new Set("foreach for if else elseif while do try catch finally switch { } ( ) % ? start-sleep sleep param return break continue".split(" "));
+const AWS_READ = /^aws\s+(--version\b|(--\S+\s+\S+\s+)*[\w-]+\s+(list|get|describe|batch-get)-[\w-]+)/;
+const AWS_SECRET = /secretsmanager|get-parameters?\b|get-secret|kms\s|get-login|get-session-token|get-authorization-token|ssm\s+start-session|send-command/i;
 const PROTECTED_WORDS = new Set("aws ssh scp sftp sam eb terraform kubectl".split(" "));
 
 const JIRA_READ = /^mcp__jira__(get|search|lookup|fetch|atlassianUserInfo)/;
@@ -126,6 +128,7 @@ function classifySegment(segment, cwd) {
   if (cmd === "ssh" && /\s-[A-Za-z]*[LN]/.test(rest) && !/\bmysql\b/.test(rest)) return { kind: "allow" };
   if (cmd === "ssh" && /\bmysql\b/.test(rest)) return DB_WRITE.test(sqlOf(rest, cwd, WHOLE.text)) ? { kind: "protected", key: "bd remota escritura", label: "escribir en una base de datos remota" } : { kind: "allow" };
   if (["ssh", "scp", "rsync", "sftp"].includes(cmd) && (config.trustedHosts || []).some((host) => rest.includes(host))) return { kind: "allow" };
+  if (cmd === "aws" && AWS_READ.test(rest) && !AWS_SECRET.test(rest)) return { kind: "allow" };
   if (PROTECTED_WORDS.has(cmd)) return { kind: "protected", key: cmd, label: cmd };
   if (cmd === "mysql" || cmd === "mysqldump" || cmd === "mysqladmin") {
     const host = (/(?:-h\s*|--host[= ])(\S+)/.exec(rest) || [])[1];
@@ -188,7 +191,7 @@ function classifyCommand(command, cwd) {
     if (/^([A-Za-z_]\w*=("[^"]*"|'[^']*'|\S*)\s*)+$/.test(seg)) continue;
     const cd = /^cd\s+(?:\/d\s+)?("[^"]+"|'[^']+'|\S+)\s*$/i.exec(seg);
     if (cd) {
-      where = path.resolve(where || config.root, cd[1].replace(/["']/g, "").replace(/^\/([a-z])\//i, "$1:/"));
+      where = path.resolve(where || config.root, cd[1].replace(/["']/g, "").replace(/^~(?=\/|$)/, os.homedir()).replace(/^\/([a-z])\//i, "$1:/"));
       continue;
     }
     const c = classifySegment(seg, where);
