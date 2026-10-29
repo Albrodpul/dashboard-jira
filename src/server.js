@@ -186,6 +186,11 @@ const POST_ROUTES = {
     }
     send(res, 200, { sent: n });
   },
+  "/api/daily": (res, { today }, send) => {
+    const daily = require("./daily");
+    daily.dailyFor(today ? new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" }) : daily.lastWorkday()).catch(() => {});
+    send(res, 200, { ok: true });
+  },
   "/api/cluster/yield": (res, input, send) => {
     cluster
       .handleYield(input)
@@ -527,6 +532,7 @@ function serve() {
   every(require("./cluster").tick, 30 * 1000);
   every(require("./autosleep").sleepIdleSessions, 5 * 60 * 1000);
   every(require("./hostfresh").refreshHostWhenQuiet, 3 * 60 * 1000);
+  every(require("./daily").dailyIfMissing, 60 * 60 * 1000);
   setTimeout(() => require("./files").warmFiles(), 5000);
   setTimeout(() => require("./smoke").smokeAfterUpdate().catch(() => {}), 30000);
 }
