@@ -11,7 +11,7 @@ const norm = (p) => String(p || "").replace(/\\/g, "/").replace(/^\/([a-z])\//i,
 const EDITABLE = [config.root, REPO, path.join(os.homedir(), ".claude"), os.tmpdir()].map((p) => norm(p).replace(/\/$/, "") + "/");
 const SECRET_FILE = /(^|\/)\.env(\.[\w-]+)?$|\.(pem|key|p12|pfx)$|(^|\/)\.mcp\.json$|(^|\/)credentials(\.json)?$/i;
 
-const READ_WORDS = new Set("seq xargs env printenv cscript wscript claude pip pip3 cd ls pwd cat head tail wc grep egrep fgrep rg find sed awk sort uniq cut tr diff cmp comm echo printf test [ true false sleep date basename dirname realpath readlink stat file du df which where whoami type jq nl tee touch mkdir cp mv rm rmdir ln node npm npx yarn pnpm php composer python python3 py pytest vendor/bin/phpunit tasklist netstat set export source . robocopy cmd tar unzip zip gzip base64 sha256sum md5sum iconv dos2unix clear exit ps pgrep uptime hostname uname sw_vers lsof id".split(" "));
+const READ_WORDS = new Set("seq xargs env printenv cscript wscript claude pip pip3 cd ls pwd cat head tail wc grep egrep fgrep rg find sed awk sort uniq cut tr diff cmp comm echo printf test [ true false sleep date basename dirname realpath readlink stat file du df which where whoami type jq nl tee touch mkdir cp mv rm rmdir ln node npm npx yarn pnpm php composer python python3 py pytest vendor/bin/phpunit tasklist netstat set export source . robocopy cmd tar unzip zip gzip base64 sha256sum md5sum iconv dos2unix clear exit ps pgrep uptime hostname uname sw_vers lsof id pdftotext pdfinfo od hexdump xxd sips mdls plutil".split(" "));
 const GIT_READ = new Set("ls-remote for-each-ref reflog name-rev symbolic-ref check-ignore cherry pull status diff log show branch rev-parse rev-list worktree add fetch blame ls-files ls-tree grep remote config shortlog describe merge-base cat-file switch restore mv rm".split(" "));
 const GIT_PROTECTED = new Set("commit push merge tag rebase reset stash clean cherry-pick revert am".split(" "));
 const GH_READ = /^gh\s+(pr|issue|run|release|workflow|repo)\s+(view|list|diff|checks|status|watch)\b/;
@@ -77,7 +77,7 @@ function segments(command) {
 }
 
 function words(segment) {
-  let s = segment.replace(/^(\(|\{)\s*/, "");
+  let s = segment.replace(/^(\(|\{)\s*/, "").replace(/^(\d*[<>]&?\S+\s*)+/, "");
   s = s.replace(/^(function\s+)?[A-Za-z_][\w-]*\s*\(\)\s*\{?\s*/, "");
   while (/^(then|do|else|elif|\{|\}|!)\s+/.test(s)) s = s.replace(/^(then|do|else|elif|\{|\}|!)\s+/, "");
   while (/^[A-Za-z_]\w*=("[^"]*"|'[^']*'|\S*)\s+/.test(s)) s = s.replace(/^[A-Za-z_]\w*=("[^"]*"|'[^']*'|\S*)\s+/, "");
@@ -139,6 +139,7 @@ function classifySegment(segment, cwd) {
   }
   if (cmd === "node" && /^node\s+\S*jira-write/.test(rest)) {
     const m = /jira-write(?:\.js)?\s+([\w-]+)\s+([A-Z][A-Z0-9]+-\d+)/.exec(rest);
+    if (/jira-write(?:\.js)?\s+assign\s/.test(rest)) return { kind: "allow" };
     if (m && !/comment|mention/.test(m[1])) return { kind: "protected", key: "jira-write", jiraKey: m[2], label: `${m[1] === "assign" ? "asignarse" : "mover"} ${m[2]} en Jira` };
     return { kind: "protected", key: "jira-write", label: m ? `comentar en ${m[2]} en Jira` : "escribir en Jira" };
   }
@@ -147,6 +148,9 @@ function classifySegment(segment, cwd) {
     if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\//i.test(url + "/")) return { kind: "allow" };
     return { kind: "ask", key: `${cmd} ${url.replace(/^https?:\/\/([^/]+).*/, "$1")}`, label: `${cmd} a ${url.replace(/^https?:\/\/([^/]+).*/, "$1")}` };
   }
+  if (cmd === "defaults" && /^defaults\s+(-currentHost\s+)?read\b/.test(rest)) return { kind: "allow" };
+  if (cmd === "fdesetup" && /^fdesetup\s+(status|list|isactive)\b/.test(rest)) return { kind: "allow" };
+  if (cmd === "launchctl" && /^launchctl\s+(list|print|kickstart\s+-k\s+\S*com\.palc\.)/.test(rest)) return { kind: "allow" };
   if (cmd === "taskkill") return /\/IM\b/i.test(rest) ? { kind: "ask", key: "taskkill /IM", label: "taskkill por nombre (mata los procesos de todas las sesiones)" } : { kind: "allow" };
   if (cmd === "bash" || cmd === "sh") {
     const script = rest.split(/\s+/)[1] || "";
@@ -154,8 +158,10 @@ function classifySegment(segment, cwd) {
     return inRepo(path.resolve(cwd || config.root, script), config.root) || inRepo(path.resolve(cwd || config.root, script), REPO) ? { kind: "allow" } : { kind: "ask", key: `bash ${path.basename(script)}`, label: `bash ${script}` };
   }
   if (cmd === "npm" && /\bnpm\s+publish\b/.test(rest)) return { kind: "ask", key: "npm publish", label: "npm publish" };
+  if (["cat", "head", "tail", "less", "more", "type", "grep", "base64", "cp", "scp"].includes(cmd) && rest.split(/\s+/).some((w) => SECRET_FILE.test(norm(w.replace(/["']/g, ""))))) return { kind: "ask", key: `${cmd} secreto`, label: `${cmd} de un fichero con secretos` };
+  if (cmd === "rm" && /\s-\w*r/.test(rest) && rest.split(/\s+/).slice(1).some((w) => /^(\/|~\/?|[a-z]:[\\/]?|\/[a-z]\/?|\*|\.\.?\/?)$/i.test(w.replace(/["']/g, "")))) return { kind: "ask", key: "rm -r amplio", label: "borrar una carpeta raíz o demasiado amplia" };
   if (READ_WORDS.has(cmd)) return { kind: "allow" };
-  if (raw.startsWith("$") || PS_WORDS.has(cmd) || /^[-)(<>]|[()]/.test(raw)) return { kind: "allow" };
+  if (raw.startsWith("$") || /^[[@.]/.test(raw) || PS_WORDS.has(cmd) || /^[-)(<>]|[()]/.test(raw)) return { kind: "allow" };
   if (cmd === "powershell" || cmd === "pwsh") {
     const m = /-(?:Command|c)\s+("([^"]*)"|'([^']*)'|(.*))$/is.exec(rest);
     const inner = m ? m[2] || m[3] || m[4] || "" : "";
@@ -177,7 +183,7 @@ const WHOLE = { text: "" };
 
 function expandVars(command) {
   const vars = {};
-  for (const m of String(command).matchAll(/(?:^|[;&|\n]\s*)([A-Za-z_]\w*)=("[^"]*"|'[^']*'|[^\s;&|]+)/g)) vars[m[1]] = m[2].replace(/^["']|["']$/g, "");
+  for (const m of String(command).matchAll(/(?:^|[;&|\n]\s*)([A-Za-z_]\w*)=("[^"]*"|'[^']*'|[^\s;&|]+)/g)) if (!/\$\(|`/.test(m[2])) vars[m[1]] = m[2].replace(/^["']|["']$/g, "");
   return String(command).replace(/\$\{?([A-Za-z_]\w*)\}?/g, (all, k) => (k in vars ? vars[k] : all));
 }
 
