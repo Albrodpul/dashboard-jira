@@ -182,11 +182,22 @@ const POST_ROUTES = {
     send(res, 200, { sent: n });
   },
   "/api/cluster/yield": (res, input, send) => {
-    require("./cluster")
-      .handleYield()
+    cluster
+      .handleYield(input)
       .catch(() => {})
       .then(() => send(res, 200));
   },
+  "/api/cluster/take": (res, input, send) =>
+    cluster
+      .takeHere()
+      .then((r) => send(res, r.ok ? 200 : 409, r))
+      .catch((e) => send(res, 500, { error: String(e.message || e) })),
+  "/api/cluster/auto": (res, input, send) => send(res, 200, cluster.backToAuto()),
+  "/api/cluster/command": (res, { target, action }, send) =>
+    cluster
+      .command(target, action)
+      .then((r) => send(res, r.ok ? 200 : 409, r))
+      .catch((e) => send(res, 500, { error: String(e.message || e) })),
   "/api/host/respawned": (res, { conversation }, send) => {
     send(res, 200);
     if (!require("./cluster").isPrimary()) return;
@@ -352,6 +363,13 @@ function handleLocal(req, res, url) {
     if (url.startsWith("/api/permission/perm-")) return serveBody(res, "application/json", JSON.stringify(permissions.poll(url.slice("/api/permission/".length))));
     if (url === "/api/cluster") return serveBody(res, "application/json", JSON.stringify(require("./cluster").info()));
     if (url === "/api/cluster/snapshot") return serveBody(res, "application/json", JSON.stringify(require("./cluster").snapshot()));
+    if (url === "/api/cluster/machines") {
+      cluster
+        .machines()
+        .then((v) => serveBody(res, "application/json", JSON.stringify(v)))
+        .catch((e) => serveBody(res, "application/json", JSON.stringify({ error: String(e.message || e) })));
+      return;
+    }
     if (url === "/api/cluster/transcripts") return serveBody(res, "application/json", JSON.stringify(cluster.transcripts()));
     if (url.startsWith("/api/cluster/transcript/")) {
       const part = cluster.serveTranscript(url.slice("/api/cluster/transcript/".length), Number(new URLSearchParams(req.url.split("?")[1] || "").get("from")) || 0);
