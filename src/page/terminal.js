@@ -54,7 +54,7 @@ function createPanel(conversation, name, onClose) {
     h("button", { type: "button", title: "Bajar (Av Pág)", "aria-label": "Bajar", text: "⇟", onclick: () => panel.send("[6~") }),
     h("button", { type: "button", title: "Ir al final (Ctrl+Fin)", "aria-label": "Ir al final", text: "⤓", onclick: () => panel.send("[1;5F") }),
   ]);
-  const root = h("div", { class: "term-panel" }, [h("div", { class: "term-head" }, head), h("div", { class: "term-wrap" }, [screen, scrollBtns]), keys, h("div", { class: "term-compose" }, [input, sendBtn, mentions(input)])]);
+  const root = h("div", { class: "term-panel" }, [h("div", { class: "term-head" }, head), h("div", { class: "term-wrap" }, [screen, scrollBtns]), keys, h("div", { class: "term-compose" }, [attachButton(input), input, sendBtn, mentions(input)])]);
   const panel = { root, conversation, ws: null, term: null, fit: null, closed: false };
   root.addEventListener("pointerdown", () => setTimeout(() => panel.claim("clic"), 50));
 
@@ -153,6 +153,54 @@ function createPanel(conversation, name, onClose) {
     () => toast("No se pudo cargar el visor de terminal.")
   );
   return panel;
+}
+
+function insertAtCaret(input, text) {
+  const at = input.selectionStart ?? input.value.length;
+  const before = input.value.slice(0, at);
+  const pad = before && !/s$/.test(before) ? " " : "";
+  input.value = before + pad + text + input.value.slice(input.selectionEnd ?? at);
+  input.selectionStart = input.selectionEnd = at + pad.length + text.length;
+  input.focus();
+}
+
+function uploadFiles(input, files) {
+  const list = [...files].filter(Boolean);
+  if (!list.length) return;
+  toast(list.length === 1 ? "Subiendo el fichero…" : `Subiendo ${list.length} ficheros…`);
+  list
+    .reduce(
+      (chain, file, i) =>
+        chain.then(() =>
+          fetch("/api/upload", { method: "POST", headers: { "content-type": "application/octet-stream", "x-file-name": encodeURIComponent(file.name || `captura-${i + 1}.png`) }, body: file })
+            .then((r) => (r.ok ? r.json() : Promise.reject(new Error(r.status === 413 ? "pasa de 25 MB" : `error ${r.status}`))))
+            .then((d) => insertAtCaret(input, `@${d.path} `))
+        ),
+      Promise.resolve()
+    )
+    .catch((e) => toast(`No se pudo subir: ${e.message}`));
+}
+
+function attachButton(input) {
+  const picker = h("input", { type: "file", multiple: true, hidden: true });
+  picker.addEventListener("change", () => {
+    uploadFiles(input, picker.files);
+    picker.value = "";
+  });
+  input.addEventListener("paste", (e) => {
+    const files = [...((e.clipboardData && e.clipboardData.files) || [])];
+    if (!files.length) return;
+    e.preventDefault();
+    uploadFiles(input, files);
+  });
+  input.addEventListener("dragover", (e) => e.preventDefault());
+  input.addEventListener("drop", (e) => {
+    if (!e.dataTransfer || !e.dataTransfer.files.length) return;
+    e.preventDefault();
+    uploadFiles(input, e.dataTransfer.files);
+  });
+  const b = h("button", { class: "btn term-attach", type: "button", title: "Adjuntar ficheros o imágenes (también puedes pegarlos o arrastrarlos al cuadro)", "aria-label": "Adjuntar", text: "📎", onclick: () => picker.click() });
+  return h("span", { class: "term-attach-wrap" }, [b, picker]);
 }
 
 const MENTION = /(^|\s)@([^\s@]{1,80})$/;
