@@ -98,6 +98,12 @@ function handleBatch(res, { items }, send) {
 }
 
 function markDeleted(d, k) {
+  const t = d.tasks[k];
+  if (t && t.sentAt) {
+    try {
+      require("fs").appendFileSync(require("path").join(require("./data").DATA_DIR, "task-history.jsonl"), JSON.stringify({ key: t.key, title: t.title, epicName: t.epicName || null, kind: t.kind || null, status: t.status, sentAt: t.sentAt, area: t.area || null, removedAt: now() }) + "\n");
+    } catch (e) {}
+  }
   delete d.tasks[k];
   d.deleted = d.deleted || {};
   d.deleted[k] = now();
