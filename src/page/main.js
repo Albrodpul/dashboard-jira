@@ -13,8 +13,8 @@ import { renderMachines } from "./machines.js";
 const TASK_TABS = [
   { id: "pending", label: "Pendientes" },
   { id: "approved", label: "Por enviar" },
-  { id: "sent", label: "En curso" },
   { id: "waiting", label: "Te esperan" },
+  { id: "sent", label: "En curso" },
   { id: "done", label: "Hechas" },
   { id: "ignored", label: "Ignoradas" },
 ];
