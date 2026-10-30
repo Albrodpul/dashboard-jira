@@ -26,6 +26,9 @@ export function h(tag, attrs = {}, children = []) {
     else if (k.startsWith("on")) el.addEventListener(k.slice(2), v);
     else if (v !== false && v != null) el.setAttribute(k, v);
   }
+  if (tag === "textarea" || (tag === "input" && ["text", "search"].includes(attrs.type || "text"))) {
+    for (const [k, v] of [["autocorrect", "off"], ["autocapitalize", "off"], ["spellcheck", "false"]]) if (!el.hasAttribute(k)) el.setAttribute(k, v);
+  }
   for (const c of children) if (c) el.appendChild(typeof c === "string" ? document.createTextNode(c) : c);
   return el;
 }
