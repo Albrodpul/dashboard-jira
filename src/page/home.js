@@ -98,22 +98,49 @@ export function shortcuts(root) {
 
 let dailyAsked = null;
 
-const dailyLines = (text) => {
-  const lines = String(text).split("\n").map((l) => l.trim()).filter(Boolean);
-  const items = lines.filter((l) => /^[-•*]\s+/.test(l)).map((l) => l.replace(/^[-•*]\s+/, ""));
-  return { title: lines.find((l) => !/^[-•*]\s+/.test(l)) || "", items };
-};
+function dailyLines(text) {
+  const raw = String(text).split("\n");
+  const title = (raw.find((l) => l.trim()) || "").trim();
+  const items = [];
+  let group = null;
+  let sub = null;
+  const section = (t) => /:$/.test(t) && t.split(/\s+/).length <= 3;
+  for (const line of raw.slice(raw.findIndex((l) => l.trim()) + 1)) {
+    if (!line.trim()) {
+      if (sub) sub = null;
+      else group = null;
+      continue;
+    }
+    const t = line.trim().replace(/^[-•*◦]\s+/, "");
+    const node = { text: t, children: [] };
+    if (group && section(t)) {
+      sub = node;
+      group.children.push(node);
+    } else if (/:$/.test(t)) {
+      items.push(node);
+      group = node;
+      sub = null;
+    } else if (sub) sub.children.push(node);
+    else if (group) group.children.push(node);
+    else items.push(node);
+  }
+  return { title, items };
+}
+
+const toHtml = (list, esc) => `<ul>${list.map((i) => `<li>${esc(i.text)}${i.children.length ? toHtml(i.children, esc) : ""}</li>`).join("")}</ul>`;
+const toPlain = (list, depth) => list.flatMap((i) => [`${"    ".repeat(depth)}${depth ? "◦" : "•"} ${i.text}`, ...toPlain(i.children, depth + 1)]);
+const toNodes = (list) => h("ul", {}, list.map((i) => h("li", {}, [i.text, i.children.length ? toNodes(i.children) : null])));
 
 function dailyBody(text) {
   const { title, items } = dailyLines(text);
-  return h("div", { class: "daily-text" }, [title ? h("p", { text: title }) : null, h("ul", {}, items.map((i) => h("li", { text: i })))]);
+  return h("div", { class: "daily-text" }, [title ? h("p", { text: title }) : null, toNodes(items)]);
 }
 
 function copyDaily(text) {
   const { title, items } = dailyLines(text);
   const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  const html = `${title ? `<p>${esc(title)}</p>` : ""}<ul>${items.map((i) => `<li>${esc(i)}</li>`).join("")}</ul>`;
-  const plain = [title, ...items.map((i) => `• ${i}`)].filter(Boolean).join("\n");
+  const html = `${title ? `<p>${esc(title)}</p>` : ""}${toHtml(items, esc)}`;
+  const plain = [title, ...toPlain(items, 0)].filter(Boolean).join("\n");
   const done = () => toast("Copiado.");
   if (window.ClipboardItem && navigator.clipboard.write)
     return navigator.clipboard
