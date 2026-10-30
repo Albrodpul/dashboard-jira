@@ -5,7 +5,7 @@ const config = require("./config");
 const { DATA_DIR, BASE_URL } = require("./data");
 
 const FILE = path.join(DATA_DIR, "smoke.json");
-const VIEWS = ["home", "pending", "approved", "sent", "waiting", "done", "ignored", "find", "projects", "deploy", "sentry", "context", "follow-up", "learning", "sessions", "epics", "machines"];
+const VIEWS = ["home", "pending", "approved", "sent", "waiting", "done", "ignored", "find", "projects", "deploy", "sentry", "context", "follow-up", "learning", "sessions", "machines"];
 const PHONE_VIEWS = ["today", "pending", "more"];
 
 const head = () => {
