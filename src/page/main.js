@@ -1,6 +1,6 @@
 import { state, h, post, switchView, setRender, setRefresh, empty, reviewer } from "./base.js";
 import { renderTasks, renderToday, renderBoard } from "./tasks.js";
-import { renderSessions, renderEpics } from "./sessions.js";
+import { renderSessions } from "./sessions.js";
 import { renderDeploy, renderTalk, renderContext, renderFollowUp } from "./operations.js";
 import { renderReport, updateStamp, mountHeader, quotaBlock } from "./report.js";
 import { renderHome, sessionStrip, shortcuts, dailyCard } from "./home.js";
@@ -8,7 +8,6 @@ import { renderLearning } from "./learning.js";
 import { renderSentry } from "./sentry.js";
 import { renderProjects } from "./projects.js";
 import { renderFind, searchBox } from "./find.js";
-import { renderSessionsNew } from "./sessions2.js";
 import { renderMachines } from "./machines.js";
 
 const TASK_TABS = [
@@ -47,9 +46,7 @@ const GROUPS = [
   [
     "Configurar",
     [
-      { id: "sessions-new", label: "Sesiones (nuevo)" },
       { id: "sessions", label: "Sesiones" },
-      { id: "epics", label: "Epics" },
       { id: "machines", label: "Equipos" },
     ],
   ],
@@ -64,9 +61,7 @@ const VIEWS = {
   done: ["Hechas", "La sesión dice que ha terminado: pendientes de que tú las revises. En Jira siguen «En curso»."],
   ignored: ["Ignoradas", "Descartadas con Ignorar. Se pueden recuperar."],
   deploy: ["Desplegar", "Sube proyectos a develop, a producción o a los dos. La orden sale de aquí hacia la sesión que despliega; nada se sube hasta que pulsas Desplegar."],
-  "sessions-new": ["Sesiones", "Propuesta: sesiones y epics en una sola página. Las fijas, abajo."],
-  sessions: ["Sesiones", "Las sesiones que pueden recibir tareas, con el nombre que les pones tú."],
-  epics: ["Epics", "Qué sesión lleva cada epic."],
+  sessions: ["Sesiones", "Qué sesión lleva cada epic y en qué está cada una. Las dormidas se despiertan solas cuando les llega algo."],
   machines: ["Equipos", "Los ordenadores de tu Tailscale, cuál manda y desde cuándo. Puedes pasar el mando a mano."],
   find: ["Buscar", "Lo que coincide en las tareas del tablero, en las sesiones y en Jira. Lo de Jira se puede traer a Pendientes."],
   today: ["Hoy", "Lo que necesita algo de ti ahora mismo y, debajo, el último reporte."],
@@ -81,9 +76,7 @@ const NON_TASK_VIEWS = {
   learning: renderLearning,
   home: renderHome,
   sessions: renderSessions,
-  epics: renderEpics,
   find: renderFind,
-  "sessions-new": renderSessionsNew,
   machines: renderMachines,
   deploy: renderDeploy,
   sentry: renderSentry,
@@ -106,7 +99,7 @@ const BOTTOM_BAR = [
 ];
 const MOBILE = window.matchMedia("(max-width: 760px)");
 const isTaskTab = (tab) => TASK_TABS.some((t) => t.id === tab);
-const tabOf = (status) => (status === "partial" ? "waiting" : status === "jira" ? "find" : status);
+const tabOf = (status) => (status === "partial" ? "waiting" : status === "jira" ? "find" : status === "epics" || status === "sessions-new" ? "sessions" : status);
 
 try {
   const saved = localStorage.getItem("board-tab");
@@ -282,7 +275,7 @@ function render() {
   (NON_TASK_VIEWS[state.tab] || renderTasks)(root);
 }
 
-const FIELDS = ["cluster", "daily", "sessions", "aliases", "reporterRoute", "reporterStatus", "boardStatus", "orchestrator", "epics", "allEpics", "reports", "lastReview", "config", "followUps", "sentry", "permissions", "hosted", "contextSync", "contextTidy", "messages", "tidyBlockers", "lastContextPass", "followUpStatus", "refreshRequest", "deployments", "deployerArea", "quota", "people", "jiraSetup", "voice", "speech", "deployStatus"];
+const FIELDS = ["cluster", "daily", "sessionProfiles", "sessions", "aliases", "reporterRoute", "reporterStatus", "boardStatus", "orchestrator", "epics", "allEpics", "reports", "lastReview", "config", "followUps", "sentry", "permissions", "hosted", "contextSync", "contextTidy", "messages", "tidyBlockers", "lastContextPass", "followUpStatus", "refreshRequest", "deployments", "deployerArea", "quota", "people", "jiraSetup", "voice", "speech", "deployStatus"];
 const withoutReadTime = (d) => JSON.stringify(d, (k, v) => (k === "syncedAt" ? undefined : v));
 const editing = () => {
   const a = document.activeElement;

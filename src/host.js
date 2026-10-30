@@ -57,7 +57,7 @@ function serve() {
     s.stopping = false;
     s.startedAt = new Date().toISOString();
     s.dialogMark = s.buffer.length;
-    const args = [...(entry.fresh ? ["--session-id", entry.conversation] : ["--resume", entry.conversation]), "-n", entry.name, "--permission-mode", PERMISSION_MODE];
+    const args = [...(entry.fresh ? ["--session-id", entry.conversation] : ["--resume", entry.conversation]), "-n", entry.name, "--permission-mode", PERMISSION_MODE, ...require("./profiles").profileArgs(entry.conversation)];
     if (entry.fresh) {
       const list = readConfig();
       const e = list.find((x) => x.conversation === entry.conversation);

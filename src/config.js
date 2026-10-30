@@ -111,6 +111,7 @@ module.exports = {
   deployProjects: deployTargets.map((t) => t.id),
   deployTargets,
   sessionModel: c.sessionModel || "claude-opus-5-5",
+  sessionProfiles: c.sessionProfiles || null,
   contextDomains: path.join(root, c.contextDomains || "context/dominios"),
   forPage: () => ({
     jiraUrl: `https://${process.env.JIRA_SITE || ""}/browse/`,

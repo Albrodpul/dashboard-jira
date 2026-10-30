@@ -1,9 +1,5 @@
-import { state, h, button, when, toast, requestOrFail, post, areaName, taskAreaSelect, areaSelectFrom, render, refresh, empty, ticketUrl, exampleKey } from "./base.js";
-
-let showClosed = true;
-try {
-  showClosed = localStorage.getItem("board-show-closed") !== "0";
-} catch (e) {}
+import { state, h, button, toast, requestOrFail, post, areaName, taskAreaSelect, refresh, empty, ticketUrl } from "./base.js";
+import { openTalk } from "./operations.js";
 
 export function createSession(name, epic, btn) {
   const clean = String(name || "").trim();
@@ -20,7 +16,7 @@ export function createSession(name, epic, btn) {
   return requestOrFail("/api/new-session", { title: clean, epicKey: epic ? epic.key : undefined, epicName: epic ? epic.name : undefined })
     .then((d) => {
       created = d.area;
-      toast(d.open ? `Sesión «${clean}» creada y en marcha.` : `Sesión «${clean}» creada, pero todavía no ha arrancado. Ábrela desde su tarjeta.`);
+      toast(d.open ? `Sesión «${clean}» creada y en marcha.` : `Sesión «${clean}» creada, pero todavía no ha arrancado. Ábrela desde su fila.`);
     })
     .catch(() => toast("No se pudo crear la sesión."))
     .then(() => {
@@ -33,91 +29,33 @@ export function createSession(name, epic, btn) {
     .then(() => created);
 }
 
-const freeEpics = () => state.epics.filter((e) => !e.area).sort((a, b) => a.key.localeCompare(b.key, "es", { numeric: true }));
-
-function nameField(r) {
-  const input = h("input", { class: "session-name", type: "text", id: `name-${r.id}`, maxlength: "60", placeholder: r.vsCodeTitle || "Ponle un nombre", value: r.unnamed ? "" : r.name, "aria-label": `Nombre de la sesión ${r.sessionName || r.name}` });
-  input.addEventListener("change", () => {
-    const v = input.value.trim();
-    if (!v) {
-      toast("El nombre no puede quedar vacío.");
-      return refresh(true);
-    }
-    const body = { name: r.sessionName || r.name, ref: r.ref || "", title: v, conversation: r.conversation };
-    if (!r.unnamed) body.areaId = r.id;
-    post("/api/session", body, "Nombre guardado.");
-  });
-  input.addEventListener("keydown", (e) => e.key === "Enter" && input.blur());
-  input.addEventListener("blur", () => setTimeout(() => refresh(true), 50));
-  return input;
-}
-
-const FIXED_NOTES = {
-  deploy: "Recibe los despliegues que ordenas en la pestaña Desplegar.",
-  errors: "Recibe los errores de Sentry y los posibles errores del seguimiento que envías.",
-  followUp: "Mira cada hora lo que ha hecho Enric en beta y lo publica en Seguimiento.",
-};
-
-function roleChip(r) {
-  if (r.fixedRole === "deploy") return h("span", { class: "chip prod", text: "Despliega" });
-  if (r.fixedRole === "errors") return h("span", { class: "chip waiting", text: "Errores" });
-  if (r.fixedRole === "followUp") return h("span", { class: "chip new", text: "Seguimiento" });
-  if (r.isOrchestrator) {
-    const watching = r.open && state.orchestrator.watching;
-    return h("span", { class: `chip ${watching ? "sent" : "returned"}`, text: !r.open ? "Orquesta · cerrada" : watching ? "Orquesta" : "Orquesta · sin vigilar" });
-  }
-  if (r.isBoard) return h("span", { class: `chip ${r.open && state.boardStatus.watching ? "sent" : "returned"}`, text: !r.open ? "Tablero · cerrada" : state.boardStatus.watching ? "Tablero" : "Tablero · sin vigilar" });
-  if (r.isSystem) return h("span", { class: "chip new", text: "Reporte" });
-  if (r.id === state.deployerArea) return h("span", { class: "chip prod", text: "Despliega" });
-
-  return null;
-}
-
-function sessionBody(r, keys) {
-  if (r.fixedRole) return h("p", { class: "session-note", text: FIXED_NOTES[r.fixedRole] });
-  if (r.isSystem) return h("p", { class: "session-note", text: r.isOrchestrator ? "Envía a cada sesión las tareas y los despliegues que apruebas, y guarda lo que contestan." : r.isBoard ? "Atiende lo que le pides sobre el propio tablero: mejoras, fallos y rediseños. No recibe tareas de Jira." : "Lee Jira cada 5 minutos, publica el reporte y deja las tarjetas." });
-  if (r.unnamed) {
-    const note = h("p", { class: "session-note", text: r.vsCodeTitle ? `Se llama «${r.vsCodeTitle}». Escribe un nombre arriba para poder darle epics.` : "Escribe un nombre arriba para poder darle epics." });
-    if (!r.vsCodeTitle) return note;
-    const use = button(`Usar «${r.vsCodeTitle}»`, {
-      onClick: (b) => {
-        b.disabled = true;
-        post("/api/session", { name: r.sessionName, ref: r.ref || "", title: r.vsCodeTitle, conversation: r.conversation }, "Nombre guardado.");
-      },
-    });
-    return h("div", { class: "session-body" }, [note, h("div", {}, [use])]);
-  }
-  const chips = keys.map((k) => {
-    const x = h("button", { class: "epic-x", type: "button", title: `Quitar ${k} de esta sesión`, "aria-label": `Quitar ${k} ${r.epics[k]} de ${r.name}`, text: "×" });
-    x.addEventListener("click", () => {
-      x.disabled = true;
-      post("/api/epic", { key: k, name: r.epics[k], area: "" }, `${k} ya no tiene sesión.`);
-    });
-    return h("span", { class: "epic-chip", title: r.epics[k] }, [h("b", { text: k }), h("span", { class: "epic-name", text: r.epics[k] }), x]);
-  });
-  const free = freeEpics();
-  if (free.length) {
-    const add = h("select", { class: "epic-add", id: `add-${r.id}`, "aria-label": `Añadir un epic a ${r.name}` }, [h("option", { value: "", text: "+ Epic…" })]);
-    free.forEach((e) => add.appendChild(h("option", { value: e.key, text: `${e.key} ${e.name}` })));
-    add.addEventListener("change", () => {
-      const e = free.find((y) => y.key === add.value);
-      if (e) post("/api/epic", { key: e.key, name: e.name, area: r.id }, `${e.key} va a la sesión «${r.name}».`);
-    });
-    chips.push(add);
-  }
-  return h("div", { class: "session-body" }, [
-    chips.length ? h("div", { class: "epic-chips" }, chips) : null,
-    keys.length ? null : h("p", { class: "session-note", text: r.id === state.deployerArea ? "Recibe los despliegues de la pestaña Desplegar." : "Sin epics todavía: no recibe tareas." }),
-  ]);
-}
-
 export const hostedOf = (conversation) => (state.hosted || []).find((x) => x.conversation === conversation) || null;
+
+let epicQuery = "";
+const freeEpics = () => state.epics.filter((e) => !e.area).sort((a, b) => a.key.localeCompare(b.key, "es", { numeric: true }));
+const liveOf = (conversation) => ((state.sessions && state.sessions.list) || []).find((s) => s.conversation === conversation) || null;
+
+const EFFORT = { low: "bajo", medium: "medio", high: "alto", xhigh: "muy alto", max: "máximo" };
+
+function profileText(role) {
+  const p = (state.sessionProfiles || {})[role];
+  if (!p) return "";
+  const model = String(p.model || "").replace(/^claude-/, "").split("-")[0];
+  return `${model.charAt(0).toUpperCase()}${model.slice(1)} · esfuerzo ${EFFORT[p.effort] || p.effort}`;
+}
+
+function statusOf(conversation) {
+  const live = liveOf(conversation);
+  if (!live) return { dot: "off", text: "Dormida" };
+  if (live.status === "busy") return { dot: "busy", text: "Trabajando" };
+  return { dot: "on", text: "Abierta" };
+}
 
 function hostAction(action, conversation, name, b, okText) {
   if (b) b.disabled = true;
   return requestOrFail("/api/host/action", { action, conversation, name })
-    .then((r) => {
-      toast(r && r.waiting ? `Cierra la pestaña de «${name}» en VS Code: en cuanto la cierres, sigue aquí en el tablero.` : r && r.adopted ? `«${name}» vive ahora en el tablero: se abre aquí cuando le llegue una tarea o pulses Abrir.` : okText);
+    .then(() => {
+      toast(okText);
       return refresh(true);
     })
     .catch((e) => {
@@ -126,185 +64,148 @@ function hostAction(action, conversation, name, b, okText) {
     });
 }
 
-export function hostButtons(conversation, name, open) {
-  if (!/^[0-9a-f-]{36}$/.test(conversation || "")) return [];
-  const hosted = hostedOf(conversation);
-  if (hosted && hosted.waitingForVsCode)
-    return [h("span", { class: "meta", text: "Cierra su pestaña en VS Code para que siga aquí" }), button("Cancelar", { cls: "subtle", onClick: (b) => hostAction("back", conversation, name, b, "Se queda en VS Code.") })];
-  if (hosted && !open) return [button("Abrir en el tablero", { cls: "primary", title: "Arranca la sesión en el tablero, con su conversación", onClick: (b) => hostAction("open", conversation, name, b, "Abriendo la sesión en el tablero…") }), button("Devolver a VS Code", { cls: "subtle", onClick: (b) => hostAction("back", conversation, name, b, "Vuelve a VS Code.") })];
-  if (hosted)
-    return [
-      button("Ver en directo", { cls: "primary", onClick: () => import("./terminal.js").then((m) => m.openTerminal(conversation, name)) }),
-      button("Reiniciar", { cls: "subtle", title: "Cierra y vuelve a abrir la sesión en el tablero, con su conversación", onClick: (b) => window.confirm(`¿Reiniciar «${name}»? Si está a mitad de algo, se corta.`) && hostAction("restart", conversation, name, b, "Reiniciando la sesión…") }),
-      button("Devolver a VS Code", { cls: "subtle", onClick: (b) => window.confirm(`¿Devolver «${name}» a VS Code? Se cierra aquí y se abre su pestaña allí.`) && hostAction("back", conversation, name, b, "Vuelve a VS Code.") }),
-    ];
-  return [button("Llevar al tablero", { title: "La sesión pasa a funcionar dentro del tablero: la ves en directo desde aquí o el móvil sin VS Code", onClick: (b) => hostAction("move", conversation, name, b, "Ya funciona en el tablero.") })];
+function nameInput(a) {
+  const input = h("input", { class: "srow-name", type: "text", maxlength: "60", value: a.name, "aria-label": `Nombre de ${a.name}` });
+  input.addEventListener("change", () => {
+    const v = input.value.trim();
+    if (!v) {
+      toast("El nombre no puede quedar vacío.");
+      return refresh(true);
+    }
+    post("/api/session", { name: a.sessionName || a.name, ref: a.ref || "", title: v, conversation: a.conversation, areaId: a.id }, "Nombre guardado.");
+  });
+  input.addEventListener("keydown", (e) => e.key === "Enter" && input.blur());
+  return input;
 }
 
-function sessionCard(r, byConversation, openUnnamed) {
-  const s = byConversation[r.conversation || r.sessionName];
-  const busy = r.open && s && s.status === "busy";
-  const keys = Object.keys(r.epics || {});
-  const system = !!r.isSystem;
-  const situation = !r.open ? "Cerrada" : busy ? "Trabajando" : "Abierta";
-  const head = [
-    h("span", { class: `dot ${!r.open ? "off" : busy ? "busy" : "on"}`, title: situation }),
-    system ? h("span", { class: "session-title", text: r.isOrchestrator || r.isBoard || r.fixedRole ? r.name : "Reporte de Jira" }) : nameField(r),
-    roleChip(r),
-    hostedOf(r.conversation) ? h("span", { class: "chip host-chip", text: "En el tablero" }) : null,
-  ];
-  const since = s ? `desde ${when(s.started)}` : r.since && r.open ? `desde ${when(r.since)}` : null;
-  const actions = [];
-  if (!system && !r.open && keys.length && openUnnamed.length) {
-    const options = openUnnamed.map((o) => {
-      const live = byConversation[o.conversation || o.sessionName];
-      return { id: o.id, name: (o.vsCodeTitle || o.sessionName) + (live ? ` (desde ${when(live.started)})` : ""), open: true, ref: o.ref, sessionName: o.sessionName };
+function epicChips(a) {
+  const keys = Object.keys(a.epics || {}).sort();
+  const chips = keys.map((k) => {
+    const x = h("button", { class: "epic-x", type: "button", title: `Quitar ${k} de esta sesión`, "aria-label": `Quitar ${k} de ${a.name}`, text: "×" });
+    x.addEventListener("click", () => {
+      x.disabled = true;
+      post("/api/epic", { key: k, name: a.epics[k], area: "" }, `${k} ya no tiene sesión.`);
     });
-    actions.push(
-      areaSelectFrom(options, `mv-${r.id}`, "", "Pasar sus epics a…", (v) => {
-        if (!v) return;
-        const target = openUnnamed.find((a) => a.id === v);
-        post("/api/session", { name: target.sessionName, ref: target.ref || "", area: r.id, conversation: target.conversation }, `Los epics de «${r.name}» pasan a la sesión ${target.sessionName}.`);
-      })
-    );
+    return h("span", { class: "epic-chip", title: a.epics[k] }, [h("b", { text: k }), h("span", { class: "epic-name", text: a.epics[k] }), x]);
+  });
+  const free = freeEpics();
+  if (free.length) {
+    const add = h("select", { class: "srow-add", "aria-label": `Añadir un epic a ${a.name}` }, [h("option", { value: "", text: "+" })]);
+    free.forEach((e) => add.appendChild(h("option", { value: e.key, text: `${e.key} ${e.name}` })));
+    add.addEventListener("change", () => {
+      const e = free.find((y) => y.key === add.value);
+      if (e) post("/api/epic", { key: e.key, name: e.name, area: a.id }, `${e.key} va a la sesión «${a.name}».`);
+    });
+    chips.push(add);
   }
-  if (!system && !r.unnamed && !r.fixedRole && !keys.length && r.id !== state.deployerArea) {
-    actions.push(
+  if (!keys.length) chips.unshift(h("span", { class: "meta", text: "Sin epics" }));
+  return h("div", { class: "srow-epics" }, chips);
+}
+
+function actions(a, fixed) {
+  const out = [];
+  const conv = a.conversation;
+  const hosted = conv && hostedOf(conv);
+  const live = conv && liveOf(conv);
+  if (hosted) out.push(button("Hablar", { onClick: () => openTalk(conv) }));
+  if (hosted && !live) out.push(button("Abrir", { cls: "subtle", onClick: (b) => hostAction("open", conv, a.sessionName || a.name, b, `Abriendo «${a.name}»…`) }));
+  if (hosted && live && !fixed) out.push(button("Dormir", { cls: "subtle", title: "La cierra; se despierta sola cuando le llegue algo", onClick: (b) => hostAction("sleep", conv, a.sessionName || a.name, b, `«${a.name}» dormida.`) }));
+  if (!fixed && !Object.keys(a.epics || {}).length)
+    out.push(
       button("Quitar", {
         cls: "subtle",
-        title: "La quita del tablero. La conversación no se borra.",
+        title: "La quita del tablero; su conversación no se borra",
         onClick: (b) => {
-          if (!window.confirm(`¿Quitar «${r.name}» del tablero?\n\nLa conversación no se borra; solo deja de salir aquí con ese nombre.`)) return;
+          if (!window.confirm(`¿Quitar «${a.name}» del tablero? Su conversación no se borra.`)) return;
           b.disabled = true;
-          post("/api/session", { name: r.sessionName || r.name, areaId: r.id, remove: true }, `«${r.name}» quitada del tablero.`);
+          post("/api/session", { name: a.sessionName || a.name, areaId: a.id, remove: true }, `«${a.name}» quitada del tablero.`);
         },
       })
     );
-  }
-  const hostName = (s && s.name) || r.sessionName || r.name;
-  if (r.conversation && !r.unnamed) actions.push(...hostButtons(r.conversation, hostName, r.open));
-  if (r.conversation && !hostedOf(r.conversation) && (!system || r.isOrchestrator || r.isBoard)) actions.push(h("a", { class: "btn link", href: `vscode://anthropic.claude-code/open?session=${encodeURIComponent(r.conversation)}`, text: r.open ? "Ir a su pestaña" : "Abrir en VS Code" }));
-  const footer = [h("span", { class: "meta session-auto", text: [r.sessionName || null, since, situation].filter(Boolean).join(" · ") }), h("span", { class: "session-actions" }, actions)];
-  return h("article", { class: `session${r.open ? "" : " off"}${r.unnamed ? " anon" : ""}` }, [h("div", { class: "session-top" }, head), sessionBody(r, keys), h("div", { class: "session-footer" }, footer)]);
+  return h("div", { class: "srow-actions" }, out);
 }
 
-function section(root, title, note, cards) {
-  if (!cards.length) return;
-  const head = h("div", { class: "group-head" }, [h("span", { class: "group-name", text: title }), h("span", { class: "group-key", text: String(cards.length) }), note ? h("span", { class: "meta", text: note }) : null]);
-  root.appendChild(h("section", {}, [head, h("div", { class: "session-grid" }, cards)]));
+function row(a) {
+  const st = a.conversation ? statusOf(a.conversation) : { dot: "off", text: "Sin conversación" };
+  return h("div", { class: "srow" }, [h("span", { class: `dot ${st.dot}`, title: st.text }), nameInput(a), epicChips(a), actions(a, false)]);
 }
 
-function newSessionBar(root, openCount, total) {
-  const name = h("input", { type: "text", id: "new-session", maxlength: "60", placeholder: "Nombre de la sesión nueva", "aria-label": "Nombre de la sesión nueva" });
-  const create = button("Crear", { cls: "primary", onClick: (b) => createSession(name.value, null, b) });
-  name.addEventListener("keydown", (e) => e.key === "Enter" && create.click());
-  const toggle = h("input", { type: "checkbox", id: "show-closed" });
-  toggle.checked = showClosed;
-  toggle.addEventListener("change", () => {
-    showClosed = toggle.checked;
-    try {
-      localStorage.setItem("board-show-closed", showClosed ? "1" : "0");
-    } catch (e) {}
-    render();
+function fixedRow(name, role, conversation, note, profile) {
+  const st = conversation ? statusOf(conversation) : { dot: "off", text: "Sin registrar" };
+  note = [note, profileText(profile)].filter(Boolean).join(" · ");
+  const a = { name, conversation, epics: {} };
+  return h("div", { class: "srow fixed" }, [h("span", { class: `dot ${st.dot}`, title: st.text }), h("strong", { class: "srow-title", text: name }), h("span", { class: "meta srow-note", text: `${role} · ${st.text.toLowerCase()}${note ? ` · ${note}` : ""}` }), actions(a, true)]);
+}
+
+function epicRow(e) {
+  const sel = taskAreaSelect(`ep2-${e.key}`, e.area || "", "Sin sesión", (v) => post("/api/epic", { key: e.key, name: e.name, area: v }, v ? `${e.key} va a la sesión «${areaName(v)}».` : `${e.key} ya no tiene sesión.`));
+  const create = e.area ? null : button("Sesión nueva", { cls: "subtle", onClick: (b) => { const n = window.prompt(`Nombre de la sesión nueva para ${e.key} ${e.name}`, e.name); if (n) createSession(n, e, b); } });
+  return h("div", { class: "erow" }, [h("a", { class: "key jira-link", href: ticketUrl(e.key), target: "_blank", rel: "noopener noreferrer", text: e.key }), h("span", { class: "erow-name", text: e.name }), sel, create]);
+}
+
+function head(title, n, note) {
+  return h("div", { class: "group-head" }, [h("span", { class: "group-name", text: title }), n === null ? null : h("span", { class: "group-key", text: String(n) }), note ? h("span", { class: "meta", text: note }) : null]);
+}
+
+function epicSearch(root) {
+  const box = h("div", { class: "erows" });
+  const paint = () => {
+    box.textContent = "";
+    const q = epicQuery.trim().toLowerCase();
+    if (!q) return;
+    const byKey = {};
+    for (const e of state.allEpics || []) byKey[e.key] = e;
+    for (const e of state.epics) byKey[e.key] = e;
+    const list = Object.values(byKey).filter((e) => `${e.key} ${e.name}`.toLowerCase().includes(q)).slice(0, 20);
+    if (!list.length) return box.appendChild(h("p", { class: "meta", text: "Ningún epic coincide." }));
+    list.forEach((e) => box.appendChild(epicRow(e)));
+  };
+  const input = h("input", { type: "search", class: "find-input", placeholder: `Buscar un epic de Jira para darle sesión (${(state.allEpics || []).length} abiertos)`, value: epicQuery, "aria-label": "Buscar epic" });
+  input.addEventListener("input", () => {
+    epicQuery = input.value;
+    paint();
   });
-  root.appendChild(h("div", { class: "toolbar new-session" }, [name, create, h("span", { class: "meta session-count", text: `${openCount} de ${total} abiertas` }), h("label", { class: "checkbox", for: "show-closed" }, [toggle, "Ver las cerradas"])]));
+  root.appendChild(input);
+  root.appendChild(box);
+  paint();
 }
 
 export function renderSessions(root) {
-  const byConversation = {};
-  for (const s of state.sessions.list || []) byConversation[s.conversation || s.name] = s;
-  const openUnnamed = state.areas.filter((a) => a.open && a.unnamed);
-  const followUpConversation = state.followUpStatus && state.followUpStatus.conversation;
-  const fixedAreas = new Set([state.deployerArea, state.sentry && state.sentry.errorsArea].filter(Boolean));
-  const isFixedArea = (a) => fixedAreas.has(a.id) || (followUpConversation && a.conversation === followUpConversation);
-  const named = state.areas.filter((a) => !a.unnamed && !isFixedArea(a));
-  newSessionBar(root, named.filter((a) => a.open).length, named.length);
+  const nameBox = h("input", { type: "text", class: "find-input", maxlength: "60", placeholder: "Nombre de una sesión nueva", "aria-label": "Nombre de la sesión nueva" });
+  const create = button("Crear sesión", { cls: "primary", onClick: (b) => nameBox.value.trim() && createSession(nameBox.value.trim(), null, b) });
+  nameBox.addEventListener("keydown", (e) => e.key === "Enter" && create.click());
+  root.appendChild(h("div", { class: "s2-toolbar" }, [nameBox, create]));
 
-  const sync = state.sessions.syncedAt;
-  if (!sync || Date.now() - new Date(sync).getTime() > 12 * 60 * 1000) {
-    root.appendChild(h("p", { class: "setup-note warn", text: sync ? `La lista de sesiones abiertas es de las ${when(sync)} y puede estar desfasada.` : "Todavía no se ha leído la lista de sesiones abiertas." }));
-  }
-  const closedWithEpics = named.filter((a) => !a.open && Object.keys(a.epics || {}).length);
-  if (closedWithEpics.length) {
-    root.appendChild(h("p", { class: "setup-note", text: closedWithEpics.length === 1 ? `«${closedWithEpics[0].name}» está cerrada y tiene epics: el tablero la abre sola cuando le apruebas una tarea.` : `${closedWithEpics.length} sesiones con epics están cerradas: el tablero abre cada una cuando le apruebas una tarea.` }));
+  const free = freeEpics();
+  if (free.length) {
+    const sec = h("section", { class: "s2-section warn" }, [head("Epics sin sesión", free.length, "Sus tareas llegan a Pendientes sin sesión propuesta.")]);
+    const list = h("div", { class: "erows" });
+    free.forEach((e) => list.appendChild(epicRow(e)));
+    sec.appendChild(list);
+    root.appendChild(sec);
   }
 
-  const toCard = (r) => sessionCard(r, byConversation, openUnnamed);
-  const order = (a, b) => b.open - a.open || a.name.localeCompare(b.name, "es");
-  const visible = (a) => a.open || showClosed;
-  const hasEpics = (a) => Object.keys(a.epics || {}).length > 0;
-  const withEpics = named.filter((a) => hasEpics(a) && visible(a)).sort(order);
-  const withoutEpics = named.filter((a) => !hasEpics(a) && visible(a)).sort(order);
-  section(root, "Abiertas sin nombre", "Ponles nombre para poder darles epics.", openUnnamed.map(toCard));
-  section(root, "Con epics", "Reciben las tareas de sus epics.", withEpics.map(toCard));
-  section(root, "Sin epics", null, withoutEpics.map(toCard));
+  const fixedIds = new Set([state.deployerArea, state.sentry && state.sentry.errorsArea].filter(Boolean));
+  const followUp = state.followUpStatus && state.followUpStatus.conversation;
+  const areas = state.areas.filter((a) => !a.unnamed && !fixedIds.has(a.id) && a.conversation !== followUp);
+  const rank = (a) => (liveOf(a.conversation) ? (statusOf(a.conversation).dot === "busy" ? 0 : 1) : 2);
+  areas.sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name, "es"));
+  const sec = h("section", { class: "s2-section" }, [head("Sesiones", areas.length, `Reciben las tareas de sus epics · ${profileText("area")}`)]);
+  sec.appendChild(areas.length ? h("div", { class: "srows" }, areas.map(row)) : empty("Sin sesiones.", "Crea una arriba."));
+  root.appendChild(sec);
 
-  const system = state.areas.filter((a) => !a.unnamed && isFixedArea(a)).map((a) => ({ ...a, isSystem: true, fixedRole: a.id === state.deployerArea ? "deploy" : state.sentry && a.id === state.sentry.errorsArea ? "errors" : "followUp" }));
-  const rep = state.reporterRoute;
-  if (rep && rep.session) system.push({ id: "reporter", name: rep.session, sessionName: rep.session, ref: rep.ref, open: true, epics: {}, isSystem: true, since: rep.since, conversation: rep.conversation });
-  const o = state.orchestrator;
-  if (o) system.push({ id: "orchestrator", name: o.title, sessionName: o.session, ref: o.ref, open: o.open, epics: {}, isSystem: true, isOrchestrator: true, since: o.since, conversation: o.conversation });
-  const b = state.boardStatus;
-  if (b) system.push({ id: "board", name: b.title, sessionName: b.session, open: b.open, epics: {}, isSystem: true, isBoard: true, conversation: b.conversation });
-  section(root, "Del tablero", "Las sesiones que lo hacen funcionar.", system.map(toCard));
+  const fixed = [];
+  const area = (id) => state.areas.find((a) => a.id === id);
+  if (state.reporterRoute) fixed.push(fixedRow("Reporte de Jira", "Lee Jira y publica el reporte", state.reporterRoute.conversation, "", "reporter"));
+  if (state.orchestrator) fixed.push(fixedRow("Orquestadora", "Envía tareas y despliegues", state.orchestrator.conversation, state.orchestrator.open && !state.orchestrator.watching ? "sin vigilar" : "", "orchestrator"));
+  if (state.boardStatus) fixed.push(fixedRow("Tablero", "Mejoras del propio tablero", state.boardStatus.conversation, "", "board"));
+  if (state.followUpStatus) fixed.push(fixedRow("Seguimiento", "Lo que hace Enric en beta", state.followUpStatus.conversation, "", "followUp"));
+  if (area(state.deployerArea)) fixed.push(fixedRow("Despliegue", "Despliegues de la pestaña Desplegar", area(state.deployerArea).conversation, "", "deploy"));
+  const err = state.sentry && area(state.sentry.errorsArea);
+  if (err) fixed.push(fixedRow("Errores sentry", "Errores de Sentry y del seguimiento", err.conversation, "", "errors"));
+  root.appendChild(h("section", { class: "s2-section" }, [head("Fijas", fixed.length, "Las que hacen funcionar el tablero."), h("div", { class: "srows" }, fixed)]));
 
-  if (!openUnnamed.length && !withEpics.length && !withoutEpics.length && !system.length) root.appendChild(empty("Sin sesiones.", "Crea una arriba."));
-}
-
-let epicQuery = "";
-
-function epicRow(e) {
-  const sel = taskAreaSelect(`epic-${e.key}`, e.area || "", "Sin sesión", (v) => post("/api/epic", { key: e.key, name: e.name, area: v }, v ? `${e.key} va a la sesión «${areaName(v)}».` : `${e.key} ya no tiene sesión.`));
-  sel.setAttribute("aria-label", `Sesión de ${e.key} ${e.name}`);
-  const create = e.area
-    ? null
-    : button("Sesión nueva…", {
-        onClick: (b) => {
-          const n = window.prompt(`Nombre de la sesión nueva para ${e.key} ${e.name}`, e.name);
-          if (n) createSession(n, e, b);
-        },
-      });
-  return h("div", { class: "epic-row" }, [h("a", { class: "key jira-link", href: ticketUrl(e.key), target: "_blank", rel: "noopener noreferrer", text: e.key }), h("span", { class: "epic-row-name", text: e.name }), h("span", { class: "epic-row-actions" }, [sel, create])]);
-}
-
-function epicBlock(box, head, list) {
-  if (!list.length) return;
-  box.appendChild(h("section", { class: "epic-block" }, [h("div", { class: "group-head" }, head), h("div", { class: "epic-list" }, list.map(epicRow))]));
-}
-
-function renderEpicList(box) {
-  box.textContent = "";
-  const q = epicQuery.trim().toLowerCase();
-  const byKey = {};
-  if (q) for (const e of state.allEpics || []) byKey[e.key] = e;
-  for (const e of state.epics) byKey[e.key] = e;
-  let list = Object.values(byKey);
-  if (q) list = list.filter((e) => `${e.key} ${e.name}`.toLowerCase().includes(q));
-  list.sort((a, b) => a.key.localeCompare(b.key, "es", { numeric: true }));
-  if (!list.length) return box.appendChild(empty(q ? "Ningún epic coincide." : "Aún no hay epics.", q ? `Prueba con otra palabra o con la clave (por ejemplo ${exampleKey()}).` : "Se anotan en cada revisión; también puedes buscar uno."));
-  const capped = list.length > 80;
-  list = list.slice(0, 80);
-  const free = list.filter((e) => !e.area);
-  epicBlock(box, [h("span", { class: "group-name", text: "Sin sesión" }), h("span", { class: "group-key", text: String(free.length) }), h("span", { class: "meta", text: "Sus tareas nuevas llegan a Pendientes sin sesión propuesta." })], free);
-  state.areas
-    .filter((a) => !a.unnamed)
-    .sort((a, b) => a.name.localeCompare(b.name, "es"))
-    .forEach((a) => {
-      const own = list.filter((e) => e.area === a.id);
-      epicBlock(box, [h("span", { class: `dot ${a.open ? "on" : "off"}`, title: a.open ? "Abierta" : "Cerrada" }), h("span", { class: "group-name", text: a.name }), h("span", { class: "group-key", text: String(own.length) }), a.open ? null : h("span", { class: "meta", text: "cerrada" })], own);
-    });
-  if (capped) box.appendChild(h("p", { class: "setup-note", text: "Hay más de 80 resultados. Afina la búsqueda." }));
-}
-
-export function renderEpics(root) {
-  const total = (state.allEpics || []).length;
-  const listBox = h("div", { class: "epic-blocks" });
-  const search = h("input", { type: "search", id: "epic-search", placeholder: `Buscar entre los ${total} epics abiertos de Jira (nombre o clave)`, value: epicQuery, "aria-label": "Buscar epic" });
-  search.addEventListener("input", () => {
-    epicQuery = search.value;
-    renderEpicList(listBox);
-  });
-  root.appendChild(h("div", { class: "toolbar" }, [search, h("span", { class: "meta", text: "Sin buscar salen los que ya tienen sesión o han aparecido en una revisión." })]));
-  root.appendChild(listBox);
-  renderEpicList(listBox);
+  const search = h("section", { class: "s2-section" }, [head("Buscar epics", null, null)]);
+  epicSearch(search);
+  root.appendChild(search);
 }

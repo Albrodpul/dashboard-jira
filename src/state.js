@@ -128,6 +128,7 @@ function state() {
     permissions: permissions.forPage(d),
     contextSync: d.contextSync || null,
     daily: d.daily || null,
+    sessionProfiles: require("./profiles").profiles(),
     cluster: require("./cluster").info(),
     hosted: require("./host").readConfig(),
     sentry: { enabled: sentry.sentryAvailable(), errorsArea: ERRORS_AREA, sends: sentry.sentryIssues(d) },
