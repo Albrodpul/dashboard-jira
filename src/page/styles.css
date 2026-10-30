@@ -745,3 +745,4 @@ select.epic-add { flex: none; width: auto; max-width: 100%; border-radius: 999px
   .erow select, .erow .btn { grid-column: 1 / -1; }
 }
 .srow-epics select.srow-add { flex: none; width: 30px; min-width: 0; height: 24px; padding: 0; text-align: center; text-align-last: center; appearance: none; -webkit-appearance: none; background-image: none; }
+@media (min-width: 761px) { body { height: auto; min-height: 100%; } }
