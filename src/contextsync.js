@@ -3,7 +3,7 @@ const os = require("os");
 const path = require("path");
 const cp = require("child_process");
 const config = require("./config");
-const { mutate, now } = require("./data");
+const { load, mutate, now } = require("./data");
 
 const ROOT = config.root;
 
@@ -57,11 +57,15 @@ async function syncContext() {
     }
     const pull = await git(["pull", "--rebase", "--autostash", "-q"]);
     if (!pull.ok) {
+      const clash = /CONFLICT|could not apply|Resolve all conflicts|needs merge/i.test(pull.out);
       await git(["rebase", "--abort"]);
+      if (!clash) return record({ state: "error", error: pull.out.trim().slice(0, 300) || "no se pudo hablar con GitHub (¿sin conexión al despertar?)" });
+      const already = (load().contextSync || {}).state === "conflict";
       record({ state: "conflict", error: pull.out.slice(0, 500) });
-      require("./push")
-        .sendPush("sessions", true, "El contexto compartido tiene un choque entre los dos ordenadores: hay que resolverlo a mano")
-        .catch(() => {});
+      if (!already)
+        require("./push")
+          .sendPush("sessions", true, "El contexto compartido tiene un choque entre los dos ordenadores: hay que resolverlo a mano")
+          .catch(() => {});
       return;
     }
     const ahead = await git(["rev-list", "--count", "@{u}..HEAD"]);
