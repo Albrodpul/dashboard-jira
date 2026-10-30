@@ -98,6 +98,30 @@ export function shortcuts(root) {
 
 let dailyAsked = null;
 
+const dailyLines = (text) => {
+  const lines = String(text).split("\n").map((l) => l.trim()).filter(Boolean);
+  const items = lines.filter((l) => /^[-•*]\s+/.test(l)).map((l) => l.replace(/^[-•*]\s+/, ""));
+  return { title: lines.find((l) => !/^[-•*]\s+/.test(l)) || "", items };
+};
+
+function dailyBody(text) {
+  const { title, items } = dailyLines(text);
+  return h("div", { class: "daily-text" }, [title ? h("p", { text: title }) : null, h("ul", {}, items.map((i) => h("li", { text: i })))]);
+}
+
+function copyDaily(text) {
+  const { title, items } = dailyLines(text);
+  const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const html = `${title ? `<p>${esc(title)}</p>` : ""}<ul>${items.map((i) => `<li>${esc(i)}</li>`).join("")}</ul>`;
+  const plain = [title, ...items.map((i) => `• ${i}`)].filter(Boolean).join("\n");
+  const done = () => toast("Copiado.");
+  if (window.ClipboardItem && navigator.clipboard.write)
+    return navigator.clipboard
+      .write([new ClipboardItem({ "text/html": new Blob([html], { type: "text/html" }), "text/plain": new Blob([plain], { type: "text/plain" }) })])
+      .then(done, () => navigator.clipboard.writeText(plain).then(done));
+  return navigator.clipboard.writeText(plain).then(done);
+}
+
 export function dailyCard(root) {
   const d = state.daily;
   const busy = dailyAsked && (!d || d.at < dailyAsked);
@@ -107,13 +131,13 @@ export function dailyCard(root) {
     post("/api/daily", { today }, today ? "Preparando el resumen de hoy…" : "Rehaciendo el resumen…");
   };
   const actions = [];
-  if (d && d.text) actions.push(button("Copiar", { onClick: () => navigator.clipboard.writeText(d.text).then(() => toast("Copiado.")) }));
+  if (d && d.text) actions.push(button("Copiar", { onClick: () => copyDaily(d.text) }));
   actions.push(button(busy ? "Preparando…" : "Rehacer", { cls: "subtle", disabled: !!busy, onClick: () => ask(false) }));
   actions.push(button("El de hoy", { cls: "subtle", disabled: !!busy, title: "Lo que llevas hecho hoy, por si apagas antes y quieres tenerlo ya", onClick: () => ask(true) }));
   const body = !d ? "Se prepara solo cada mañana con lo del último día laborable." : d.empty ? "Ese día no hay movimiento en Jira, commits ni despliegues tuyos." : d.text;
   const det = h("details", { class: "card daily-card" }, [
     h("summary", {}, [h("strong", { text: "Para la daily" }), h("span", { class: "meta", text: day ? ` · ${day}` : "" })]),
-    h("p", { class: "daily-text", text: body }),
+    d && d.text ? dailyBody(d.text) : h("p", { class: "daily-text", text: body }),
     h("div", { class: "actions" }, actions),
   ]);
   try {
