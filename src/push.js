@@ -85,6 +85,7 @@ async function sendPush(type, force, text) {
   let last = readJson(LAST_FILE, {});
   const prev = entryOf(last[type]);
   if (!force && prev.at && Date.now() - new Date(prev.at).getTime() < 60000) return 0;
+  if (text && prev.text === text && prev.at && Date.now() - new Date(prev.at).getTime() < 120000) return 0;
   if (type === "test") last = {};
   last[type] = { at: new Date().toISOString(), text: text || null };
   fs.writeFileSync(LAST_FILE, JSON.stringify(last));
