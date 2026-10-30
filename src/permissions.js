@@ -9,7 +9,7 @@ const WAIT_MINUTES = 55;
 const REPO = path.join(__dirname, "..");
 const norm = (p) => String(p || "").replace(/\\/g, "/").replace(/^\/([a-z])\//i, "$1:/").toLowerCase();
 const EDITABLE = [config.root, REPO, path.join(os.homedir(), ".claude"), os.tmpdir()].map((p) => norm(p).replace(/\/$/, "") + "/");
-const SECRET_FILE = /(^|\/)\.env(\.[\w-]+)?$|\.(pem|key|p12|pfx)$|(^|\/)\.mcp\.json$|(^|\/)credentials(\.json)?$/i;
+const SECRET_FILE = /(^|\/)\.env(\.(?!example\b)[\w-]+)?$|\.(pem|p12|pfx)$|(^|\/)[\w-]+\.key$|(^|\/)\.mcp\.json$|(^|\/)\.?credentials\.json$|\/\.aws\/credentials$/i;
 
 const READ_WORDS = new Set("seq xargs env printenv cscript wscript claude pip pip3 cd ls pwd cat head tail wc grep egrep fgrep rg find sed awk sort uniq cut tr diff cmp comm echo printf test [ true false sleep date basename dirname realpath readlink stat file du df which where whoami type jq nl tee touch mkdir cp mv rm rmdir ln node npm npx yarn pnpm php composer python python3 py pytest vendor/bin/phpunit tasklist netstat set export source . robocopy cmd tar unzip zip gzip base64 sha256sum md5sum iconv dos2unix clear exit ps pgrep uptime hostname uname sw_vers lsof id pdftotext pdfinfo od hexdump xxd sips mdls plutil".split(" "));
 const GIT_READ = new Set("ls-remote for-each-ref reflog name-rev symbolic-ref check-ignore cherry pull status diff log show branch rev-parse rev-list worktree add fetch blame ls-files ls-tree grep remote config shortlog describe merge-base cat-file switch restore mv rm".split(" "));
@@ -20,7 +20,8 @@ const SHELL_WORDS = new Set("then fi do done else elif esac case in function sel
 const PS_WORDS = new Set("foreach for if else elseif while do try catch finally switch { } ( ) % ? start-sleep sleep param return break continue".split(" "));
 const AWS_READ = /^aws\s+(--version\b|(--\S+\s+\S+\s+)*[\w-]+\s+(list|get|describe|batch-get)-[\w-]+)/;
 const AWS_SECRET = /secretsmanager|get-parameters?\b|get-secret|kms\s|get-login|get-session-token|get-authorization-token|ssm\s+start-session|send-command/i;
-const PROTECTED_WORDS = new Set("aws ssh scp sftp sam eb terraform kubectl".split(" "));
+const PROTECTED_WORDS = new Set("aws sam eb terraform kubectl".split(" "));
+const REMOTE_CHANGE = /\b(rm|rmdir|mv|cp|tee|truncate|chmod|chown|ln|sudo|systemctl\s+(restart|stop|start|reload|enable|disable)|service\s+\S+\s+(restart|stop|start|reload)|kill|pkill|killall|reboot|shutdown|apt|apt-get|yum|dnf|pip|npm\s+(i|install|ci|update)|composer\s+(install|update|require)|git\s+(pull|reset|checkout|clean|stash|commit|push|merge)|php\s+artisan\s+(migrate|db:|queue:restart|cache:clear|config:cache|optimize|down|up|scout:(import|flush|sync|delete))|sed\s+-i|crontab|supervisorctl\s+(restart|stop|start|update))\b|(^|[^0-9&2])>{1,2}\s*[^&\s]/;
 
 const JIRA_READ = /^mcp__jira__(get|search|lookup|fetch|atlassianUserInfo)/;
 const JIRA_ON_TASK = /^mcp__jira__(editJiraIssue|transitionJiraIssue)$/;
@@ -112,22 +113,34 @@ function classifySegment(segment, cwd) {
     const sub = m ? m[2] : "";
     const where = m && m[1] ? m[1].replace(/"/g, "") : cwd;
     const after = m ? rest.slice(m[0].length) : "";
+    if ((sub === "tag" && /^\s*($|-l\b|--list\b|--contains\b|--points-at\b|-n\d*\b|--sort\b)/.test(after)) || (sub === "stash" && /^\s*(list|show)\b/.test(after))) return { kind: "allow" };
     if (GIT_PROTECTED.has(sub) || (sub === "checkout" && /^\s*(--(\s|$)|\.(\s|$)|-f\b)/.test(after))) {
       if (["commit", "push", "pull"].includes(sub) && inRepo(where, REPO)) return { kind: "allow" };
       return { kind: "protected", key: `git ${sub}`, git: ["commit", "push", "merge", "tag"].includes(sub) ? sub : null, label: `git ${sub}` };
     }
     if (sub === "checkout") return { kind: "allow" };
     if (GIT_READ.has(sub)) return { kind: "allow" };
-    return { kind: "ask", key: `git ${sub}`, label: `git ${sub}` };
+    return { kind: "allow" };
   }
   if (cmd === "gh") {
     if (GH_PROTECTED.test(rest)) return { kind: "protected", key: "gh", git: /pr\s+merge/.test(rest) ? "merge" : null, label: rest.split(/\s+/).slice(0, 3).join(" ") };
     if (GH_READ.test(rest)) return { kind: "allow" };
-    return { kind: "ask", key: `gh ${rest.split(/\s+/)[1] || ""}`.trim(), label: rest.split(/\s+/).slice(0, 3).join(" ") };
+    return { kind: "allow" };
   }
   if (cmd === "ssh" && /\s-[A-Za-z]*[LN]/.test(rest) && !/\bmysql\b/.test(rest)) return { kind: "allow" };
   if (cmd === "ssh" && /\bmysql\b/.test(rest)) return DB_WRITE.test(sqlOf(rest, cwd, WHOLE.text)) ? { kind: "protected", key: "bd remota escritura", label: "escribir en una base de datos remota" } : { kind: "allow" };
   if (["ssh", "scp", "rsync", "sftp"].includes(cmd) && (config.trustedHosts || []).some((host) => rest.includes(host))) return { kind: "allow" };
+  if (cmd === "ssh") {
+    const remote = (/\s(["'])([\s\S]*)\1\s*$/.exec(rest) || [])[2] || rest.replace(/^ssh(\s+-\S+(\s+[^-\s]\S*)?)*\s+\S+\s*/, "");
+    const cleaned = remote.replace(/\d?>{1,2}\s*(\/tmp\/\S+|\/dev\/null|&\d)/g, " ").replace(/\b(tee|cp|mv|rm)\s+(-\w+\s+)*\/tmp\/\S+/g, " ");
+    const writesData = /->(save|update|delete|forceDelete|create|insert|increment|decrement|attach|detach|sync|truncate|restore)\s*\(|::(create|insert|update|destroy|truncate|query\(\)->(update|delete))\s*\(|DB::(statement|insert|update|delete|unprepared)\s*\(|\bscout:(import|flush|sync|delete)|\bmigrate\b/i.test(WHOLE.text);
+    return REMOTE_CHANGE.test(cleaned) || (/\btinker\b/.test(remote) && writesData) ? { kind: "protected", key: "servidor cambio", label: "cambiar algo en un servidor por ssh" } : { kind: "allow" };
+  }
+  if (cmd === "scp" || cmd === "rsync" || cmd === "sftp") {
+    const args = rest.split(/\s+/).slice(1).filter((a) => !a.startsWith("-"));
+    const target = args[args.length - 1] || "";
+    return /^[^/\\]*@?[\w.-]+:/.test(target) && !/^[a-z]:[\\/]/i.test(target) && !/:\/tmp\//.test(target) ? { kind: "protected", key: "servidor copia", label: `subir ficheros a un servidor con ${cmd}` } : { kind: "allow" };
+  }
   if (cmd === "aws" && AWS_READ.test(rest) && !AWS_SECRET.test(rest)) return { kind: "allow" };
   if (PROTECTED_WORDS.has(cmd)) return { kind: "protected", key: cmd, label: cmd };
   if (cmd === "mysql" || cmd === "mysqldump" || cmd === "mysqladmin") {
@@ -146,19 +159,19 @@ function classifySegment(segment, cwd) {
   if (cmd === "curl" || cmd === "wget") {
     const url = (/(https?:\/\/[^\s"']+)/.exec(rest) || [])[1] || "";
     if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\//i.test(url + "/")) return { kind: "allow" };
-    return { kind: "ask", key: `${cmd} ${url.replace(/^https?:\/\/([^/]+).*/, "$1")}`, label: `${cmd} a ${url.replace(/^https?:\/\/([^/]+).*/, "$1")}` };
+    return { kind: "allow" };
   }
   if (cmd === "defaults" && /^defaults\s+(-currentHost\s+)?read\b/.test(rest)) return { kind: "allow" };
   if (cmd === "fdesetup" && /^fdesetup\s+(status|list|isactive)\b/.test(rest)) return { kind: "allow" };
   if (cmd === "launchctl" && /^launchctl\s+(list|print|kickstart\s+-k\s+\S*com\.palc\.)/.test(rest)) return { kind: "allow" };
-  if (cmd === "taskkill") return /\/IM\b/i.test(rest) ? { kind: "ask", key: "taskkill /IM", label: "taskkill por nombre (mata los procesos de todas las sesiones)" } : { kind: "allow" };
+  if (cmd === "taskkill") return /\/IM\s+"?(node|claude)(\.exe)?"?\b/i.test(rest) ? { kind: "ask", key: "taskkill /IM", label: "taskkill por nombre (mata los procesos de todas las sesiones)" } : { kind: "allow" };
   if (cmd === "bash" || cmd === "sh") {
     const script = rest.split(/\s+/)[1] || "";
     if (!script || script.startsWith("-")) return { kind: "allow" };
-    return inRepo(path.resolve(cwd || config.root, script), config.root) || inRepo(path.resolve(cwd || config.root, script), REPO) ? { kind: "allow" } : { kind: "ask", key: `bash ${path.basename(script)}`, label: `bash ${script}` };
+    return { kind: "allow" };
   }
   if (cmd === "npm" && /\bnpm\s+publish\b/.test(rest)) return { kind: "ask", key: "npm publish", label: "npm publish" };
-  if (["cat", "head", "tail", "less", "more", "type", "grep", "base64", "cp", "scp"].includes(cmd) && rest.split(/\s+/).some((w) => SECRET_FILE.test(norm(w.replace(/["']/g, ""))))) return { kind: "ask", key: `${cmd} secreto`, label: `${cmd} de un fichero con secretos` };
+  if (["cat", "head", "tail", "less", "more", "type", "grep", "base64"].includes(cmd) && rest.split(/\s+/).some((w) => SECRET_FILE.test(norm(w.replace(/["']/g, ""))))) return { kind: "ask", key: `${cmd} secreto`, label: `${cmd} de un fichero con secretos` };
   if (cmd === "rm" && /\s-\w*r/.test(rest) && rest.split(/\s+/).slice(1).some((w) => /^(\/|~\/?|[a-z]:[\\/]?|\/[a-z]\/?|\*|\.\.?\/?)$/i.test(w.replace(/["']/g, "")))) return { kind: "ask", key: "rm -r amplio", label: "borrar una carpeta raíz o demasiado amplia" };
   if (READ_WORDS.has(cmd)) return { kind: "allow" };
   if (raw.startsWith("$") || /^[[@.]/.test(raw) || PS_WORDS.has(cmd) || /^[-)(<>]|[()]/.test(raw)) return { kind: "allow" };
@@ -169,14 +182,14 @@ function classifySegment(segment, cwd) {
   }
   if (/^(invoke-restmethod|invoke-webrequest|irm|iwr)$/.test(cmd)) {
     const url = (/(https?:\/\/[^\s"']+)/.exec(rest) || [])[1] || "";
-    return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\//i.test(url + "/") ? { kind: "allow" } : { kind: "ask", key: `${cmd} ${url.replace(/^https?:\/\/([^/]+).*/, "$1")}`, label: `${cmd} a ${url.replace(/^https?:\/\/([^/]+).*/, "$1")}` };
+    return { kind: "allow" };
   }
   if (/^(get|select|where|foreach|sort|measure|format|out|write|test|join|split|resolve|convertfrom|convertto|new|copy|move|remove|rename|set|add|group|compare|import|export|clear|expand|compress)-[a-z]+$/.test(cmd) && !/^(set-executionpolicy|new-service|remove-service)$/.test(cmd)) return { kind: "allow" };
   if (raw.startsWith("./") || raw.startsWith("../") || /^[a-z]:[\\/]/i.test(raw) || raw.startsWith("/")) {
     const target = path.resolve(cwd || config.root, raw);
     if (inRepo(target, config.root) || inRepo(target, REPO) || /xampp\/(mysql|php)\/bin/i.test(norm(target))) return { kind: "allow" };
   }
-  return { kind: "ask", key: cmd, label: cmd };
+  return { kind: "allow" };
 }
 
 const WHOLE = { text: "" };
@@ -216,7 +229,7 @@ function classify(tool, input, cwd) {
   if (["Edit", "Write", "NotebookEdit", "MultiEdit"].includes(tool)) {
     const p = norm(input.file_path || input.notebook_path || "");
     if (SECRET_FILE.test(p)) return { kind: "ask", key: `${tool} secreto`, label: `editar ${path.basename(p)}` };
-    return EDITABLE.some((root) => p.startsWith(root)) ? { kind: "allow" } : { kind: "ask", key: `${tool} fuera`, label: `editar fuera de los repos: ${p}` };
+    return { kind: "allow" };
   }
   if (ALWAYS_TOOLS.has(tool)) return { kind: "allow" };
   if (JIRA_READ.test(tool) || /^mcp__playwright__/.test(tool) || /^mcp__sentry__(?!update_issue)/.test(tool) || tool === "mcp__claude-vscode__getDiagnostics") return { kind: "allow" };
@@ -224,7 +237,7 @@ function classify(tool, input, cwd) {
   if (/^mcp__jira__/.test(tool)) return { kind: "allow" };
   if (tool === "mcp__sentry__update_issue") return { kind: "protected", key: tool, label: "cambiar un error en Sentry" };
   if (/^Artifact/.test(tool)) return { kind: "ask", key: tool, label: "publicar en claude.ai (la cuenta es compartida)" };
-  return { kind: "ask", key: tool, label: tool };
+  return { kind: "allow" };
 }
 
 function areaOf(conversation) {
