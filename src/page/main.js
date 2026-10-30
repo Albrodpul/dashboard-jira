@@ -229,7 +229,22 @@ function returnedRule(root) {
   root.appendChild(h("label", { class: "rule", for: "auto-returned" }, [rule, ` Enviar solas a su sesión las tareas devueltas o comentadas por ${reviewer()}`]));
 }
 
+let renderedTab = null;
+
 function render() {
+  const keepY = renderedTab === state.tab ? window.scrollY : null;
+  const groups = document.getElementById("groups");
+  if (keepY !== null && groups) groups.style.minHeight = groups.offsetHeight + "px";
+  try {
+    paint();
+  } finally {
+    renderedTab = state.tab;
+    if (groups) groups.style.minHeight = "";
+    if (keepY !== null && window.scrollY !== keepY) window.scrollTo(0, Math.min(keepY, document.documentElement.scrollHeight));
+  }
+}
+
+function paint() {
   state.renderSeq = (state.renderSeq || 0) + 1;
   const counts = Object.fromEntries(TASK_TABS.map((t) => [t.id, 0]));
   for (const t of state.tasks) if (counts[tabOf(t.status)] !== undefined) counts[tabOf(t.status)]++;
