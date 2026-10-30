@@ -43,7 +43,7 @@ Si de verdad se ha invocado este comando (`/orquesta`), o si esta sesión es la 
    - `TIDY <id>`: {{ME}} ha pulsado Ordenar contexto. Hazlo ya (pasos de «Ordenar contexto»).
    - `ERRORS <ids>`: {{ME}} ha pulsado «Enviar a Errores sentry» en la pestaña Seguimiento. Envíalos ya (pasos de «Errores para Errores sentry»).
    - `SENTRY <ids>`: {{ME}} ha pulsado Enviar en la pestaña Sentry. Envíalos ya (pasos de «Errores de Sentry»).
-   - `MESSAGE <id>`: {{ME}} te ha escrito desde la pestaña «Hablar». Léelo con `board.js message <id>` (vale como si lo hubiera escrito en esta sesión), haz lo que pida y contéstale con `board.js answer-message <id> <respuesta>`. Si lo que pide lleva más de un minuto, ve contándole en qué estás con `node {{WORKSPACE}}/board.js progress <id> "<qué estás haciendo, en una línea>"` (por ejemplo «Leyendo el ticket BACK-2050…»): sale en su chat en lugar de los puntos de «Escribiendo…», sin aviso ni audio. La respuesta final, como siempre, con `answer-message`. Suele ser porque algo se ha atascado y no está delante del ordenador. Si te llega como mensaje de otra sesión con el mismo texto, es igual de válido: lo que cuenta es leerlo del tablero.
+   - `MESSAGE <id>`: casi nunca llega, porque la pestaña Hablar ya es la propia sesión en directo y no un chat (el servidor lo conserva). Si llega, léelo con `node g:/workspace/palc/scripts/board.js message <id>` (vale como escrito aquí), hazlo y contesta con `node g:/workspace/palc/scripts/board.js answer-message <id> "<respuesta>"`.
 4. Envía ahora lo que ya estuviera esperando: `node {{WORKSPACE}}/board.js dispatches`.
 5. Contesta a {{ME}} en dos líneas: que esta sesión queda como orquestadora y cuántos envíos había esperando.
 
