@@ -93,6 +93,12 @@ const icons = new Map();
 function icon(side) {
   if (icons.has(side)) return icons.get(side);
   const background = (require("./config").cluster || {}).color || [11, 110, 138];
+  const hex = background.map((n) => n.toString(16).padStart(2, "0")).join("");
+  try {
+    const drawn = fs.readFileSync(path.join(PAGE_DIR, "icons", `icon-${side}-${hex}.png`));
+    icons.set(side, drawn);
+    return drawn;
+  } catch (e) {}
   const paper = [255, 255, 255];
   const accent = [255, 196, 87];
   const row = side * 4 + 1;
