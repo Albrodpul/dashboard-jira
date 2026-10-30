@@ -56,7 +56,7 @@ async function start(id) {
   fs.writeSync(fd, `[${now()}] ${s.command} ${(s.args || []).join(" ")}\n`);
   const cwd = path.resolve(config.root, s.cwd || ".");
   const command = s.command.startsWith(".") ? path.resolve(cwd, s.command) : s.command;
-  const child = cp.spawn(command, s.args || [], { cwd, detached: false, windowsHide: true, shell: !!s.shell, stdio: ["ignore", fd, fd] });
+  const child = cp.spawn(command, s.args || [], { cwd, detached: true, windowsHide: true, shell: !!s.shell, stdio: ["ignore", fd, fd] });
   child.on("error", (e) => fs.appendFileSync(logFile(id), `\n${e.message}\n`));
   child.unref();
   fs.closeSync(fd);
