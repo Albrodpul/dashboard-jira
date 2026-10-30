@@ -61,7 +61,7 @@ if (cmd === "iam") {
   const role = ROLES[slug(areaText)];
   if (role) {
     const previous = data[role] || {};
-    data[role] = { ...(ROLE_TITLE[role] ? { title: previous.title || ROLE_TITLE[role] } : {}), session, ref: ref || null, since: now(), conversation: previous.session === session ? previous.conversation || null : null };
+    data[role] = { ...(previous.rotatedOn ? { rotatedOn: previous.rotatedOn, previous: previous.previous || null } : {}), ...(ROLE_TITLE[role] ? { title: previous.title || ROLE_TITLE[role] } : {}), session, ref: ref || null, since: now(), conversation: previous.session === session ? previous.conversation || null : null };
     save(data);
     console.log(`Registrada como sesión de ${ROLE_LABEL[role]}: ${withRef(session, ref)}`);
   } else {

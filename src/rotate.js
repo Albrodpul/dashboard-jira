@@ -26,7 +26,8 @@ async function freshConversation(role, fallbackName) {
     log(`no se pudo empezar la conversación del día de ${name}: sigue la de ayer`);
     return false;
   }
-  await host.hostRequest("POST", "/release", { conversation: r.conversation }).catch(() => {});
+  const stale = host.readConfig().filter((e) => e.conversation !== id && (e.conversation === r.conversation || e.name === name));
+  for (const e of stale) await host.hostRequest("POST", "/release", { conversation: e.conversation }).catch(() => {});
   sessions.changeRoutes((x) => {
     x[role] = { ...x[role], conversation: id, session: name, ref: null, previous: r.conversation, rotatedOn: today(), since: new Date().toISOString() };
     return true;
