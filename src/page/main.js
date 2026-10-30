@@ -8,6 +8,7 @@ import { renderLearning } from "./learning.js";
 import { renderSentry } from "./sentry.js";
 import { renderProjects } from "./projects.js";
 import { renderFind, searchBox } from "./find.js";
+import { renderSessionsNew } from "./sessions2.js";
 import { renderMachines } from "./machines.js";
 
 const TASK_TABS = [
@@ -46,6 +47,7 @@ const GROUPS = [
   [
     "Configurar",
     [
+      { id: "sessions-new", label: "Sesiones (nuevo)" },
       { id: "sessions", label: "Sesiones" },
       { id: "epics", label: "Epics" },
       { id: "machines", label: "Equipos" },
@@ -62,6 +64,7 @@ const VIEWS = {
   done: ["Hechas", "La sesión dice que ha terminado: pendientes de que tú las revises. En Jira siguen «En curso»."],
   ignored: ["Ignoradas", "Descartadas con Ignorar. Se pueden recuperar."],
   deploy: ["Desplegar", "Sube proyectos a develop, a producción o a los dos. La orden sale de aquí hacia la sesión que despliega; nada se sube hasta que pulsas Desplegar."],
+  "sessions-new": ["Sesiones", "Propuesta: sesiones y epics en una sola página. Las fijas, abajo."],
   sessions: ["Sesiones", "Las sesiones que pueden recibir tareas, con el nombre que les pones tú."],
   epics: ["Epics", "Qué sesión lleva cada epic."],
   machines: ["Equipos", "Los ordenadores de tu Tailscale, cuál manda y desde cuándo. Puedes pasar el mando a mano."],
@@ -80,6 +83,7 @@ const NON_TASK_VIEWS = {
   sessions: renderSessions,
   epics: renderEpics,
   find: renderFind,
+  "sessions-new": renderSessionsNew,
   machines: renderMachines,
   deploy: renderDeploy,
   sentry: renderSentry,
