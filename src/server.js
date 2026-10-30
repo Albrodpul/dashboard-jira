@@ -30,8 +30,8 @@ const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; ch
 
 const LABEL = (require("./config").cluster || {}).label || "";
 const MANIFEST = JSON.stringify({
-  name: LABEL ? `Torre de control · ${LABEL}` : "Torre de control",
-  short_name: LABEL ? `Torre ${LABEL}` : "Torre",
+  name: LABEL ? `NutrIA · ${LABEL}` : "NutrIA",
+  short_name: LABEL ? `NutrIA ${LABEL}` : "NutrIA",
   description: "Tareas de Jira que se pueden pasar a la sesión que lleva su epic.",
   lang: "es",
   start_url: "/",
@@ -67,12 +67,12 @@ async function show(d) {
   open.forEach((n) => n.close());
   const items = [item, ...before].slice(0, 20);
   const options = { tag: "torre", renotify: true, icon: "/icon-192.png", badge: "/icon-192.png", data: { tab: item.tab, items } };
-  if (items.length === 1) return self.registration.showNotification(d.title || "Torre de control", { ...options, body: item.text });
+  if (items.length === 1) return self.registration.showNotification(d.title || "NutrIA", { ...options, body: item.text });
   const tabs = new Set(items.map((x) => x.tab));
   options.data.tab = tabs.size === 1 ? item.tab : "home";
   const lines = items.slice(0, 6).map((x) => (x.section ? x.section + ": " : "") + x.text);
   if (items.length > 6) lines.push("y " + (items.length - 6) + " más");
-  return self.registration.showNotification("Torre de control · " + items.length + " novedades", { ...options, body: lines.join(String.fromCharCode(10)) });
+  return self.registration.showNotification("NutrIA · " + items.length + " novedades", { ...options, body: lines.join(String.fromCharCode(10)) });
 }
 self.addEventListener("notificationclick", (e) => {
   e.notification.close();
@@ -515,7 +515,7 @@ function serve() {
   const server = http.createServer(handle);
   server.on("upgrade", proxyTerminal);
   host.ensureHost().catch(() => {});
-  server.listen(PORT, "127.0.0.1", () => console.log(`Torre de control en ${BASE_URL}`));
+  server.listen(PORT, "127.0.0.1", () => console.log(`NutrIA en ${BASE_URL}`));
   const every = (fn, ms) => {
     const once = () => Promise.resolve().then(fn).catch(() => {});
     once();

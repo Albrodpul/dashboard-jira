@@ -76,7 +76,7 @@ function encrypt(payload, keys) {
 
 function notificationFor(type, text) {
   const r = REASONS[type] || { title: "", text: "Hay novedades", tab: "home" };
-  return { title: r.title ? `Torre de control · ${r.title}` : "Torre de control", text: text || r.text, tab: r.tab, tag: type || "board" };
+  return { title: r.title ? `NutrIA · ${r.title}` : "NutrIA", text: text || r.text, tab: r.tab, tag: type || "board" };
 }
 
 async function sendPush(type, force, text) {
