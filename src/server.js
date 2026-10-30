@@ -62,6 +62,7 @@ self.addEventListener("push", (e) => {
 const section = (title) => String(title || "").split(" · ").slice(1).join(" · ");
 async function show(d) {
   const item = { section: section(d.title), text: d.text || "Hay novedades", tab: d.tab || "" };
+  if (!/Android|iPhone|iPad|Mobile/i.test(self.navigator.userAgent)) return self.registration.showNotification(d.title || "NutrIA", { tag: "torre-" + Date.now(), icon: "/icon-192.png", body: item.text, data: { tab: item.tab, items: [item] } });
   const open = await self.registration.getNotifications({ tag: "torre" });
   const before = open.flatMap((n) => (n.data && n.data.items) || []);
   open.forEach((n) => n.close());
