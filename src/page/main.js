@@ -20,34 +20,39 @@ const TASK_TABS = [
 ];
 const GROUPS = [
   [
-    "General",
+    "Mi día",
     [
-      { id: "home", label: "Inicio" },
-      { id: "tasks", label: "Tareas" },
-      { id: "talk", label: "Hablar" },
+      { id: "home", label: "Inicio", hint: "Qué pasa ahora y tu daily" },
+      { id: "tasks", label: "Tareas", hint: "Lo de Jira y lo que te espera" },
+      { id: "talk", label: "Hablar", hint: "Escribir a una sesión" },
     ],
   ],
   [
-    "Operar",
+    "Arreglar y entregar",
     [
-      { id: "projects", label: "Proyectos" },
-      { id: "deploy", label: "Desplegar" },
-      { id: "sentry", label: "Sentry" },
-      { id: "context", label: "Ordenar contexto" },
+      { id: "sentry", label: "Errores", hint: "Errores de Sentry a una sesión" },
+      { id: "deploy", label: "Desplegar", hint: "Subir a develop o producción" },
     ],
   ],
   [
-    "Equipo",
+    "Mi ordenador",
     [
-      { id: "follow-up", label: "Seguimiento" },
-      { id: "learning", label: "Aprendizaje" },
+      { id: "projects", label: "Proyectos", hint: "MySQL, back y fronts en local" },
+      { id: "machines", label: "Ordenadores", hint: "PC y Mac: quién manda" },
     ],
   ],
   [
-    "Configurar",
+    "Qué hacen los demás",
     [
-      { id: "sessions", label: "Sesiones" },
-      { id: "machines", label: "Equipos" },
+      { id: "follow-up", label: "Seguimiento", hint: "Lo que hace Enric en beta" },
+      { id: "learning", label: "Aprendizaje", hint: "Si vuelven menos tareas" },
+    ],
+  ],
+  [
+    "Ajustes",
+    [
+      { id: "sessions", label: "Sesiones", hint: "Quién lleva cada epic" },
+      { id: "context", label: "Ordenar contexto", hint: "Repasar context/" },
     ],
   ],
 ];
@@ -62,13 +67,13 @@ const VIEWS = {
   ignored: ["Ignoradas", "Descartadas con Ignorar. Se pueden recuperar."],
   deploy: ["Desplegar", "Sube proyectos a develop, a producción o a los dos. La orden sale de aquí hacia la sesión que despliega; nada se sube hasta que pulsas Desplegar."],
   sessions: ["Sesiones", "Qué sesión lleva cada epic y en qué está cada una. Las dormidas se despiertan solas cuando les llega algo."],
-  machines: ["Equipos", "Los ordenadores de tu Tailscale, cuál manda y desde cuándo. Puedes pasar el mando a mano."],
+  machines: ["Ordenadores", "Los ordenadores de tu Tailscale, cuál manda y desde cuándo. Puedes pasar el mando a mano."],
   find: ["Buscar", "Lo que coincide en las tareas del tablero, en las sesiones y en Jira. Lo de Jira se puede traer a Pendientes."],
   today: ["Hoy", "Lo que necesita algo de ti ahora mismo y, debajo, el último reporte."],
-  more: ["Más", "Buscar, operar, equipo y configuración."],
+  more: ["Más", "Errores, despliegues, tu ordenador, lo que hacen los demás y ajustes."],
   talk: ["Hablar", "Las sesiones del tablero en directo: las fijas y cualquier otra que esté abierta. Escríbeles o córtalas, o abre una nueva para hablar."],
   projects: ["Proyectos", "Los servidores locales que usan las sesiones: MySQL, super-app, Donatella, backoffice y landing."],
-  sentry: ["Sentry", "Errores sin resolver de landing, backoffice y super-app. Elige la sesión y pulsa Enviar: la orquestadora se lo pasa con el enlace y te cuenta aquí lo que ha encontrado."],
+  sentry: ["Errores", "Errores sin resolver de landing, backoffice y super-app. Elige la sesión y pulsa Enviar: la orquestadora se lo pasa con el enlace y te cuenta aquí lo que ha encontrado."],
   context: ["Ordenar contexto", "La orquestadora repasa y ordena context/ y el índice de AGENTS.md. Solo se puede lanzar con todo limpio: nada pendiente, por enviar, en sesión ni desplegándose."],
   "follow-up": ["Seguimiento", "Lo que ha hecho cada compañero según sus peticiones a la API: el revisor principal tiene resumen automático cada hora; los demás, cuando lo pidas."],
 };
@@ -124,10 +129,12 @@ function paintTabs(counts, waitingDeploys) {
       }
       const n = isTaskTab(t.id) ? counts[t.id] : t.id === "deploy" ? waitingDeploys || undefined : undefined;
       const cls = `tab${n && HIGHLIGHT.includes(t.id) ? " has" : ""}${n && t.id === "waiting" ? " urgent" : ""}`;
-      tabs.appendChild(h("button", { class: cls, role: "tab", "aria-selected": String(state.tab === t.id), type: "button", onclick: () => switchView(t.id) }, [t.label, n === undefined ? null : h("span", { class: "n", text: String(n) })]));
+      tabs.appendChild(h("button", { class: cls, role: "tab", "aria-selected": String(state.tab === t.id), type: "button", onclick: () => switchView(t.id) }, [tabText(t), n === undefined ? null : h("span", { class: "n", text: String(n) })]));
     }
   }
 }
+
+const tabText = (t) => h("span", { class: "tab-text" }, [t.label, t.hint ? h("small", { class: "tab-hint", text: t.hint }) : null]);
 
 function lastTaskTab() {
   try {
@@ -143,7 +150,7 @@ function tasksTab(counts) {
   if (counts.pending) badges.push(h("span", { class: "n", title: "Pendientes", text: String(counts.pending) }));
   if (counts.waiting) badges.push(h("span", { class: "n alert", title: "Te esperan", text: String(counts.waiting) }));
   const cls = `tab${counts.pending ? " has" : ""}`;
-  return h("button", { class: cls, role: "tab", "aria-selected": String(isTaskTab(state.tab)), type: "button", onclick: () => switchView(lastTaskTab()) }, ["Tareas", h("span", { class: "tab-badges" }, badges)]);
+  return h("button", { class: cls, role: "tab", "aria-selected": String(isTaskTab(state.tab)), type: "button", onclick: () => switchView(lastTaskTab()) }, [tabText({ label: "Tareas", hint: "Lo de Jira y lo que te espera" }), h("span", { class: "tab-badges" }, badges)]);
 }
 
 function paintBottomBar(section, attention) {
@@ -180,7 +187,7 @@ function statusChips(root, counts, board) {
 }
 
 function renderMore(root, waitingDeploys, errors) {
-  const options = [...GROUPS.filter(([g]) => !["General", "Tareas"].includes(g)).flatMap(([, list]) => list)];
+  const options = [...GROUPS.filter(([g]) => g !== "Mi día").flatMap(([, list]) => list)];
   const menu = h(
     "div",
     { class: "more-menu" },
