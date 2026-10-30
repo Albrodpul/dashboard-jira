@@ -26,5 +26,5 @@
       <line x1="344" y1="348" x2="432" y2="352"/>
     </g>
   </g>
-  <path d="M418 66 l12 30 30 12 -30 12 -12 30 -12 -30 -30 -12 30 -12 z" fill="#ffc457"/>
+  <path d="M412 40 l18 46 46 18 -46 18 -18 46 -18 -46 -46 -18 46 -18 z" fill="#ffc457" stroke="{{BG}}" stroke-width="8" stroke-linejoin="round"/>
 </svg>
