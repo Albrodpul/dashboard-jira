@@ -116,9 +116,11 @@ function handlePush(res, route, input, send) {
   if (route === "/api/push/subscribe") {
     const s = input && input.subscription;
     if (!s || typeof s.endpoint !== "string" || !/^https:\/\//.test(s.endpoint)) return send(res, 400, { error: "suscripción no válida" });
-    const subs = subscriptions().filter((x) => x.endpoint !== s.endpoint);
+    const device = String(input.device || "").slice(0, 80);
+    const host = new URL(s.endpoint).host;
+    const subs = subscriptions().filter((x) => x.endpoint !== s.endpoint && !(device && x.device === device && new URL(x.endpoint).host === host));
     const keys = s.keys && typeof s.keys.p256dh === "string" && typeof s.keys.auth === "string" ? { p256dh: s.keys.p256dh, auth: s.keys.auth } : null;
-    subs.push({ endpoint: s.endpoint, keys, device: String(input.device || "").slice(0, 80), at: new Date().toISOString() });
+    subs.push({ endpoint: s.endpoint, keys, device, at: new Date().toISOString() });
     saveSubscriptions(subs);
     return send(res, 200, { ok: true });
   }
