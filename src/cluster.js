@@ -289,7 +289,7 @@ function keepAwake() {
   if (!CLUSTER || CLUSTER.preferred || process.platform !== "darwin") return;
   const p = Object.fromEntries(new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Madrid", weekday: "short", hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(new Date()).map((x) => [x.type, x.value]));
   const min = Number(p.hour) * 60 + Number(p.minute);
-  const want = !["Sat", "Sun"].includes(p.weekday) && min >= 7 * 60 + 45 && min < 18 * 60 + 30;
+  const want = !["Sat", "Sun"].includes(p.weekday) && min >= 7 * 60 + 30 && min < 18 * 60 + 30;
   if (!want) return;
   const cp = require("child_process");
   try {
