@@ -46,11 +46,13 @@ function profileControls(conversation, name) {
   const current = { model: p.custom && p.model !== p.defaults.model ? p.model : "", effort: p.custom && p.effort !== p.defaults.effort ? p.effort : "" };
   const pick = (kind, names, label) => {
     const def = p.defaults[kind];
-    const sel = h("select", { class: "term-profile", "aria-label": `${label} de ${name}`, title: `${label}. «Por defecto» es el de su tipo de sesión.` }, [
-      h("option", { value: "", text: `${label}: ${names[def] || def || "—"} (por defecto)` }),
+    const sel = h("select", { class: "term-profile", "aria-label": `${label} de ${name}`, title: `${label}. El primero es el de serie de este tipo de sesión; en color, uno cambiado a mano.` }, [
+      h("option", { value: "", text: `${label}: ${names[def] || def || "—"}` }),
       ...Object.entries(names).filter(([k]) => k !== def).map(([k, v]) => h("option", { value: k, text: `${label}: ${v}` })),
     ]);
+    const mark = () => sel.classList.toggle("custom", !!sel.value);
     sel.value = current[kind];
+    mark();
     sel.addEventListener("change", () => {
       const next = { ...current, [kind]: sel.value };
       if (!window.confirm(`Para aplicarlo se reinicia «${name}». La conversación sigue igual, pero si está trabajando ahora mismo se corta. ¿Seguimos?`)) {
@@ -61,6 +63,7 @@ function profileControls(conversation, name) {
       requestOrFail("/api/session-profile", { conversation, name, ...next })
         .then((d) => {
           Object.assign(current, next);
+          mark();
           toast(`«${name}» ahora con ${MODEL_NAMES[d.profile.model] || d.profile.model} y esfuerzo ${EFFORT_NAMES[d.profile.effort] || d.profile.effort}${d.restarted ? ". Reiniciada." : "; se aplica al abrirla."}`);
         })
         .catch((e) => {
