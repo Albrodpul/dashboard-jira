@@ -181,7 +181,7 @@ function deployStatusPanel(root) {
   if (!st) return root.appendChild(empty("Todavía no hay estado.", "Añade el repo de cada proyecto en deployProjects de board.config.json para seguir sus despliegues."));
   const grid = h("div", { class: "ds-grid" });
   for (const item of st.items) {
-    const card = h("article", { class: "ds-card" }, [h("div", { class: "ds-head" }, [h("strong", { text: item.id }), item.envs.develop && item.envs.develop.codedeploy ? h("span", { class: "meta", text: "GitHub Actions + CodeDeploy" }) : h("span", { class: "meta", text: "GitHub Actions" })])]);
+    const card = h("article", { class: "ds-card" }, [h("div", { class: "ds-head" }, [h("strong", { text: item.id }), item.envs.develop && item.envs.develop.hasCodedeploy ? h("span", { class: "meta", text: "GitHub Actions + CodeDeploy" }) : h("span", { class: "meta", text: "GitHub Actions" })])]);
     if (item.error) card.appendChild(h("div", { class: "meta", text: `No se pudo leer: ${item.error}` }));
     for (const env of ["develop", "production"]) {
       const e = item.envs[env];
