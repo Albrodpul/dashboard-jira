@@ -47,6 +47,15 @@ async function status() {
   return { servers: out, autoStartedOn: d.autoStartedOn || null, autoStoppedOn: d.autoStoppedOn || null, at: now() };
 }
 
+function spawnHidden(command, args, cwd, log) {
+  const arg = (a) => (/[\s"&|<>^]/.test(a) ? `"${a.replace(/"/g, '\\"')}"` : a);
+  const exe = /[\\/]/.test(command) ? path.normalize(command) : command;
+  const line = `/d /s /c "${[exe, ...args].map(arg).join(" ")} >> "${log}" 2>&1"`;
+  const lit = (s) => `'${String(s).replace(/'/g, "''")}'`;
+  const ps = `Start-Process -FilePath cmd.exe -ArgumentList ${lit(line)} -WorkingDirectory ${lit(cwd)} -WindowStyle Hidden`;
+  return cp.spawn("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", ps], { detached: true, windowsHide: true, stdio: "ignore" });
+}
+
 async function start(id) {
   const s = find(id);
   if (!s) throw new Error(`proyecto desconocido: ${id}`);
@@ -56,7 +65,7 @@ async function start(id) {
   fs.writeSync(fd, `[${now()}] ${s.command} ${(s.args || []).join(" ")}\n`);
   const cwd = path.resolve(config.root, s.cwd || ".");
   const command = s.command.startsWith(".") ? path.resolve(cwd, s.command) : s.command;
-  const child = cp.spawn(command, s.args || [], { cwd, detached: true, windowsHide: true, shell: !!s.shell, stdio: ["ignore", fd, fd] });
+  const child = process.platform === "win32" ? spawnHidden(command, s.args || [], cwd, logFile(id)) : cp.spawn(command, s.args || [], { cwd, detached: true, shell: !!s.shell, stdio: ["ignore", fd, fd] });
   child.on("error", (e) => fs.appendFileSync(logFile(id), `\n${e.message}\n`));
   child.unref();
   fs.closeSync(fd);
