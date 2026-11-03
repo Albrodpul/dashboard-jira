@@ -753,3 +753,5 @@ select.epic-add { flex: none; width: auto; max-width: 100%; border-radius: 999px
 .tab[aria-selected="true"] .tab-hint { color: var(--ink-2); }
 .logo-img { width: 30px; height: 30px; border-radius: 8px; flex: none; }
 @media (max-width: 760px) { .logo-img { width: 24px; height: 24px; border-radius: 6px; } }
+.board-col-action { display: flex; }
+.board-col-action .btn { width: 100%; padding: 6px 8px; font-size: 12.5px; white-space: normal; }

@@ -148,6 +148,7 @@ const POST_ROUTES = {
   "/api/delete": (res, input, send) => tasks.handleDelete(res, input, send),
   "/api/answer": (res, input, send) => tasks.handleAnswer(res, input, send),
   "/api/reviewed": (res, input, send) => tasks.handleReviewed(res, input, send),
+  "/api/reviewed-all": (res, input, send) => tasks.handleReviewedAll(res, input, send),
   "/api/comment": (res, input, send) => tasks.handleComment(res, input, send),
   "/api/config": (res, input, send) => tasks.handleConfig(res, input, send),
   "/api/refresh": (res, input, send) => tasks.handleRefresh(res, send),

@@ -111,6 +111,24 @@ function reviewedButton(t) {
   });
 }
 
+export function reviewAllButton(list) {
+  const todo = list.filter((t) => t.status === "done" && !t.reviewedAt);
+  if (!todo.length) return null;
+  return button(todo.length === 1 ? `Pasar a ${reviewStatus()} (1)` : `Pasar las ${todo.length} a ${reviewStatus()}`, {
+    cls: "primary",
+    title: `Las pasa todas a ${reviewStatus()} en Jira. Pulsarlo es tu orden para ese cambio.`,
+    onClick: (b) => {
+      if (!window.confirm(`¿Pasar ${todo.length === 1 ? "la tarea" : `las ${todo.length} tareas`} a ${reviewStatus()} en Jira?`)) return;
+      b.disabled = true;
+      b.textContent = "Pasando…";
+      requestOrFail("/api/reviewed-all", { keys: todo.map((t) => t.id) })
+        .then((r) => toast(r.failed && r.failed.length ? `${r.done.length} pasadas a ${reviewStatus()}; ${r.failed.length} no: ${r.failed.map((f) => `${f.key} (${f.error})`).join(", ")}` : `${r.done.length} pasadas a ${reviewStatus()} en Jira.`))
+        .catch((e) => toast(`No se pudo: ${e.message}`))
+        .then(() => refresh(true));
+    },
+  });
+}
+
 function commentProposal(t, kids, acts) {
   const id = `com-${t.id}`;
   const box = h("textarea", { class: "reply-box comment-box", id, rows: "5", "aria-label": `Comentario para Jira en ${t.key}` });
@@ -310,6 +328,10 @@ export function renderTasks(root) {
   const permissionsShown = state.tab === "waiting" ? renderPermissions(root) : 0;
   if (!list.length) return permissionsShown ? null : root.appendChild(empty(...EMPTY_LISTS[state.tab]));
   const deletable = list.filter((t) => t.status !== "waiting");
+  if (state.tab === "done") {
+    const all = reviewAllButton(list);
+    if (all) root.appendChild(h("div", { class: "toolbar" }, [all]));
+  }
   if (["sent", "ignored", "done", "waiting"].includes(state.tab) && deletable.length) deleteBar(root, deletable);
   const byEpic = new Map();
   for (const t of list) {
@@ -398,6 +420,10 @@ export function renderBoard(root) {
     const list = state.tasks.filter((t) => statuses.includes(t.status)).sort((a, b) => String(b.sentAt || b.at || "").localeCompare(String(a.sentAt || a.at || "")));
     const head = h("div", { class: "board-head" }, [h("span", { text: title }), h("span", { class: "n", text: String(list.length) })]);
     const body = !list.length ? [h("div", { class: "board-empty", text: "Ninguna" })] : id === "pending" ? pendingColumn(list) : list.map(boardCard);
+    if (id === "done") {
+      const all = reviewAllButton(list);
+      if (all) body.unshift(h("div", { class: "board-col-action" }, [all]));
+    }
     return h("section", { class: `board-col tasks-col${id === "pending" ? " wide" : ""}` }, [head, ...body]);
   });
   root.appendChild(h("div", { class: "task-board" }, columns));
