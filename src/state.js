@@ -131,6 +131,7 @@ function state() {
     sessionProfiles: require("./profiles").profiles(),
     cluster: require("./cluster").info(),
     hosted: require("./host").readConfig(),
+    convProfiles: Object.fromEntries(require("./host").readConfig().map((e) => [e.conversation, require("./profiles").profileFor(e.conversation, d.sessionOverrides || {})])),
     sentry: { enabled: sentry.sentryAvailable(), errorsArea: ERRORS_AREA, sends: sentry.sentryIssues(d) },
     people: people(d),
     followUpStatus: followUpStatus(d, r),

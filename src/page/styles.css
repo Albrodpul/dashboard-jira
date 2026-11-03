@@ -637,6 +637,9 @@ select.epic-add { flex: none; width: auto; max-width: 100%; border-radius: 999px
 .term-overlay { position: fixed; inset: 0; z-index: 20; display: flex; flex-direction: column; background: var(--bg); color: var(--ink); padding: 8px 8px calc(8px + env(safe-area-inset-bottom, 0px)); gap: 8px; }
 .term-head { display: flex; align-items: center; gap: 10px; padding: 0 4px; }
 .term-head strong { font-size: 15px; }
+.term-head { flex-wrap: wrap; }
+.term-profiles { display: inline-flex; gap: 6px; flex-wrap: wrap; }
+.term-profile { font: inherit; font-size: 12.5px; padding: 3px 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink); max-width: 100%; }
 .term-head .btn { margin-left: auto; }
 .term-head .talk-close { padding: 4px 10px; font-size: 13px; }
 .term-status { color: var(--ink-3); }

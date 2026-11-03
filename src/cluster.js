@@ -19,7 +19,7 @@ const ROLES = [
 const ROUTE_ROLES = ["reporter", "orchestrator", "followUp", "board"];
 const PROJECTS = path.join(os.homedir(), ".claude", "projects");
 const projectDir = () => path.join(PROJECTS, config.root.replace(/\\/g, "/").replace(/^([A-Z]):/, (m, d) => `${d.toLowerCase()}:`).replace(/[^a-zA-Z0-9]/g, "-"));
-const SYNC_KEYS = ["tasks", "aliases", "seenEpics", "reports", "refreshRequest", "jiraEpics", "deployments", "followUps", "messages", "lastReview", "config", "contextTidy", "deleted", "permissionRules", "sentry"];
+const SYNC_KEYS = ["tasks", "aliases", "seenEpics", "reports", "refreshRequest", "jiraEpics", "deployments", "followUps", "messages", "lastReview", "config", "contextTidy", "deleted", "permissionRules", "sentry", "sessionOverrides"];
 
 const readState = () => {
   try {

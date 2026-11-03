@@ -1,4 +1,4 @@
-import { h, toast, state } from "./base.js";
+import { h, toast, state, requestOrFail } from "./base.js";
 
 const KEYS = [
   ["Esc", "\x1b", "Interrumpe lo que esté haciendo (como Escape en VS Code)"],
@@ -37,11 +37,48 @@ function loadXterm() {
   return loading;
 }
 
+const MODEL_NAMES = { fable: "Fable", opus: "Opus", sonnet: "Sonnet", haiku: "Haiku" };
+const EFFORT_NAMES = { low: "bajo", medium: "medio", high: "alto", xhigh: "muy alto", max: "máximo" };
+
+function profileControls(conversation, name) {
+  const p = (state.convProfiles || {})[conversation];
+  if (!p) return null;
+  const current = { model: p.custom && p.model !== p.defaults.model ? p.model : "", effort: p.custom && p.effort !== p.defaults.effort ? p.effort : "" };
+  const pick = (kind, names, label) => {
+    const def = p.defaults[kind];
+    const sel = h("select", { class: "term-profile", "aria-label": `${label} de ${name}`, title: `${label}. «Por defecto» es el de su tipo de sesión.` }, [
+      h("option", { value: "", text: `${label}: ${names[def] || def || "—"} (por defecto)` }),
+      ...Object.entries(names).filter(([k]) => k !== def).map(([k, v]) => h("option", { value: k, text: `${label}: ${v}` })),
+    ]);
+    sel.value = current[kind];
+    sel.addEventListener("change", () => {
+      const next = { ...current, [kind]: sel.value };
+      if (!window.confirm(`Para aplicarlo se reinicia «${name}». La conversación sigue igual, pero si está trabajando ahora mismo se corta. ¿Seguimos?`)) {
+        sel.value = current[kind];
+        return;
+      }
+      sel.disabled = true;
+      requestOrFail("/api/session-profile", { conversation, name, ...next })
+        .then((d) => {
+          Object.assign(current, next);
+          toast(`«${name}» ahora con ${MODEL_NAMES[d.profile.model] || d.profile.model} y esfuerzo ${EFFORT_NAMES[d.profile.effort] || d.profile.effort}${d.restarted ? ". Reiniciada." : "; se aplica al abrirla."}`);
+        })
+        .catch((e) => {
+          sel.value = current[kind];
+          toast(`No se pudo cambiar: ${e.message}`);
+        })
+        .finally(() => (sel.disabled = false));
+    });
+    return sel;
+  };
+  return h("span", { class: "term-profiles" }, [pick("model", MODEL_NAMES, "Modelo"), pick("effort", EFFORT_NAMES, "Esfuerzo")]);
+}
+
 function createPanel(conversation, name, onClose) {
   const screen = h("div", { class: "term-screen" });
   const status = h("span", { class: "meta term-status", text: "Conectando…" });
   const adjust = h("button", { class: "btn subtle term-adjust", type: "button", hidden: true, text: "Ajustar a esta pantalla", title: "Otro dispositivo tiene la sesión a su tamaño. Pulsa para ponerla al de esta pantalla." });
-  const head = [h("strong", { text: name }), status, adjust];
+  const head = [h("strong", { text: name }), status, adjust, profileControls(conversation, name)];
   if (onClose) head.push(h("button", { class: "btn subtle", type: "button", text: "Cerrar", onclick: onClose }));
   const input = h("textarea", { class: "term-input", rows: "1", placeholder: "Escribe aquí y pulsa Enviar", "aria-label": `Escribir a ${name}` });
   const sendBtn = h("button", { class: "btn primary", type: "button", text: "Enviar" });
