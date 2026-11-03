@@ -434,7 +434,7 @@ function handleLocal(req, res, url) {
     }
     if (url === "/api/learning") return serveBody(res, "application/json", JSON.stringify(learning.learningSummary()));
     if (url === "/api/state") {
-      const body = JSON.stringify({ ...state(), voice: voice.voiceAvailable(), speech: speech.speechAvailable(), deployStatus: deployStatus.readStatus() });
+      const body = JSON.stringify({ ...state(), voice: voice.voiceAvailable(), speech: speech.speechAvailable(), deployStatus: deployStatus.readStatus(), reviewJob: tasks.reviewJobState() });
       const hash = require("crypto").createHash("sha1").update(body.replace(/"syncedAt":"[^"]*"/g, "")).digest("hex");
       if (req.headers["x-state-hash"] === hash) return res.writeHead(204, { "x-state-hash": hash, "cache-control": "no-store" }).end();
       res.writeHead(200, { "content-type": "application/json", "cache-control": "no-store", "x-state-hash": hash });

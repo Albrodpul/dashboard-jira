@@ -754,6 +754,7 @@ select.epic-add { flex: none; width: auto; max-width: 100%; border-radius: 999px
 .logo-img { width: 30px; height: 30px; border-radius: 8px; flex: none; }
 @media (max-width: 760px) { .logo-img { width: 24px; height: 24px; border-radius: 6px; } }
 .board-col-action { display: flex; }
+.review-job { display: grid; gap: 6px; flex: 1; font-size: 13px; }
 .board-col-action .btn { width: 100%; padding: 6px 8px; font-size: 12.5px; white-space: normal; }
 .chat-select-row { display: none; }
 @media (max-width: 760px) {
