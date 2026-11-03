@@ -765,3 +765,4 @@ select.epic-add { flex: none; width: auto; max-width: 100%; border-radius: 999px
   .chat-select-row { display: flex; gap: 8px; }
   .chat-select { flex: 1; min-width: 0; font-size: 16px; padding: 8px 10px; }
 }
+.term-profile.custom { border-color: var(--accent); color: var(--accent); font-weight: 600; }
