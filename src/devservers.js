@@ -55,7 +55,7 @@ function spawnHidden(command, args, cwd, log) {
   const ps = `(Start-Process -FilePath cmd.exe -ArgumentList ${lit(line)} -WorkingDirectory ${lit(cwd)} -WindowStyle Hidden -PassThru).Id`;
   const r = cp.spawnSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", ps], { windowsHide: true, encoding: "utf8", timeout: 30000 });
   const pid = Number(String(r.stdout || "").trim());
-  if (!pid) throw new Error(`no arranca: ${String(r.stderr || r.error || "").trim().slice(0, 300)}`);
+  if (!pid) throw new Error(`no arranca (powershell ${r.status}${r.signal ? " " + r.signal : ""}): ${String(r.stderr || r.error || r.stdout || "").trim().slice(0, 300)}`);
   return pid;
 }
 
