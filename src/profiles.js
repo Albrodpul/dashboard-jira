@@ -21,9 +21,33 @@ function roleOf(conversation) {
   return "area";
 }
 
-function profileFor(conversation) {
+const MODELS = ["fable", "opus", "sonnet", "haiku"];
+const EFFORTS = ["low", "medium", "high", "xhigh", "max"];
+
+function overrideOf(conversation) {
+  try {
+    return (require("./data").load().sessionOverrides || {})[conversation] || null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function profileFor(conversation, overrides) {
   const role = roleOf(conversation);
-  return { role, ...profiles()[role] };
+  const base = profiles()[role] || {};
+  const o = (overrides ? overrides[conversation] : overrideOf(conversation)) || {};
+  return { role, ...base, ...(o.model ? { model: o.model } : {}), ...(o.effort ? { effort: o.effort } : {}), custom: !!(o.model || o.effort), defaults: { model: base.model || null, effort: base.effort || null } };
+}
+
+function setOverride(conversation, { model, effort }) {
+  if (model && !MODELS.includes(model)) throw new Error(`modelo no válido: ${model}`);
+  if (effort && !EFFORTS.includes(effort)) throw new Error(`esfuerzo no válido: ${effort}`);
+  require("./data").mutate((d) => {
+    d.sessionOverrides = d.sessionOverrides || {};
+    if (!model && !effort) delete d.sessionOverrides[conversation];
+    else d.sessionOverrides[conversation] = { model: model || null, effort: effort || null };
+  });
+  return profileFor(conversation);
 }
 
 function profileArgs(conversation) {
@@ -35,4 +59,4 @@ function profileArgs(conversation) {
   }
 }
 
-module.exports = { profileFor, profileArgs, profiles };
+module.exports = { profileFor, profileArgs, profiles, setOverride, MODELS, EFFORTS };

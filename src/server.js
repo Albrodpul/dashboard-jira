@@ -228,6 +228,25 @@ const POST_ROUTES = {
     if (is("board") && s.boardStatus) return wakeSession(s.boardStatus.session, "Aviso del tablero: arranca la sesión del tablero. Eres la sesión del tablero registrada: ejecuta ahora .claude/commands/tablero.md (regla de AGENTS.md).").catch(() => {});
     if (is("followUp")) return require("./startup").wakeFollowUp().catch(() => {});
   },
+  "/api/session-profile": (res, { conversation, name, model, effort }, send) => {
+    if (!/^[0-9a-f-]{36}$/.test(String(conversation || ""))) return send(res, 400, { error: "conversación no válida" });
+    let profile;
+    try {
+      profile = require("./profiles").setOverride(conversation, { model, effort });
+    } catch (e) {
+      return send(res, 400, { error: e.message });
+    }
+    (async () => {
+      const list = await host.hostRequest("GET", "/sessions").catch(() => []);
+      const live = (list || []).find((x) => x.conversation === conversation && x.running);
+      if (!live) return { profile, restarted: false };
+      await host.hostRequest("POST", "/stop", { conversation });
+      await host.hostRequest("POST", "/start", { conversation, name: name || live.name });
+      return { profile, restarted: true };
+    })()
+      .then((r) => send(res, 200, r))
+      .catch((e) => send(res, 500, { error: String(e.message || e) }));
+  },
   "/api/host/action": (res, { action, conversation, name }, send) => {
     if (!/^[0-9a-f-]{36}$/.test(String(conversation || ""))) return send(res, 400, { error: "conversación no válida" });
     const go = async () => {
