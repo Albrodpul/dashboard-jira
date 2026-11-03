@@ -52,8 +52,31 @@ function spawnHidden(command, args, cwd, log) {
   const exe = /[\\/]/.test(command) ? path.normalize(command) : command;
   const line = `/d /s /c "${[exe, ...args].map(arg).join(" ")} >> "${log}" 2>&1"`;
   const lit = (s) => `'${String(s).replace(/'/g, "''")}'`;
-  const ps = `Start-Process -FilePath cmd.exe -ArgumentList ${lit(line)} -WorkingDirectory ${lit(cwd)} -WindowStyle Hidden`;
-  return cp.spawn("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", ps], { detached: true, windowsHide: true, stdio: "ignore" });
+  const ps = `(Start-Process -FilePath cmd.exe -ArgumentList ${lit(line)} -WorkingDirectory ${lit(cwd)} -WindowStyle Hidden -PassThru).Id`;
+  const r = cp.spawnSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", ps], { detached: true, windowsHide: true, encoding: "utf8", timeout: 30000 });
+  const pid = Number(String(r.stdout || "").trim());
+  if (!pid) throw new Error(`no arranca: ${String(r.stderr || r.error || "").trim().slice(0, 300)}`);
+  return pid;
+}
+
+const pidFile = (id) => path.join(LOG_DIR, `${id}.pid`);
+
+function killStarted(id) {
+  try {
+    kill(Number(fs.readFileSync(pidFile(id), "utf8")));
+  } catch (e) {}
+  try {
+    fs.unlinkSync(pidFile(id));
+  } catch (e) {}
+}
+
+function openLog(id) {
+  try {
+    return fs.openSync(logFile(id), "w");
+  } catch (e) {
+    killStarted(id);
+    return fs.openSync(logFile(id), "a");
+  }
 }
 
 async function start(id) {
@@ -61,14 +84,19 @@ async function start(id) {
   if (!s) throw new Error(`proyecto desconocido: ${id}`);
   if (await portOpen(s.port)) return false;
   fs.mkdirSync(LOG_DIR, { recursive: true });
-  const fd = fs.openSync(logFile(id), "w");
+  const fd = openLog(id);
   fs.writeSync(fd, `[${now()}] ${s.command} ${(s.args || []).join(" ")}\n`);
   const cwd = path.resolve(config.root, s.cwd || ".");
   const command = s.command.startsWith(".") ? path.resolve(cwd, s.command) : s.command;
-  const child = process.platform === "win32" ? spawnHidden(command, s.args || [], cwd, logFile(id)) : cp.spawn(command, s.args || [], { cwd, detached: true, shell: !!s.shell, stdio: ["ignore", fd, fd] });
-  child.on("error", (e) => fs.appendFileSync(logFile(id), `\n${e.message}\n`));
-  child.unref();
-  fs.closeSync(fd);
+  if (process.platform === "win32") {
+    fs.closeSync(fd);
+    fs.writeFileSync(pidFile(id), String(spawnHidden(command, s.args || [], cwd, logFile(id))));
+  } else {
+    const child = cp.spawn(command, s.args || [], { cwd, detached: true, shell: !!s.shell, stdio: ["ignore", fd, fd] });
+    child.on("error", (e) => fs.appendFileSync(logFile(id), `\n${e.message}\n`));
+    child.unref();
+    fs.closeSync(fd);
+  }
   starting.set(id, Date.now());
   return true;
 }
@@ -82,10 +110,14 @@ async function stop(id) {
       cp.execFileSync(s.stop.command, s.stop.args || [], { cwd: path.resolve(config.root, s.cwd || "."), windowsHide: true, stdio: "ignore", timeout: 30000 });
     } catch (e) {}
     for (let i = 0; i < 20 && (await portOpen(s.port)); i++) await new Promise((r) => setTimeout(r, 500));
-    if (!(await portOpen(s.port))) return true;
+    if (!(await portOpen(s.port))) {
+      killStarted(id);
+      return true;
+    }
   }
   const pids = listeningPids(s.port);
   pids.forEach(kill);
+  killStarted(id);
   return pids.length > 0;
 }
 
