@@ -262,6 +262,11 @@ async function startRoles() {
     }
     await host.hostRequest("POST", "/start", { conversation, name: (r && r.session) || name }).catch(() => {});
   }
+  const routes = sessions.loadRoutes();
+  for (const id of [require("./state").deployerArea(routes), config.errorsArea]) {
+    const a = id && (routes.areas || {})[id];
+    if (a && a.conversation) await host.hostRequest("POST", "/start", { conversation: a.conversation, name: a.session || a.title || id }).catch(() => {});
+  }
 }
 
 async function stopRoles() {
