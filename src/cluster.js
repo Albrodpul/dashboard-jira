@@ -2,6 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const os = require("os");
 const config = require("./config");
+const { mergeTranscript } = require("./transcriptmerge");
 const { DATA_DIR, SEEN_FILE, load, mutate, now } = require("./data");
 
 const CLUSTER = config.cluster || null;
@@ -114,6 +115,8 @@ function serveTranscript(conversation, from) {
   return { tail: at ? tailHash(f, at) : "", body };
 }
 
+const kept = new Map();
+
 async function pullTranscripts(onlyNewerThan) {
   const list = await peerGet("/api/cluster/transcripts", 15000);
   if (!Array.isArray(list)) return { changed: [], failed: ["la lista"] };
@@ -124,7 +127,7 @@ async function pullTranscripts(onlyNewerThan) {
     if (onlyNewerThan && t.mtime < onlyNewerThan) continue;
     const local = transcriptPath(t.conversation);
     const size = local ? fs.statSync(local).size : -1;
-    if (size === t.size) continue;
+    if (size === t.size || kept.get(t.conversation) === t.size) continue;
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 15 * 60000);
     try {
@@ -156,8 +159,20 @@ function writeTranscripts(changed) {
       fs.appendFileSync(c.file, c.body);
       continue;
     }
-    if (fs.existsSync(c.file)) fs.copyFileSync(c.file, c.file + ".prev");
-    fs.writeFileSync(c.file + ".sync", c.body);
+    let body = c.body;
+    if (fs.existsSync(c.file)) {
+      const m = mergeTranscript(fs.readFileSync(c.file), c.body);
+      if (m.action === "keep") {
+        kept.set(c.conversation, c.size);
+        continue;
+      }
+      if (m.action === "merge") {
+        body = m.body;
+        log(`${c.name}: siguió en los dos ordenadores; junto ${m.localOnly} líneas de aquí y ${m.peerOnly} del otro`);
+      }
+      fs.copyFileSync(c.file, c.file + ".prev");
+    }
+    fs.writeFileSync(c.file + ".sync", body);
     fs.renameSync(c.file + ".sync", c.file);
   }
 }
@@ -328,12 +343,10 @@ async function tick() {
           return;
         }
         await peerPost("/api/cluster/yield", { from: os.hostname() });
-        if (peerNewer) {
-          st.pendingPull = peer.since;
-          save();
-          await pullSnapshot();
-          if ((await refreshFromPeer(new Date(peer.since).getTime() - 60000)) >= 0) st.pendingPull = null;
-        }
+        st.pendingPull = peer.since;
+        save();
+        if (peerNewer) await pullSnapshot();
+        if ((await refreshFromPeer(new Date(peer.since).getTime() - 60000)) >= 0) st.pendingPull = null;
         if (!isPrimary()) await promote("el ordenador preferido vuelve y recupera el mando");
         else log("el otro ordenador mandaba mientras yo no respondía: datos traídos y le pido que ceda");
       } else if (!isPrimary()) await promote("ordenador preferido");
