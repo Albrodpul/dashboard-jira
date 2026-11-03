@@ -173,22 +173,29 @@ function handleReviewedAll(res, { keys }, send) {
   const tasks = load().tasks;
   const list = (Array.isArray(keys) ? keys : []).map(String).filter((k) => tasks[k] && tasks[k].status === "done" && !tasks[k].reviewedAt).slice(0, 100);
   if (!list.length) return send(res, 400, { error: "no hay tareas hechas sin pasar a revisión" });
+  if (reviewJob && !reviewJob.finishedAt) return send(res, 409, { error: `ya se están pasando (${reviewJob.done.length} de ${reviewJob.total})` });
+  const job = (reviewJob = { id: Date.now(), total: list.length, done: [], failed: [], startedAt: now(), finishedAt: null });
+  send(res, 202, { id: job.id, total: job.total });
   (async () => {
-    const done = [];
-    const failed = [];
     for (const k of list) {
       try {
         await reviewOne(k);
-        done.push(k);
+        job.done.push(k);
       } catch (e) {
-        failed.push({ key: k, error: String(e.message || e) });
+        job.failed.push({ key: k, error: String(e.message || e) });
       }
     }
-    return { done, failed };
   })()
-    .then((r) => send(res, 200, r))
-    .catch((e) => send(res, 502, { error: String(e.message || e) }));
+    .catch((e) => job.failed.push({ key: "-", error: String(e.message || e) }))
+    .finally(() => {
+      job.finishedAt = now();
+      const text = `${job.done.length} tareas pasadas a ${config.statuses.review}${job.failed.length ? `; ${job.failed.length} no` : ""}`;
+      require("./push").sendPush("tasks", false, text).catch(() => {});
+    });
 }
+
+let reviewJob = null;
+const reviewJobState = () => reviewJob;
 
 function handleComment(res, { key, text }, send) {
   const clean = String(text || "").trim().slice(0, 5000);
@@ -298,4 +305,4 @@ function handleImport(res, { keys }, send) {
     .catch(() => send(res, 502, { error: "No se pudo consultar Jira" }));
 }
 
-module.exports = { handleTask, handleBatch, handleDelete, archiveDone, handleAnswer, handleReviewed, handleReviewedAll, handleComment, handleConfig, handleRefresh, handleSearch, handleImport };
+module.exports = { handleTask, handleBatch, handleDelete, archiveDone, handleAnswer, handleReviewed, handleReviewedAll, reviewJobState, handleComment, handleConfig, handleRefresh, handleSearch, handleImport };

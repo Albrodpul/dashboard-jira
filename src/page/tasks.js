@@ -111,7 +111,26 @@ function reviewedButton(t) {
   });
 }
 
+let seenJob = null;
+
+function reviewJobNotice() {
+  const j = state.reviewJob;
+  if (!j) return null;
+  const n = j.done.length + j.failed.length;
+  if (!j.finishedAt) {
+    seenJob = j.id;
+    return h("div", { class: "review-job" }, [h("strong", { text: `Pasando a ${reviewStatus()}: ${n} de ${j.total}` }), h("div", { class: `ds-bar running`, role: "progressbar", "aria-valuemin": "0", "aria-valuemax": String(j.total), "aria-valuenow": String(n) }, [h("i", { style: `width:${Math.round((n / j.total) * 100)}%` })])]);
+  }
+  if (seenJob === j.id) {
+    seenJob = null;
+    toast(j.failed.length ? `${j.done.length} pasadas a ${reviewStatus()}; ${j.failed.length} no: ${j.failed.map((f) => `${f.key} (${f.error})`).join(", ")}` : `${j.done.length} pasadas a ${reviewStatus()} en Jira.`);
+  }
+  return null;
+}
+
 export function reviewAllButton(list) {
+  const running = reviewJobNotice();
+  if (running) return running;
   const todo = list.filter((t) => t.status === "done" && !t.reviewedAt);
   if (!todo.length) return null;
   return button(todo.length === 1 ? `Pasar a ${reviewStatus()} (1)` : `Pasar las ${todo.length} a ${reviewStatus()}`, {
@@ -122,7 +141,10 @@ export function reviewAllButton(list) {
       b.disabled = true;
       b.textContent = "Pasando…";
       requestOrFail("/api/reviewed-all", { keys: todo.map((t) => t.id) })
-        .then((r) => toast(r.failed && r.failed.length ? `${r.done.length} pasadas a ${reviewStatus()}; ${r.failed.length} no: ${r.failed.map((f) => `${f.key} (${f.error})`).join(", ")}` : `${r.done.length} pasadas a ${reviewStatus()} en Jira.`))
+        .then((r) => {
+          seenJob = r.id;
+          toast(`Pasando ${r.total} a ${reviewStatus()}. Puedes seguir con otra cosa; aquí ves el avance.`);
+        })
         .catch((e) => toast(`No se pudo: ${e.message}`))
         .then(() => refresh(true));
     },
