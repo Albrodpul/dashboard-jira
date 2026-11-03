@@ -292,12 +292,16 @@ function keepAwake() {
   const want = !["Sat", "Sun"].includes(p.weekday) && min >= 7 * 60 + 30 && min < 18 * 60 + 30;
   if (!want) return;
   const cp = require("child_process");
+  const pidFile = path.join(DATA_DIR, "caffeinate.pid");
   try {
-    cp.execFileSync("/usr/bin/pgrep", ["-f", "caffeinate -i -t"], { stdio: "ignore" });
-    return;
+    const pid = Number(fs.readFileSync(pidFile, "utf8"));
+    process.kill(pid, 0);
+    if (/caffeinate/.test(cp.execFileSync("/bin/ps", ["-o", "comm=", "-p", String(pid)]).toString())) return;
   } catch (e) {}
   const seconds = (18 * 60 + 30 - min) * 60;
-  cp.spawn("/usr/bin/caffeinate", ["-i", "-t", String(seconds)], { detached: true, stdio: "ignore" }).unref();
+  const child = cp.spawn("/usr/bin/caffeinate", ["-i", "-t", String(seconds)], { detached: true, stdio: "ignore" });
+  child.unref();
+  fs.writeFileSync(pidFile, String(child.pid));
   log("caffeinate: el Mac no se dormirá solo hasta las 18:30");
 }
 
