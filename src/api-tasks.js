@@ -151,19 +151,42 @@ function handleAnswer(res, { key, text }, send) {
   send(res, 200);
 }
 
+async function reviewOne(key) {
+  const { transitions } = await jiraRequest("GET", `/issue/${encodeURIComponent(key)}/transitions`);
+  const tr = (transitions || []).find((x) => config.statuses.reviewRegex.test((x.to && x.to.name) || x.name || ""));
+  if (!tr) throw new Error(`en Jira no hay paso a ${config.statuses.review} desde el estado actual`);
+  await jiraRequest("POST", `/issue/${encodeURIComponent(key)}/transitions`, { transition: { id: tr.id } });
+  mutate((d) => {
+    if (d.tasks[key]) d.tasks[key].reviewedAt = now();
+  });
+}
+
 function handleReviewed(res, { key }, send) {
   const t = load().tasks[key];
   if (!t || t.status !== "done") return send(res, 409, { error: "solo se marcan revisadas las tareas hechas" });
-  (async () => {
-    const { transitions } = await jiraRequest("GET", `/issue/${encodeURIComponent(key)}/transitions`);
-    const tr = (transitions || []).find((x) => config.statuses.reviewRegex.test((x.to && x.to.name) || x.name || ""));
-    if (!tr) throw new Error(`en Jira no hay paso a ${config.statuses.review} desde el estado actual`);
-    await jiraRequest("POST", `/issue/${encodeURIComponent(key)}/transitions`, { transition: { id: tr.id } });
-    mutate((d) => {
-      if (d.tasks[key]) d.tasks[key].reviewedAt = now();
-    });
-  })()
+  reviewOne(key)
     .then(() => send(res, 200))
+    .catch((e) => send(res, 502, { error: String(e.message || e) }));
+}
+
+function handleReviewedAll(res, { keys }, send) {
+  const tasks = load().tasks;
+  const list = (Array.isArray(keys) ? keys : []).map(String).filter((k) => tasks[k] && tasks[k].status === "done" && !tasks[k].reviewedAt).slice(0, 100);
+  if (!list.length) return send(res, 400, { error: "no hay tareas hechas sin pasar a revisión" });
+  (async () => {
+    const done = [];
+    const failed = [];
+    for (const k of list) {
+      try {
+        await reviewOne(k);
+        done.push(k);
+      } catch (e) {
+        failed.push({ key: k, error: String(e.message || e) });
+      }
+    }
+    return { done, failed };
+  })()
+    .then((r) => send(res, 200, r))
     .catch((e) => send(res, 502, { error: String(e.message || e) }));
 }
 
@@ -275,4 +298,4 @@ function handleImport(res, { keys }, send) {
     .catch(() => send(res, 502, { error: "No se pudo consultar Jira" }));
 }
 
-module.exports = { handleTask, handleBatch, handleDelete, archiveDone, handleAnswer, handleReviewed, handleComment, handleConfig, handleRefresh, handleSearch, handleImport };
+module.exports = { handleTask, handleBatch, handleDelete, archiveDone, handleAnswer, handleReviewed, handleReviewedAll, handleComment, handleConfig, handleRefresh, handleSearch, handleImport };
