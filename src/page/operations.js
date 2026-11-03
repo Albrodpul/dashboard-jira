@@ -343,6 +343,16 @@ export function renderTalk(root) {
   for (const o of others) pick(o.conversation, o.name);
   picker.appendChild(h("button", { type: "button", class: "chat-new", title: "Abre una sesión nueva en el tablero para hablar con ella", text: "+ Nueva", onclick: (e) => newTalkSession(e.currentTarget) }));
   root.appendChild(picker);
+  const choices = [...FIXED_TALK.map((k) => [k, TALK_NAMES[k]]), ...others.map((o) => [o.conversation, o.name])];
+  if (/^[0-9a-f-]{36}$/.test(talkTo) && !choices.some(([k]) => k === talkTo)) choices.push([talkTo, "Sesión abierta"]);
+  const select = h("select", { class: "chat-select", "aria-label": "Qué sesión ver" }, choices.map(([k, label]) => h("option", { value: k, text: label })));
+  select.value = talkTo;
+  select.addEventListener("change", () => {
+    setTalk(select.value);
+    render();
+  });
+  const newButton = h("button", { type: "button", class: "btn chat-new", text: "+ Nueva", onclick: (e) => newTalkSession(e.currentTarget) });
+  root.appendChild(h("div", { class: "chat-select-row" }, [select, newButton]));
   const other = others.find((o) => o.conversation === talkTo) || (/^[0-9a-f-]{36}$/.test(talkTo) ? { conversation: talkTo, name: "Sesión nueva" } : null);
   const sleeping = other && !others.includes(other) && !justCreated.has(other.conversation);
   if (sleeping) {
