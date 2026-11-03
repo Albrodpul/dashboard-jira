@@ -131,7 +131,7 @@ function phaseRow(n, name, p) {
 
 const PHASE_SHORT = { "GitHub Actions": "Actions", CodeDeploy: "CodeDeploy" };
 
-function statusRow(env, e) {
+function statusRow(env, e, earlier) {
   const a = e.actions;
   const cd = e.codedeploy;
   const first = actionsPhase(a);
@@ -149,6 +149,7 @@ function statusRow(env, e) {
     h("div", { class: "ds-main" }, [
       h("div", { class: "ds-line" }, [
         h("strong", { text: DS_ENV[env] }),
+        earlier ? h("span", { class: "meta", text: "· el anterior, aún en marcha" }) : null,
         ref ? h("code", { class: "ds-ref", text: ref, title: a.ref }) : null,
         e.state === "success" ? h("span", { class: "visually-hidden", text: DS_STATE.success }) : h("span", { class: `chip ds-${e.state}`, text: DS_STATE[e.state] || e.state }),
         a ? h("span", { class: "meta ds-ago", text: ago(e.state === "running" ? a.startedAt : (e.codedeployCurrent && cd && cd.finishedAt) || a.updatedAt) }) : null,
@@ -157,7 +158,7 @@ function statusRow(env, e) {
     ]),
   ];
   if (a && a.url) kids.push(h("a", { class: "ds-link", href: a.url, target: "_blank", rel: "noopener", title: "Ver en GitHub Actions", "aria-label": `Ver ${DS_ENV[env].toLowerCase()} en GitHub Actions`, text: "↗" }));
-  return h("div", { class: `ds-row ${e.state}` }, kids);
+  return h("div", { class: `ds-row ${e.state}${earlier ? " ds-parallel" : ""}` }, kids);
 }
 
 function deployStatusPanel(root) {
@@ -182,7 +183,12 @@ function deployStatusPanel(root) {
   for (const item of st.items) {
     const card = h("article", { class: "ds-card" }, [h("div", { class: "ds-head" }, [h("strong", { text: item.id }), item.envs.develop && item.envs.develop.codedeploy ? h("span", { class: "meta", text: "GitHub Actions + CodeDeploy" }) : h("span", { class: "meta", text: "GitHub Actions" })])]);
     if (item.error) card.appendChild(h("div", { class: "meta", text: `No se pudo leer: ${item.error}` }));
-    for (const env of ["develop", "production"]) if (item.envs[env]) card.appendChild(statusRow(env, item.envs[env]));
+    for (const env of ["develop", "production"]) {
+      const e = item.envs[env];
+      if (!e) continue;
+      card.appendChild(statusRow(env, e));
+      for (const p of e.parallel || []) card.appendChild(statusRow(env, p, true));
+    }
     grid.appendChild(card);
   }
   root.appendChild(grid);
