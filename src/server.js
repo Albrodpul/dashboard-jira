@@ -241,7 +241,7 @@ const POST_ROUTES = {
       const live = (list || []).find((x) => x.conversation === conversation && x.running);
       if (!live) return { profile, restarted: false };
       await host.hostRequest("POST", "/stop", { conversation });
-      await host.hostRequest("POST", "/start", { conversation, name: name || live.name });
+      await host.hostRequest("POST", "/start", { conversation, name: live.name || name });
       return { profile, restarted: true };
     })()
       .then((r) => send(res, 200, r))

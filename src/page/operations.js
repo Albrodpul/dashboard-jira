@@ -309,7 +309,15 @@ export function openTalk(conversation) {
 function otherLiveSessions() {
   const fixed = new Set(FIXED_TALK.map((k) => (talkSession(k) || {}).conversation).filter(Boolean));
   const live = new Map(((state.sessions && state.sessions.list) || []).map((s) => [s.conversation, s]));
-  return (state.hosted || []).filter((x) => !x.waitingForVsCode && !fixed.has(x.conversation) && live.has(x.conversation)).map((x) => ({ conversation: x.conversation, name: (live.get(x.conversation).title || live.get(x.conversation).name || x.name) }));
+  return (state.hosted || []).filter((x) => !x.waitingForVsCode && !fixed.has(x.conversation) && live.has(x.conversation)).map((x) => ({ conversation: x.conversation, name: talkName(x.conversation), session: x.name }));
+}
+
+function talkName(conversation) {
+  const area = state.areas.find((a) => a.conversation === conversation && a.name);
+  if (area) return area.name;
+  const live = ((state.sessions && state.sessions.list) || []).find((s) => s.conversation === conversation);
+  const hosted = (state.hosted || []).find((x) => x.conversation === conversation);
+  return (live && (live.title || live.name)) || (hosted && hosted.name) || "Sesión";
 }
 
 function newTalkSession(b) {
@@ -379,8 +387,7 @@ function renderTalkMain(root, others) {
   const other = others.find((o) => o.conversation === talkTo) || (/^[0-9a-f-]{36}$/.test(talkTo) ? { conversation: talkTo, name: "Sesión nueva" } : null);
   const sleeping = other && !others.includes(other) && !justCreated.has(other.conversation);
   if (sleeping) {
-    const known = (state.hosted || []).find((x) => x.conversation === other.conversation) || state.areas.find((a) => a.conversation === other.conversation);
-    const name = (known && (known.name || known.sessionName)) || "Sesión";
+    const name = talkName(other.conversation);
     return sleepingTalk(root, other.conversation, name, `«${name}» está dormida.`);
   }
   if (other) {
@@ -390,7 +397,7 @@ function renderTalkMain(root, others) {
       onClick: (b) => {
         if (!window.confirm(`¿Cerrar «${other.name}»? Si está a mitad de algo, se corta. La conversación no se borra.`)) return;
         b.disabled = true;
-        requestOrFail("/api/host/action", { action: "sleep", conversation: other.conversation, name: other.name })
+        requestOrFail("/api/host/action", { action: "sleep", conversation: other.conversation, name: other.session || other.name })
           .then(() => {
             setTalk("board");
             toast(`«${other.name}» cerrada. Está en Sesiones si la quieres volver a abrir.`);
