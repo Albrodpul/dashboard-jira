@@ -639,7 +639,7 @@ select.epic-add { flex: none; width: auto; max-width: 100%; border-radius: 999px
 .term-head strong { font-size: 15px; }
 .term-head { flex-wrap: wrap; }
 .term-profiles { display: inline-flex; gap: 6px; flex-wrap: wrap; }
-.term-profile { font: inherit; font-size: 12.5px; padding: 3px 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink); max-width: 100%; }
+.term-profile { flex: none; width: auto; font: inherit; font-size: 12.5px; padding: 3px 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink); max-width: 100%; }
 .term-head .btn { margin-left: auto; }
 .term-head .talk-close { padding: 4px 10px; font-size: 13px; }
 .term-status { color: var(--ink-3); }
@@ -656,6 +656,9 @@ select.epic-add { flex: none; width: auto; max-width: 100%; border-radius: 999px
 @media (max-width: 760px) {
   .app[data-view="talk"] .main { padding-bottom: 76px; }
   .term-inline { height: calc(100dvh - 250px); min-height: 300px; }
+  .term-head { row-gap: 6px; }
+  .term-profiles { display: flex; flex: 1 1 100%; min-width: 0; flex-wrap: nowrap; gap: 6px; }
+  .term-profiles .term-profile { flex: 1 1 0; min-width: 0; min-height: 34px; padding: 4px 6px; font-size: 16px; }
 }
 .term-wrap { position: relative; flex: 1 1 auto; min-height: 0; display: flex; }
 .term-wrap .term-screen { flex: 1 1 auto; overflow: auto; }
