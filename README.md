@@ -15,20 +15,27 @@ When several AI coding sessions work in parallel (one per product area), someone
 3. **An orchestrator session delivers** the approved work, with the ticket's attachments already downloaded. Each session reports back `done`, `partial` or `question`, and you answer from the board.
 
 It also has:
-- one-click deploy orders;
-- a chat with the sessions (voice notes transcribed locally with Whisper; replies spoken with Piper);
+- **a session host**: the fixed sessions (reporter, orchestrator, follow-up, board) and the area sessions run as `claude` processes inside the board's own terminals (`node-pty`). They start by themselves at boot, wake up when work arrives, go to sleep after 30 idle minutes, and the reporter and orchestrator start a fresh conversation every day;
+- **Talk** (Hablar): the live terminal of each session, from the desktop or the phone. It has a session list showing who is working, waiting or asleep, a model and effort picker per session, voice notes transcribed locally with Whisper, and replies spoken with Piper;
+- **permissions**: a `PreToolUse` hook sends each permission request to the board. Read-only commands and edits inside the workspace are approved on their own, and the rest wait for you on the board;
+- **two machines** (optional): a PC and a Mac run the board together. One is in command (it hosts the sessions and talks to Jira) and the other mirrors it. See [Two machines](#two-machines);
+- **Projects**: start and stop the local dev servers (database, API, frontends) and see if they answer;
+- one-click deploy orders, with the live state of GitHub Actions and AWS CodeDeploy;
+- Sentry errors sent to a session with one click;
 - push notifications;
-- an hourly activity summary of a colleague;
-- a "Learning" tab that tracks how often work comes back from review.
+- a daily summary of yesterday's work, and an hourly activity summary of a colleague;
+- a "Learning" tab that tracks how often work comes back from review;
+- the shared `context/` folder kept in sync through git.
 
 <img src="docs/talk.png" alt="Phone view: chat with the reporter session, with a progress line while it works" width="300">
 
-Everything runs on your machine: a Node server on `127.0.0.1`, a SQLite file and your Jira API token in a local `.env`. Nothing is sent anywhere other than your own Jira. The interface is in Spanish.
+Everything runs on your machines: a Node server on `127.0.0.1`, a SQLite file and your Jira API token in a local `.env`. Nothing goes anywhere except your own Jira, and Sentry, GitHub and AWS if you turn them on. The interface is in Spanish.
 
 ## Quick start
 
 ```bash
 git clone https://github.com/Albrodpul/dashboard-jira.git
+cd dashboard-jira && npm ci && cd ..
 node dashboard-jira/install.js C:/work/acme/board   # creates board.config.json and .env there
 # fill in .env (Jira site, email, API token) and board.config.json (projects, root folder)
 node C:/work/acme/board/board.js jira-setup        # prints the Jira ids the config needs
@@ -40,10 +47,10 @@ Then run `/resumen-jira` in one Claude Code session and `/orquesta` in another. 
 
 ## Requirements
 
-- Node 24 or later (uses the built-in `node:sqlite`, no npm dependencies)
-- Claude Code (VS Code extension) for the sessions
-- A Jira Cloud API token
-- Windows is the tested platform (session opening relies on `vscode://` links and `cmd start`)
+- Node 24 or later. It uses the built-in `node:sqlite`; the only npm dependencies are `@lydell/node-pty`, `@xterm/xterm`, `@xterm/addon-fit` and `ws`, for the session terminals.
+- The Claude Code CLI (`claude`). The VS Code extension is optional: sessions can still be opened there.
+- A Jira Cloud API token.
+- Windows or macOS. What differs between them (processes, paths, keeping the machine awake) lives in `src/platform.js`.
 
 ## Setting it up at a company
 
@@ -106,7 +113,12 @@ Also set `statuses.rejectLabel`, the label reviewers add when they reject a tick
 - `deployProjects`: the projects the Deploy tab offers. Leave it empty if you don't deploy from the board. Each entry can be just a name, or an object with `repo` (`owner/name` on GitHub) and, for projects deployed with AWS CodeDeploy, `codedeploy: { application, develop, production }` (deployment group per environment). With those, the Deploy tab shows the live state of each environment as two steps in order, each with a progress bar: the last GitHub Actions run whose workflow name contains `develop` or `production` (override with `workflows`), counted in completed job steps, then the CodeDeploy deployment, counted in completed lifecycle events per instance. A push notification arrives when one finishes. It only reads, through the `gh` and `aws` CLIs, which must be logged in on the machine.
 - `errorsArea`: the id of the session that receives the possible errors found by the follow-up.
 - `contextDomains`: the folder, relative to `root`, where sessions keep what they learn (`context/domains`). The Learning tab reads its "History" sections.
-- `sessionModel`: the model for the sessions the board creates.
+- `sessionModel`: the model for the sessions the board creates. `sessionProfiles` overrides the default model and effort per role (`reporter`, `orchestrator`, `followUp`, `deploy`, `errors`, `board`, `area`; defaults in `src/profiles.js`). They can also be changed per session from Talk.
+- `devServers`: what the Projects tab starts and stops. Each entry has `id`, `name`, `cwd` (relative to `root`), `command`, `args`, `port`, `url`, and optionally `shell` and `startSeconds`.
+- `sentry`: `org`, `projects`, `query` and `period` for the Errors tab. The token comes from `SENTRY_TOKEN` or from the Sentry MCP server in `<root>/.mcp.json`.
+- `trustedHosts`: hosts that `ssh`/`scp`/`rsync` may reach without asking.
+- `cluster`: the two-machine setup, see below.
+- `voice`: paths for Whisper and Piper, see below.
 
 ### 6. Install again
 
@@ -118,11 +130,11 @@ This time it renders `/resumen-jira`, `/orquesta`, `/soy`, `/seguimiento` and `/
 
 ### 7. Start everything
 
-1. `node C:/work/acme/board/board.js ensure`, then open <http://127.0.0.1:4747>.
+1. `node C:/work/acme/board/board.js ensure`, then open <http://127.0.0.1:4747>. This also starts the session host on `127.0.0.1:4749`.
 2. In one Claude Code session, run `/resumen-jira`. That session becomes the reporter.
 3. In another, run `/orquesta`. That session becomes the orchestrator.
-4. In each working session, run `/soy <area>`. Then assign epics to areas in the Epics tab.
-5. To start the reporter automatically when VS Code opens, add this task to `<root>/.vscode/tasks.json`:
+4. In each working session, run `/soy <area>`. Then assign epics to areas in the Sessions tab. New sessions can also be created from Talk ("+ Sesión nueva").
+5. `node C:/work/acme/board/board.js startup` boots everything: the board, the host and the fixed sessions, each with its start notice. Run it at login: from a Windows startup shortcut, from a macOS LaunchAgent with `RunAtLoad`, or from a VS Code task like this one in `<root>/.vscode/tasks.json`:
 
    ```json
    {
@@ -141,7 +153,22 @@ This time it renders `/resumen-jira`, `/orquesta`, `/soy`, `/seguimiento` and `/
    }
    ```
 
-6. The sessions run board commands without asking, so allow `Bash` in `<root>/.claude/settings.local.json`.
+6. The sessions run board commands without asking, so allow `Bash` in `<root>/.claude/settings.local.json`. To route permission prompts to the board, add a `PreToolUse` hook there that runs `node <workspace>/permission-hook.js`.
+
+### Two machines
+
+With `cluster` set on both machines (for example a PC and a Mac on the same network), they run as a pair:
+
+```json
+"cluster": { "label": "PC", "self": "https://pc.your-tailnet.ts.net", "peer": "https://mac.your-tailnet.ts.net", "color": "#2b6f77" }
+```
+
+The servers still listen only on `127.0.0.1`: each one is reached by the other through `tailscale serve` (see [Using the board from your phone](#using-the-board-from-your-phone)).
+
+- **Only one is in command.** That one hosts the sessions, reads Jira and writes the data. The other is on standby: it copies the commanding machine's data every minute, and its page shows the commanding machine's board.
+- **Command changes in two ways.** You can press "Que mande …" in Configurar → Ordenadores. Or, if the machine in command stops answering for a minute (switched off or asleep), the other takes command and keeps it when the first comes back. The one that wakes up yields, and its conversations are merged into the ones in command.
+- **At boot**, a machine takes command only if no machine is in command. If both are waiting, the label that sorts first takes it at once and the other after a minute, so they never both take it.
+- Both host names go in `data/board-hosts.txt` on both machines.
 
 ### Voice notes (optional)
 
@@ -161,8 +188,8 @@ Run `install.js` on the old workspace folder. Older data is migrated on the firs
 |---|---|
 | `board.config.json` | Jira projects, your account id, the reviewer, status names, people to follow up, deploy targets |
 | `.env` | `JIRA_SITE`, `JIRA_EMAIL`, `JIRA_TOKEN` |
-| `data/` | SQLite database, session routes, push keys, logs |
-| `board.js`, `sessions.js`, `jira-window.js`, `jira-write.js`, `jira.sh` | launchers written by the installer that call this repo |
+| `data/` | SQLite database, session routes, hosted sessions, cluster state, push keys, logs (`startup.log`, `host.log`) |
+| `board.js`, `sessions.js`, `jira-window.js`, `jira-write.js`, `jira.sh`, `permission-hook.js` | launchers written by the installer that call this repo |
 
 ## Use
 
@@ -196,8 +223,11 @@ In Claude Code:
 
 ```
 src/            server, CLI and modules (config, data, jira, sessions, state, api-*, watcher…)
+src/host.js     session host: claude processes in node-pty terminals
+src/cluster.js  two-machine command and sync
+src/platform.js what differs between Windows and macOS
 src/page/       the web page (plain ES modules, no build step)
-bin/            Jira window reader, Jira writer, sessions CLI, jira.sh
+bin/            Jira window reader, Jira writer, sessions CLI, permission hook, jira.sh
 templates/      slash commands rendered by the installer
 install.js      installer
 ```
