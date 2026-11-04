@@ -28,7 +28,7 @@ for (const [example, real] of [
   const file = path.join(workspace, real);
   if (fs.existsSync(file) || (real === "board.config.json" && hasLegacyConfig)) continue;
   fs.copyFileSync(path.join(REPO, example), file);
-  createdExample = true;
+  if (real === "board.config.json") createdExample = true;
   console.log(`created ${file}: fill it in before starting`);
 }
 
