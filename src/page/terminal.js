@@ -44,6 +44,7 @@ function profileControls(conversation, name) {
   const p = (state.convProfiles || {})[conversation];
   if (!p) return null;
   const current = { model: p.custom && p.model !== p.defaults.model ? p.model : "", effort: p.custom && p.effort !== p.defaults.effort ? p.effort : "" };
+  let repaint = () => {};
   const pick = (kind, names, label) => {
     const def = p.defaults[kind];
     const sel = h("select", { class: "term-profile", "aria-label": `${label} de ${name}`, title: `${label}. El primero es el de serie de este tipo de sesión; en color, uno cambiado a mano.` }, [
@@ -64,6 +65,7 @@ function profileControls(conversation, name) {
         .then((d) => {
           Object.assign(current, next);
           mark();
+          repaint();
           toast(`«${name}» ahora con ${MODEL_NAMES[d.profile.model] || d.profile.model} y esfuerzo ${EFFORT_NAMES[d.profile.effort] || d.profile.effort}${d.restarted ? ". Reiniciada." : "; se aplica al abrirla."}`);
         })
         .catch((e) => {
@@ -74,14 +76,43 @@ function profileControls(conversation, name) {
     });
     return sel;
   };
-  return h("span", { class: "term-profiles" }, [pick("model", MODEL_NAMES, "Modelo"), pick("effort", EFFORT_NAMES, "Esfuerzo")]);
+  const model = pick("model", MODEL_NAMES, "Modelo");
+  const effort = pick("effort", EFFORT_NAMES, "Esfuerzo");
+  const chip = h("button", { type: "button", class: "term-profile-chip", "aria-expanded": "false", title: "Modelo y esfuerzo de esta sesión" });
+  const paint = () => {
+    chip.textContent = `${MODEL_NAMES[current.model || p.defaults.model] || "—"} · ${EFFORT_NAMES[current.effort || p.defaults.effort] || "—"}`;
+    chip.classList.toggle("custom", !!(current.model || current.effort));
+  };
+  paint();
+  repaint = paint;
+  const box = h("span", { class: "term-profiles" }, [model, effort]);
+  chip.addEventListener("click", () => {
+    const open = box.classList.toggle("open");
+    chip.setAttribute("aria-expanded", String(open));
+  });
+  return h("span", { class: "term-profile-wrap" }, [chip, box]);
+}
+
+const ACTIVITY = { busy: ["busy", "Trabajando"], idle: ["on", "Esperando"] };
+
+function activityOf(conversation) {
+  const live = ((state.sessions && state.sessions.list) || []).find((x) => x.conversation === conversation);
+  if (!live) return ["", "Dormida"];
+  return ACTIVITY[live.status] || ["bad", live.status ? `Estado «${live.status}»` : "Abierta"];
+}
+
+function autoGrow(input) {
+  input.style.height = "auto";
+  input.style.height = `${Math.min(input.scrollHeight + 2, 160)}px`;
 }
 
 function createPanel(conversation, name, onClose) {
   const screen = h("div", { class: "term-screen" });
   const status = h("span", { class: "meta term-status", text: "Conectando…" });
+  const dot = h("span", { class: "dot", "aria-hidden": "true" });
+  const activity = h("span", { class: "term-activity" });
   const adjust = h("button", { class: "btn subtle term-adjust", type: "button", hidden: true, text: "Ajustar a esta pantalla", title: "Otro dispositivo tiene la sesión a su tamaño. Pulsa para ponerla al de esta pantalla." });
-  const head = [h("strong", { text: name }), status, adjust, profileControls(conversation, name)];
+  const head = [h("span", { class: "term-title" }, [dot, h("strong", { text: name }), h("span", { class: "term-sub" }, [activity, status])]), adjust, profileControls(conversation, name)];
   if (onClose) head.push(h("button", { class: "btn subtle", type: "button", text: "Cerrar", onclick: onClose }));
   const input = h("textarea", { class: "term-input", rows: "1", placeholder: "Escribe aquí y pulsa Enviar", "aria-label": `Escribir a ${name}` });
   const sendBtn = h("button", { class: "btn primary", type: "button", text: "Enviar" });
@@ -97,6 +128,13 @@ function createPanel(conversation, name, onClose) {
   ]);
   const root = h("div", { class: "term-panel" }, [h("div", { class: "term-head" }, head), h("div", { class: "term-wrap" }, [screen, scrollBtns]), keys, h("div", { class: "term-compose" }, [attachButton(input), input, sendBtn, mentions(input)])]);
   const panel = { root, conversation, ws: null, term: null, fit: null, closed: false, pending: [], pendingBytes: 0, overflowed: false, replaying: false };
+  panel.paintActivity = () => {
+    const [cls, text] = activityOf(conversation);
+    dot.className = `dot ${cls}`;
+    activity.textContent = text;
+  };
+  panel.paintActivity();
+  input.addEventListener("input", () => autoGrow(input));
   panel.visible = () => !document.hidden && root.isConnected;
   panel.catchUp = () => {
     if (!panel.term || !panel.visible()) return;
@@ -157,6 +195,7 @@ function createPanel(conversation, name, onClose) {
     panel.send(text);
     setTimeout(() => panel.send("\r"), 150);
     input.value = "";
+    autoGrow(input);
   };
   sendBtn.addEventListener("click", submit);
   input.addEventListener("keydown", (e) => {
@@ -383,6 +422,7 @@ export function livePanel(conversation, name) {
   }
   const entering = p.seenAt !== state.renderSeq - 1;
   p.seenAt = state.renderSeq;
+  p.paintActivity();
   requestAnimationFrame(() => {
     fitInline(p);
     p.catchUp();
