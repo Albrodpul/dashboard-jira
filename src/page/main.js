@@ -1,15 +1,18 @@
-import { state, h, post, switchView, setRender, setRefresh, empty, reviewer } from "./base.js";
-import { renderTasks, renderToday, renderBoard } from "./tasks.js";
-import { renderSessions } from "./sessions.js";
-import { renderDeploy, renderTalk, renderContext, renderFollowUp } from "./operations.js";
-import { renderReport, updateStamp, mountHeader, quotaBlock } from "./report.js";
-import { renderHome, sessionStrip, shortcuts, dailyCard } from "./home.js";
-import { renderLearning } from "./learning.js";
-import { renderSentry } from "./sentry.js";
-import { renderProjects } from "./projects.js";
-import { renderFind, searchBox } from "./find.js";
-import { renderMachines } from "./machines.js";
-import { paintTicket } from "./ticket.js";
+import { state, h, post, switchView, setRender, setRefresh, empty, reviewer } from "./lib/base.js";
+import { renderTasks, renderToday, renderBoard } from "./views/tasks.js";
+import { renderSessions } from "./views/sessions.js";
+import { renderDeploy } from "./views/deploy.js";
+import { renderTalk } from "./views/talk.js";
+import { renderContext } from "./views/context.js";
+import { renderFollowUp } from "./views/follow-up.js";
+import { renderReport, updateStamp, mountHeader, quotaBlock } from "./components/report.js";
+import { renderHome, sessionStrip, shortcuts, dailyCard } from "./views/home.js";
+import { renderLearning } from "./views/learning.js";
+import { renderSentry } from "./views/sentry.js";
+import { renderProjects } from "./views/projects.js";
+import { renderFind, searchBox } from "./views/find.js";
+import { renderMachines } from "./views/machines.js";
+import { paintTicket } from "./components/ticket.js";
 
 const TASK_TABS = [
   { id: "pending", label: "Pendientes" },

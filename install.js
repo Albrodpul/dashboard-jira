@@ -53,9 +53,9 @@ const exampleRoot = slashes(JSON.parse(fs.readFileSync(path.join(REPO, "board.co
 let config;
 try {
   if (createdExample) throw new Error("The configuration was just created from the examples.");
-  config = require("./src/config");
+  config = require("./src/core/config");
   if (slashes(config.root) === exampleRoot) throw new Error(`board.config.json still has the example root (${exampleRoot}).`);
-  require("./src/data").database();
+  require("./src/core/data").database();
 } catch (e) {
   console.log(`${e.message}\nFill in the configuration and run the installer again to render the commands.`);
   process.exit(0);

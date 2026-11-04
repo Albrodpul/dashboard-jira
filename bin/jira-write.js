@@ -14,9 +14,8 @@
 //
 // «||» separates paragraphs: a shell argument can't carry reliable line breaks.
 const fs = require('fs');
-const path = require('path');
 
-const config = require('../src/config');
+const config = require('../src/core/config');
 const credentials = config.credentials();
 const auth = 'Basic ' + Buffer.from(`${credentials.email}:${credentials.token}`).toString('base64');
 const base = `https://${credentials.site}/rest/api/3`;

@@ -1,13 +1,13 @@
 const http = require("http");
 const cp = require("child_process");
-const { BASE_URL, PORT, ENTRY, STATUSES, IN_SESSION, HUMAN_APPROVALS, UUID, isEmptyReport, now, load, mutate, markCounted, readStdin } = require("./data");
-const { titleKey, assignRefs, loadRoutes, openInVsCode } = require("./sessions");
-const { syncJiraEpics, downloadAttachments } = require("./jira");
-const { sendPush, subscriptions } = require("./push");
-const { TASK_STATUS, TASK_KIND, CAUSE } = require("./migrate");
-const config = require("./config");
-const { ERRORS_AREA, MESSAGE_TARGETS, state, tidyBlockers, lastContextPass, followUpErrors, wakeOrchestrator, ping } = require("./state");
-const { sentryIssues, markSent: markSentrySent, saveResult: saveSentryResult } = require("./sentry");
+const { BASE_URL, PORT, ENTRY, STATUSES, IN_SESSION, HUMAN_APPROVALS, UUID, isEmptyReport, now, load, mutate, markCounted, readStdin } = require("./core/data");
+const { titleKey, assignRefs, loadRoutes, openInVsCode } = require("./sessions/registry");
+const { syncJiraEpics, downloadAttachments } = require("./jira/client");
+const { sendPush, subscriptions } = require("./server/push");
+const { TASK_STATUS, TASK_KIND, CAUSE } = require("./core/migrate");
+const config = require("./core/config");
+const { ERRORS_AREA, MESSAGE_TARGETS, state, tidyBlockers, lastContextPass, followUpErrors, wakeOrchestrator, ping } = require("./server/state");
+const { sentryIssues, markSent: markSentrySent, saveResult: saveSentryResult } = require("./features/sentry");
 
 const ALIASES = {
   informe: "report",
@@ -73,7 +73,7 @@ const withoutOptions = () => {
 const environmentOption = () => {
   const raw = option(["--environment", "--entorno"]);
   const env = { produccion: "production", producción: "production", prod: "production" }[raw] || raw || "beta";
-  if (!require("./follow-up").ENVIRONMENTS.includes(env)) fail(`entorno desconocido: ${raw} (beta o production)`);
+  if (!require("./features/follow-up").ENVIRONMENTS.includes(env)) fail(`entorno desconocido: ${raw} (beta o production)`);
   return env;
 };
 const status = (s) => TASK_STATUS[s] || s;
@@ -99,7 +99,7 @@ function destinationOf(s) {
 
 const commands = {
   serve() {
-    require("./server").serve();
+    require("./server/server").serve();
   },
 
   ensure() {
@@ -210,11 +210,11 @@ const commands = {
   },
 
   watch() {
-    require("./watcher").watch(a);
+    require("./server/watcher").watch(a);
   },
 
   host() {
-    require("./host").serve();
+    require("./sessions/host").serve();
   },
 
   dispatches() {
@@ -360,7 +360,7 @@ const commands = {
   },
 
   startup() {
-    require("./startup").launchStartup(a === "--child" || a === "--hijo");
+    require("./server/startup").launchStartup(a === "--child" || a === "--hijo");
   },
 
   "push-test"() {
@@ -372,7 +372,7 @@ const commands = {
     const manual = process.argv.includes("--manual");
     const text = (withoutOptions()[0] || readStdin()).trim();
     if (!text) fail("falta el texto del resumen");
-    const { environmentName } = require("./follow-up");
+    const { environmentName } = require("./features/follow-up");
     mutate((d) => {
       d.followUps.unshift({ at: now(), text, environment, ...(manual ? { manual: true } : {}) });
       d.followUps = d.followUps.slice(0, 120);
@@ -383,13 +383,13 @@ const commands = {
   },
 
   people() {
-    json(require("./follow-up").people(load()));
+    json(require("./features/follow-up").people(load()));
   },
 
   "person-add"() {
     const accounts = process.argv.slice(4).join(",").split(",").map((x) => x.trim()).filter(Boolean);
     if (!a) fail("Uso: board.js person-add \"<Nombre>\" [<correo>[,<correo>…]]");
-    const r = require("./follow-up").registerPerson(a, accounts);
+    const r = require("./features/follow-up").registerPerson(a, accounts);
     if (r.error) fail(r.error);
     console.log(`${r.person.name} (${r.person.id}) en el directorio; cuentas: ${(r.person.accounts || []).join(", ") || "ninguna"}`);
   },
@@ -402,14 +402,14 @@ const commands = {
       .map((x) => x.trim())
       .filter(Boolean);
     if (!a || !accounts.length) fail("Uso: board.js person-accounts <persona> <correo>[,<correo>…]");
-    if (!require("./follow-up").saveAccounts(a, accounts)) fail(`persona desconocida: ${a}`);
+    if (!require("./features/follow-up").saveAccounts(a, accounts)) fail(`persona desconocida: ${a}`);
     console.log(`cuentas de ${a} guardadas: ${accounts.join(", ")}`);
   },
 
   "followup-error"() {
     const environment = environmentOption();
     const person = option(["--person", "--persona"]);
-    const { environmentOf, environmentName } = require("./follow-up");
+    const { environmentOf, environmentName } = require("./features/follow-up");
     const text = (withoutOptions().join(" ") || readStdin()).trim().slice(0, 3000);
     if (!text) fail("Uso: board.js followup-error --environment <beta|production> [--person <nombre>] <posible error, con hora, cuenta, operación, respuesta y api_request_id>");
     const id = mutate((d) => {
@@ -587,7 +587,7 @@ const commands = {
   },
 
   "learning-read"() {
-    require("./learning")
+    require("./jira/learning")
       .readJira()
       .then(
         (n) => console.log(`${n} ticket(s) leídos de Jira para la pestaña Aprendizaje`),
@@ -599,7 +599,7 @@ const commands = {
     const cause = CAUSE[b] || b;
     const note = rest(5).slice(0, 600);
     if (!a || !["written", "new"].includes(cause) || !note) fail("Uso: board.js cause <CLAVE> written|new <dónde estaba escrito, o qué se ha apuntado ahora>");
-    const withCard = require("./learning").saveCause(a, cause, note);
+    const withCard = require("./jira/learning").saveCause(a, cause, note);
     console.log(`causa de la devolución de ${a} apuntada como «${cause}»${withCard ? "" : " (sin tarjeta en el tablero)"}`);
   },
 
@@ -608,7 +608,7 @@ const commands = {
   },
 
   "jira-setup"() {
-    const { jiraGet } = require("./jira");
+    const { jiraGet } = require("./jira/client");
     const issue = a && /^[A-Z][A-Z0-9]+-\d+$/.test(a) ? a : null;
     const reviewer = rest(issue ? 4 : 3);
     (async () => {

@@ -20,7 +20,7 @@ Si se ha invocado este comando (`/tablero`), o si te llega de otra sesión «Avi
 1. Léelo con `node {{WORKSPACE}}/board.js message <id>`: vale como si {{ME}} lo hubiera escrito aquí.
 2. Si te lleva más de un minuto, ve contándole en qué estás con `node {{WORKSPACE}}/board.js progress <id> "<en qué estás, en una línea>"`.
 3. Hazlo. El código está en `{{REPO}}` (`src/` el servidor y la CLI, `src/page/` la página, `templates/commands/` los comandos). Antes de tocarlo, lee `{{ROOT}}/context/TABLERO.md`: por qué está hecho así y las trampas ya vistas. Si cambia algo que deja falso ese fichero, actualízalo.
-   - Los cambios de la página se ven al recargar; los del servidor (`src/*.js`), tras `node {{WORKSPACE}}/board.js restart`.
+   - Los cambios de la página se ven al recargar; los del servidor (todo `src/` salvo `src/page/`), tras `node {{WORKSPACE}}/board.js restart`.
    - Cuando sea un rediseño o algo visual con varias opciones, saca capturas antes de decidir (Playwright contra `http://127.0.0.1:4747`).
    - Para probar con datos que no sean los reales, levanta un tablero aparte: `TOWER_DATA=<carpeta temporal> TOWER_PORT=4748 node {{WORKSPACE}}/board.js serve`.
    - Todo cambio en `{{REPO}}` se commitea y se sube sin preguntar: `git add` de lo tocado, commit en inglés y `git push`. El hook de gitleaks se pasa siempre.
