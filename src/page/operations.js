@@ -552,6 +552,51 @@ function requestButton(env, req) {
   });
 }
 
+const GROUP_SECTIONS = /^(clientes?|cuentas? desconocidas?|bater[ií]as? de pruebas|sin sesi[oó]n|an[oó]nim[oa]s?)$/i;
+
+function statChips(rest) {
+  const parts = String(rest || "").replace(/^\s*[·:—-]\s*/, "").split(/\s+·\s+/).map((x) => x.trim()).filter(Boolean);
+  return parts.map((p) => h("span", { class: `fu-stat${/^[1-9]\d*\s+errore?s?\b/i.test(p) ? " bad" : ""}`, text: p }));
+}
+
+function followUpText(text) {
+  const box = h("div", { class: "fu-text" });
+  const lines = String(text || "").split("\n");
+  while (lines.length && !lines[0].trim()) lines.shift();
+  const head = /^\*\*(.+)\*\*\s*$/.exec((lines[0] || "").trim());
+  if (head) {
+    lines.shift();
+    const m = /^(.{3,80}?):\s+(.+)$/.exec(head[1]);
+    if (m) box.appendChild(h("div", { class: "fu-eyebrow", text: m[1] }));
+    const sentence = (m ? m[2] : head[1]).replace(/\.$/, "");
+    box.appendChild(h("p", { class: "fu-headline", text: sentence.charAt(0).toUpperCase() + sentence.slice(1) + "." }));
+  }
+  let section = null;
+  let body = [];
+  const flush = () => {
+    const md = body.join("\n").trim();
+    if (section) {
+      if (md) section.appendChild(renderMd(md));
+      box.appendChild(section);
+    } else if (md) box.appendChild(renderMd(md));
+    section = null;
+    body = [];
+  };
+  for (const line of lines) {
+    const m = /^\*\*([^*]{1,60})\*\*(.*)$/.exec(line.trim());
+    if (m && !/^\s*[-*] /.test(line)) {
+      flush();
+      const title = m[1].trim().replace(/:$/, "");
+      const kind = /^lectura$/i.test(title) ? "reading" : GROUP_SECTIONS.test(title) ? "group" : "person";
+      section = h("section", { class: `fu-block ${kind}` }, [h("div", { class: "fu-block-head" }, [h("h4", { text: title }), ...statChips(m[2])])]);
+      continue;
+    }
+    body.push(line);
+  }
+  flush();
+  return box;
+}
+
 function nextRun(cron, from = new Date()) {
   const m = /^(\d+) (\d+)-(\d+)(?:\/(\d+))? /.exec(cron || "");
   if (!m) return null;
@@ -630,7 +675,7 @@ export function renderFollowUp(root) {
     root.appendChild(empty(`Todavía no hay resúmenes de ${env.name.toLowerCase()}.`, `Sale uno ${everyText(env.everyHours)} en horario de trabajo, de lunes a viernes, o cuando lo pidas.`));
     return directory(root, state.people || []);
   }
-  root.appendChild(h("section", { class: "jira follow-up" }, [h("div", { class: "jira-head", text: `Resumen de las ${when(list[0].at)}${list[0].manual ? " (pedido a mano)" : ""}` }), renderMd(list[0].text)]));
+  root.appendChild(h("section", { class: "jira follow-up" }, [h("div", { class: "jira-head", text: `Resumen de las ${when(list[0].at)}${list[0].manual ? " (pedido a mano)" : ""}` }), followUpText(list[0].text)]));
   const quiet = !list[0].text.trim().includes("\n");
   if (!quiet && !(list[0].errors || []).some((x) => x.state !== "discarded")) {
     const sendAll = button("Enviar este resumen a la sesión de errores", {
@@ -657,7 +702,7 @@ export function renderFollowUp(root) {
     const det = h("details", {}, [h("summary", { class: "meta", text: `Resúmenes anteriores (${list.length - 1})` })]);
     det.open = olderOpen;
     det.addEventListener("toggle", () => (olderOpen = det.open));
-    list.slice(1).forEach((x) => det.appendChild(h("div", { class: "ev" }, [h("span", { class: "t", text: when(x.at) }), renderMd(x.text)])));
+    list.slice(1).forEach((x) => det.appendChild(h("div", { class: "ev" }, [h("span", { class: "t", text: when(x.at) }), followUpText(x.text)])));
     root.appendChild(det);
   }
   directory(root, state.people || []);
