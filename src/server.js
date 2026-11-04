@@ -154,6 +154,7 @@ const POST_ROUTES = {
   "/api/refresh": (res, input, send) => tasks.handleRefresh(res, send),
   "/api/search": (res, input, send) => tasks.handleSearch(res, input, send),
   "/api/import": (res, input, send) => tasks.handleImport(res, input, send),
+  "/api/ticket": (res, input, send) => tasks.handleTicket(res, input, send),
   "/api/session": (res, input, send) => sessions.handleSession(res, input, send),
   "/api/new-session": (res, input, send) => sessions.handleNewSession(res, input, send),
   "/api/epic": (res, input, send) => sessions.handleEpic(res, input, send),

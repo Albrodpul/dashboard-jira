@@ -1,5 +1,5 @@
 import { renderPermissions } from "./permissions.js";
-import { state, choice, drafts, h, button, when, minutesSince, fmtDay, reviewer, reviewStatus, toast, request, requestOrFail, post, saveTask, whoSends, areaName, taskAreaSelect, render, refresh, switchView, empty } from "./base.js";
+import { state, choice, drafts, h, button, when, minutesSince, fmtDay, reviewer, reviewStatus, toast, request, requestOrFail, post, saveTask, whoSends, areaName, taskAreaSelect, render, refresh, switchView, empty, openTicket } from "./base.js";
 import { createSession } from "./sessions.js";
 
 const PENDING_CHIP = { returned: "Devuelta", comment: "Comentario", resend: "Ya enviada" };
@@ -392,30 +392,16 @@ const BOARD_COLUMNS = [
   ["sent", "En curso", ["sent"]],
   ["done", "Hechas", ["done"]],
 ];
-let openTask = null;
-
-function openDrawer(t) {
-  openTask = t.id;
-  render();
-}
-
-function closeDrawer() {
-  openTask = null;
-  render();
-}
-
-document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape" && openTask) closeDrawer();
-});
+const openDrawer = (t) => openTicket(t.id);
 
 function boardRow(t) {
   const tag = t.kind === "returned" ? "Devuelta" : t.kind === "comment" ? "Comentario" : t.kind === "resend" ? "Ya enviada" : "";
-  return h("button", { type: "button", class: `board-row${openTask === t.id ? " open" : ""}`, title: t.title, onclick: () => openDrawer(t) }, [h("span", { class: "key", text: t.key }), h("span", { class: "board-row-title", text: t.title }), tag ? h("span", { class: `board-tag ${t.kind}`, text: tag }) : null]);
+  return h("button", { type: "button", class: `board-row${state.ticket === t.id ? " open" : ""}`, title: t.title, onclick: () => openDrawer(t) }, [h("span", { class: "key", text: t.key }), h("span", { class: "board-row-title", text: t.title }), tag ? h("span", { class: `board-tag ${t.kind}`, text: tag }) : null]);
 }
 
 function boardCard(t) {
   const flag = t.status === "partial" ? "A medias" : t.status === "waiting" ? "Te espera" : t.manual ? "A mano" : hasChanges(t) ? "Cambió en Jira" : "";
-  return h("button", { type: "button", class: `board-card${openTask === t.id ? " open" : ""}`, onclick: () => openDrawer(t) }, [
+  return h("button", { type: "button", class: `board-card${state.ticket === t.id ? " open" : ""}`, onclick: () => openDrawer(t) }, [
     h("span", { class: "board-card-title", text: t.title }),
     h("span", { class: "board-card-foot" }, [h("span", { class: "key", text: t.key }), h("span", { class: "board-card-area", text: areaName(t.area || t.proposedArea) || "" }), flag ? h("span", { class: "board-tag", text: flag }) : null, h("span", { class: "time", text: when(t.sentAt || t.decidedAt || t.at) })]),
   ]);
@@ -449,12 +435,4 @@ export function renderBoard(root) {
     return h("section", { class: `board-col tasks-col${id === "pending" ? " wide" : ""}` }, [head, ...body]);
   });
   root.appendChild(h("div", { class: "task-board" }, columns));
-  const t = openTask && state.tasks.find((x) => x.id === openTask);
-  if (!t) return (openTask = null);
-  root.appendChild(
-    h("aside", { class: "drawer", "aria-label": `Tarea ${t.key}` }, [
-      h("div", { class: "drawer-head" }, [h("span", { class: "meta", text: [t.epicKey, t.epicName].filter(Boolean).join(" ") }), button("Cerrar", { cls: "subtle", onClick: closeDrawer })]),
-      card(t),
-    ])
-  );
 }
