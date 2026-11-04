@@ -1,8 +1,8 @@
 const fs = require("fs");
 const path = require("path");
 const cp = require("child_process");
-const config = require("../src/config");
-const { SEEN_FILE, TO_COUNT_FILE, ROUTES_FILE } = require("../src/data");
+const config = require("../src/core/config");
+const { SEEN_FILE, TO_COUNT_FILE, ROUTES_FILE } = require("../src/core/data");
 
 function minutesSinceLastClose() {
   const now = Date.now();
@@ -18,7 +18,7 @@ function minutesSinceLastClose() {
 
 function minutesSinceLastReport() {
   try {
-    const d = require("../src/data").load();
+    const d = require("../src/core/data").load();
     const ats = [d.lastReview && d.lastReview.at, d.reports && d.reports[0] && d.reports[0].at].filter(Boolean).map((x) => new Date(x).getTime());
     if (!ats.length) return minutesSinceLastClose();
     const m = Math.ceil((Date.now() - Math.max(...ats)) / 60000) + 10;

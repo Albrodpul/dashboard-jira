@@ -55,7 +55,7 @@ Then run `/resumen-jira` in one Claude Code session and `/orquesta` in another. 
 - Node 24 or later. It uses the built-in `node:sqlite`; the only npm dependencies are `@lydell/node-pty`, `@xterm/xterm`, `@xterm/addon-fit` and `ws`, for the session terminals.
 - The Claude Code CLI (`claude`). The VS Code extension is optional: sessions can still be opened there.
 - A Jira Cloud API token.
-- Windows or macOS. What differs between them (processes, paths, keeping the machine awake) lives in `src/platform.js`.
+- Windows or macOS. What differs between them (processes, paths, keeping the machine awake) lives in `src/core/platform.js`.
 
 ## Setting it up at a company
 
@@ -118,7 +118,7 @@ Also set `statuses.rejectLabel`, the label reviewers add when they reject a tick
 - `deployProjects`: the projects the Deploy tab offers. Leave it empty if you don't deploy from the board. Each entry can be just a name, or an object with `repo` (`owner/name` on GitHub) and, for projects deployed with AWS CodeDeploy, `codedeploy: { application, develop, production }` (deployment group per environment). With those, the Deploy tab shows the live state of each environment as two steps in order, each with a progress bar: the last GitHub Actions run whose workflow name contains `develop` or `production` (override with `workflows`), counted in completed job steps, then the CodeDeploy deployment, counted in completed lifecycle events per instance. A push notification arrives when one finishes. It only reads, through the `gh` and `aws` CLIs, which must be logged in on the machine.
 - `errorsArea`: the id of the session that receives the possible errors found by the follow-up.
 - `contextDomains`: the folder, relative to `root`, where sessions keep what they learn (`context/domains`). The Learning tab reads its "History" sections.
-- `sessionModel`: the model for the sessions the board creates. `sessionProfiles` overrides the default model and effort per role (`reporter`, `orchestrator`, `followUp`, `deploy`, `errors`, `board`, `area`; defaults in `src/profiles.js`). They can also be changed per session from Talk.
+- `sessionModel`: the model for the sessions the board creates. `sessionProfiles` overrides the default model and effort per role (`reporter`, `orchestrator`, `followUp`, `deploy`, `errors`, `board`, `area`; defaults in `src/sessions/profiles.js`). They can also be changed per session from Talk.
 - `devServers`: what the Projects tab starts and stops. Each entry has `id`, `name`, `cwd` (relative to `root`), `command`, `args`, `port`, `url`, and optionally `shell` and `startSeconds`.
 - `sentry`: `org`, `projects`, `query` and `period` for the Errors tab. The token comes from `SENTRY_TOKEN` or from the Sentry MCP server in `<root>/.mcp.json`.
 - `trustedHosts`: hosts that `ssh`/`scp`/`rsync` may reach without asking.
@@ -227,14 +227,23 @@ In Claude Code:
 ## Layout
 
 ```
-src/            server, CLI and modules (config, data, jira, sessions, state, api-*, watcher…)
-src/host.js     session host: claude processes in node-pty terminals
-src/cluster.js  two-machine command and sync
-src/platform.js what differs between Windows and macOS
-src/page/       the web page (plain ES modules, no build step)
-bin/            Jira window reader, Jira writer, sessions CLI, permission hook, jira.sh
-templates/      slash commands rendered by the installer
-install.js      installer
+src/cli.js            entry point: board.js commands (launchers point here; keep the path)
+src/core/             config, SQLite data, migrations, Windows/macOS differences
+src/server/           HTTP server, state for the page, startup, watcher, push, smoke test
+src/server/routes/    API handlers (index.js holds the route table)
+src/jira/             Jira client and the returned-tasks learning
+src/sessions/         session registry, the session host (node-pty), permissions, sleep, profiles
+src/cluster/          two-machine command and the git sync of context/
+src/features/         follow-up, Sentry, daily, deploy status, dev servers, quota, voice, file search
+src/page/             the web page (plain ES modules, no build step)
+src/page/main.js        navigation and rendering loop
+src/page/lib/           shared helpers (state, DOM, requests, markdown)
+src/page/components/    pieces used by several views: report panel, ticket drawer, terminal, permissions
+src/page/views/         one file per tab
+src/page/styles/        base.css plus one stylesheet per area
+bin/                  Jira window reader, Jira writer, sessions CLI, permission hook, jira.sh
+templates/            slash commands rendered by the installer
+install.js            installer
 ```
 
 ## License

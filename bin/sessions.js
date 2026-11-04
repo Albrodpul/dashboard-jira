@@ -1,5 +1,5 @@
 const fs = require("fs");
-const { ROUTES_FILE } = require("../src/data");
+const { ROUTES_FILE } = require("../src/core/data");
 
 const ALIASES = { soy: "iam", ruta: "route", "quitar-ruta": "unroute", libera: "release", de: "of", lista: "list" };
 const ROLES = { reporte: "reporter", reporter: "reporter", orquestador: "orchestrator", orchestrator: "orchestrator", seguimiento: "followUp", followup: "followUp", "follow-up": "followUp", tablero: "board", board: "board" };
