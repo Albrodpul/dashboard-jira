@@ -65,7 +65,8 @@ function serve() {
       writeConfig(list);
       delete entry.fresh;
     }
-    s.pty = pty.spawn(CLAUDE, args, { name: "xterm-256color", cols: s.cols, rows: s.rows, cwd: entry.cwd || WORKDIR, env: { MCP_TIMEOUT: "120000", ...require("./sessions").cleanEnv(), TOWER_HOSTED: "1" } });
+    const [exe, fullArgs] = platform.claude(args, CLAUDE);
+    s.pty = pty.spawn(exe, fullArgs, { name: "xterm-256color", cols: s.cols, rows: s.rows, cwd: entry.cwd || WORKDIR, env: { MCP_TIMEOUT: "120000", ...require("./sessions").cleanEnv(), TOWER_HOSTED: "1" } });
     log(`start ${entry.name} ${entry.conversation} pid ${s.pty.pid}`);
     s.pty.onData((d) => {
       s.buffer += d;

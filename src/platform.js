@@ -74,6 +74,11 @@ function openFolderInEditor(folder, env) {
 }
 
 const claudeCli = () => process.env.CLAUDE_BIN || path.join(os.homedir(), ".local", "bin", `claude${EXE}`);
+const claude = (args, fallback) => {
+  const bin = process.env.CLAUDE_BIN;
+  if (bin && /\.[cm]?js$/i.test(bin)) return [process.execPath, [bin, ...args]];
+  return [bin || fallback || claudeCli(), args];
+};
 const isShell = (name) => ["node", "bash", "sh", "zsh", "cmd", "powershell", "pwsh", "conhost", "timeout"].includes(name);
 
-module.exports = { IS_WIN, EXE, processes, commandLine, killTree, listeningPids, openUrl, openFolderInEditor, claudeCli, isShell };
+module.exports = { IS_WIN, EXE, processes, commandLine, killTree, listeningPids, openUrl, openFolderInEditor, claudeCli, claude, isShell };
