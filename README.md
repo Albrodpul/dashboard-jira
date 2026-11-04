@@ -2,7 +2,7 @@
 
 A local control tower for running several [Claude Code](https://claude.com/claude-code) sessions on a Jira backlog. It reads Jira, turns new and returned tickets into cards, and lets you decide from your desktop or your phone which AI session works on each one.
 
-![Board: Jira cards waiting for approval, grouped by epic, next to the latest Jira report](docs/board.png)
+![Home: counts of tasks by state, which sessions are working, waiting or blocked, and the latest Jira report](docs/home.png)
 
 ## Why
 
@@ -12,6 +12,9 @@ When several AI coding sessions work in parallel (one per product area), someone
 
 1. **A reporter session reads Jira** every few minutes. It publishes a short report and creates a card for each new ticket, each ticket returned from review and each new comment on one of your tickets.
 2. **You approve cards** on the board, from the browser or from your phone. Each card goes to the session that owns its epic.
+
+   ![Tasks: Jira cards by state, from pending approval to done](docs/tasks.png)
+
 3. **An orchestrator session delivers** the approved work, with the ticket's attachments already downloaded. Each session reports back `done`, `partial` or `question`, and you answer from the board.
 
 It also has:
@@ -27,7 +30,9 @@ It also has:
 - a "Learning" tab that tracks how often work comes back from review;
 - the shared `context/` folder kept in sync through git.
 
-<img src="docs/talk.png" alt="Phone view: chat with the reporter session, with a progress line while it works" width="300">
+![Talk: the session list and the live terminal of a session fixing a ticket that came back from review](docs/talk.png)
+
+<img src="docs/phone.png" alt="Talk on the phone: the same live terminal, with the session picker and keys for Esc, Tab and the arrows" width="300">
 
 Everything runs on your machines: a Node server on `127.0.0.1`, a SQLite file and your Jira API token in a local `.env`. Nothing goes anywhere except your own Jira, and Sentry, GitHub and AWS if you turn them on. The interface is in Spanish.
 

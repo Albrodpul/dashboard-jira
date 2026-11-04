@@ -155,6 +155,14 @@ function runningSubagents(sessionId) {
   return n;
 }
 
+const normPath = (p) => String(p || "").replace(/\\/g, "/").replace(/\/+$/, "").toLowerCase();
+const insideRoot = (cwd) => {
+  if (!cwd) return true;
+  const root = normPath(ROOT);
+  const dir = normPath(cwd);
+  return dir === root || dir.startsWith(root + "/");
+};
+
 function liveSessions() {
   let files;
   try {
@@ -166,7 +174,7 @@ function liveSessions() {
   for (const f of files) {
     try {
       const j = JSON.parse(fs.readFileSync(path.join(REGISTRY, f), "utf8"));
-      if (j.kind !== "interactive" || !j.name || !j.sessionId || !processAlive(j.pid)) continue;
+      if (j.kind !== "interactive" || !j.name || !j.sessionId || !insideRoot(j.cwd) || !processAlive(j.pid)) continue;
       const subagents = runningSubagents(j.sessionId);
       out.push({
         name: j.name,
@@ -380,12 +388,10 @@ function claudeBinary() {
 
 function createConversation(name) {
   return new Promise((resolve) => {
-    const exe = claudeBinary() || require("./platform").claudeCli();
-    if (!exe) return resolve(null);
     const id = crypto.randomUUID();
     const env = cleanEnv();
     env.CLAUDE_CODE_ENTRYPOINT = "claude-vscode";
-    const args = ["-p", "--session-id", id, "--name", name, "--model", config.sessionModel, `Sesión «${name}» creada desde el tablero de Jira. Responde solo «ok».`];
+    const [exe, args] = require("./platform").claude(["-p", "--session-id", id, "--name", name, "--model", config.sessionModel, `Sesión «${name}» creada desde el tablero de Jira. Responde solo «ok».`], claudeBinary());
     const child = cp.execFile(exe, args, { cwd: ROOT, env, timeout: 90000, windowsHide: true }, (err) => resolve(!err && transcriptOf(id) ? id : null));
     if (child.stdin) child.stdin.end();
   });
@@ -393,10 +399,8 @@ function createConversation(name) {
 
 function wakeSession(name, notice) {
   return new Promise((resolve) => {
-    const exe = claudeBinary() || require("./platform").claudeCli();
-    if (!exe) return resolve(false);
     const prompt = `Usa la herramienta SendMessage (cárgala con ToolSearch si hace falta) con to «${name}» y message exactamente «${notice || STARTUP_NOTICE}». No hagas nada más y responde solo ok.`;
-    const args = ["-p", prompt, "--no-session-persistence", "--model", "claude-haiku-4-5-20251001", "--allowedTools=SendMessage,ListAgents,ToolSearch"];
+    const [exe, args] = require("./platform").claude(["-p", prompt, "--no-session-persistence", "--model", "claude-haiku-4-5-20251001", "--allowedTools=SendMessage,ListAgents,ToolSearch"], claudeBinary());
     const child = cp.execFile(exe, args, { cwd: ROOT, env: cleanEnv(), timeout: 120000, windowsHide: true }, (err, out) => resolve(!err && /ok/i.test(String(out))));
     if (child.stdin) child.stdin.end();
   });

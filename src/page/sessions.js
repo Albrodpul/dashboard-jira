@@ -1,4 +1,4 @@
-import { state, h, button, toast, requestOrFail, post, areaName, taskAreaSelect, refresh, empty, ticketUrl } from "./base.js";
+import { state, h, button, toast, requestOrFail, post, areaName, taskAreaSelect, refresh, empty, ticketUrl, reviewer } from "./base.js";
 import { openTalk } from "./operations.js";
 
 export function createSession(name, epic, btn) {
@@ -199,7 +199,7 @@ export function renderSessions(root) {
   if (state.reporterRoute) fixed.push(fixedRow("Reporte de Jira", "Lee Jira y publica el reporte", state.reporterRoute.conversation, "", "reporter"));
   if (state.orchestrator) fixed.push(fixedRow("Orquestadora", "Envía tareas y despliegues", state.orchestrator.conversation, state.orchestrator.open && !state.orchestrator.watching ? "sin vigilar" : "", "orchestrator"));
   if (state.boardStatus) fixed.push(fixedRow("Tablero", "Mejoras del propio tablero", state.boardStatus.conversation, "", "board"));
-  if (state.followUpStatus) fixed.push(fixedRow("Seguimiento", "Lo que hace Ana en beta", state.followUpStatus.conversation, "", "followUp"));
+  if (state.followUpStatus) fixed.push(fixedRow("Seguimiento", `Lo que hace ${reviewer()}`, state.followUpStatus.conversation, "", "followUp"));
   if (area(state.deployerArea)) fixed.push(fixedRow("Despliegue", "Despliegues de la pestaña Desplegar", area(state.deployerArea).conversation, "", "deploy"));
   const err = state.sentry && area(state.sentry.errorsArea);
   if (err) fixed.push(fixedRow("Errores sentry", "Errores de Sentry y del seguimiento", err.conversation, "", "errors"));

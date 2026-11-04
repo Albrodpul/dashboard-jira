@@ -54,8 +54,7 @@ function errorsOf(day) {
 function write(prompt) {
   return new Promise((resolve) => {
     const sessions = require("./sessions");
-    const exe = require("./platform").claudeCli();
-    const args = ["-p", prompt, "--no-session-persistence", "--model", config.sessionModel, "--allowedTools="];
+    const [exe, args] = require("./platform").claude(["-p", prompt, "--no-session-persistence", "--model", config.sessionModel, "--allowedTools="]);
     const child = cp.execFile(exe, args, { cwd: ROOT, env: sessions.cleanEnv(), timeout: 180000, windowsHide: true, maxBuffer: 4 * 1024 * 1024 }, (err, out) => resolve(err ? null : String(out).trim()));
     if (child.stdin) child.stdin.end();
   });

@@ -37,14 +37,14 @@ const GROUPS = [
   [
     "Mi ordenador",
     [
-      { id: "projects", label: "Proyectos", hint: "MySQL, back y fronts en local" },
+      { id: "projects", label: "Proyectos", hint: "Servidores de desarrollo en local" },
       { id: "machines", label: "Ordenadores", hint: "PC y Mac: quién manda" },
     ],
   ],
   [
     "Qué hacen los demás",
     [
-      { id: "follow-up", label: "Seguimiento", hint: "Lo que hace Ana en beta" },
+      { id: "follow-up", label: "Seguimiento", hint: "Lo que hacen los compañeros" },
       { id: "learning", label: "Aprendizaje", hint: "Si vuelven menos tareas" },
     ],
   ],
