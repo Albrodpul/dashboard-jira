@@ -552,22 +552,47 @@ function requestButton(env, req) {
   });
 }
 
+function nextRun(cron, from = new Date()) {
+  const m = /^(\d+) (\d+)-(\d+)(?:\/(\d+))? /.exec(cron || "");
+  if (!m) return null;
+  const [minute, first, last, step] = [Number(m[1]), Number(m[2]), Number(m[3]), Number(m[4] || 1)];
+  const madrid = (d) => new Date(d.toLocaleString("en-US", { timeZone: "Europe/Madrid" }));
+  const local = madrid(from);
+  for (let day = 0; day < 8; day++) {
+    const d = new Date(local);
+    d.setDate(d.getDate() + day);
+    if ([0, 6].includes(d.getDay())) continue;
+    for (let hour = first; hour <= last; hour += step) {
+      d.setHours(hour, minute, 0, 0);
+      if (d > local) return { day, time: `${hour}:${String(minute).padStart(2, "0")}` };
+    }
+  }
+  return null;
+}
+
+function nextText(env) {
+  const n = nextRun(env.cron);
+  if (!n) return "";
+  return n.day === 0 ? `el siguiente sale a las ${n.time}` : n.day === 1 ? `el siguiente sale mañana a las ${n.time}` : `el siguiente sale el próximo día laborable a las ${n.time}`;
+}
+
 function directory(root, people) {
-  const det = h("details", { class: "people-directory" }, [h("summary", { class: "meta", text: `Personas conocidas (${people.length}): sus cuentas sirven para separar lo que hace cada uno` })]);
+  const det = h("details", { class: "people-directory" }, [h("summary", { class: "meta", text: `Personas conocidas (${people.length}): con sus cuentas se separa lo que hace cada uno` })]);
   det.open = directoryOpen;
   det.addEventListener("toggle", () => (directoryOpen = det.open));
   for (const p of people) {
     const remove = button("Quitar", {
       cls: "subtle",
+      title: `Quitar a ${p.name}: su actividad saldrá como cuenta desconocida`,
       onClick: () => {
         if (!window.confirm(`¿Quitar a ${p.name} de las personas conocidas? Su actividad saldrá como cuenta desconocida.`)) return;
         post("/api/people", { action: "remove", id: p.id }, `${p.name} quitada.`);
       },
     });
-    det.appendChild(h("div", { class: "ev" }, [h("strong", { text: p.name }), h("span", { class: "meta", text: ` · ${(p.accounts || []).join(", ") || "cuentas sin buscar todavía"}` }), remove]));
+    det.appendChild(h("div", { class: "person-row" }, [h("strong", { text: p.name }), h("span", { class: "person-accounts", text: (p.accounts || []).join(", ") || "cuentas sin buscar todavía" }), remove]));
   }
   const name = h("input", { type: "text", maxlength: "80", placeholder: "Nombre", "aria-label": "Nombre" });
-  const accounts = h("input", { type: "text", maxlength: "400", placeholder: "Correos de sus cuentas (opcional)", "aria-label": "Correos de sus cuentas" });
+  const accounts = h("input", { type: "text", maxlength: "400", placeholder: "Correos, separados por comas (opcional)", "aria-label": "Correos de sus cuentas" });
   const add = button("Añadir", {
     cls: "primary",
     onClick: (b) => {
@@ -581,7 +606,7 @@ function directory(root, people) {
         .then(() => refresh(true));
     },
   });
-  det.appendChild(h("div", { class: "toolbar" }, [name, accounts, add]));
+  det.appendChild(h("div", { class: "toolbar person-form" }, [name, accounts, add]));
   root.appendChild(det);
 }
 
@@ -594,19 +619,20 @@ export function renderFollowUp(root) {
   env.name = env.id === "production" ? "Producción" : "Beta";
   const list = all.filter((r) => environmentOf(r) === env.id);
   environmentPicker(root, envs.map((x) => ({ ...x, name: x.id === "production" ? "Producción" : "Beta" })), all);
-  const session = !e ? "la sesión de seguimiento no está registrada" : `sesión «${e.title}» ${e.open ? "abierta" : "cerrada"}`;
-  root.appendChild(h("div", { class: "meta", text: `${env.name}: resumen ${everyText(env.everyHours)} de 9:00 a 18:30, separado por persona · ${session}` }));
-  const actions = [];
+  const session = !e ? "La sesión de seguimiento no está registrada." : e.open ? "" : `La sesión «${e.title}» está cerrada.`;
   const req = e && e.request;
-  if (req && (req.environment || "beta") === env.id) {
-    const slow = minutesSince(req.at) >= 6;
-    root.appendChild(h("div", { class: "state-line", text: `Resumen pedido a las ${when(req.at)}. ${slow ? "Tarda más de lo normal: la sesión de seguimiento puede estar ocupada o cerrada." : "Se está preparando."}` }));
-  } else if (e) actions.push(requestButton(env, req));
-  root.appendChild(h("div", { class: "actions" }, actions));
-  directory(root, state.people || []);
-  if (!list.length) return root.appendChild(empty(`Todavía no hay resúmenes de ${env.name.toLowerCase()}.`, `Sale uno ${everyText(env.everyHours)} en horario de trabajo, de lunes a viernes, o cuando lo pidas.`));
+  const asked = req && (req.environment || "beta") === env.id;
+  const line = asked
+    ? `Resumen pedido a las ${when(req.at)}. ${minutesSince(req.at) >= 6 ? "Tarda más de lo normal: la sesión de seguimiento puede estar ocupada o cerrada." : "Se está preparando."}`
+    : [list.length ? `Último resumen a las ${when(list[0].at)}` : "", nextText(env)].filter(Boolean).join("; ") + "." + (session ? ` ${session}` : "");
+  root.appendChild(h("div", { class: "follow-up-bar" }, [h("span", { class: "meta", text: line.replace(/^\./, "") }), !asked && e ? requestButton(env, req) : null]));
+  if (!list.length) {
+    root.appendChild(empty(`Todavía no hay resúmenes de ${env.name.toLowerCase()}.`, `Sale uno ${everyText(env.everyHours)} en horario de trabajo, de lunes a viernes, o cuando lo pidas.`));
+    return directory(root, state.people || []);
+  }
   root.appendChild(h("section", { class: "jira follow-up" }, [h("div", { class: "jira-head", text: `Resumen de las ${when(list[0].at)}${list[0].manual ? " (pedido a mano)" : ""}` }), renderMd(list[0].text)]));
-  if (!(list[0].errors || []).some((x) => x.state !== "discarded")) {
+  const quiet = !list[0].text.trim().includes("\n");
+  if (!quiet && !(list[0].errors || []).some((x) => x.state !== "discarded")) {
     const sendAll = button("Enviar este resumen a la sesión de errores", {
       title: "Para cuando ves un fallo que la sesión no ha apuntado como posible error. Se manda el resumen entero.",
       onClick: (b) => {
@@ -634,4 +660,5 @@ export function renderFollowUp(root) {
     list.slice(1).forEach((x) => det.appendChild(h("div", { class: "ev" }, [h("span", { class: "t", text: when(x.at) }), renderMd(x.text)])));
     root.appendChild(det);
   }
+  directory(root, state.people || []);
 }
