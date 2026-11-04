@@ -330,25 +330,42 @@ function newTalkSession(b) {
     .then(() => render());
 }
 
+const TALK_STATES = { busy: ["busy", "Trabajando"], idle: ["on", "Esperando"] };
+
+function talkActivity(conversation) {
+  if (!conversation) return ["", "Sin registrar"];
+  const live = ((state.sessions && state.sessions.list) || []).find((x) => x.conversation === conversation);
+  if (live) return TALK_STATES[live.status] || ["bad", live.status ? `Estado «${live.status}»` : "Abierta"];
+  const hosted = (state.hosted || []).some((x) => x.conversation === conversation && !x.waitingForVsCode);
+  return ["", hosted ? "Dormida" : "Fuera del tablero"];
+}
+
 export function renderTalk(root) {
-  const picker = h("div", { class: "people-chips chat-picker", role: "group", "aria-label": "Qué sesión ver" });
-  const pick = (k, label) =>
-    picker.appendChild(
-      h("button", {
-        type: "button",
-        "aria-pressed": k === talkTo ? "true" : "false",
-        text: label,
-        onclick: () => {
-          setTalk(k);
-          render();
-        },
-      })
-    );
-  for (const k of FIXED_TALK) pick(k, TALK_NAMES[k]);
   const others = otherLiveSessions();
-  for (const o of others) pick(o.conversation, o.name);
-  picker.appendChild(h("button", { type: "button", class: "chat-new", title: "Abre una sesión nueva en el tablero para hablar con ella", text: "+ Nueva", onclick: (e) => newTalkSession(e.currentTarget) }));
-  root.appendChild(picker);
+  const entries = [...FIXED_TALK.map((k) => [k, TALK_NAMES[k], (talkSession(k) || {}).conversation]), ...others.map((o) => [o.conversation, o.name, o.conversation])];
+  const list = h("nav", { class: "talk-list", "aria-label": "Qué sesión ver" });
+  const group = (title, rows) => {
+    if (!rows.length) return;
+    list.appendChild(h("div", { class: "talk-list-title", text: title }));
+    for (const [k, label, conversation] of rows) {
+      const [dot, what] = talkActivity(conversation);
+      list.appendChild(
+        h("button", { type: "button", class: "talk-item", "aria-current": k === talkTo ? "true" : "false", onclick: () => { setTalk(k); render(); } }, [
+          h("span", { class: `dot ${dot}`, "aria-hidden": "true" }),
+          h("span", { class: "talk-item-text" }, [h("span", { class: "talk-item-name", text: label }), h("span", { class: "talk-item-state", text: what })]),
+        ])
+      );
+    }
+  };
+  group("Fijas", entries.slice(0, FIXED_TALK.length));
+  group("Abiertas", entries.slice(FIXED_TALK.length));
+  list.appendChild(h("button", { type: "button", class: "talk-new", title: "Abre una sesión nueva en el tablero para hablar con ella", text: "+ Sesión nueva", onclick: (e) => newTalkSession(e.currentTarget) }));
+  const main = h("div", { class: "talk-main" });
+  root.appendChild(h("div", { class: "talk-layout" }, [list, main]));
+  renderTalkMain(main, others);
+}
+
+function renderTalkMain(root, others) {
   const choices = [...FIXED_TALK.map((k) => [k, TALK_NAMES[k]]), ...others.map((o) => [o.conversation, o.name])];
   if (/^[0-9a-f-]{36}$/.test(talkTo) && !choices.some(([k]) => k === talkTo)) choices.push([talkTo, "Sesión abierta"]);
   const select = h("select", { class: "chat-select", "aria-label": "Qué sesión ver" }, choices.map(([k, label]) => h("option", { value: k, text: label })));
