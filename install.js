@@ -20,6 +20,7 @@ const slashes = (p) => p.replace(/\\/g, "/");
 
 fs.mkdirSync(workspace, { recursive: true });
 const hasLegacyConfig = fs.existsSync(path.join(workspace, "tablero.config.json"));
+let createdExample = false;
 for (const [example, real] of [
   ["board.config.example.json", "board.config.json"],
   [".env.example", ".env"],
@@ -27,6 +28,7 @@ for (const [example, real] of [
   const file = path.join(workspace, real);
   if (fs.existsSync(file) || (real === "board.config.json" && hasLegacyConfig)) continue;
   fs.copyFileSync(path.join(REPO, example), file);
+  createdExample = true;
   console.log(`created ${file}: fill it in before starting`);
 }
 
@@ -47,9 +49,12 @@ for (const [name, content] of Object.entries(launchers)) fs.writeFileSync(path.j
 console.log(`launchers in ${workspace}: ${Object.keys(launchers).join(", ")}`);
 
 process.env.TOWER_WORKSPACE = workspace;
+const exampleRoot = slashes(JSON.parse(fs.readFileSync(path.join(REPO, "board.config.example.json"), "utf8")).root);
 let config;
 try {
+  if (createdExample) throw new Error("The configuration was just created from the examples.");
   config = require("./src/config");
+  if (slashes(config.root) === exampleRoot) throw new Error(`board.config.json still has the example root (${exampleRoot}).`);
   require("./src/data").database();
 } catch (e) {
   console.log(`${e.message}\nFill in the configuration and run the installer again to render the commands.`);
