@@ -866,10 +866,10 @@ select.epic-add { flex: none; width: auto; max-width: 100%; border-radius: 999px
   .nav-toggle:hover { background: var(--mute-soft); color: var(--ink); }
   .nav-toggle[aria-expanded="false"] { color: var(--accent); }
   body.nav-hidden { --nav-w: 64px; }
-  body.nav-hidden .nav { padding: 14px 8px; }
-  body.nav-hidden .tab-group { height: 1px; margin: 10px 6px; padding: 0; background: var(--line); font-size: 0; overflow: hidden; }
-  body.nav-hidden .tab-group:first-child { display: none; }
-  body.nav-hidden .tab { position: relative; justify-content: center; padding: 9px 0; }
+  body.nav-hidden .nav { padding-left: 8px; padding-right: 8px; }
+  body.nav-hidden .tab-group { position: relative; color: transparent; white-space: nowrap; overflow: hidden; user-select: none; }
+  body.nav-hidden .tab-group:not(:first-child)::after { content: ""; position: absolute; left: 6px; right: 6px; top: 50%; height: 1px; background: var(--line); }
+  body.nav-hidden .tab { position: relative; justify-content: center; padding-left: 0; padding-right: 0; }
   body.nav-hidden .tab-text { display: none; }
   body.nav-hidden .tab .n { position: absolute; top: 2px; right: 4px; min-width: 16px; height: 16px; padding: 0 4px; font-size: 10px; line-height: 16px; }
   body.nav-hidden .tab:not(.has) > .n { display: none; }
@@ -893,7 +893,8 @@ select.epic-add { flex: none; width: auto; max-width: 100%; border-radius: 999px
 }
 .tab-icon { display: inline-flex; flex: none; color: var(--ink-3); }
 .tab:hover .tab-icon, .tab[aria-selected="true"] .tab-icon { color: var(--accent); }
-.tab-text { flex: 1 1 auto; }
+.tab-text { flex: 1 1 auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tab { height: 34px; padding-top: 0; padding-bottom: 0; }
 .report-toggle { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 28px; height: 28px; margin: 0 -4px 0 -6px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--ink-2); cursor: pointer; }
 .report-toggle:hover { background: var(--mute-soft); color: var(--ink); }
 .report-toggle svg { transition: transform 0.15s; }
