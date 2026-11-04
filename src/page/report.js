@@ -1,4 +1,4 @@
-import { state, h, when, minutesSince, toast, request, post, refresh, renderMd, reviewer, fmtDay } from "./base.js";
+import { state, h, when, minutesSince, toast, request, post, refresh, renderMd, fmtDay } from "./base.js";
 
 const weekday = new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", weekday: "long" });
 
@@ -28,11 +28,11 @@ export function renderReport() {
   paintedReport = fingerprint;
   box.hidden = false;
   box.textContent = "";
-  if (req) box.appendChild(h("div", { class: "pending-note", text: `Reporte pedido a las ${when(req.at)}. ${slow ? "Tarda más de lo normal: la sesión de reporte puede estar ocupada o cerrada." : "Se está preparando."}` }));
+  if (req) box.appendChild(h("div", { class: "pending-note", text: `Revisión pedida a las ${when(req.at)}. ${slow ? "Tarda más de lo normal: la sesión de reporte puede estar ocupada o cerrada." : "Se está preparando."}` }));
   if (!reports.length) return;
   const noChanges = last && last.empty && new Date(last.at) > new Date(reports[0].at);
   const day = dayLabel(reports[0].at);
-  if (noChanges || day) box.appendChild(h("div", { class: "jira-head", text: `Lo último que pasó en Jira${day ? ` (${day})` : ""}:` }));
+  if (noChanges || day) box.appendChild(h("div", { class: "jira-head", text: `Última novedad${day ? `, de ${day}` : ""}:` }));
   box.appendChild(renderMd(reports[0].text));
   const older = reports.slice(1);
   if (!older.length) return;
@@ -52,7 +52,7 @@ function paintPause() {
   const paused = !!(state.config && state.config.paused);
   btn.className = `btn bell${paused ? " active" : ""}`;
   btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paused ? PLAY_ICON : STOP_ICON}</svg>`;
-  const txt = paused ? `Revisiones en pausa desde las ${when(state.config.pausedAt)}. Pulsa para reanudarlas.` : `Pausar las revisiones automáticas y los resúmenes de ${reviewer()} para no gastar cuota. Refrescar, Hablar y «Pedir resumen ahora» siguen funcionando.`;
+  const txt = paused ? `Revisiones en pausa desde las ${when(state.config.pausedAt)}. Pulsa para reanudarlas.` : `Pausar las revisiones automáticas y los seguimientos para no gastar cuota. Revisar ahora, Hablar y «Pedir resumen ahora» siguen funcionando.`;
   btn.title = txt;
   btn.setAttribute("aria-label", txt);
   btn.setAttribute("aria-pressed", paused ? "true" : "false");
@@ -64,23 +64,26 @@ export function updateStamp() {
   const first = state.reports && state.reports[0];
   const u = state.lastReview || (first ? { at: first.at, empty: false } : null);
   el.textContent = "";
-  if (!u) {
-    el.textContent = "Todavía no hay ninguna revisión.";
-    return;
-  }
-  const mins = minutesSince(u.at);
-  el.appendChild(h("strong", { text: `Última revisión: ${when(u.at)}` }));
   const paused = !!(state.config && state.config.paused);
-  el.appendChild(document.createTextNode(` · ${mins < 1 ? "hace menos de 1 min" : `hace ${mins} min`} · ${u.empty ? "sin novedades" : "con novedades"}${paused ? " · revisiones en pausa" : ""}`));
-  el.style.color = mins > 8 && !paused ? "var(--back)" : "";
+  const line = h("span", { class: "stamp-line" });
+  el.appendChild(line);
+  if (!u) line.textContent = "Aún no se ha revisado nada.";
+  else {
+    const mins = minutesSince(u.at);
+    const ago = mins < 1 ? "hace un momento" : mins < 60 ? `hace ${mins} min` : `a las ${when(u.at)}`;
+    line.appendChild(h("strong", { text: `Revisado ${ago}` }));
+    line.appendChild(document.createTextNode(paused ? " · en pausa" : u.empty ? " · sin novedades" : " · con novedades"));
+    line.title = `Última revisión: ${when(u.at)}`;
+    line.classList.toggle("late", mins > 8 && !paused);
+  }
   const o = state.orchestrator;
   const watching = o && o.open && o.watching;
   const title = watching ? "La orquestadora está abierta y vigila: los envíos salen solos." : o && o.open ? "La orquestadora está abierta pero no vigila: los envíos esperan." : "La orquestadora está cerrada: los envíos esperan.";
   if (watching || !o) {
-    el.appendChild(h("span", { class: `orch${watching ? "" : " bad"}`, title }, [h("i"), "Orquestador"]));
+    el.appendChild(h("span", { class: `orch${watching ? "" : " bad"}`, title }, [h("i"), watching ? "Envíos activos" : "Sin orquestadora"]));
     return;
   }
-  const wake = h("button", { type: "button", class: "orch bad wake", title: `${title} Pulsa para despertarla.` }, [h("i"), "Orquestador · despertar"]);
+  const wake = h("button", { type: "button", class: "orch bad wake", title: `${title} Pulsa para despertarla.` }, [h("i"), `Envíos parados${o.open ? "" : " (orquestadora cerrada)"} · despertar`]);
   wake.addEventListener("click", () => {
     wake.disabled = true;
     request("/api/wake-orchestrator")
@@ -166,9 +169,10 @@ export function mountHeader() {
     request("/api/refresh")
       .then((r) => {
         if (!r.ok) throw new Error(r.status);
+        toast("Revisión de Jira pedida: el reporte llega en un par de minutos.");
         return refresh(true);
       })
-      .catch(() => toast("No se pudo pedir el reporte."));
+      .catch(() => toast("No se pudo pedir la revisión."));
   });
   setInterval(updateStamp, 30000);
 
