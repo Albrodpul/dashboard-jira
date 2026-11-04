@@ -264,8 +264,8 @@ function paint() {
   const c = state.cluster;
   if (c && c.peer) {
     const stale = viaHeaders[1];
-    const text = stale ? `${stale}: el otro no responde` : c.role === "primary" ? `Manda el ${c.label || "ordenador"}${c.manual ? " (a mano)" : ""}` : "Sin ordenador al mando";
-    right.appendChild(h("span", { class: `commander${stale || c.role !== "primary" ? " warn" : ""}${c.preferred ? "" : " backup"}`, title: c.role === "primary" ? `Manda desde ${new Date(c.since).toLocaleString("es-ES")}` : "", text }));
+    const text = stale ? `${stale}: el otro no responde` : c.role === "primary" ? `Manda el ${c.label || "ordenador"}` : "Sin ordenador al mando";
+    right.appendChild(h("span", { class: `commander${stale || c.role !== "primary" ? " warn" : ""}`, title: c.role === "primary" ? `Manda desde ${new Date(c.since).toLocaleString("es-ES")}` : "", text }));
   }
   right.appendChild(quotaBlock());
   document.querySelector(".app").setAttribute("data-view", state.tab);
@@ -312,18 +312,16 @@ function showVia(via, stale) {
   if (via !== undefined) viaHeaders = [via, stale];
   [via, stale] = viaHeaders;
   const c = state.cluster;
-  const takenOver = !via && !stale && c && c.role === "primary" && c.peer && !c.preferred;
   let el = document.getElementById("via");
-  if (!via && !stale && !takenOver) return el && el.remove();
+  if (!via && !stale) return el && el.remove();
   if (!el) {
     el = document.createElement("p");
     el.id = "via";
     document.body.prepend(el);
   }
   const primary = (c && c.label) || "el ordenador que manda";
-  el.className = stale || takenOver ? "via stale" : "via";
-  if (takenOver) el.textContent = `Estás viendo el tablero del ${c.label || "otro ordenador"}: el otro ordenador está fuera de servicio y manda este.`;
-  else if (stale) el.textContent = `Estás en el ${stale} y el otro ordenador no responde: ves los últimos datos copiados. Si sigue así, en un minuto manda el ${stale}.`;
+  el.className = stale ? "via stale" : "via";
+  if (stale) el.textContent = `Estás en el ${stale} y el otro ordenador no responde: ves los últimos datos copiados. Si sigue así, en un minuto manda el ${stale}.`;
   else el.textContent = `Estás en el ${via}: lo que ves es el tablero del ${primary}, que es el que manda.`;
 }
 

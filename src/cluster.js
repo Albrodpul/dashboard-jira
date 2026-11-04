@@ -8,7 +8,6 @@ const { DATA_DIR, SEEN_FILE, load, mutate, now } = require("./data");
 const CLUSTER = config.cluster || null;
 const STATE_FILE = path.join(DATA_DIR, "cluster.json");
 const TAKEOVER_MS = 60000;
-const YIELD_WAIT_MS = 3 * 60000;
 const SNAPSHOT_MS = 60000;
 const ROLES = [
   ["reporter", "Reporte JIRA"],
@@ -21,15 +20,23 @@ const PROJECTS = path.join(os.homedir(), ".claude", "projects");
 const projectDir = () => path.join(PROJECTS, config.root.replace(/\\/g, "/").replace(/^([A-Z]):/, (m, d) => `${d.toLowerCase()}:`).replace(/[^a-zA-Z0-9]/g, "-"));
 const SYNC_KEYS = ["tasks", "aliases", "seenEpics", "reports", "refreshRequest", "jiraEpics", "deployments", "followUps", "messages", "lastReview", "config", "contextTidy", "deleted", "permissionRules", "sentry", "sessionOverrides"];
 
+const STALE_STATE_MS = 5 * 60000;
+const elapsed = (iso) => Date.now() - new Date(iso).getTime();
 const readState = () => {
+  let s = null;
   try {
-    return JSON.parse(fs.readFileSync(STATE_FILE, "utf8"));
-  } catch (e) {
-    return { role: CLUSTER && !CLUSTER.preferred ? "follower" : "primary", since: now() };
-  }
+    s = JSON.parse(fs.readFileSync(STATE_FILE, "utf8"));
+  } catch (e) {}
+  if (!CLUSTER) return s || { role: "primary", since: now() };
+  if (!s) return { role: "follower", since: now() };
+  if (s.role === "primary" && s.savedAt && elapsed(s.savedAt) > STALE_STATE_MS) return { ...s, role: "follower", since: now(), manual: false, pendingPull: null, wokeStale: true };
+  return s;
 };
 let st = readState();
-const save = () => fs.writeFileSync(STATE_FILE, JSON.stringify(st, null, 1));
+const save = () => {
+  st.savedAt = now();
+  fs.writeFileSync(STATE_FILE, JSON.stringify(st, null, 1));
+};
 const log = (m) => {
   try {
     fs.appendFileSync(path.join(DATA_DIR, "cluster.log"), `[${now()}] ${m}\n`);
@@ -37,7 +44,7 @@ const log = (m) => {
 };
 
 const isPrimary = () => !CLUSTER || st.role === "primary";
-const info = () => ({ label: CLUSTER ? CLUSTER.label || null : null, role: isPrimary() ? "primary" : "follower", since: st.since, manual: !!(isPrimary() && st.manual), lastSnapshot: st.lastSnapshot || null, lastTranscripts: st.lastTranscripts || null, pendingPull: st.pendingPull || null, preferred: !!(CLUSTER && CLUSTER.preferred), host: os.hostname(), self: CLUSTER ? CLUSTER.self : null, peer: CLUSTER ? CLUSTER.peer : null });
+const info = () => ({ label: CLUSTER ? CLUSTER.label || null : null, role: isPrimary() ? "primary" : "follower", since: st.since, manual: !!(isPrimary() && st.manual), lastSnapshot: st.lastSnapshot || null, lastTranscripts: st.lastTranscripts || null, pendingPull: st.pendingPull || null, host: os.hostname(), self: CLUSTER ? CLUSTER.self : null, peer: CLUSTER ? CLUSTER.peer : null });
 
 async function peerGet(route, ms = 8000) {
   const ctrl = new AbortController();
@@ -306,7 +313,7 @@ async function demote(reason) {
 
 
 function keepAwake() {
-  if (!CLUSTER || CLUSTER.preferred || process.platform !== "darwin") return;
+  if (!CLUSTER || process.platform !== "darwin") return;
   const p = Object.fromEntries(new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Madrid", weekday: "short", hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(new Date()).map((x) => [x.type, x.value]));
   const min = Number(p.hour) * 60 + Number(p.minute);
   const want = !["Sat", "Sun"].includes(p.weekday) && min >= 7 * 60 + 30 && min < 18 * 60 + 30;
@@ -334,78 +341,65 @@ async function tick() {
   busy = true;
   try {
     const peer = await peerGet("/api/cluster");
-    if (CLUSTER.preferred) {
-      if (peer && peer.role === "primary") {
-        const peerNewer = !isPrimary() || new Date(peer.since) > new Date(st.since);
-        if (peer.manual && peerNewer) {
-          if (isPrimary()) await demote("el otro ordenador manda porque lo has pedido");
-          if (Date.now() - lastPull > SNAPSHOT_MS) {
-            lastPull = Date.now();
-            await pullSnapshot();
-          }
-          await refreshFromPeer();
-          save();
-          return;
-        }
-        await peerPost("/api/cluster/yield", { from: os.hostname() });
-        st.pendingPull = peer.since;
-        save();
-        if (peerNewer) await pullSnapshot();
-        if ((await refreshFromPeer(new Date(peer.since).getTime() - 60000)) >= 0) st.pendingPull = null;
-        if (!isPrimary()) await promote("el ordenador preferido vuelve y recupera el mando");
-        else log("el otro ordenador mandaba mientras yo no respondía: datos traídos y le pido que ceda");
-      } else if (!isPrimary()) await promote("ordenador preferido");
-      else if (st.pendingPull && peer && (await refreshFromPeer(new Date(st.pendingPull).getTime() - 60000)) >= 0) {
-        log("conversaciones del otro ordenador traídas al reintentar");
-        st.pendingPull = null;
+    if (!peer) {
+      st.peerDownSince = st.peerDownSince || now();
+      st.noneSince = null;
+      if (!isPrimary() && elapsed(st.peerDownSince) > TAKEOVER_MS) {
+        st.pendingPull = now();
+        await promote("el otro ordenador no responde desde hace un minuto");
       }
-      st.peerDownSince = null;
-      save();
       return;
     }
-    if (peer) {
-      st.peerDownSince = null;
-      if (peer.role === "primary") {
-        if (isPrimary() && peer.preferred) {
-          st.preferredBackSince = st.preferredBackSince || now();
-          save();
-          if (Date.now() - new Date(st.preferredBackSince).getTime() < YIELD_WAIT_MS) return;
-          log("el ordenador preferido manda pero no me ha pedido ceder");
-        }
-        st.preferredBackSince = null;
-        if (isPrimary()) await demote("el otro ordenador manda");
-        if (Date.now() - lastPull > SNAPSHOT_MS) {
-          lastPull = Date.now();
-          await pullSnapshot();
-        }
-        if (!peer.pendingPull) await refreshFromPeer();
-      } else if (!isPrimary()) await promote("ninguno mandaba");
-      save();
+    st.peerDownSince = null;
+    if (peer.role === "primary" && isPrimary()) {
+      if (tookLater(peer)) {
+        st.pendingPull = st.pendingPull || now();
+        log("los dos mandaban: sigo yo, que tomé el mando después; el otro cede");
+      } else await demote("los dos mandaban y el otro tomó el mando después");
+    }
+    if (peer.role === "primary" && !isPrimary()) {
+      st.noneSince = null;
+      if (Date.now() - lastPull > SNAPSHOT_MS) {
+        lastPull = Date.now();
+        await pullSnapshot();
+      }
+      if (!peer.pendingPull) await refreshFromPeer();
       return;
     }
-    st.peerDownSince = st.peerDownSince || now();
-    save();
-    if (!isPrimary() && Date.now() - new Date(st.peerDownSince).getTime() > TAKEOVER_MS) await promote("el otro ordenador no responde desde hace un minuto");
+    if (!isPrimary()) {
+      st.noneSince = st.noneSince || now();
+      if ((CLUSTER.label || "") < (peer.label || "") || elapsed(st.noneSince) > TAKEOVER_MS) {
+        st.noneSince = null;
+        await promote("ninguno mandaba");
+      }
+      return;
+    }
+    st.noneSince = null;
+    if (st.pendingPull && peer.role !== "primary" && (await refreshFromPeer()) >= 0) {
+      log("conversaciones del otro ordenador traídas tras el relevo");
+      st.pendingPull = null;
+    }
   } finally {
+    try {
+      save();
+    } catch (e) {}
     busy = false;
   }
 }
 
+function tookLater(peer) {
+  const mine = new Date(st.since).getTime();
+  const theirs = new Date(peer.since).getTime();
+  return mine !== theirs ? mine > theirs : (CLUSTER.label || "") > (peer.label || "");
+}
+
 async function handleYield(input) {
-  if (!CLUSTER || !isPrimary()) return;
-  if (input && input.force) return demote("el otro ordenador toma el mando porque lo has pedido");
-  if (CLUSTER.preferred) return;
-  st.preferredBackSince = null;
-  await demote("el ordenador preferido ha vuelto");
+  if (!CLUSTER || !isPrimary() || !(input && input.force)) return;
+  await demote("el otro ordenador toma el mando porque lo has pedido");
 }
 
 async function takeHere() {
   if (!CLUSTER) return { ok: false, error: "no hay dos ordenadores configurados" };
-  if (CLUSTER.preferred) {
-    await peerPost("/api/cluster/auto", {});
-    if (!isPrimary()) tick().catch(() => {});
-    return { ok: true };
-  }
   if (isPrimary()) {
     st.manual = true;
     save();
