@@ -153,7 +153,7 @@ function paintTabs(counts, waitingDeploys) {
   }
 }
 
-const tabText = (t) => h("span", { class: "tab-text" }, [t.label, t.hint ? h("small", { class: "tab-hint", text: t.hint }) : null]);
+const tabText = (t) => h("span", { class: "tab-text", text: t.label });
 
 function lastTaskTab() {
   try {
