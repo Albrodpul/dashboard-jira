@@ -290,9 +290,7 @@ const TALK_NAMES = {
   board: "Tablero",
   deploy: "Despliegue",
   errors: "Errores sentry",
-  get followUp() {
-    return `Seguimiento de ${reviewer()}`;
-  },
+  followUp: "Seguimiento",
 };
 const areaTalk = (id) => {
   const a = id && state.areas.find((x) => x.id === id);
@@ -476,7 +474,7 @@ let olderOpen = false;
 
 function errorCard(e) {
   const [cls, label] = ERROR_CHIP[e.state];
-  const kids = [h("div", { class: "top" }, [h("span", { class: "time", text: when(e.at) }), h("span", { class: `chip ${cls}`, text: label })]), h("div", { class: "note", text: e.text })];
+  const kids = [h("div", { class: "top" }, [h("span", { class: "time", text: when(e.at) }), e.person ? h("strong", { text: e.person }) : null, h("span", { class: `chip ${cls}`, text: label })]), h("div", { class: "note", text: e.text })];
   if (e.result) {
     kids.push(h("div", { class: "reply" }, [h("b", { text: `Resultado · ${when(e.result.at)}: ` }), e.result.text]));
     kids[0].lastChild.textContent = "Contestado por la sesión de errores";
@@ -500,72 +498,51 @@ function errorCard(e) {
   return h("article", { class: "card" }, kids);
 }
 
-const defaultPerson = () => {
-  const list = state.people || [];
-  return (list.find((p) => p.hourly) || list[0] || { id: "reviewer" }).id;
-};
-const personOf = (r) => r.person || defaultPerson();
+const FOLLOW_UP_ENVIRONMENTS = [
+  { id: "beta", name: "Beta", everyHours: 1 },
+  { id: "production", name: "Producción", everyHours: 2 },
+];
+const environmentOf = (r) => r.environment || "beta";
+const everyText = (n) => (n === 1 ? "cada hora" : `cada ${n} horas`);
 
-let selectedPerson = null;
+let selectedEnvironment = "beta";
 try {
-  selectedPerson = localStorage.getItem("follow-up-person");
+  selectedEnvironment = localStorage.getItem("follow-up-environment") || "beta";
 } catch (e) {}
-let adding = false;
+let directoryOpen = false;
 
-function pickPerson(id) {
-  selectedPerson = id;
+function pickEnvironment(id) {
+  selectedEnvironment = id;
   try {
-    localStorage.setItem("follow-up-person", id);
+    localStorage.setItem("follow-up-environment", id);
   } catch (e) {}
   render();
 }
 
-function peoplePicker(root, people, summaries) {
-  const chips = h("div", { class: "people-chips", role: "group", "aria-label": "Persona a seguir" });
-  for (const p of people) {
-    const pending = summaries.filter((r) => personOf(r) === p.id).flatMap((r) => r.errors || []).filter((x) => x.state === "proposed").length;
+function environmentPicker(root, envs, summaries) {
+  const chips = h("div", { class: "people-chips", role: "group", "aria-label": "Entorno" });
+  for (const env of envs) {
+    const pending = summaries.filter((r) => environmentOf(r) === env.id).flatMap((r) => r.errors || []).filter((x) => x.state === "proposed").length;
     chips.appendChild(
-      h("button", { type: "button", "aria-pressed": String(p.id === selectedPerson), onclick: () => pickPerson(p.id), title: p.hourly ? "Resumen automático cada hora" : "Solo cuando lo pides" }, [
-        p.hourly ? h("span", { class: "dot on" }) : null,
-        p.name,
-        p.environment === "production" ? h("span", { class: "meta", text: " · prod" }) : null,
+      h("button", { type: "button", "aria-pressed": String(env.id === selectedEnvironment), onclick: () => pickEnvironment(env.id), title: `Resumen automático ${everyText(env.everyHours)}, de lunes a viernes` }, [
+        env.name,
+        h("span", { class: "meta", text: ` · ${everyText(env.everyHours)}` }),
         pending ? h("span", { class: "error-count", text: String(pending) }) : null,
       ])
     );
   }
-  chips.appendChild(h("button", { type: "button", class: "other", onclick: () => ((adding = !adding), render()), text: "+ Otra persona" }));
   root.appendChild(chips);
-  if (!adding) return;
-  const name = h("input", { type: "text", id: "person-name", maxlength: "80", placeholder: "Nombre o correo de su cuenta", "aria-label": "Nombre o correo" });
-  const environment = h("select", { id: "person-environment", "aria-label": "Entorno" }, [h("option", { value: "beta", text: "Beta" }), h("option", { value: "production", text: "Producción" })]);
-  const add = button("Añadir", {
-    cls: "primary",
-    onClick: (b) => {
-      b.disabled = true;
-      requestOrFail("/api/people", { action: "add", name: name.value, environment: environment.value })
-        .then(() => {
-          adding = false;
-          toast("Añadida. Pide su primer resumen cuando quieras.");
-        })
-        .catch((e) => {
-          b.disabled = false;
-          toast(e.message);
-        })
-        .then(() => refresh(true));
-    },
-  });
-  root.appendChild(h("div", { class: "toolbar" }, [name, environment, add]));
 }
 
-function requestButton(p, req, environment) {
+function requestButton(env, req) {
   return button("Pedir resumen ahora", {
     cls: "primary",
     disabled: !!req,
-    title: req ? "Hay otro resumen pedido: espera a que salga." : `La sesión de seguimiento mira la actividad de ${p.name} en ${environment} desde su último resumen y lo publica aquí.`,
+    title: req ? "Hay otro resumen pedido: espera a que salga." : `La sesión de seguimiento mira lo que ha hecho cada uno en ${env.name.toLowerCase()} desde el último resumen y lo publica aquí.`,
     onClick: (b) => {
       b.disabled = true;
-      requestOrFail("/api/followup-request", { person: p.id })
-        .then(() => toast(`Pedido: el resumen de ${p.name} sale en un par de minutos.`))
+      requestOrFail("/api/followup-request", { environment: env.id })
+        .then(() => toast(`Pedido: el resumen de ${env.name.toLowerCase()} sale en unos minutos.`))
         .catch(() => {
           b.disabled = false;
           toast("No se pudo pedir el resumen.");
@@ -575,38 +552,60 @@ function requestButton(p, req, environment) {
   });
 }
 
+function directory(root, people) {
+  const det = h("details", { class: "people-directory" }, [h("summary", { class: "meta", text: `Personas conocidas (${people.length}): sus cuentas sirven para separar lo que hace cada uno` })]);
+  det.open = directoryOpen;
+  det.addEventListener("toggle", () => (directoryOpen = det.open));
+  for (const p of people) {
+    const remove = button("Quitar", {
+      cls: "subtle",
+      onClick: () => {
+        if (!window.confirm(`¿Quitar a ${p.name} de las personas conocidas? Su actividad saldrá como cuenta desconocida.`)) return;
+        post("/api/people", { action: "remove", id: p.id }, `${p.name} quitada.`);
+      },
+    });
+    det.appendChild(h("div", { class: "ev" }, [h("strong", { text: p.name }), h("span", { class: "meta", text: ` · ${(p.accounts || []).join(", ") || "cuentas sin buscar todavía"}` }), remove]));
+  }
+  const name = h("input", { type: "text", maxlength: "80", placeholder: "Nombre", "aria-label": "Nombre" });
+  const accounts = h("input", { type: "text", maxlength: "400", placeholder: "Correos de sus cuentas (opcional)", "aria-label": "Correos de sus cuentas" });
+  const add = button("Añadir", {
+    cls: "primary",
+    onClick: (b) => {
+      b.disabled = true;
+      requestOrFail("/api/people", { action: "add", name: name.value, accounts: accounts.value })
+        .then(() => toast("Añadida. Sale con su nombre en el próximo resumen."))
+        .catch((e) => {
+          b.disabled = false;
+          toast(e.message);
+        })
+        .then(() => refresh(true));
+    },
+  });
+  det.appendChild(h("div", { class: "toolbar" }, [name, accounts, add]));
+  root.appendChild(det);
+}
+
 export function renderFollowUp(root) {
   const all = state.followUps || [];
-  const people = state.people || [];
-  if (!people.some((p) => p.id === selectedPerson)) selectedPerson = defaultPerson();
-  const p = people.find((x) => x.id === selectedPerson) || people[0] || { id: defaultPerson(), name: reviewer(), environment: "beta", accounts: [] };
-  const list = all.filter((r) => personOf(r) === p.id);
   const e = state.followUpStatus;
-  peoplePicker(root, people, all);
-  const environment = p.environment === "production" ? "producción" : "beta";
-  const accounts = p.accounts && p.accounts.length ? p.accounts.join(", ") : "se buscan por su nombre en el primer resumen";
-  const session = !e ? " · la sesión de seguimiento no está registrada" : ` · sesión «${e.title}» ${e.open ? "abierta" : "cerrada"}`;
-  root.appendChild(h("div", { class: "meta", text: `${p.name} · actividad en ${environment} · cuentas: ${accounts}${session}` }));
+  const envs = (e && e.environments) || FOLLOW_UP_ENVIRONMENTS;
+  if (!envs.some((x) => x.id === selectedEnvironment)) selectedEnvironment = envs[0].id;
+  const env = Object.assign({}, FOLLOW_UP_ENVIRONMENTS.find((x) => x.id === selectedEnvironment), envs.find((x) => x.id === selectedEnvironment));
+  env.name = env.id === "production" ? "Producción" : "Beta";
+  const list = all.filter((r) => environmentOf(r) === env.id);
+  environmentPicker(root, envs.map((x) => ({ ...x, name: x.id === "production" ? "Producción" : "Beta" })), all);
+  const session = !e ? "la sesión de seguimiento no está registrada" : `sesión «${e.title}» ${e.open ? "abierta" : "cerrada"}`;
+  root.appendChild(h("div", { class: "meta", text: `${env.name}: resumen ${everyText(env.everyHours)} de 9:00 a 18:30, separado por persona · ${session}` }));
   const actions = [];
   const req = e && e.request;
-  if (req && personOf(req) === p.id) {
-    const slow = minutesSince(req.at) >= 4;
+  if (req && (req.environment || "beta") === env.id) {
+    const slow = minutesSince(req.at) >= 6;
     root.appendChild(h("div", { class: "state-line", text: `Resumen pedido a las ${when(req.at)}. ${slow ? "Tarda más de lo normal: la sesión de seguimiento puede estar ocupada o cerrada." : "Se está preparando."}` }));
-  } else if (e) actions.unshift(requestButton(p, req, environment));
-  if (p.id !== defaultPerson()) {
-    actions.push(
-      button("Quitar de la lista", {
-        cls: "subtle",
-        onClick: () => {
-          if (!window.confirm(`¿Quitar a ${p.name} del seguimiento? Sus resúmenes ya publicados se quedan.`)) return;
-          post("/api/people", { action: "remove", id: p.id }, `${p.name} ya no está en la lista.`);
-        },
-      })
-    );
-  }
+  } else if (e) actions.push(requestButton(env, req));
   root.appendChild(h("div", { class: "actions" }, actions));
-  if (!list.length) return root.appendChild(empty(`Todavía no hay resúmenes de ${p.name}.`, p.hourly ? "Sale uno cada hora en horario de trabajo, de lunes a viernes." : "Pídelo con el botón cuando quieras."));
-  root.appendChild(h("section", { class: "jira follow-up" }, [h("div", { class: "jira-head", text: `Resumen de las ${when(list[0].at)}` }), renderMd(list[0].text)]));
+  directory(root, state.people || []);
+  if (!list.length) return root.appendChild(empty(`Todavía no hay resúmenes de ${env.name.toLowerCase()}.`, `Sale uno ${everyText(env.everyHours)} en horario de trabajo, de lunes a viernes, o cuando lo pidas.`));
+  root.appendChild(h("section", { class: "jira follow-up" }, [h("div", { class: "jira-head", text: `Resumen de las ${when(list[0].at)}${list[0].manual ? " (pedido a mano)" : ""}` }), renderMd(list[0].text)]));
   if (!(list[0].errors || []).some((x) => x.state !== "discarded")) {
     const sendAll = button("Enviar este resumen a la sesión de errores", {
       title: "Para cuando ves un fallo que la sesión no ha apuntado como posible error. Se manda el resumen entero.",
@@ -625,7 +624,7 @@ export function renderFollowUp(root) {
   }
   const errors = list.flatMap((r) => (r.errors || []).filter((x) => x.state === "proposed" || r === list[0]));
   if (errors.length) {
-    root.appendChild(h("div", { class: "jira-head", text: "Posibles errores vistos en su actividad" }));
+    root.appendChild(h("div", { class: "jira-head", text: `Posibles errores vistos en ${env.name.toLowerCase()}` }));
     errors.forEach((x) => root.appendChild(errorCard(x)));
   }
   if (list.length > 1) {

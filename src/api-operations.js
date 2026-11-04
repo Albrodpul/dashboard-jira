@@ -1,13 +1,13 @@
 const { UUID, now, load, mutate } = require("./data");
 const { loadRoutes, changeRoutes, realArea, openInVsCode, wakeSession } = require("./sessions");
 const { ERRORS_AREA, MESSAGE_TARGETS, talkTarget, state, tidyBlockers, openIfClosed, wakeOrchestrator, messageNotice, wait } = require("./state");
-const { DEFAULT_PERSON, people, nameOf } = require("./follow-up");
+const followUp = require("./follow-up");
 const config = require("./config");
 
 const ENVIRONMENTS = ["develop", "production", "both"];
 const ENVIRONMENT_NAME = { develop: "develop", production: "producción", both: "develop y producción" };
 const VERSIONS = ["z", "y", "x"];
-const FOLLOW_UP_NOTICE = `Aviso del tablero: ${config.jira.me.name} pide ahora un resumen de seguimiento. Compruébalo con «${config.cli} followup-status» (campo request, con la persona) y sigue «Pedido desde el tablero» de .claude/commands/seguimiento.md.`;
+const FOLLOW_UP_NOTICE = `Aviso del tablero: ${config.jira.me.name} pide ahora un resumen de seguimiento. Compruébalo con «${config.cli} followup-status» (campo request, con el entorno) y sigue «Pedido desde el tablero» de .claude/commands/seguimiento.md.`;
 const stamp = (at, n) => at.replace(/\D/g, "").slice(0, n);
 
 function handleDeploy(res, { projects, environment, version, area, cancel }, send) {
@@ -96,7 +96,7 @@ function summaryToErrors(d, at) {
   if ((r.errors || []).some((e) => e.wholeSummary && e.state !== "discarded")) return "ese resumen ya se ha enviado";
   const mark = now();
   const time = new Date(r.at).toLocaleTimeString("es-ES", { timeZone: "Europe/Madrid", hour: "2-digit", minute: "2-digit" });
-  const text = `Resumen de seguimiento de ${nameOf(r.person || DEFAULT_PERSON)} de las ${time}, enviado entero por ${config.jira.me.name} porque ve un posible fallo:\n\n${r.text}`;
+  const text = `Resumen de seguimiento de ${followUp.environmentName(followUp.environmentOf(r, d))} de las ${time}, enviado entero por ${config.jira.me.name} porque ve un posible fallo:\n\n${r.text}`;
   r.errors = (r.errors || []).concat({ id: "err-" + stamp(mark, 17), text, wholeSummary: true, state: "approved", approvedVia: "board", at: mark, decidedAt: mark });
   return "";
 }
@@ -137,12 +137,12 @@ async function wakeFollowUpFor(id) {
   });
 }
 
-function handleFollowUpRequest(res, { person } = {}, send) {
-  const who = people(load()).some((x) => x.id === person) ? person : DEFAULT_PERSON;
+function handleFollowUpRequest(res, { environment } = {}, send) {
+  const where = followUp.ENVIRONMENTS.includes(environment) ? environment : "beta";
   const p = mutate((d) => {
     if (!d.followUpRequest || d.followUpRequest.handled) {
       const at = now();
-      d.followUpRequest = { id: at, at, handled: false, person: who };
+      d.followUpRequest = { id: at, at, handled: false, environment: where };
     }
     return d.followUpRequest;
   });

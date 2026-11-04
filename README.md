@@ -26,7 +26,7 @@ It also has:
 - one-click deploy orders, with the live state of GitHub Actions and AWS CodeDeploy;
 - Sentry errors sent to a session with one click;
 - push notifications;
-- a daily summary of yesterday's work, and an hourly activity summary of a colleague;
+- a daily summary of yesterday's work, and an activity summary of beta and production split by person;
 - a "Learning" tab that tracks how often work comes back from review;
 - the shared `context/` folder kept in sync through git.
 
@@ -114,7 +114,7 @@ Also set `statuses.rejectLabel`, the label reviewers add when they reject a tick
 
 ### 5. Optional parts
 
-- `followUp`: colleagues whose activity a follow-up session can summarise. `hourly: true` means automatic, every hour; the others are on demand from the board. `environment` is `beta` or `production`. How the summary is built (which database, which table) is written in `templates/commands/seguimiento.md`; adapt it to your platform or leave the list empty.
+- `followUp`: the follow-up session summarises everyone's activity in beta and in production, split by person. `everyHours` sets how often each environment is summarised (default 1 for beta, 2 for production); either can also be asked for from the board. `people` is the starting directory of known people (`name` and the `accounts` they use); the session adds new colleagues as it finds them. How the summary is built (which database, which table) is written in `templates/commands/seguimiento.md`; adapt it to your platform or leave the list empty.
 - `deployProjects`: the projects the Deploy tab offers. Leave it empty if you don't deploy from the board. Each entry can be just a name, or an object with `repo` (`owner/name` on GitHub) and, for projects deployed with AWS CodeDeploy, `codedeploy: { application, develop, production }` (deployment group per environment). With those, the Deploy tab shows the live state of each environment as two steps in order, each with a progress bar: the last GitHub Actions run whose workflow name contains `develop` or `production` (override with `workflows`), counted in completed job steps, then the CodeDeploy deployment, counted in completed lifecycle events per instance. A push notification arrives when one finishes. It only reads, through the `gh` and `aws` CLIs, which must be logged in on the machine.
 - `errorsArea`: the id of the session that receives the possible errors found by the follow-up.
 - `contextDomains`: the folder, relative to `root`, where sessions keep what they learn (`context/domains`). The Learning tab reads its "History" sections.
@@ -207,7 +207,7 @@ In Claude Code:
 - `/resumen-jira` turns a session into the **reporter** (reads Jira, publishes a report, creates cards).
 - `/orquesta` turns a session into the **orchestrator** (sends approved cards, deployments and your answers).
 - `/soy <area>` registers a session as the one that owns an area; epics are routed to areas from the board.
-- `/seguimiento` turns a session into the **follow-up** one (hourly activity summary of a colleague).
+- `/seguimiento` turns a session into the **follow-up** one (activity of beta and production, split by person).
 - `/tablero` turns a session into the **board** one: it takes the changes you ask for the board itself from the Talk tab, so the reporter only deals with Jira.
 
 `node <workspace>/board.js` without arguments lists every command. The old Spanish command names (`informe`, `envios`, `hecha`…) still work as aliases.

@@ -64,13 +64,18 @@ const option = (name) => {
 };
 const withoutOptions = () => {
   const args = process.argv.slice(3);
-  for (const n of ["--person", "--persona"]) {
+  for (const n of ["--person", "--persona", "--environment", "--entorno"]) {
     const i = args.indexOf(n);
     if (i >= 0) args.splice(i, 2);
   }
-  return args;
+  return args.filter((x) => x !== "--manual");
 };
-const personOption = () => option(["--person", "--persona"]) || require("./follow-up").DEFAULT_PERSON;
+const environmentOption = () => {
+  const raw = option(["--environment", "--entorno"]);
+  const env = { produccion: "production", producción: "production", prod: "production" }[raw] || raw || "beta";
+  if (!require("./follow-up").ENVIRONMENTS.includes(env)) fail(`entorno desconocido: ${raw} (beta o production)`);
+  return env;
+};
 const status = (s) => TASK_STATUS[s] || s;
 const ME = config.jira.me.name;
 const MY_FIRST_NAME = new RegExp(String(ME).split(/\s+/)[0].replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
@@ -363,21 +368,30 @@ const commands = {
   },
 
   followup() {
-    const person = personOption();
+    const environment = environmentOption();
+    const manual = process.argv.includes("--manual");
     const text = (withoutOptions()[0] || readStdin()).trim();
     if (!text) fail("falta el texto del resumen");
-    const { DEFAULT_PERSON, nameOf } = require("./follow-up");
+    const { environmentName } = require("./follow-up");
     mutate((d) => {
-      d.followUps.unshift({ at: now(), text, person });
+      d.followUps.unshift({ at: now(), text, environment, ...(manual ? { manual: true } : {}) });
       d.followUps = d.followUps.slice(0, 120);
       const p = d.followUpRequest;
-      if (p && !p.handled && (p.person || DEFAULT_PERSON) === person) Object.assign(p, { handled: true, handledAt: now() });
+      if (p && !p.handled && (p.environment || "beta") === environment) Object.assign(p, { handled: true, handledAt: now() });
     });
-    console.log(`resumen de seguimiento de ${nameOf(person)} guardado en el tablero`);
+    console.log(`resumen de seguimiento de ${environmentName(environment)} guardado en el tablero`);
   },
 
   people() {
     json(require("./follow-up").people(load()));
+  },
+
+  "person-add"() {
+    const accounts = process.argv.slice(4).join(",").split(",").map((x) => x.trim()).filter(Boolean);
+    if (!a) fail("Uso: board.js person-add \"<Nombre>\" [<correo>[,<correo>…]]");
+    const r = require("./follow-up").registerPerson(a, accounts);
+    if (r.error) fail(r.error);
+    console.log(`${r.person.name} (${r.person.id}) en el directorio; cuentas: ${(r.person.accounts || []).join(", ") || "ninguna"}`);
   },
 
   "person-accounts"() {
@@ -393,21 +407,22 @@ const commands = {
   },
 
   "followup-error"() {
-    const person = personOption();
-    const { DEFAULT_PERSON } = require("./follow-up");
+    const environment = environmentOption();
+    const person = option(["--person", "--persona"]);
+    const { environmentOf, environmentName } = require("./follow-up");
     const text = (withoutOptions().join(" ") || readStdin()).trim().slice(0, 3000);
-    if (!text) fail("Uso: board.js followup-error [--person <id>] <posible error, con hora, cuenta, operación, respuesta y api_request_id>");
+    if (!text) fail("Uso: board.js followup-error --environment <beta|production> [--person <nombre>] <posible error, con hora, cuenta, operación, respuesta y api_request_id>");
     const id = mutate((d) => {
-      const r = d.followUps.find((x) => (x.person || DEFAULT_PERSON) === person);
+      const r = d.followUps.find((x) => environmentOf(x, d) === environment);
       if (!r) return "";
       const at = now();
       const created = "err-" + at.replace(/[^0-9]/g, "").slice(0, 17);
-      r.errors = (r.errors || []).concat({ id: created, text, state: "proposed", at });
+      r.errors = (r.errors || []).concat({ id: created, text, state: "proposed", at, ...(person ? { person: String(person).slice(0, 80) } : {}) });
       return created;
     });
-    if (!id) fail("no hay ningún resumen de esa persona al que colgarlo: publica antes el resumen");
+    if (!id) fail(`no hay ningún resumen de ${environmentName(environment)} al que colgarlo: publica antes el resumen`);
     console.log(`posible error ${id} añadido al último resumen; ${ME} decide si se envía a Errores sentry`);
-    sendPush("followup", true, `Posible error en el seguimiento de ${require("./follow-up").nameOf(person)}`).then(
+    sendPush("followup", true, `Posible error en el seguimiento de ${environmentName(environment)}${person ? ` (${person})` : ""}`).then(
       () => {},
       () => {}
     );
@@ -703,5 +718,5 @@ for (const c of ["tidy-start", "tidy-end"]) commands[c] = contextTidy;
 if (Object.prototype.hasOwnProperty.call(commands, cmd)) commands[cmd]();
 else
   console.log(
-    "Uso: node board.js serve | ensure | restart | add [json] | list [status] | update <key> [json] | approve-chat <key> <area> | report [text] | reporter | board-session | watch [reports|dispatches|board] | host | refresh-request | sessions [json] | epics [json] | jira-epics | open <session> | areas | dispatches | attachments <key> | done | partial | question | comment | delivered | sent | reply | changes | orchestrator | deployments | deployment-update | startup | push-test | followup | followup-error | error-sent | error-result | sentry-sent | sentry-result | followup-status | people | person-accounts | tidy-status | tidy-start | tidy-end | message | answer-message | progress | counted | learning-read | cause | jira-setup [ISSUE-KEY] [reviewer name]"
+    "Uso: node board.js serve | ensure | restart | add [json] | list [status] | update <key> [json] | approve-chat <key> <area> | report [text] | reporter | board-session | watch [reports|dispatches|board] | host | refresh-request | sessions [json] | epics [json] | jira-epics | open <session> | areas | dispatches | attachments <key> | done | partial | question | comment | delivered | sent | reply | changes | orchestrator | deployments | deployment-update | startup | push-test | followup | followup-error | error-sent | error-result | sentry-sent | sentry-result | followup-status | people | person-add | person-accounts | tidy-status | tidy-start | tidy-end | message | answer-message | progress | counted | learning-read | cause | jira-setup [ISSUE-KEY] [reviewer name]"
   );
