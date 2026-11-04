@@ -1,5 +1,5 @@
 import { livePanel } from "./terminal.js";
-import { state, h, button, when, minutesSince, toast, request, requestOrFail, post, whoSends, areaName, areaSelect, render, refresh, renderMd, empty, ticketUrl, reviewer, deployProjects, switchView } from "./base.js";
+import { state, h, button, when, minutesSince, toast, request, requestOrFail, post, whoSends, areaName, areaSelect, render, refresh, renderMd, empty, ticketUrl, ticketLink, reviewer, deployProjects, switchView } from "./base.js";
 
 const search = { q: "", onlyAvailable: true, skipReview: true, results: null, busy: false, capped: false };
 
@@ -47,7 +47,7 @@ function resultRows(root) {
     const bring = button(x.onBoard ? "Ya en el tablero" : x.available ? "Traer al tablero" : `La lleva ${x.assignee}`, { disabled: !(x.available && !x.onBoard), onClick: (b) => ((b.disabled = true), importTasks([x.key])) });
     const meta = `Asignado: ${x.assignee || "sin asignar"} · Epic: ${x.epicKey ? `${x.epicKey} ${x.epicName || ""}` : "sin epic"} · Sesión: ${x.area ? areaName(x.area) : "sin sesión"}`;
     return h("div", { class: "row" }, [
-      h("div", { class: "row-id" }, [h("a", { class: "key jira-link", href: ticketUrl(x.key), target: "_blank", rel: "noopener noreferrer", text: x.key }), h("span", { class: `chip ${x.rejected ? "returned" : "ignored"}`, text: x.status + (x.rejected ? " · rechazo" : "") })]),
+      h("div", { class: "row-id" }, [ticketLink(x.key, "key jira-link"),h("span", { class: `chip ${x.rejected ? "returned" : "ignored"}`, text: x.status + (x.rejected ? " · rechazo" : "") })]),
       h("div", { class: "row-side" }, [h("span", { text: x.title }), h("span", { class: "meta", text: meta })]),
       bring,
     ]);

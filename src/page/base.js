@@ -126,6 +126,26 @@ export function switchView(tab, toTop) {
   render();
 }
 
+let ticketOpener = null;
+export const setTicketOpener = (fn) => (ticketOpener = fn);
+export const openTicket = (key) => ticketOpener && ticketOpener(key);
+
+export function ticketLink(key, cls = "ticket-link") {
+  return h("a", {
+    class: cls,
+    href: ticketUrl(key),
+    target: "_blank",
+    rel: "noopener noreferrer",
+    title: "Ver el detalle en el tablero (Ctrl+clic: abrir en Jira)",
+    text: key,
+    onclick: (e) => {
+      if (!ticketOpener || e.ctrlKey || e.metaKey || e.shiftKey || e.button !== 0) return;
+      e.preventDefault();
+      ticketOpener(key);
+    },
+  });
+}
+
 export function inline(text) {
   const out = [];
   const key = new RegExp(`^(?:${projectsRegex()})-\\d+$`);
@@ -134,7 +154,7 @@ export function inline(text) {
     if (!p) continue;
     if (p.startsWith("**") && p.endsWith("**")) out.push(h("strong", { text: p.slice(2, -2) }));
     else if (p.startsWith("`") && p.endsWith("`")) out.push(h("code", { text: p.slice(1, -1) }));
-    else if (key.test(p)) out.push(h("a", { class: "ticket-link", href: ticketUrl(p), target: "_blank", rel: "noopener noreferrer", text: p }));
+    else if (key.test(p)) out.push(ticketLink(p));
     else out.push(p);
   }
   return out;

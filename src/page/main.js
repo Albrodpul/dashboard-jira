@@ -9,6 +9,7 @@ import { renderSentry } from "./sentry.js";
 import { renderProjects } from "./projects.js";
 import { renderFind, searchBox } from "./find.js";
 import { renderMachines } from "./machines.js";
+import { paintTicket } from "./ticket.js";
 
 const TASK_TABS = [
   { id: "pending", label: "Pendientes" },
@@ -96,6 +97,24 @@ const ICONS = {
   talk: '<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/>',
   more: '<circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/>',
 };
+const NAV_ICONS = {
+  home: ICONS.today,
+  tasks: ICONS.tasks,
+  talk: ICONS.talk,
+  sentry: '<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/>',
+  deploy: '<path d="M12 19V5M5 12l7-7 7 7"/><path d="M5 21h14"/>',
+  projects: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="m7 10 3 2-3 2M13 15h4"/>',
+  machines: '<rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/>',
+  "follow-up": '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
+  learning: '<path d="M22 10 12 5 2 10l10 5 10-5z"/><path d="M6 12v5c3 2 9 2 12 0v-5"/>',
+  sessions: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18.5 20a6.5 6.5 0 0 0-3-5.5"/>',
+  context: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+};
+const navIcon = (id) => {
+  const s = h("span", { class: "tab-icon", "aria-hidden": "true" });
+  s.innerHTML = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${NAV_ICONS[id] || ""}</svg>`;
+  return s;
+};
 const BOTTOM_BAR = [
   ["today", "Hoy", "today"],
   ["tasks", "Tareas", "pending"],
@@ -129,7 +148,7 @@ function paintTabs(counts, waitingDeploys) {
       }
       const n = isTaskTab(t.id) ? counts[t.id] : t.id === "deploy" ? waitingDeploys || undefined : undefined;
       const cls = `tab${n && HIGHLIGHT.includes(t.id) ? " has" : ""}${n && t.id === "waiting" ? " urgent" : ""}`;
-      tabs.appendChild(h("button", { class: cls, role: "tab", "aria-selected": String(state.tab === t.id), type: "button", onclick: () => switchView(t.id) }, [tabText(t), n === undefined ? null : h("span", { class: "n", text: String(n) })]));
+      tabs.appendChild(h("button", { class: cls, role: "tab", "aria-selected": String(state.tab === t.id), type: "button", title: `${t.label}: ${t.hint}`, onclick: () => switchView(t.id) }, [navIcon(t.id), tabText(t), n === undefined ? null : h("span", { class: "n", text: String(n) })]));
     }
   }
 }
@@ -150,7 +169,7 @@ function tasksTab(counts) {
   if (counts.pending) badges.push(h("span", { class: "n", title: "Pendientes", text: String(counts.pending) }));
   if (counts.waiting) badges.push(h("span", { class: "n alert", title: "Te esperan", text: String(counts.waiting) }));
   const cls = `tab${counts.pending ? " has" : ""}`;
-  return h("button", { class: cls, role: "tab", "aria-selected": String(isTaskTab(state.tab)), type: "button", onclick: () => switchView(lastTaskTab()) }, [tabText({ label: "Tareas", hint: "Lo de Jira y lo que te espera" }), h("span", { class: "tab-badges" }, badges)]);
+  return h("button", { class: cls, role: "tab", "aria-selected": String(isTaskTab(state.tab)), type: "button", title: "Tareas: lo de Jira y lo que te espera", onclick: () => switchView(lastTaskTab()) }, [navIcon("tasks"), tabText({ label: "Tareas", hint: "Lo de Jira y lo que te espera" }), h("span", { class: "tab-badges" }, badges)]);
 }
 
 function paintBottomBar(section, attention) {
@@ -237,6 +256,7 @@ function render() {
   if (keepY !== null && groups) groups.style.minHeight = groups.offsetHeight + "px";
   try {
     paint();
+    paintTicket();
   } finally {
     renderedTab = state.tab;
     if (groups) groups.style.minHeight = "";
@@ -410,7 +430,7 @@ const navToggle = document.getElementById("nav-toggle");
 const setNavHidden = (hidden, save) => {
   document.body.classList.toggle("nav-hidden", hidden);
   navToggle.setAttribute("aria-expanded", String(!hidden));
-  navToggle.title = hidden ? "Mostrar el menú lateral" : "Ocultar el menú lateral";
+  navToggle.title = hidden ? "Desplegar el menú lateral" : "Plegar el menú lateral a solo iconos";
   navToggle.setAttribute("aria-label", navToggle.title);
   if (!save) return;
   try {
@@ -424,6 +444,25 @@ try {
 } catch (e) {}
 setNavHidden(navHidden, false);
 navToggle.addEventListener("click", () => setNavHidden(!document.body.classList.contains("nav-hidden"), true));
+const reportToggle = document.getElementById("report-toggle");
+const setReportCollapsed = (collapsed, save) => {
+  document.body.classList.toggle("report-collapsed", collapsed);
+  reportToggle.setAttribute("aria-expanded", String(!collapsed));
+  reportToggle.title = collapsed ? "Desplegar el reporte de Jira" : "Plegar el reporte de Jira";
+  reportToggle.setAttribute("aria-label", reportToggle.title);
+  if (!save) return;
+  try {
+    localStorage.setItem("report-collapsed", collapsed ? "1" : "");
+  } catch (e) {}
+  window.dispatchEvent(new Event("layoutchange"));
+};
+let reportCollapsed = false;
+try {
+  reportCollapsed = localStorage.getItem("report-collapsed") === "1";
+} catch (e) {}
+setReportCollapsed(reportCollapsed, false);
+reportToggle.addEventListener("click", () => setReportCollapsed(!document.body.classList.contains("report-collapsed"), true));
+document.querySelector(".report-head strong").addEventListener("click", () => document.body.classList.contains("report-collapsed") && setReportCollapsed(false, true));
 render();
 const askedTab = new URLSearchParams(location.search).get("tab");
 if (askedTab) {

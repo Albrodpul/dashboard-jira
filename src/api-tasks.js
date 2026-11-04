@@ -1,6 +1,6 @@
 const { IN_SESSION, now, load, mutate } = require("./data");
 const { loadRoutes, realArea, sessionsCli } = require("./sessions");
-const { ME, jiraSearch, jiraRequest, summarizeIssue, adfFromText } = require("./jira");
+const { ME, jiraGet, jiraSearch, jiraRequest, summarizeIssue, adfFromText } = require("./jira");
 const config = require("./config");
 const { state, openIfClosed, wakeOrchestrator, isPaused, wakeReporter } = require("./state");
 
@@ -263,6 +263,37 @@ function handleSearch(res, { q, onlyAvailable, skipReview }, send) {
     .catch(() => send(res, 502, { error: "No se pudo consultar Jira" }));
 }
 
+function adfText(node) {
+  if (!node) return "";
+  if (node.type === "text") return node.text || "";
+  if (node.type === "hardBreak") return "\n";
+  if (node.type === "mention") return (node.attrs && node.attrs.text) || "";
+  const inner = (node.content || []).map(adfText).join("");
+  if (node.type === "listItem") return `- ${inner.trim()}\n`;
+  if (["bulletList", "orderedList"].includes(node.type)) return inner + "\n";
+  if (["paragraph", "heading", "codeBlock", "blockquote"].includes(node.type)) return inner.trim() + "\n\n";
+  return inner;
+}
+
+function handleTicket(res, { key }, send) {
+  const k = String(key || "").toUpperCase();
+  if (!/^[A-Z]+-\d+$/.test(k)) return send(res, 400, { error: "clave no válida" });
+  jiraGet(`/issue/${k}?fields=summary,status,assignee,parent,created,updated,labels,issuetype,priority,reporter,description`)
+    .then((i) => {
+      const f = i.fields;
+      const x = summarizeIssue(i, load(), loadRoutes());
+      Object.assign(x, {
+        type: f.issuetype ? f.issuetype.name : null,
+        priority: f.priority ? f.priority.name : null,
+        reporter: f.reporter ? f.reporter.displayName : null,
+        updated: f.updated,
+        description: adfText(f.description).replace(/\n{3,}/g, "\n\n").trim().slice(0, 6000),
+      });
+      send(res, 200, x);
+    })
+    .catch(() => send(res, 502, { error: "No se pudo consultar Jira" }));
+}
+
 function handleImport(res, { keys }, send) {
   const list = (Array.isArray(keys) ? keys : []).map(String).filter((k) => /^[A-Z]+-\d+$/.test(k)).slice(0, 60);
   if (!list.length) return send(res, 400, { error: "faltan las tareas" });
@@ -305,4 +336,4 @@ function handleImport(res, { keys }, send) {
     .catch(() => send(res, 502, { error: "No se pudo consultar Jira" }));
 }
 
-module.exports = { handleTask, handleBatch, handleDelete, archiveDone, handleAnswer, handleReviewed, handleReviewedAll, reviewJobState, handleComment, handleConfig, handleRefresh, handleSearch, handleImport };
+module.exports = { handleTask, handleBatch, handleDelete, archiveDone, handleAnswer, handleReviewed, handleReviewedAll, reviewJobState, handleComment, handleConfig, handleRefresh, handleSearch, handleTicket, handleImport };
