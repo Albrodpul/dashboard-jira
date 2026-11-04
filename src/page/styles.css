@@ -472,6 +472,20 @@ select.epic-add { flex: none; width: auto; max-width: 100%; border-radius: 999px
 .people-chips button { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink-2); font: inherit; font-size: 14px; cursor: pointer; }
 .people-chips button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); font-weight: 600; }
 .people-chips button.other { border-style: dashed; color: var(--ink-3); }
+.fu-text { max-width: 820px; }
+.fu-eyebrow { font-size: 13px; font-weight: 600; color: var(--accent); }
+.fu-headline { margin: 4px 0 14px; font-size: 18px; font-weight: 600; line-height: 1.4; }
+.fu-block { padding: 12px 0; border-top: 1px solid var(--line); }
+.fu-block-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; margin-bottom: 4px; }
+.fu-block-head h4 { margin: 0 6px 0 0; font-size: 15px; }
+.fu-block.group .fu-block-head h4 { color: var(--ink-2); font-weight: 600; }
+.fu-stat { font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.fu-stat + .fu-stat::before { content: "·"; margin-right: 8px; color: var(--line-strong, var(--ink-3)); }
+.fu-stat.bad { color: var(--danger); font-weight: 600; }
+.fu-block .report-text ul { margin: 2px 0 0; }
+.fu-block.reading { margin-top: 8px; padding: 12px 14px; border: 0; border-radius: 8px; background: var(--surface-2); }
+.fu-block.reading h4 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-3); }
+.ev .fu-headline { font-size: 14px; margin-bottom: 6px; }
 .follow-up-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; margin: 14px 0 4px; }
 .people-directory { margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--line); }
 .people-directory > summary { cursor: pointer; }
