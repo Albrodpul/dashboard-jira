@@ -408,6 +408,24 @@ document.addEventListener("focusout", () =>
 );
 document.addEventListener("visibilitychange", () => !document.hidden && reload(false));
 MOBILE.addEventListener("change", render);
+const navToggle = document.getElementById("nav-toggle");
+const setNavHidden = (hidden, save) => {
+  document.body.classList.toggle("nav-hidden", hidden);
+  navToggle.setAttribute("aria-expanded", String(!hidden));
+  navToggle.title = hidden ? "Mostrar el menú lateral" : "Ocultar el menú lateral";
+  navToggle.setAttribute("aria-label", navToggle.title);
+  if (!save) return;
+  try {
+    localStorage.setItem("nav-hidden", hidden ? "1" : "");
+  } catch (e) {}
+  window.dispatchEvent(new Event("layoutchange"));
+};
+let navHidden = false;
+try {
+  navHidden = localStorage.getItem("nav-hidden") === "1";
+} catch (e) {}
+setNavHidden(navHidden, false);
+navToggle.addEventListener("click", () => setNavHidden(!document.body.classList.contains("nav-hidden"), true));
 render();
 const askedTab = new URLSearchParams(location.search).get("tab");
 if (askedTab) {

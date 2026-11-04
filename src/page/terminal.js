@@ -406,6 +406,15 @@ document.addEventListener("visibilitychange", () => {
   for (const p of panels.values()) p.catchUp();
   if (overlay) overlay.catchUp();
 });
+window.addEventListener("layoutchange", () => {
+  requestAnimationFrame(() => {
+    for (const p of panels.values()) {
+      fitInline(p);
+      if (p.checkFit) p.checkFit();
+    }
+    claimVisible();
+  });
+});
 window.addEventListener("resize", () => {
   for (const p of panels.values()) fitInline(p);
   if (window.innerWidth === lastWidth) return;

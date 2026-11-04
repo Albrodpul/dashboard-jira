@@ -830,3 +830,24 @@ select.epic-add { flex: none; width: auto; max-width: 100%; border-radius: 999px
   .term-inline .term-keys { padding: 6px 8px 0; }
   .term-inline .term-compose { padding: 6px 8px 8px; }
 }
+
+/* Menú lateral plegable en escritorio */
+.nav-toggle { display: none; }
+@media (min-width: 761px) {
+  .nav-toggle { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 34px; height: 34px; margin-right: -12px; padding: 0; border: 0; border-radius: 8px; background: transparent; color: var(--ink-2); cursor: pointer; }
+  .nav-toggle:hover { background: var(--mute-soft); color: var(--ink); }
+  .nav-toggle[aria-expanded="false"] { color: var(--accent); }
+  body.nav-hidden .nav { display: none; }
+  body.nav-hidden .app { grid-template-columns: minmax(0, 1fr) 360px; }
+  body.nav-hidden .main { grid-column: 1; }
+  body.nav-hidden .report { grid-column: 2; }
+}
+@media (min-width: 761px) and (max-width: 1240px) {
+  body.nav-hidden .app { grid-template-columns: minmax(0, 1fr); }
+  body.nav-hidden .report, body.nav-hidden .main { grid-column: 1; }
+}
+@media (min-width: 1100px) and (max-width: 1400px) {
+  body.nav-hidden .talk-layout { grid-template-columns: 190px minmax(0, 1fr); gap: 18px; }
+  body.nav-hidden .talk-list { display: flex; }
+  body.nav-hidden .chat-select-row { display: none; }
+}
