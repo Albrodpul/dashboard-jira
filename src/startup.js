@@ -8,7 +8,7 @@ const config = require("./config");
 
 const STARTUP_LOG = path.join(DATA_DIR, "startup.log");
 const STARTUP_LOCK = path.join(DATA_DIR, "startup.lock");
-const FOLLOW_UP_NOTICE = `Aviso del arranque: arranca el resumen de ${config.jira.reviewer.name}. Eres la sesión de seguimiento registrada: ejecuta ahora .claude/commands/seguimiento.md (regla de AGENTS.md).`;
+const FOLLOW_UP_NOTICE = `Aviso del arranque: arranca el seguimiento. Eres la sesión de seguimiento registrada: ejecuta ahora .claude/commands/seguimiento.md (regla de AGENTS.md).`;
 const madrid = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Madrid", weekday: "short", hour: "2-digit", minute: "2-digit", hour12: false });
 
 function madridTime() {

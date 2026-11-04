@@ -75,7 +75,7 @@ const VIEWS = {
   projects: ["Proyectos", "Los servidores locales que usan las sesiones: MySQL, super-app, Donatella, backoffice y landing."],
   sentry: ["Errores", "Errores sin resolver de landing, backoffice y super-app. Elige la sesión y pulsa Enviar: la orquestadora se lo pasa con el enlace y te cuenta aquí lo que ha encontrado."],
   context: ["Ordenar contexto", "La orquestadora repasa y ordena context/ y el índice de AGENTS.md. Solo se puede lanzar con todo limpio: nada pendiente, por enviar, en sesión ni desplegándose."],
-  "follow-up": ["Seguimiento", "Lo que ha hecho cada compañero según sus peticiones a la API: el revisor principal tiene resumen automático cada hora; los demás, cuando lo pidas."],
+  "follow-up": ["Seguimiento", "Lo que hace cada uno según sus peticiones a la API, separado por persona: beta se resume sola cada hora y producción cada dos; cualquiera de los dos, también cuando lo pidas."],
 };
 const NON_TASK_VIEWS = {
   learning: renderLearning,

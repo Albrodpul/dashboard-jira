@@ -53,7 +53,7 @@ export function sessionSituation() {
   const roles = [
     ["Reporte de Jira", state.reporterRoute],
     ["Orquestadora", state.orchestrator],
-    [`Seguimiento de ${reviewer()}`, state.followUpStatus],
+    ["Seguimiento", state.followUpStatus],
     ["Tablero", state.boardStatus],
     ["Despliegue", fixedArea(state.deployerArea)],
     ["Errores sentry", fixedArea(state.sentry && state.sentry.errorsArea)],

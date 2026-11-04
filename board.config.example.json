@@ -40,14 +40,16 @@
     ],
     "rejectLabel": "rejected"
   },
-  "followUp": [
-    {
-      "id": "reviewer",
-      "name": "Name",
-      "environment": "beta",
-      "hourly": true
-    }
-  ],
+  "followUp": {
+    "everyHours": { "beta": 1, "production": 2 },
+    "people": [
+      {
+        "id": "reviewer",
+        "name": "Name",
+        "accounts": []
+      }
+    ]
+  },
   "errorsArea": null,
   "devServers": [
     { "id": "api", "name": "API", "cwd": "api", "command": "php", "args": ["artisan", "serve", "--port=8000"], "port": 8000, "url": "http://localhost:8000" },

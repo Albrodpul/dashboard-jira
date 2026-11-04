@@ -71,7 +71,6 @@ const values = {
   JQLPROJECTS: config.jira.projectsJql,
   REJECTLABEL: config.statuses.rejectLabel,
   RETURNED: config.statuses.returned.join("»/«"),
-  FOLLOWUP: require("./src/follow-up").DEFAULT_PERSON,
 };
 const render = (text) => text.replace(/\{\{([A-Z]+)\}\}/g, (m, k) => (k in values ? values[k] : m));
 const templates = path.join(REPO, "templates", "commands");

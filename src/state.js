@@ -4,7 +4,7 @@ const http = require("http");
 const { ROOT, ORCHESTRATOR_HEARTBEAT, REPORTER_HEARTBEAT, BOARD_HEARTBEAT, BASE_URL, UUID, isEmptyReport, load } = require("./data");
 const { readQuota } = require("./quota");
 const { liveSessions, reconcile, currentRef, loadRoutes, targets, openInVsCode, wakeSession } = require("./sessions");
-const { people } = require("./follow-up");
+const { people, environments, environmentOf } = require("./follow-up");
 const config = require("./config");
 const sentry = require("./sentry");
 const permissions = require("./permissions");
@@ -63,7 +63,7 @@ function followUpStatus(d, r) {
   if (!o || !o.conversation) return null;
   const live = (d.sessions.list || []).find((s) => s.conversation === o.conversation);
   const request = d.followUpRequest && !d.followUpRequest.handled ? d.followUpRequest : null;
-  return { title: o.title || `Seguimiento de ${config.jira.reviewer.name}`, session: live ? live.name : null, conversation: o.conversation, open: !!live, last: (d.followUps[0] || {}).at || null, request, paused: isPaused(d) };
+  return { title: o.title || "Seguimiento", session: live ? live.name : null, conversation: o.conversation, open: !!live, last: (d.followUps[0] || {}).at || null, environments: environments(d), request, paused: isPaused(d) };
 }
 
 function deployerArea(r) {
@@ -124,7 +124,7 @@ function state() {
     orchestrator: orchestrator(d, r),
     reporterStatus: reporter(d, r),
     boardStatus: boardStatus(d, r),
-    followUps: d.followUps.slice(0, 80),
+    followUps: d.followUps.slice(0, 80).map((x) => ({ ...x, environment: environmentOf(x, d) })),
     permissions: permissions.forPage(d),
     contextSync: d.contextSync || null,
     daily: d.daily || null,
