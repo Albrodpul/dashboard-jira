@@ -144,6 +144,10 @@ function quotaBlockInner() {
     return h("span", { class: `quota-item${level}`, title: resets(c[k].resetsAt) }, [`${name} `, h("b", { text: `${used} %` })]);
   });
   box.appendChild(h("span", { class: "quota-items" }, parts.flatMap((p, i) => (i ? [" · ", p] : [p]))));
+  if (minutesSince(c.at) > 30) {
+    box.classList.add("stale");
+    box.appendChild(h("span", { class: "quota-stale", text: `Dato de ${when(c.at)}` }));
+  }
   box.title = windows.map(([k, name]) => `${name}: ${resets(c[k].resetsAt)}`).join(". ") + (minutesSince(c.at) > 30 ? `. Dato de las ${when(c.at)}` : "");
   return box;
 }

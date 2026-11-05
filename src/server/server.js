@@ -134,7 +134,7 @@ function serve() {
   every(syncJiraEpics, 30 * 60 * 1000);
   every(refreshAttachments, 45 * 1000);
   every(tasks.archiveDone, 10 * 60 * 1000);
-  every(fetchQuota, 3 * 60 * 1000);
+  every(fetchQuota, 10 * 60 * 1000);
   every(learning.startReading, 3 * 60 * 60 * 1000);
   deployStatus.startDeployStatus();
   every(devservers.schedule, 60 * 1000);
