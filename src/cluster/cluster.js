@@ -351,7 +351,7 @@ function keepAwake() {
     letSleep();
     log("fuera de horario: se desactiva solo al empezar la jornada");
   }
-  const extra = !!hours.overtime();
+  const extra = !!hours.overtime() && isPrimary();
   if (process.platform !== "darwin") return;
   const extraFile = path.join(DATA_DIR, "caffeinate.extra");
   if (!extra && fs.existsSync(extraFile)) letSleep();
