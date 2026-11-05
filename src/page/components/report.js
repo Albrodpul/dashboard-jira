@@ -110,7 +110,7 @@ function tokenWarning() {
   const days = Math.ceil((new Date(state.claudeTokenExpires + "T00:00:00") - Date.now()) / 86400000);
   if (days > 30) return null;
   const text = days <= 0 ? "Token de Claude caducado" : `Token de Claude: caduca en ${days} ${days === 1 ? "día" : "días"}`;
-  return h("span", { class: `token-warn${days <= 7 ? " high" : ""}`, title: `Las sesiones del tablero usan un token de larga duración que caduca el ${state.claudeTokenExpires}. Genera otro con «claude setup-token» y cámbialo en el .env de los dos ordenadores.`, text });
+  return h("span", { class: `token-warn${days <= 7 ? " high" : ""}`, title: `Las sesiones del tablero usan un token de larga duración que caduca el ${state.claudeTokenExpires}. Renuévalo con el botón de la pestaña Ordenadores.`, text });
 }
 
 export function quotaBlock() {

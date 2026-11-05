@@ -70,15 +70,6 @@ function tokenLine(t) {
   return `Token de Claude: sí${until} · VS Code ${t.vscode ? "también lo usa" : "aún con su /login"}`;
 }
 
-const TOKEN_STEPS = [
-  ["Cuándo", "Si las sesiones caen todas a la vez con «Login reached its time limit» o «Failed to authenticate», si te han revocado el acceso, o cuando el aviso junto a la cuota diga que el token caduca pronto."],
-  ["1", "Pulsa «Renovar token de Claude» aquí arriba, desde el ordenador en el que estés. Se abre el navegador: quien tenga la cuenta de empresa autoriza (si no está delante, cópiale el enlace; si la página le da un código, pégalo en el campo que aparece). El tablero coge el token sin enseñarlo, lo guarda en los dos ordenadores y lo pone también para VS Code. Sin botón: ! node <workspace>/board.js claude-token --setup."],
-  ["2", "Si el otro ordenador estaba apagado, al volver pulsa «Copiar al otro ordenador». A mano: node <workspace>/board.js claude-token --export | ssh <otro ordenador> \"node <workspace>/board.js claude-token --import\"."],
-  ["3", "Cierra VS Code del todo y ábrelo de nuevo en los dos ordenadores."],
-  ["4", "Comprueba aquí que los dos dicen «Token de Claude: sí» con la fecha nueva. Las sesiones del tablero lo cogen solas la próxima vez que se abran; si alguna sigue fallando, reiníciala desde Sesiones."],
-  ["Sin token", "Para volver al /login de siempre: borra CLAUDE_CODE_OAUTH_TOKEN y CLAUDE_TOKEN_EXPIRES del .env y ejecuta node <workspace>/board.js claude-token --remove en cada ordenador."],
-];
-
 let job = { state: "idle" };
 let jobTimer = null;
 let jobBusy = false;
@@ -158,16 +149,9 @@ function tokenRenew() {
   }
   if (job.state === "failed") box.appendChild(h("p", { class: "setup-note warn", text: `No se ha renovado: ${job.error || "error desconocido"}` }));
   if (job.state === "failed" && job.tail) box.appendChild(h("pre", { class: "token-tail", text: job.tail }));
-  box.appendChild(h("p", { class: "setup-note", text: "Las sesiones del tablero y VS Code usan un token de larga duración que no depende del /login. Renuévalo si caduca, si te quitan el acceso o si las sesiones caen todas con «Failed to authenticate»." }));
+  box.appendChild(h("p", { class: "setup-note", text: "Las sesiones del tablero y VS Code, en los dos ordenadores, usan un token de un año que no depende del /login. Renuévalo si caduca, si te quitan el acceso o si las sesiones caen todas con «Failed to authenticate». Se puede renovar antes de tiempo: si tu navegador aún tiene abierta la sesión de claude.ai con la cuenta de empresa, autorizas tú solo." }));
   box.appendChild(h("div", { class: "actions" }, [startButton("Renovar token de Claude")]));
   return box;
-}
-
-function tokenHelp() {
-  const det = h("details", { class: "token-help" }, [h("summary", { text: "Token de Claude: qué hacer si caduca o te quitan el acceso" })]);
-  det.open = [data.self, data.peer].some((b) => b && b.claudeToken && !b.claudeToken.sessions);
-  det.appendChild(h("dl", { class: "token-steps" }, TOKEN_STEPS.flatMap(([k, v]) => [h("dt", { text: k }), h("dd", { text: v })])));
-  return det;
 }
 
 export function renderMachines(root) {
@@ -180,6 +164,5 @@ export function renderMachines(root) {
   if (!data.devices) return root.appendChild(empty("No se pudo leer Tailscale en este ordenador.", ""));
   root.appendChild(h("div", { class: "cards" }, data.devices.map(card)));
   root.appendChild(tokenRenew());
-  root.appendChild(tokenHelp());
   if (!jobLoaded) pollJob();
 }
