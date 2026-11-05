@@ -66,7 +66,8 @@ function watchReports() {
     const p = Object.fromEntries(madrid.formatToParts(new Date()).map((x) => [x.type, x.value]));
     const hour = Number(p.hour);
     const min = Number(p.minute);
-    if (["Sat", "Sun"].includes(p.weekday) || hour < 8 || hour > 18 || (hour === 18 && min > 30) || min % 5 !== 0) return;
+    const outside = ["Sat", "Sun"].includes(p.weekday) || hour < 8 || hour > 18 || (hour === 18 && min > 30);
+    if ((outside && !require("../core/hours").overtime()) || min % 5 !== 0) return;
     const mark = p.weekday + p.hour + p.minute;
     if (mark === lastCycle) return;
     lastCycle = mark;

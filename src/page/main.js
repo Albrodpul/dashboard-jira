@@ -5,7 +5,7 @@ import { renderDeploy } from "./views/deploy.js";
 import { renderTalk } from "./views/talk.js";
 import { renderContext } from "./views/context.js";
 import { renderFollowUp } from "./views/follow-up.js";
-import { renderReport, updateStamp, mountHeader, quotaBlock, tokenBanner } from "./components/report.js";
+import { renderReport, updateStamp, mountHeader, quotaBlock, tokenBanner, overtimeBanner } from "./components/report.js";
 import { renderHome, sessionStrip, shortcuts, dailyCard } from "./views/home.js";
 import { renderLearning } from "./views/learning.js";
 import { renderSentry } from "./views/sentry.js";
@@ -300,6 +300,8 @@ function paint() {
   const root = document.getElementById("groups");
   root.textContent = "";
   if (["home", "today"].includes(state.tab)) {
+    const extra = overtimeBanner();
+    if (extra) root.appendChild(extra);
     const banner = tokenBanner(() => switchView("machines", true));
     if (banner) root.appendChild(banner);
   }
@@ -324,7 +326,7 @@ function paint() {
   (NON_TASK_VIEWS[state.tab] || renderTasks)(root);
 }
 
-const FIELDS = ["cluster", "daily", "sessionProfiles", "sessions", "aliases", "reporterRoute", "reporterStatus", "boardStatus", "orchestrator", "epics", "allEpics", "reports", "lastReview", "config", "followUps", "sentry", "permissions", "hosted", "contextSync", "contextTidy", "messages", "tidyBlockers", "lastContextPass", "followUpStatus", "refreshRequest", "deployments", "deployerArea", "quota", "people", "jiraSetup", "voice", "speech", "deployStatus", "reviewJob", "convProfiles", "claudeTokenExpires"];
+const FIELDS = ["cluster", "daily", "sessionProfiles", "sessions", "aliases", "reporterRoute", "reporterStatus", "boardStatus", "orchestrator", "epics", "allEpics", "reports", "lastReview", "config", "followUps", "sentry", "permissions", "hosted", "contextSync", "contextTidy", "messages", "tidyBlockers", "lastContextPass", "followUpStatus", "refreshRequest", "deployments", "deployerArea", "quota", "people", "jiraSetup", "voice", "speech", "deployStatus", "reviewJob", "convProfiles", "claudeTokenExpires", "workHours"];
 const withoutReadTime = (d) => JSON.stringify(d, (k, v) => (k === "syncedAt" ? undefined : v));
 const editing = () => {
   const a = document.activeElement;

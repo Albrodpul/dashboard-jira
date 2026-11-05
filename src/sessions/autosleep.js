@@ -12,8 +12,9 @@ const log = (m) => {
   } catch (e) {}
 };
 
-async function sleepIdleSessions() {
+async function sleepIdleSessions(now) {
   if (!require("../cluster/cluster").isPrimary()) return;
+  if (!now && require("../core/hours").overtime()) return;
   const host = require("./host");
   const hosted = await host.hostRequest("GET", "/sessions").catch(() => null);
   if (!Array.isArray(hosted)) return;
@@ -30,7 +31,7 @@ async function sleepIdleSessions() {
   for (const h of hosted) {
     if (!h.running || keep.has(h.conversation)) continue;
     const l = live.get(h.conversation);
-    if (!l || l.status !== "idle" || !l.statusSince || Date.now() - new Date(l.statusSince).getTime() < IDLE_MS) continue;
+    if (!l || l.status !== "idle" || !l.statusSince || Date.now() - new Date(l.statusSince).getTime() < (now ? 0 : IDLE_MS)) continue;
     await host.hostRequest("POST", "/stop", { conversation: h.conversation }).catch(() => {});
     host.markOnDemand(h.conversation);
     log(`duerme ${h.name}: parada desde ${l.statusSince}`);

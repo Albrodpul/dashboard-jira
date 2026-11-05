@@ -113,6 +113,20 @@ function tokenWarning() {
   return h("span", { class: `token-warn${days <= 7 ? " high" : ""}`, title: `Las sesiones del tablero usan un token de larga duración que caduca el ${state.claudeTokenExpires}. Renuévalo con el botón de la pestaña Ordenadores.`, text });
 }
 
+export function overtimeBanner() {
+  const ot = state.config && state.config.overtime;
+  if (!ot && state.workHours !== false) return null;
+  const btn = h("button", { type: "button", class: `btn${ot ? "" : " primary"}`, text: ot ? "Terminar y dormir todo" : "Activarlo todo" });
+  btn.onclick = () => {
+    if (ot && !window.confirm("¿Terminar? Se paran los servidores de desarrollo, se duermen las sesiones sin trabajo pendiente y el Mac vuelve a poder dormirse.")) return;
+    btn.disabled = true;
+    post("/api/overtime", { on: !ot }, ot ? "Fuera de horario terminado: todo vuelve a dormirse." : "Arrancando todo: el reporte, el seguimiento y los servidores, en un par de minutos.").then(() => (btn.disabled = false));
+  };
+  const head = ot ? `Fuera de horario activado desde las ${when(ot.since)}` : "Fuera de horario: el tablero está en reposo";
+  const text = ot ? "El Mac no se duerme, las sesiones no se duermen solas y el reporte revisa Jira cada 5 minutos. Termínalo cuando acabes; si se te olvida, se apaga solo al empezar la jornada." : "Si necesitas trabajar ahora, actívalo todo: arranca el reporte, el seguimiento y los servidores, y nada se duerme hasta que lo termines.";
+  return h("div", { class: `token-banner overtime-banner${ot ? " on" : ""}`, role: "status" }, [h("div", {}, [h("strong", { text: head }), h("span", { text })]), btn]);
+}
+
 export function tokenBanner(goTo) {
   if (!state.claudeTokenExpires) return null;
   const days = Math.ceil((new Date(state.claudeTokenExpires + "T00:00:00") - Date.now()) / 86400000);
