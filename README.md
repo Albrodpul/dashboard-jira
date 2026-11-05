@@ -192,7 +192,7 @@ Run `install.js` on the old workspace folder. Older data is migrated on the firs
 | File | What |
 |---|---|
 | `board.config.json` | Jira projects, your account id, the reviewer, status names, people to follow up, deploy targets |
-| `.env` | `JIRA_SITE`, `JIRA_EMAIL`, `JIRA_TOKEN` |
+| `.env` | `JIRA_SITE`, `JIRA_EMAIL`, `JIRA_TOKEN`; optional `SENTRY_TOKEN`, and `CLAUDE_CODE_OAUTH_TOKEN` with `CLAUDE_TOKEN_EXPIRES` so hosted sessions use a long-lived token from `claude setup-token` instead of the /login that expires |
 | `data/` | SQLite database, session routes, hosted sessions, cluster state, push keys, logs (`startup.log`, `host.log`) |
 | `board.js`, `sessions.js`, `jira-window.js`, `jira-write.js`, `jira.sh`, `permission-hook.js` | launchers written by the installer that call this repo |
 

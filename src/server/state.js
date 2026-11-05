@@ -147,6 +147,7 @@ function state() {
     deployments: d.deployments.slice(0, 12),
     deployerArea: deployerArea(r),
     quota: readQuota(),
+    claudeTokenExpires: /^\d{4}-\d{2}-\d{2}$/.test(process.env.CLAUDE_TOKEN_EXPIRES || "") ? process.env.CLAUDE_TOKEN_EXPIRES : null,
     jiraSetup: config.forPage(),
   };
 }
