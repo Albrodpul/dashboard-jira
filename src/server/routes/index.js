@@ -190,6 +190,12 @@ const POST_ROUTES = {
     send(res, 200);
   },
   "/api/permission/rule-remove": (res, { key }, send) => send(res, permissions.removeRule(String(key)) ? 200 : 404),
+  "/api/overtime": (res, { on }, send) => {
+    require("../startup")
+      .setOvertime(!!on)
+      .then((overtime) => send(res, 200, { overtime }))
+      .catch((e) => send(res, 500, { error: String(e.message || e) }));
+  },
   "/api/devservers": (res, { action, id }, send) => {
     const run = { start: () => devservers.start(id), stop: () => devservers.stop(id), restart: () => devservers.restart(id), startAll: () => devservers.startAll(false), stopAll: devservers.stopAll }[action];
     if (!run) return send(res, 400, { error: "acción desconocida" });

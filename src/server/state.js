@@ -148,6 +148,7 @@ function state() {
     deployerArea: deployerArea(r),
     quota: readQuota(),
     claudeTokenExpires: require("../features/claude-token").tokenStatus().expires,
+    workHours: require("../core/hours").workHours(),
     jiraSetup: config.forPage(),
   };
 }

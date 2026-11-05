@@ -360,7 +360,12 @@ const commands = {
   },
 
   startup() {
-    require("./server/startup").launchStartup(a === "--child" || a === "--hijo");
+    require("./server/startup").launchStartup(a === "--child" || a === "--hijo", process.argv.includes("--force"));
+  },
+
+  overtime() {
+    if (a === "on" || a === "off") return require("./server/startup").setOvertime(a === "on").then((v) => json({ overtime: v }));
+    json({ overtime: require("./core/hours").overtime(), workHours: require("./core/hours").workHours() });
   },
 
   "push-test"() {

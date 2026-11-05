@@ -155,7 +155,7 @@ async function schedule() {
     mutate((x) => (x.devServers = { ...(x.devServers || {}), autoStartedOn: t.day }));
     await startAll(true);
   }
-  if (t.minutes >= stopAt && t.minutes < stopAt + STOP_WINDOW_MIN && ds.autoStoppedOn !== t.day) {
+  if (t.minutes >= stopAt && t.minutes < stopAt + STOP_WINDOW_MIN && ds.autoStoppedOn !== t.day && !require("../core/hours").overtime()) {
     mutate((x) => (x.devServers = { ...(x.devServers || {}), autoStoppedOn: t.day }));
     await stopAll();
   }

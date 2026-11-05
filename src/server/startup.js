@@ -35,10 +35,10 @@ async function openAndWait(read, who) {
   return e;
 }
 
-async function startFollowUp() {
+async function startFollowUp(force) {
   if (!require("../cluster/cluster").isPrimary()) return log("este ordenador no manda: no arranco el seguimiento");
   const t = madridTime();
-  if (t.weekend || t.min < 7 * 60 + 50 || t.min >= 18 * 60 + 30) return;
+  if (!force && (t.weekend || t.min < 7 * 60 + 50 || t.min >= 18 * 60 + 30)) return;
   const e0 = state().followUpStatus;
   if (!e0) return log("no hay sesión de seguimiento registrada");
   if (e0.paused) return log("revisiones en pausa desde el tablero: no se arranca el seguimiento");
@@ -49,15 +49,16 @@ async function startFollowUp() {
   log(`aviso de arranque a la sesión de seguimiento (${e.session}): ${ok ? "enviado" : "falló"}`);
 }
 
-async function startReporter() {
+async function startReporter(force) {
   if (!(await new Promise((r) => ping(r)))) cp.spawn(process.execPath, [ENTRY, "serve"], { detached: true, stdio: "ignore", windowsHide: true }).unref();
   try {
     if (Date.now() - fs.statSync(STARTUP_LOCK).mtimeMs < 10 * 60000) return;
   } catch (e) {}
   fs.writeFileSync(STARTUP_LOCK, String(process.pid));
   const t = madridTime();
-  if (t.weekend || t.min >= 18 * 60 + 30) return log("fuera de horario: no se arranca nada");
-  if (t.min < 7 * 60 + 55) {
+  if (force) log("fuera de horario activado a mano: arranco todo");
+  else if (t.weekend || t.min >= 18 * 60 + 30) return log("fuera de horario: no se arranca nada");
+  if (!force && t.min < 7 * 60 + 55) {
     log("antes de las 7:55: espero");
     while (madridTime().min < 7 * 60 + 55) {
       await wait(60000);
@@ -91,15 +92,15 @@ async function startReporter() {
   log("no se consiguió arrancar el reporte en tres intentos");
 }
 
-function launchStartup(child) {
+function launchStartup(child, force) {
   if (!child) {
-    cp.spawn(process.execPath, [ENTRY, "startup", "--child"], { detached: true, stdio: "ignore", windowsHide: true }).unref();
+    cp.spawn(process.execPath, [ENTRY, "startup", "--child", ...(force ? ["--force"] : [])], { detached: true, stdio: "ignore", windowsHide: true }).unref();
     console.log(`Arranque del reporte lanzado en segundo plano (registro en ${STARTUP_LOG.replace(/\\/g, "/")}).`);
     return;
   }
-  startReporter()
+  startReporter(force)
     .catch((e) => log("error: " + (e.message || e)))
-    .then(() => startFollowUp())
+    .then(() => startFollowUp(force))
     .catch((e) => log("error en el seguimiento: " + (e.message || e)))
     .then(() => {
       try {
@@ -116,4 +117,21 @@ async function wakeFollowUp() {
   if (e) await wakeSession(e.session, FOLLOW_UP_NOTICE);
 }
 
-module.exports = { launchStartup, wakeFollowUp };
+async function setOvertime(on) {
+  const hours = require("../core/hours");
+  const cluster = require("../cluster/cluster");
+  const devservers = require("../features/devservers");
+  const value = hours.setOvertime(on);
+  if (on) {
+    cluster.keepAwake();
+    launchStartup(false, true);
+    await devservers.startAll(true).catch(() => {});
+  } else {
+    cluster.letSleep();
+    await devservers.stopAll().catch(() => {});
+    await require("../sessions/autosleep").sleepIdleSessions(true).catch(() => {});
+  }
+  return value;
+}
+
+module.exports = { launchStartup, wakeFollowUp, setOvertime };

@@ -112,5 +112,10 @@ h1 { font-size: 16px; font-weight: 600; letter-spacing: -0.01em; margin: 0; }
 .token-banner > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 320px; }
 .token-banner strong { color: var(--back); font-weight: 600; }
 .token-banner span { color: var(--ink-2); font-size: 13.5px; }
+.overtime-banner { background: var(--surface-2); }
+.overtime-banner strong { color: var(--ink); }
+.overtime-banner.on { background: var(--accent-soft); }
+.overtime-banner.on strong { color: var(--accent); }
+.overtime-banner + .token-banner { margin-top: 10px; }
 .token-banner.high { background: var(--danger-soft); }
 .token-banner.high strong { color: var(--danger); }

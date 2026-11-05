@@ -317,7 +317,16 @@ function keepAwake() {
   const p = Object.fromEntries(new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Madrid", weekday: "short", hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(new Date()).map((x) => [x.type, x.value]));
   const min = Number(p.hour) * 60 + Number(p.minute);
   const want = !["Sat", "Sun"].includes(p.weekday) && min >= 7 * 60 + 30 && min < 18 * 60 + 30;
-  if (!want) return;
+  const hours = require("../core/hours");
+  const ot = hours.overtime();
+  const day = (iso) => new Date(iso).toLocaleDateString("en-CA", { timeZone: "Europe/Madrid" });
+  if (ot && want && day(ot.since) !== day(new Date())) {
+    hours.setOvertime(false);
+    letSleep();
+    log("fuera de horario: se desactiva solo al empezar la jornada");
+  }
+  const extra = !!hours.overtime();
+  if (!want && !extra) return;
   const cp = require("child_process");
   const pidFile = path.join(DATA_DIR, "caffeinate.pid");
   try {
@@ -326,10 +335,21 @@ function keepAwake() {
     if (/caffeinate/.test(cp.execFileSync("/bin/ps", ["-o", "comm=", "-p", String(pid)]).toString())) return;
   } catch (e) {}
   const seconds = (18 * 60 + 30 - min) * 60;
-  const child = cp.spawn("/usr/bin/caffeinate", ["-i", "-t", String(seconds)], { detached: true, stdio: "ignore" });
+  const child = cp.spawn("/usr/bin/caffeinate", extra ? ["-i"] : ["-i", "-t", String(seconds)], { detached: true, stdio: "ignore" });
   child.unref();
   fs.writeFileSync(pidFile, String(child.pid));
-  log("caffeinate: el Mac no se dormirá solo hasta las 18:30");
+  log(extra ? "caffeinate: fuera de horario activado, el Mac no se dormirá hasta que lo termines" : "caffeinate: el Mac no se dormirá solo hasta las 18:30");
+}
+
+function letSleep() {
+  if (process.platform !== "darwin") return;
+  const pidFile = path.join(DATA_DIR, "caffeinate.pid");
+  try {
+    const pid = Number(fs.readFileSync(pidFile, "utf8"));
+    if (/caffeinate/.test(require("child_process").execFileSync("/bin/ps", ["-o", "comm=", "-p", String(pid)]).toString())) process.kill(pid);
+    fs.unlinkSync(pidFile);
+    log("caffeinate: parado, el Mac ya puede dormirse");
+  } catch (e) {}
 }
 
 let busy = false;
@@ -453,4 +473,4 @@ async function machines() {
   return { self: info(), peer, devices };
 }
 
-module.exports = { isPrimary, info, peerGet, projectDir, snapshot, transcripts, serveTranscript, tick, handleYield, command, takeHere, backToAuto, machines, sendClaudeToken, clusterEnabled: () => !!CLUSTER };
+module.exports = { isPrimary, info, peerGet, projectDir, keepAwake, letSleep, snapshot, transcripts, serveTranscript, tick, handleYield, command, takeHere, backToAuto, machines, sendClaudeToken, clusterEnabled: () => !!CLUSTER };
