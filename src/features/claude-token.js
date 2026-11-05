@@ -155,4 +155,75 @@ function importToken(text) {
   return saveToken(m[0]);
 }
 
-module.exports = { applyUserToken, tokenStatus, setupToken, importToken };
+let job = null;
+const mask = (s) => s.replace(/sk-ant-[A-Za-z0-9_-]+/g, "sk-ant-…(oculto)");
+
+async function copyToPeer() {
+  const token = require("../sessions/registry").sessionToken();
+  if (!token) return false;
+  return require("../cluster/cluster").sendClaudeToken(token);
+}
+
+function startJob() {
+  if (job && job.state === "running") return job;
+  const pty = require("@lydell/node-pty");
+  const platform = require("../core/platform");
+  const env = { ...require("../sessions/registry").cleanEnv() };
+  delete env[NAME];
+  const [exe, args] = platform.claude(["setup-token"]);
+  const term = pty.spawn(exe, args, { name: "xterm-256color", cols: 400, rows: 40, cwd: os.homedir(), env });
+  const current = { state: "running", startedAt: new Date().toISOString(), url: null, asksCode: false, expires: null, peer: null, error: null, tail: "", term };
+  job = current;
+  let seen = "";
+  let token = null;
+  const timer = setTimeout(() => term.kill(), 15 * 60000);
+  term.onData((d) => {
+    seen = (seen + d).slice(-30000);
+    const plain = seen.replace(ANSI, "");
+    const m = TOKEN.exec(plain);
+    if (m) token = m[0];
+    const url = /https:\/\/[^\s"'<>]*(?:oauth|authorize)[^\s"'<>]*/i.exec(plain);
+    if (url) current.url = url[0];
+    if (/paste[^\n]{0,30}code|enter[^\n]{0,20}code|authorization code/i.test(plain.slice(-600)) && !token) current.asksCode = true;
+    current.tail = mask(plain).split(/\r?\n/).map((l) => l.trim()).filter(Boolean).slice(-6).join("\n").slice(-600);
+  });
+  term.onExit(async () => {
+    clearTimeout(timer);
+    current.term = null;
+    if (!token) {
+      current.state = "failed";
+      current.error = current.cancelled ? "Cancelado." : "claude setup-token terminó sin dar un token.";
+      return;
+    }
+    try {
+      current.expires = saveToken(token);
+      current.state = "done";
+    } catch (e) {
+      current.state = "failed";
+      current.error = `Token recibido, pero no se pudo guardar: ${e.message}`;
+      return;
+    }
+    current.peer = require("../cluster/cluster").clusterEnabled() ? await copyToPeer() : null;
+  });
+  return current;
+}
+
+function jobStatus() {
+  if (!job) return { state: "idle" };
+  const { term, ...rest } = job;
+  return rest;
+}
+
+async function handleSetup(input) {
+  const action = input && input.action;
+  if (action === "start") startJob();
+  else if (action === "code" && job && job.term) job.term.write(String(input.code || "").trim() + "\r");
+  else if (action === "cancel" && job && job.term) {
+    job.cancelled = true;
+    job.term.kill();
+  } else if (action === "copy" && job) job.peer = await copyToPeer();
+  else if (action === "copy") return { ...jobStatus(), peer: await copyToPeer() };
+  return jobStatus();
+}
+
+module.exports = { applyUserToken, tokenStatus, setupToken, importToken, handleSetup, jobStatus };

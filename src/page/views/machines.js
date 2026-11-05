@@ -72,12 +72,96 @@ function tokenLine(t) {
 
 const TOKEN_STEPS = [
   ["Cuándo", "Si las sesiones caen todas a la vez con «Login reached its time limit» o «Failed to authenticate», si te han revocado el acceso, o cuando el aviso junto a la cuota diga que el token caduca pronto."],
-  ["1", "En una sesión de Claude de cualquiera de los dos ordenadores escribe: ! node <workspace>/board.js claude-token --setup. Se abre el navegador: quien tenga la cuenta de empresa autoriza. El comando coge el token solo, sin enseñarlo, lo guarda en el .env de ese ordenador y lo pone también para VS Code. No tienes que copiar ni pegar nada."],
-  ["2", "Pide a la sesión del Tablero que lo copie al otro ordenador (lo hace por SSH sin enseñarlo). A mano sería: node <workspace>/board.js claude-token --export | ssh <otro ordenador> \"node <workspace>/board.js claude-token --import\"."],
+  ["1", "Pulsa «Renovar token de Claude» aquí arriba, desde el ordenador en el que estés. Se abre el navegador: quien tenga la cuenta de empresa autoriza (si no está delante, cópiale el enlace; si la página le da un código, pégalo en el campo que aparece). El tablero coge el token sin enseñarlo, lo guarda en los dos ordenadores y lo pone también para VS Code. Sin botón: ! node <workspace>/board.js claude-token --setup."],
+  ["2", "Si el otro ordenador estaba apagado, al volver pulsa «Copiar al otro ordenador». A mano: node <workspace>/board.js claude-token --export | ssh <otro ordenador> \"node <workspace>/board.js claude-token --import\"."],
   ["3", "Cierra VS Code del todo y ábrelo de nuevo en los dos ordenadores."],
   ["4", "Comprueba aquí que los dos dicen «Token de Claude: sí» con la fecha nueva. Las sesiones del tablero lo cogen solas la próxima vez que se abran; si alguna sigue fallando, reiníciala desde Sesiones."],
   ["Sin token", "Para volver al /login de siempre: borra CLAUDE_CODE_OAUTH_TOKEN y CLAUDE_TOKEN_EXPIRES del .env y ejecuta node <workspace>/board.js claude-token --remove en cada ordenador."],
 ];
+
+let job = { state: "idle" };
+let jobTimer = null;
+let jobBusy = false;
+let jobLoaded = false;
+let codeDraft = "";
+
+function pollJob() {
+  fetch("/api/claude-token/setup", { cache: "no-store" })
+    .then((r) => r.json())
+    .then((j) => {
+      const changed = JSON.stringify(j) !== JSON.stringify(job);
+      job = j;
+      jobLoaded = true;
+      const typing = document.activeElement && document.activeElement.classList.contains("token-code");
+      if (changed && !typing && state.tab === "machines") render();
+      clearTimeout(jobTimer);
+      if (j.state === "running") jobTimer = setTimeout(pollJob, 2000);
+      if (j.state === "done") setTimeout(load, 1500);
+    })
+    .catch(() => {});
+}
+
+function jobAction(body, label) {
+  jobBusy = true;
+  render();
+  requestOrFail("/api/claude-token/setup", body)
+    .then((j) => {
+      job = j;
+      if (label) toast(label);
+    })
+    .catch((e) => toast(`No se pudo: ${e.message}`))
+    .finally(() => {
+      jobBusy = false;
+      render();
+      pollJob();
+    });
+}
+
+function tokenRenew() {
+  const box = h("section", { class: "token-renew" }, [h("h3", { text: "Token de Claude" })]);
+  const startButton = (label) =>
+    button(label, {
+      cls: "primary",
+      disabled: jobBusy,
+      onClick: () => window.confirm("Se abrirá el navegador en este ordenador para autorizar con la cuenta de empresa. El token se guardará aquí y en el otro ordenador, y también para VS Code. ¿Seguir?") && jobAction({ action: "start" }),
+    });
+  if (job.state === "running") {
+    box.appendChild(h("p", { class: "setup-note", text: "Se ha abierto el navegador en este ordenador: quien tenga la cuenta de empresa tiene que autorizar. Si no está delante, cópiale el enlace y mándaselo." }));
+    if (job.url)
+      box.appendChild(
+        h("div", { class: "actions" }, [
+          h("a", { class: "btn link", href: job.url, target: "_blank", rel: "noopener noreferrer", text: "Abrir el enlace de autorización" }),
+          button("Copiar el enlace", { onClick: () => navigator.clipboard.writeText(job.url).then(() => toast("Enlace copiado."), () => toast("No se pudo copiar.")) }),
+        ])
+      );
+    if (job.asksCode) {
+      const input = h("input", { type: "text", class: "token-code", placeholder: "Código que da la página al autorizar", "aria-label": "Código de autorización", oninput: (e) => (codeDraft = e.target.value) });
+      input.value = codeDraft;
+      box.appendChild(h("div", { class: "actions" }, [input, button("Enviar el código", { cls: "primary", disabled: jobBusy, onClick: () => input.value.trim() && (jobAction({ action: "code", code: input.value.trim() }, "Código enviado."), (codeDraft = "")) })]));
+    }
+    if (job.tail) box.appendChild(h("pre", { class: "token-tail", text: job.tail }));
+    box.appendChild(h("div", { class: "actions" }, [button("Cancelar", { cls: "subtle", disabled: jobBusy, onClick: () => jobAction({ action: "cancel" }) })]));
+    return box;
+  }
+  if (job.state === "done") {
+    const peer = job.peer === true ? "y copiado al otro ordenador" : job.peer === false ? "pero el otro ordenador no responde" : "";
+    box.appendChild(h("p", { class: "setup-note", text: `Listo: token guardado en este ordenador ${peer}, caduca hacia el ${(job.expires || "").split("-").reverse().join("/")}. Ya vale también para VS Code: ciérralo del todo y ábrelo de nuevo en los dos ordenadores.` }));
+    const acts = [startButton("Renovar otra vez")];
+    if (job.peer === false) acts.unshift(button("Copiar al otro ordenador", { cls: "primary", disabled: jobBusy, onClick: () => jobAction({ action: "copy" }) }));
+    box.appendChild(h("div", { class: "actions" }, acts));
+    return box;
+  }
+  const mine = data.self && data.self.claudeToken, theirs = data.peer && data.peer.claudeToken;
+  if (mine && mine.sessions && theirs && !theirs.sessions) {
+    box.appendChild(h("p", { class: "setup-note warn", text: "Este ordenador tiene el token y el otro no (estaría apagado al renovarlo)." }));
+    box.appendChild(h("div", { class: "actions" }, [button("Copiar al otro ordenador", { cls: "primary", disabled: jobBusy, onClick: () => jobAction({ action: "copy" }, "Token copiado al otro ordenador.") })]));
+  }
+  if (job.state === "failed") box.appendChild(h("p", { class: "setup-note warn", text: `No se ha renovado: ${job.error || "error desconocido"}` }));
+  if (job.state === "failed" && job.tail) box.appendChild(h("pre", { class: "token-tail", text: job.tail }));
+  box.appendChild(h("p", { class: "setup-note", text: "Las sesiones del tablero y VS Code usan un token de larga duración que no depende del /login. Renuévalo si caduca, si te quitan el acceso o si las sesiones caen todas con «Failed to authenticate»." }));
+  box.appendChild(h("div", { class: "actions" }, [startButton("Renovar token de Claude")]));
+  return box;
+}
 
 function tokenHelp() {
   const det = h("details", { class: "token-help" }, [h("summary", { text: "Token de Claude: qué hacer si caduca o te quitan el acceso" })]);
@@ -95,5 +179,7 @@ export function renderMachines(root) {
   root.appendChild(h("p", { class: "setup-note", text: "El mando solo cambia cuando tú lo pasas con el botón, o si el que manda deja de responder (apagado o suspendido): entonces el otro lo toma al minuto y lo conserva cuando el primero vuelve. Al encender por la mañana, un ordenador solo coge el mando si no manda ninguno." }));
   if (!data.devices) return root.appendChild(empty("No se pudo leer Tailscale en este ordenador.", ""));
   root.appendChild(h("div", { class: "cards" }, data.devices.map(card)));
+  root.appendChild(tokenRenew());
   root.appendChild(tokenHelp());
+  if (!jobLoaded) pollJob();
 }

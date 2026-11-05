@@ -19,6 +19,19 @@ const cluster = require("../../cluster/cluster");
 const { serveBody } = require("../http");
 
 const POST_ROUTES = {
+  "/api/claude-token/setup": (res, input, send) =>
+    require("../../features/claude-token")
+      .handleSetup(input)
+      .then((r) => send(res, 200, r))
+      .catch((e) => send(res, 500, { error: String(e.message || e) })),
+  "/api/cluster/claude-token": (res, { token }, send) => {
+    try {
+      const expires = require("../../features/claude-token").importToken(token);
+      send(res, 200, { expires });
+    } catch (e) {
+      send(res, 400, { error: e.message });
+    }
+  },
   "/api/task": (res, input, send) => tasks.handleTask(res, input, send),
   "/api/batch": (res, input, send) => tasks.handleBatch(res, input, send),
   "/api/delete": (res, input, send) => tasks.handleDelete(res, input, send),
@@ -198,6 +211,7 @@ const POST_ROUTES = {
 };
 
 function handleGet(req, res, url) {
+  if (url === "/api/claude-token/setup") return serveBody(res, "application/json", JSON.stringify(require("../../features/claude-token").jobStatus()));
   if (url === "/api/push/reason") return serveBody(res, "application/json", JSON.stringify(pushReason()));
   if (url === "/api/push/key") return serveBody(res, "application/json", JSON.stringify({ key: pushKeys().publicKey }));
   if (url.startsWith("/api/permission/perm-")) return serveBody(res, "application/json", JSON.stringify(permissions.poll(url.slice("/api/permission/".length))));
