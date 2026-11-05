@@ -344,7 +344,18 @@ function envWithoutVsCode() {
 function cleanEnv() {
   const env = {};
   for (const [k, v] of Object.entries(process.env)) if (!CLAUDE_VARIABLES.test(k)) env[k] = v;
+  const token = sessionToken();
+  if (token) env.CLAUDE_CODE_OAUTH_TOKEN = token;
   return env;
+}
+
+function sessionToken() {
+  try {
+    const m = /^[ \t]*CLAUDE_CODE_OAUTH_TOKEN[ \t]*=[ \t]*["']?([^"'\s]+)["']?[ \t]*\r?$/m.exec(require("fs").readFileSync(require("path").join(require("../core/config").workspace, ".env"), "utf8"));
+    return m ? m[1] : null;
+  } catch (e) {
+    return null;
+  }
 }
 
 function openInVsCode(conversation) {

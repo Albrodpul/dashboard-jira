@@ -105,7 +105,22 @@ function resets(iso) {
   return d - Date.now() < 20 * 3600000 ? `se renueva a las ${when(d.toISOString())}` : `se renueva el ${fmtReset.format(d)}`;
 }
 
+function tokenWarning() {
+  if (!state.claudeTokenExpires) return null;
+  const days = Math.ceil((new Date(state.claudeTokenExpires + "T00:00:00") - Date.now()) / 86400000);
+  if (days > 30) return null;
+  const text = days <= 0 ? "Token de Claude caducado" : `Token de Claude: caduca en ${days} ${days === 1 ? "día" : "días"}`;
+  return h("span", { class: `token-warn${days <= 7 ? " high" : ""}`, title: `Las sesiones del tablero usan un token de larga duración que caduca el ${state.claudeTokenExpires}. Genera otro con «claude setup-token» y cámbialo en el .env de los dos ordenadores.`, text });
+}
+
 export function quotaBlock() {
+  const warn = tokenWarning();
+  const box = quotaBlockInner();
+  if (warn) box.appendChild(warn);
+  return box;
+}
+
+function quotaBlockInner() {
   const c = state.quota;
   const windows = c ? WINDOWS.filter(([k]) => c[k] && !(c[k].resetsAt && new Date(c[k].resetsAt) < new Date())) : [];
   const box = h("div", { class: "quota" }, [h("span", { class: "quota-title", text: "Plan de Claude" })]);

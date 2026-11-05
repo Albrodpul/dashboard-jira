@@ -4,7 +4,7 @@ const cp = require("child_process");
 const { DATA_DIR } = require("../core/data");
 
 const REPO = path.join(__dirname, "..", "..");
-const HOST_FILES = ["src/sessions/host.js", "src/core/platform.js", "src/core/config.js", "src/core/data.js"];
+const HOST_FILES = ["src/sessions/host.js", "src/sessions/registry.js", "src/sessions/profiles.js", "src/core/platform.js", "src/core/config.js", "src/core/data.js"];
 let quietChecks = 0;
 
 const log = (m) => {

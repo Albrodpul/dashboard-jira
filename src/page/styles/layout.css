@@ -104,3 +104,5 @@ h1 { font-size: 16px; font-weight: 600; letter-spacing: -0.01em; margin: 0; }
 .tab:hover .tab-icon, .tab[aria-selected="true"] .tab-icon { color: var(--accent); }
 .tab-text { flex: 1 1 auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tab { height: 34px; padding-top: 0; padding-bottom: 0; }
+.token-warn { font-size: 12px; font-weight: 600; color: var(--back); white-space: nowrap; }
+.token-warn.high { color: var(--danger); }
