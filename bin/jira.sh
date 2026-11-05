@@ -7,7 +7,7 @@
 # API token, which is what the MCP entry cannot do (mcp-remote authenticates over OAuth and
 # ignores the ATLASSIAN_* variables next to it).
 #
-# Reads credentials from the workspace .env through src/config.js (TOWER_WORKSPACE says which workspace).
+# Reads credentials from the workspace .env through src/core/config.js (TOWER_WORKSPACE says which workspace).
 
 # Resolve repo root (Windows-safe)
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd -W 2>/dev/null || pwd)"
@@ -20,7 +20,7 @@ eval "$(node -e "
   console.log('SITE=' + JSON.stringify(k.site));
   console.log('EMAIL=' + JSON.stringify(k.email));
   console.log('TOKEN=' + JSON.stringify(k.token));
-" "$REPO_ROOT/src/config.js")"
+" "$REPO_ROOT/src/core/config.js")"
 
 BASE_URL="https://$SITE/rest/api/3"
 AUTH="$EMAIL:$TOKEN"
