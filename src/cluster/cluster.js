@@ -328,7 +328,9 @@ async function promote(reason, manual) {
   await startRoles();
   const board = require("../sessions/registry").loadRoutes().board;
   if (board && board.session) require("../sessions/registry").wakeSession(board.session, "Aviso del tablero: arranca la sesión del tablero. Eres la sesión del tablero registrada: ejecuta ahora .claude/commands/tablero.md (regla de AGENTS.md).").catch(() => {});
-  require("../server/startup").launchStartup();
+  const overtime = !!require("../core/hours").overtime();
+  require("../server/startup").launchStartup(false, overtime);
+  if (overtime) require("../features/devservers").startAll(true).catch(() => {});
 }
 
 async function demote(reason) {
@@ -336,6 +338,11 @@ async function demote(reason) {
   save();
   log(`dejo de mandar: ${reason}`);
   await stopRoles();
+  const hours = require("../core/hours");
+  if (!hours.workHours()) {
+    letSleep();
+    await require("../features/devservers").stopAll().catch(() => {});
+  }
 }
 
 function keepAwake() {
