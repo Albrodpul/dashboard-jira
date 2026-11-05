@@ -113,6 +113,16 @@ function tokenWarning() {
   return h("span", { class: `token-warn${days <= 7 ? " high" : ""}`, title: `Las sesiones del tablero usan un token de larga duración que caduca el ${state.claudeTokenExpires}. Renuévalo con el botón de la pestaña Ordenadores.`, text });
 }
 
+export function tokenBanner(goTo) {
+  if (!state.claudeTokenExpires) return null;
+  const days = Math.ceil((new Date(state.claudeTokenExpires + "T00:00:00") - Date.now()) / 86400000);
+  if (days > 30) return null;
+  const head = days <= 0 ? "El token de Claude ha caducado" : `El token de Claude caduca en ${days} ${days === 1 ? "día" : "días"}`;
+  const text = days <= 0 ? "Las sesiones del tablero y VS Code dejan de funcionar hasta que lo renueves." : "Renuévalo ahora, mientras tu navegador siga dentro de claude.ai con la cuenta de empresa: así lo autorizas tú solo, sin pedir nada a nadie.";
+  const go = h("button", { type: "button", class: "btn primary", text: "Renovar en Ordenadores", onclick: goTo });
+  return h("div", { class: `token-banner${days <= 7 ? " high" : ""}`, role: "status" }, [h("div", {}, [h("strong", { text: head }), h("span", { text })]), go]);
+}
+
 export function quotaBlock() {
   const warn = tokenWarning();
   const box = quotaBlockInner();

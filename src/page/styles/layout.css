@@ -106,3 +106,9 @@ h1 { font-size: 16px; font-weight: 600; letter-spacing: -0.01em; margin: 0; }
 .tab { height: 34px; padding-top: 0; padding-bottom: 0; }
 .token-warn { font-size: 12px; font-weight: 600; color: var(--back); white-space: nowrap; }
 .token-warn.high { color: var(--danger); }
+.token-banner { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; padding: 12px 14px; border-radius: 6px; background: var(--back-soft); }
+.token-banner > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 320px; }
+.token-banner strong { color: var(--back); font-weight: 600; }
+.token-banner span { color: var(--ink-2); font-size: 13.5px; }
+.token-banner.high { background: var(--danger-soft); }
+.token-banner.high strong { color: var(--danger); }
