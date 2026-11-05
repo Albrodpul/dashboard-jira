@@ -30,10 +30,11 @@ function readCredentials() {
 
 async function fetchQuota() {
   const raw = readCredentials();
-  if (!raw) return null;
-  const oauth = JSON.parse(raw).claudeAiOauth;
-  if (!oauth || !oauth.accessToken || (oauth.expiresAt && oauth.expiresAt < Date.now())) return null;
-  const r = await fetch(USAGE_URL, { headers: { Authorization: `Bearer ${oauth.accessToken}`, "anthropic-beta": "oauth-2025-04-20" } });
+  const oauth = raw ? JSON.parse(raw).claudeAiOauth : null;
+  const live = oauth && oauth.accessToken && !(oauth.expiresAt && oauth.expiresAt < Date.now()) ? oauth.accessToken : null;
+  const token = live || require("../sessions/registry").sessionToken();
+  if (!token) return null;
+  const r = await fetch(USAGE_URL, { headers: { Authorization: `Bearer ${token}`, "anthropic-beta": "oauth-2025-04-20" } });
   if (!r.ok) throw new Error(`la consulta de cuota respondió ${r.status}`);
   const j = await r.json();
   const quota = { at: new Date().toISOString() };
