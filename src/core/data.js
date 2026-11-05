@@ -85,12 +85,20 @@ function load() {
   return read().d;
 }
 
-function mutate(fn) {
+function stampTasks(before, after) {
+  if (!after || typeof after !== "object") return;
+  const at = new Date().toISOString();
+  const bare = (t) => JSON.stringify({ ...t, updatedAt: null });
+  for (const [k, t] of Object.entries(after)) if (t && typeof t === "object" && (!before[k] || bare(before[k]) !== bare(t))) t.updatedAt = at;
+}
+
+function mutate(fn, options = {}) {
   const conn = database();
   conn.exec("BEGIN IMMEDIATE");
   try {
     const { d, raw } = read();
     const result = fn(d);
+    if (!options.keepStamps && d.tasks && JSON.stringify(d.tasks) !== raw.tasks) stampTasks(raw.tasks ? JSON.parse(raw.tasks) : {}, d.tasks);
     const put = conn.prepare("INSERT INTO documents (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value");
     for (const [k, v] of Object.entries(d)) {
       if (v === undefined) continue;
