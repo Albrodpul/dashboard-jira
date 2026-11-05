@@ -80,4 +80,79 @@ function tokenStatus() {
   return value;
 }
 
-module.exports = { applyUserToken, tokenStatus };
+const TOKEN = /sk-ant-[A-Za-z0-9_-]{20,}/;
+const ANSI = /\x1b\[[0-9;?]*[ -\/]*[@-~]|\x1b\][^\x07]*\x07|\x1b[()][0-9A-Za-z]/g;
+const envFile = () => path.join(require("../core/config").workspace, ".env");
+
+function saveToken(token) {
+  const expires = new Date(Date.now() + 364 * 86400000).toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
+  let text = "";
+  try {
+    text = fs.readFileSync(envFile(), "utf8");
+  } catch (e) {}
+  const lines = text.split(/\r?\n/).filter((l) => !/^[ \t]*(CLAUDE_CODE_OAUTH_TOKEN|CLAUDE_TOKEN_EXPIRES)[ \t]*=/.test(l));
+  while (lines.length && !lines[lines.length - 1].trim()) lines.pop();
+  lines.push(`${NAME}=${token}`, `CLAUDE_TOKEN_EXPIRES=${expires}`, "");
+  fs.writeFileSync(envFile(), lines.join("\n"), { mode: 0o600 });
+  cached = null;
+  applyUserToken(false);
+  return expires;
+}
+
+function relayMasked(write) {
+  let pending = "";
+  const flush = (all) => {
+    let masked = pending.replace(/sk-ant-[A-Za-z0-9_-]+/g, "sk-ant-…(oculto)");
+    let keep = "";
+    if (!all) {
+      const tail = /s(?:k(?:-(?:a(?:n(?:t(?:-[A-Za-z0-9_-]*)?)?)?)?)?)?$/.exec(pending);
+      if (tail) {
+        keep = pending.slice(tail.index);
+        masked = pending.slice(0, tail.index).replace(/sk-ant-[A-Za-z0-9_-]+/g, "sk-ant-…(oculto)");
+      }
+    }
+    pending = keep;
+    if (masked) write(masked);
+  };
+  return { push: (d) => ((pending += d), flush(false)), end: () => flush(true) };
+}
+
+function setupToken() {
+  return new Promise((resolve, reject) => {
+    const pty = require("@lydell/node-pty");
+    const platform = require("../core/platform");
+    const env = { ...require("../sessions/registry").cleanEnv() };
+    delete env[NAME];
+    const [exe, args] = platform.claude(["setup-token"]);
+    const term = pty.spawn(exe, args, { name: "xterm-256color", cols: 400, rows: 40, cwd: os.homedir(), env });
+    const out = relayMasked((s) => process.stdout.write(s));
+    let seen = "";
+    let token = null;
+    term.onData((d) => {
+      seen = (seen + d).slice(-20000);
+      const m = TOKEN.exec(seen.replace(ANSI, ""));
+      if (m) token = m[0];
+      out.push(d);
+    });
+    const input = (d) => term.write(d.toString());
+    if (process.stdin.isTTY) process.stdin.setRawMode(true);
+    process.stdin.on("data", input);
+    process.stdin.resume();
+    term.onExit(() => {
+      out.end();
+      process.stdin.off("data", input);
+      if (process.stdin.isTTY) process.stdin.setRawMode(false);
+      process.stdin.pause();
+      if (!token) return reject(new Error("No he visto el token en la salida de claude setup-token: no se ha instalado nada."));
+      resolve(saveToken(token));
+    });
+  });
+}
+
+function importToken(text) {
+  const m = TOKEN.exec(String(text || ""));
+  if (!m) throw new Error("No llega ningún token por la entrada estándar.");
+  return saveToken(m[0]);
+}
+
+module.exports = { applyUserToken, tokenStatus, setupToken, importToken };

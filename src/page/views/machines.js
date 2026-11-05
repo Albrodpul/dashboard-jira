@@ -72,11 +72,11 @@ function tokenLine(t) {
 
 const TOKEN_STEPS = [
   ["Cuándo", "Si las sesiones caen todas a la vez con «Login reached its time limit» o «Failed to authenticate», si te han revocado el acceso, o cuando el aviso junto a la cuota diga que el token caduca pronto."],
-  ["1", "En cualquiera de los dos ordenadores, en una sesión de Claude: ! claude setup-token. Se abre el navegador: quien tenga la cuenta de empresa autoriza, y la terminal enseña el token. Basta con hacerlo una vez: el mismo token vale para el PC y el Mac."],
-  ["2", "Guarda el token en un fichero temporal (por ejemplo pruebas/token.txt) y pide a la sesión del Tablero que lo instale. O hazlo a mano: en el .env del workspace de los dos ordenadores, CLAUDE_CODE_OAUTH_TOKEN=<token> y CLAUDE_TOKEN_EXPIRES=<fecha en AAAA-MM-DD, un año desde hoy>."],
-  ["3", "En cada ordenador: node <workspace>/board.js claude-token, para que VS Code use el mismo token. Después cierra VS Code del todo y ábrelo de nuevo."],
-  ["4", "Comprueba aquí que los dos ordenadores dicen «Token de Claude: sí» con la fecha nueva. Las sesiones del tablero lo cogen solas la próxima vez que se abran; si alguna sigue fallando, reiníciala desde Sesiones."],
-  ["Sin token", "Para volver al /login de siempre: borra esas dos líneas del .env y ejecuta node <workspace>/board.js claude-token --remove en cada ordenador."],
+  ["1", "En una sesión de Claude de cualquiera de los dos ordenadores escribe: ! node <workspace>/board.js claude-token --setup. Se abre el navegador: quien tenga la cuenta de empresa autoriza. El comando coge el token solo, sin enseñarlo, lo guarda en el .env de ese ordenador y lo pone también para VS Code. No tienes que copiar ni pegar nada."],
+  ["2", "Pide a la sesión del Tablero que lo copie al otro ordenador (lo hace por SSH sin enseñarlo). A mano sería: node <workspace>/board.js claude-token --export | ssh <otro ordenador> \"node <workspace>/board.js claude-token --import\"."],
+  ["3", "Cierra VS Code del todo y ábrelo de nuevo en los dos ordenadores."],
+  ["4", "Comprueba aquí que los dos dicen «Token de Claude: sí» con la fecha nueva. Las sesiones del tablero lo cogen solas la próxima vez que se abran; si alguna sigue fallando, reiníciala desde Sesiones."],
+  ["Sin token", "Para volver al /login de siempre: borra CLAUDE_CODE_OAUTH_TOKEN y CLAUDE_TOKEN_EXPIRES del .env y ejecuta node <workspace>/board.js claude-token --remove en cada ordenador."],
 ];
 
 function tokenHelp() {
