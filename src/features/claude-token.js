@@ -258,4 +258,24 @@ async function handleSetup(input) {
   return jobStatus();
 }
 
-module.exports = { applyUserToken, tokenStatus, setupToken, importToken, handleSetup, jobStatus };
+const WARN_DAYS = [30, 14, 7, 3, 1, 0];
+
+async function warnExpiry() {
+  if (!require("../cluster/cluster").isPrimary()) return;
+  const { expires } = tokenStatus();
+  if (!expires) return;
+  const days = Math.ceil((new Date(`${expires}T00:00:00`) - Date.now()) / 86400000);
+  const step = [...WARN_DAYS].reverse().find((d) => days <= d);
+  if (step === undefined) return;
+  const file = path.join(require("../core/data").DATA_DIR, "claude-token-warned.json");
+  let saved = {};
+  try {
+    saved = JSON.parse(fs.readFileSync(file, "utf8"));
+  } catch (e) {}
+  if (saved.expires === expires && saved.step <= step) return;
+  const text = days <= 0 ? "El token de Claude ha caducado: renuévalo en Ordenadores." : `El token de Claude caduca en ${days} ${days === 1 ? "día" : "días"}. Renuévalo en Ordenadores mientras tu navegador siga dentro de claude.ai.`;
+  await require("../server/push").sendPush("token", true, text);
+  fs.writeFileSync(file, JSON.stringify({ expires, step, at: new Date().toISOString() }));
+}
+
+module.exports = { applyUserToken, tokenStatus, setupToken, importToken, handleSetup, jobStatus, warnExpiry };

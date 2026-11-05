@@ -15,6 +15,7 @@ const REASONS = {
   permission: { title: "Permiso", text: "Una sesión pide permiso", tab: "waiting" },
   sentry: { title: "Sentry", text: "Una sesión ha contestado sobre un error de Sentry", tab: "sentry" },
   test: { title: "Prueba", text: "Aviso de prueba del tablero", tab: "home" },
+  token: { title: "Token de Claude", text: "El token de Claude caduca pronto: renuévalo en Ordenadores", tab: "machines" },
 };
 
 const b64url = (buf) => Buffer.from(buf).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");

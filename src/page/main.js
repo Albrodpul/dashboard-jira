@@ -5,7 +5,7 @@ import { renderDeploy } from "./views/deploy.js";
 import { renderTalk } from "./views/talk.js";
 import { renderContext } from "./views/context.js";
 import { renderFollowUp } from "./views/follow-up.js";
-import { renderReport, updateStamp, mountHeader, quotaBlock } from "./components/report.js";
+import { renderReport, updateStamp, mountHeader, quotaBlock, tokenBanner } from "./components/report.js";
 import { renderHome, sessionStrip, shortcuts, dailyCard } from "./views/home.js";
 import { renderLearning } from "./views/learning.js";
 import { renderSentry } from "./views/sentry.js";
@@ -299,6 +299,10 @@ function paint() {
 
   const root = document.getElementById("groups");
   root.textContent = "";
+  if (["home", "today"].includes(state.tab)) {
+    const banner = tokenBanner(() => switchView("machines", true));
+    if (banner) root.appendChild(banner);
+  }
   if (section === "tasks") {
     try {
       localStorage.setItem("last-task-tab", state.tab);
