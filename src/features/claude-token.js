@@ -56,4 +56,28 @@ function applyUserToken(remove) {
   return !!token;
 }
 
-module.exports = { applyUserToken };
+function inUserEnvironment() {
+  if (process.platform === "darwin") return fs.existsSync(AGENT);
+  if (process.platform !== "win32") return false;
+  try {
+    cp.execFileSync("reg.exe", ["query", "HKCU\\Environment", "/v", NAME], { windowsHide: true, stdio: "ignore" });
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+let cached = null;
+function tokenStatus() {
+  if (cached && Date.now() - cached.at < 60000) return cached.value;
+  let expires = null;
+  try {
+    const m = /^[ \t]*CLAUDE_TOKEN_EXPIRES[ \t]*=[ \t]*["']?(\d{4}-\d{2}-\d{2})["']?[ \t]*\r?$/m.exec(fs.readFileSync(path.join(require("../core/config").workspace, ".env"), "utf8"));
+    expires = m ? m[1] : null;
+  } catch (e) {}
+  const value = { sessions: !!sessionToken(), vscode: inUserEnvironment(), expires };
+  cached = { at: Date.now(), value };
+  return value;
+}
+
+module.exports = { applyUserToken, tokenStatus };
