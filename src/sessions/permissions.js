@@ -236,6 +236,7 @@ function classify(tool, input, cwd) {
   if (/^mcp__jira__(addCommentToJiraIssue|createConfluence\w*Comment)$/.test(tool)) return { kind: "protected", key: tool, label: "comentar en Jira" };
   if (/^mcp__jira__/.test(tool)) return { kind: "allow" };
   if (tool === "mcp__sentry__update_issue") return { kind: "protected", key: tool, label: "cambiar un error en Sentry" };
+  if (/^Artifact/.test(tool) && /^(read|list|open|get|query|quickstart)$/.test(String(input.action || ""))) return { kind: "allow" };
   if (/^Artifact/.test(tool)) return { kind: "ask", key: tool, label: "publicar en claude.ai (la cuenta es compartida)" };
   return { kind: "allow" };
 }
