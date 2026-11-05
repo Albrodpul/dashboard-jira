@@ -446,9 +446,11 @@ function tailscaleDevices() {
   );
 }
 
+const sendClaudeToken = (token) => (CLUSTER ? peerPost("/api/cluster/claude-token", { token }) : Promise.resolve(false));
+
 async function machines() {
   const [devices, peer] = await Promise.all([tailscaleDevices(), CLUSTER ? peerGet("/api/cluster", 5000) : null]);
   return { self: info(), peer, devices };
 }
 
-module.exports = { isPrimary, info, snapshot, transcripts, serveTranscript, tick, handleYield, command, takeHere, backToAuto, machines, clusterEnabled: () => !!CLUSTER };
+module.exports = { isPrimary, info, snapshot, transcripts, serveTranscript, tick, handleYield, command, takeHere, backToAuto, machines, sendClaudeToken, clusterEnabled: () => !!CLUSTER };
