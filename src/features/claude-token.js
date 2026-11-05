@@ -81,8 +81,32 @@ function tokenStatus() {
 }
 
 const TOKEN = /sk-ant-[A-Za-z0-9_-]{20,}/;
-const ANSI = /\x1b\[[0-9;?]*[ -\/]*[@-~]|\x1b\][^\x07]*\x07|\x1b[()][0-9A-Za-z]/g;
+const ANSI = /\x1b\[[0-9;?<>=]*[ -\/]*[@-~]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b[()][0-9A-Za-z]|\x1b[=>]/g;
 const envFile = () => path.join(require("../core/config").workspace, ".env");
+const screenText = (raw) =>
+  raw
+    .replace(/\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)/g, " ")
+    .replace(/\x1b\[(\d*)C/g, (m, n) => " ".repeat(Number(n) || 1))
+    .replace(/\x1b\[\d*[BEFH]|\x1b\[\d+;\d+[Hf]|\x1b\[\d*[JK]/g, "\n")
+    .replace(ANSI, "");
+
+async function authStatus(token) {
+  const r = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "anthropic-version": "2023-06-01", "anthropic-beta": "oauth-2025-04-20", "content-type": "application/json" },
+    body: JSON.stringify({ model: "claude-haiku-4-5", max_tokens: 1, system: "You are Claude Code, Anthropic's official CLI for Claude.", messages: [{ role: "user", content: "ok" }] }),
+  });
+  return r.status;
+}
+
+async function workingToken(token) {
+  try {
+    for (let len = token.length; len >= Math.max(90, token.length - 30); len--) if ((await authStatus(token.slice(0, len))) !== 401) return token.slice(0, len);
+    return null;
+  } catch (e) {
+    return token;
+  }
+}
 
 function saveToken(token) {
   const expires = new Date(Date.now() + 364 * 86400000).toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
@@ -130,7 +154,7 @@ function setupToken() {
     let token = null;
     term.onData((d) => {
       seen = (seen + d).slice(-20000);
-      const m = TOKEN.exec(seen.replace(ANSI, ""));
+      const m = TOKEN.exec(screenText(seen));
       if (m) token = m[0];
       out.push(d);
     });
@@ -138,13 +162,15 @@ function setupToken() {
     if (process.stdin.isTTY) process.stdin.setRawMode(true);
     process.stdin.on("data", input);
     process.stdin.resume();
-    term.onExit(() => {
+    term.onExit(async () => {
       out.end();
       process.stdin.off("data", input);
       if (process.stdin.isTTY) process.stdin.setRawMode(false);
       process.stdin.pause();
       if (!token) return reject(new Error("No he visto el token en la salida de claude setup-token: no se ha instalado nada."));
-      resolve(saveToken(token));
+      const good = await workingToken(token);
+      if (!good) return reject(new Error("El token que dio claude setup-token no funciona contra la API: no se ha instalado nada."));
+      resolve(saveToken(good));
     });
   });
 }
@@ -179,7 +205,7 @@ function startJob() {
   const timer = setTimeout(() => term.kill(), 15 * 60000);
   term.onData((d) => {
     seen = (seen + d).slice(-30000);
-    const plain = seen.replace(ANSI, "");
+    const plain = screenText(seen);
     const m = TOKEN.exec(plain);
     if (m) token = m[0];
     const url = /https:\/\/[^\s"'<>]*(?:oauth|authorize)[^\s"'<>]*/i.exec(plain);
@@ -195,8 +221,14 @@ function startJob() {
       current.error = current.cancelled ? "Cancelado." : "claude setup-token terminó sin dar un token.";
       return;
     }
+    const good = await workingToken(token);
+    if (!good) {
+      current.state = "failed";
+      current.error = "El token que dio claude setup-token no funciona contra la API: no se ha instalado nada.";
+      return;
+    }
     try {
-      current.expires = saveToken(token);
+      current.expires = saveToken(good);
       current.state = "done";
     } catch (e) {
       current.state = "failed";
