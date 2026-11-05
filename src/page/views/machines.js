@@ -57,10 +57,33 @@ function card(device) {
   if (!device.online && device.lastSeen) lines.push(`Visto por última vez ${when(device.lastSeen)}`);
   if (b && commander) lines.push(`Manda desde ${when(b.since)}`);
   if (b && !commander && device.online) lines.push(`Datos copiados ${b.lastSnapshot ? when(b.lastSnapshot) : "nunca"} · conversaciones ${b.lastTranscripts ? when(b.lastTranscripts) : "nunca"}`);
+  if (b && b.claudeToken) lines.push(tokenLine(b.claudeToken));
   if (device.ip) lines.push(device.ip);
   const actions = [];
   if (b && device.online && !commander) actions.push(button(`Que mande el ${b.label}`, { cls: "primary", disabled: busy, onClick: () => window.confirm(`¿Pasar el mando al ${b.label}? El otro ordenador para sus sesiones y este las retoma.`) && act(b.label, "take", `Pasando el mando al ${b.label}…`) }));
   return h("article", { class: "card dev-server" }, [h("div", { class: "top" }, top), ...lines.map((t) => h("div", { class: "meta", text: t })), actions.length ? h("div", { class: "actions" }, actions) : null]);
+}
+
+function tokenLine(t) {
+  if (!t.sessions) return "Token de Claude: no tiene; las sesiones usan el /login";
+  const until = t.expires ? `, caduca el ${t.expires.split("-").reverse().join("/")}` : ", sin fecha de caducidad apuntada";
+  return `Token de Claude: sí${until} · VS Code ${t.vscode ? "también lo usa" : "aún con su /login"}`;
+}
+
+const TOKEN_STEPS = [
+  ["Cuándo", "Si las sesiones caen todas a la vez con «Login reached its time limit» o «Failed to authenticate», si te han revocado el acceso, o cuando el aviso junto a la cuota diga que el token caduca pronto."],
+  ["1", "En cualquiera de los dos ordenadores, en una sesión de Claude: ! claude setup-token. Se abre el navegador: quien tenga la cuenta de empresa autoriza, y la terminal enseña el token. Basta con hacerlo una vez: el mismo token vale para el PC y el Mac."],
+  ["2", "Guarda el token en un fichero temporal (por ejemplo pruebas/token.txt) y pide a la sesión del Tablero que lo instale. O hazlo a mano: en el .env del workspace de los dos ordenadores, CLAUDE_CODE_OAUTH_TOKEN=<token> y CLAUDE_TOKEN_EXPIRES=<fecha en AAAA-MM-DD, un año desde hoy>."],
+  ["3", "En cada ordenador: node <workspace>/board.js claude-token, para que VS Code use el mismo token. Después cierra VS Code del todo y ábrelo de nuevo."],
+  ["4", "Comprueba aquí que los dos ordenadores dicen «Token de Claude: sí» con la fecha nueva. Las sesiones del tablero lo cogen solas la próxima vez que se abran; si alguna sigue fallando, reiníciala desde Sesiones."],
+  ["Sin token", "Para volver al /login de siempre: borra esas dos líneas del .env y ejecuta node <workspace>/board.js claude-token --remove en cada ordenador."],
+];
+
+function tokenHelp() {
+  const det = h("details", { class: "token-help" }, [h("summary", { text: "Token de Claude: qué hacer si caduca o te quitan el acceso" })]);
+  det.open = [data.self, data.peer].some((b) => b && b.claudeToken && !b.claudeToken.sessions);
+  det.appendChild(h("dl", { class: "token-steps" }, TOKEN_STEPS.flatMap(([k, v]) => [h("dt", { text: k }), h("dd", { text: v })])));
+  return det;
 }
 
 export function renderMachines(root) {
@@ -72,4 +95,5 @@ export function renderMachines(root) {
   root.appendChild(h("p", { class: "setup-note", text: "El mando solo cambia cuando tú lo pasas con el botón, o si el que manda deja de responder (apagado o suspendido): entonces el otro lo toma al minuto y lo conserva cuando el primero vuelve. Al encender por la mañana, un ordenador solo coge el mando si no manda ninguno." }));
   if (!data.devices) return root.appendChild(empty("No se pudo leer Tailscale en este ordenador.", ""));
   root.appendChild(h("div", { class: "cards" }, data.devices.map(card)));
+  root.appendChild(tokenHelp());
 }

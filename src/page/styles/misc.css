@@ -13,3 +13,9 @@
   .top-search .find-box { margin: 0; }
   .top-search .find-input { padding: 7px 12px; }
 }
+.token-help { margin-top: 18px; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px; max-width: 820px; }
+.token-help > summary { font-weight: 600; }
+.token-steps { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 8px 14px; margin: 12px 0 0; font-size: 13.5px; }
+.token-steps dt { font-weight: 600; color: var(--ink-3); }
+.token-steps dd { margin: 0; color: var(--ink-2); overflow-wrap: anywhere; }
+@media (max-width: 760px) { .token-steps { grid-template-columns: minmax(0, 1fr); gap: 2px; } .token-steps dd { margin-bottom: 8px; } }
