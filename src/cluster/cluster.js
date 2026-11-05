@@ -220,11 +220,39 @@ function snapshot() {
   return { at: now(), host: os.hostname(), docs, seen, areas, roles, deployer: routes.deployer || null };
 }
 
+const MERGED_KEYS = ["tasks", "deleted"];
+
+function mergeTasks(d, docs, theirsOnTie) {
+  const deleted = { ...(d.deleted || {}) };
+  for (const [k, at] of Object.entries(docs.deleted || {})) if (!deleted[k] || at > deleted[k]) deleted[k] = at;
+  const mine = d.tasks || {};
+  const theirs = docs.tasks || {};
+  const tasks = {};
+  for (const k of new Set([...Object.keys(mine), ...Object.keys(theirs)])) {
+    const a = mine[k];
+    const b = theirs[k];
+    const ua = (a && a.updatedAt) || "";
+    const ub = (b && b.updatedAt) || "";
+    const pick = !a ? b : !b ? a : ub > ua || (ub === ua && theirsOnTie) ? b : a;
+    if (deleted[k] && deleted[k] >= (pick.updatedAt || "")) continue;
+    tasks[k] = pick;
+  }
+  d.tasks = tasks;
+  d.deleted = deleted;
+}
+
+function mergePeerTasks(s) {
+  if (!s || !s.docs || !s.docs.tasks) return false;
+  mutate((d) => mergeTasks(d, s.docs, false), { keepStamps: true });
+  return true;
+}
+
 function applySnapshot(s) {
   if (!s || !s.docs) return false;
   mutate((d) => {
-    for (const k of SYNC_KEYS) if (s.docs[k] !== undefined) d[k] = s.docs[k];
-  });
+    for (const k of SYNC_KEYS) if (s.docs[k] !== undefined && !MERGED_KEYS.includes(k)) d[k] = s.docs[k];
+    if (s.docs.tasks) mergeTasks(d, s.docs, true);
+  }, { keepStamps: true });
   if (s.seen) fs.writeFileSync(SEEN_FILE, JSON.stringify(s.seen, null, 1));
   require("../sessions/registry").changeRoutes((r) => {
     r.areas = r.areas || {};
@@ -395,6 +423,10 @@ async function tick() {
       return;
     }
     st.noneSince = null;
+    if (peer.role !== "primary" && Date.now() - lastPull > SNAPSHOT_MS) {
+      lastPull = Date.now();
+      if (mergePeerTasks(await peerGet("/api/cluster/snapshot", 30000))) st.lastFollowerMerge = now();
+    }
     if (st.pendingPull && peer.role !== "primary" && (await refreshFromPeer()) >= 0) {
       log("conversaciones del otro ordenador traídas tras el relevo");
       st.pendingPull = null;
