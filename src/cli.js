@@ -386,6 +386,16 @@ const commands = {
     json(require("./features/follow-up").people(load()));
   },
 
+  "claude-token"() {
+    const remove = a === "--remove";
+    try {
+      require("./features/claude-token").applyUserToken(remove);
+    } catch (e) {
+      fail(e.message);
+    }
+    console.log(remove ? "Token de Claude quitado de las variables de tu usuario: VS Code vuelve a usar el /login." : "Token de Claude puesto en las variables de tu usuario. Cierra VS Code del todo y ábrelo de nuevo para que lo use.");
+  },
+
   "person-add"() {
     const accounts = process.argv.slice(4).join(",").split(",").map((x) => x.trim()).filter(Boolean);
     if (!a) fail("Uso: board.js person-add \"<Nombre>\" [<correo>[,<correo>…]]");
@@ -718,5 +728,5 @@ for (const c of ["tidy-start", "tidy-end"]) commands[c] = contextTidy;
 if (Object.prototype.hasOwnProperty.call(commands, cmd)) commands[cmd]();
 else
   console.log(
-    "Uso: node board.js serve | ensure | restart | add [json] | list [status] | update <key> [json] | approve-chat <key> <area> | report [text] | reporter | board-session | watch [reports|dispatches|board] | host | refresh-request | sessions [json] | epics [json] | jira-epics | open <session> | areas | dispatches | attachments <key> | done | partial | question | comment | delivered | sent | reply | changes | orchestrator | deployments | deployment-update | startup | push-test | followup | followup-error | error-sent | error-result | sentry-sent | sentry-result | followup-status | people | person-add | person-accounts | tidy-status | tidy-start | tidy-end | message | answer-message | progress | counted | learning-read | cause | jira-setup [ISSUE-KEY] [reviewer name]"
+    "Uso: node board.js serve | ensure | restart | add [json] | list [status] | update <key> [json] | approve-chat <key> <area> | report [text] | reporter | board-session | watch [reports|dispatches|board] | host | refresh-request | sessions [json] | epics [json] | jira-epics | open <session> | areas | dispatches | attachments <key> | done | partial | question | comment | delivered | sent | reply | changes | orchestrator | deployments | deployment-update | startup | push-test | followup | followup-error | error-sent | error-result | sentry-sent | sentry-result | followup-status | people | person-add | person-accounts | claude-token [--remove] | tidy-status | tidy-start | tidy-end | message | answer-message | progress | counted | learning-read | cause | jira-setup [ISSUE-KEY] [reviewer name]"
   );

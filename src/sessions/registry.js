@@ -419,6 +419,7 @@ function wakeSession(name, notice) {
 
 module.exports = {
   cleanEnv,
+  sessionToken,
   STARTUP_NOTICE,
   titleKey,
   conversationTitle,
