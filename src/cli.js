@@ -386,10 +386,25 @@ const commands = {
     json(require("./features/follow-up").people(load()));
   },
 
-  "claude-token"() {
+  async "claude-token"() {
+    const t = require("./features/claude-token");
     const remove = a === "--remove";
     try {
-      require("./features/claude-token").applyUserToken(remove);
+      if (a === "--setup") {
+        const expires = await t.setupToken();
+        return console.log(`\nToken de Claude guardado en el .env de este ordenador (caduca hacia el ${expires}) y puesto también para VS Code. Cierra VS Code del todo y ábrelo de nuevo. Falta copiarlo al otro ordenador.`);
+      }
+      if (a === "--import") {
+        const expires = t.importToken(readStdin());
+        return console.log(`Token de Claude guardado en este ordenador (caduca hacia el ${expires}) y puesto también para VS Code.`);
+      }
+      if (a === "--export") {
+        if (process.stdout.isTTY) fail("--export solo se usa encadenado a otro comando (… | ssh mac \"… claude-token --import\"), para no enseñar el token.");
+        const token = require("./sessions/registry").sessionToken();
+        if (!token) fail("No hay token en el .env de este ordenador.");
+        return process.stdout.write(token);
+      }
+      t.applyUserToken(remove);
     } catch (e) {
       fail(e.message);
     }
@@ -728,5 +743,5 @@ for (const c of ["tidy-start", "tidy-end"]) commands[c] = contextTidy;
 if (Object.prototype.hasOwnProperty.call(commands, cmd)) commands[cmd]();
 else
   console.log(
-    "Uso: node board.js serve | ensure | restart | add [json] | list [status] | update <key> [json] | approve-chat <key> <area> | report [text] | reporter | board-session | watch [reports|dispatches|board] | host | refresh-request | sessions [json] | epics [json] | jira-epics | open <session> | areas | dispatches | attachments <key> | done | partial | question | comment | delivered | sent | reply | changes | orchestrator | deployments | deployment-update | startup | push-test | followup | followup-error | error-sent | error-result | sentry-sent | sentry-result | followup-status | people | person-add | person-accounts | claude-token [--remove] | tidy-status | tidy-start | tidy-end | message | answer-message | progress | counted | learning-read | cause | jira-setup [ISSUE-KEY] [reviewer name]"
+    "Uso: node board.js serve | ensure | restart | add [json] | list [status] | update <key> [json] | approve-chat <key> <area> | report [text] | reporter | board-session | watch [reports|dispatches|board] | host | refresh-request | sessions [json] | epics [json] | jira-epics | open <session> | areas | dispatches | attachments <key> | done | partial | question | comment | delivered | sent | reply | changes | orchestrator | deployments | deployment-update | startup | push-test | followup | followup-error | error-sent | error-result | sentry-sent | sentry-result | followup-status | people | person-add | person-accounts | claude-token [--setup|--import|--export|--remove] | tidy-status | tidy-start | tidy-end | message | answer-message | progress | counted | learning-read | cause | jira-setup [ISSUE-KEY] [reviewer name]"
   );
