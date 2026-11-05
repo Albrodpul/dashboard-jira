@@ -376,7 +376,9 @@ function keepAwake() {
     log("fuera de horario: se desactiva solo al empezar la jornada");
   }
   const extra = !!hours.overtime();
-  if (process.platform === "win32") return extra ? holdWindowsAwake() : undefined;
+  if (process.platform === "win32") return extra ? holdWindowsAwake() : letSleep();
+  const extraFile = path.join(DATA_DIR, "caffeinate.extra");
+  if (!extra && fs.existsSync(extraFile)) letSleep();
   if (!want && !extra) return;
   const cp = require("child_process");
   const pidFile = path.join(DATA_DIR, "caffeinate.pid");
@@ -389,6 +391,7 @@ function keepAwake() {
   const child = cp.spawn("/usr/bin/caffeinate", extra ? ["-i"] : ["-i", "-t", String(seconds)], { detached: true, stdio: "ignore" });
   child.unref();
   fs.writeFileSync(pidFile, String(child.pid));
+  if (extra) fs.writeFileSync(extraFile, child.pid + "");
   log(extra ? "caffeinate: fuera de horario activado, el Mac no se dormirá hasta que lo termines" : "caffeinate: el Mac no se dormirá solo hasta las 18:30");
 }
 
@@ -409,6 +412,9 @@ function letSleep() {
     if (/caffeinate/.test(require("child_process").execFileSync("/bin/ps", ["-o", "comm=", "-p", String(pid)]).toString())) process.kill(pid);
     fs.unlinkSync(pidFile);
     log("caffeinate: parado, el Mac ya puede dormirse");
+  } catch (e) {}
+  try {
+    fs.unlinkSync(path.join(DATA_DIR, "caffeinate.extra"));
   } catch (e) {}
 }
 
