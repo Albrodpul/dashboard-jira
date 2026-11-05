@@ -28,13 +28,29 @@ function readCredentials() {
   }
 }
 
+const WAIT_FILE = path.join(DATA_DIR, "quota-wait.json");
+const waitUntil = () => {
+  try {
+    return JSON.parse(fs.readFileSync(WAIT_FILE, "utf8")).until || 0;
+  } catch (e) {
+    return 0;
+  }
+};
+
 async function fetchQuota() {
+  if (!require("../cluster/cluster").isPrimary()) return null;
+  if (Date.now() < waitUntil()) return null;
   const raw = readCredentials();
   const oauth = raw ? JSON.parse(raw).claudeAiOauth : null;
   const live = oauth && oauth.accessToken && !(oauth.expiresAt && oauth.expiresAt < Date.now()) ? oauth.accessToken : null;
   const token = live || require("../sessions/registry").sessionToken();
   if (!token) return null;
   const r = await fetch(USAGE_URL, { headers: { Authorization: `Bearer ${token}`, "anthropic-beta": "oauth-2025-04-20" } });
+  if (r.status === 429) {
+    const seconds = Number(r.headers.get("retry-after")) || 1800;
+    fs.writeFileSync(WAIT_FILE, JSON.stringify({ until: Date.now() + (seconds + 60) * 1000 }));
+    return null;
+  }
   if (!r.ok) throw new Error(`la consulta de cuota respondió ${r.status}`);
   const j = await r.json();
   const quota = { at: new Date().toISOString() };
