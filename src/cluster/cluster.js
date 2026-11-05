@@ -453,4 +453,4 @@ async function machines() {
   return { self: info(), peer, devices };
 }
 
-module.exports = { isPrimary, info, snapshot, transcripts, serveTranscript, tick, handleYield, command, takeHere, backToAuto, machines, sendClaudeToken, clusterEnabled: () => !!CLUSTER };
+module.exports = { isPrimary, info, peerGet, projectDir, snapshot, transcripts, serveTranscript, tick, handleYield, command, takeHere, backToAuto, machines, sendClaudeToken, clusterEnabled: () => !!CLUSTER };

@@ -144,6 +144,7 @@ function serve() {
   every(require("../sessions/hostfresh").refreshHostWhenQuiet, 3 * 60 * 1000);
   every(require("../features/daily").dailyIfMissing, 60 * 60 * 1000);
   every(require("../features/claude-token").warnExpiry, 3 * 60 * 60 * 1000);
+  every(require("../features/memory-sync").syncMemory, 10 * 60 * 1000);
   setTimeout(() => require("../features/files").warmFiles(), 5000);
   setTimeout(() => require("./smoke").smokeAfterUpdate().catch(() => {}), 30000);
 }
