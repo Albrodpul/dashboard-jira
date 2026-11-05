@@ -340,8 +340,30 @@ async function demote(reason) {
 
 
 
+const WIN_AWAKE_PID = path.join(DATA_DIR, "awake-win.pid");
+const WIN_AWAKE = "Add-Type -Namespace W -Name P -MemberDefinition '[DllImport(\"kernel32.dll\")] public static extern uint SetThreadExecutionState(uint f);'; while ($true) { [W.P]::SetThreadExecutionState([uint32]2147483649) | Out-Null; Start-Sleep -Seconds 60 }";
+
+function alive(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+function holdWindowsAwake() {
+  try {
+    if (alive(Number(fs.readFileSync(WIN_AWAKE_PID, "utf8")))) return;
+  } catch (e) {}
+  const child = require("child_process").spawn("powershell.exe", ["-NoProfile", "-WindowStyle", "Hidden", "-Command", WIN_AWAKE], { detached: true, stdio: "ignore", windowsHide: true });
+  child.unref();
+  fs.writeFileSync(WIN_AWAKE_PID, String(child.pid));
+  log("fuera de horario activado: el PC no se suspenderá hasta que lo termines");
+}
+
 function keepAwake() {
-  if (!CLUSTER || process.platform !== "darwin") return;
+  if (!CLUSTER || !["darwin", "win32"].includes(process.platform)) return;
   const p = Object.fromEntries(new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Madrid", weekday: "short", hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(new Date()).map((x) => [x.type, x.value]));
   const min = Number(p.hour) * 60 + Number(p.minute);
   const want = !["Sat", "Sun"].includes(p.weekday) && min >= 7 * 60 + 30 && min < 18 * 60 + 30;
@@ -354,6 +376,7 @@ function keepAwake() {
     log("fuera de horario: se desactiva solo al empezar la jornada");
   }
   const extra = !!hours.overtime();
+  if (process.platform === "win32") return extra ? holdWindowsAwake() : undefined;
   if (!want && !extra) return;
   const cp = require("child_process");
   const pidFile = path.join(DATA_DIR, "caffeinate.pid");
@@ -370,6 +393,15 @@ function keepAwake() {
 }
 
 function letSleep() {
+  if (process.platform === "win32") {
+    try {
+      const pid = Number(fs.readFileSync(WIN_AWAKE_PID, "utf8"));
+      if (alive(pid)) process.kill(pid);
+      fs.unlinkSync(WIN_AWAKE_PID);
+      log("el PC ya puede suspenderse");
+    } catch (e) {}
+    return;
+  }
   if (process.platform !== "darwin") return;
   const pidFile = path.join(DATA_DIR, "caffeinate.pid");
   try {
