@@ -117,13 +117,13 @@ Son issues de Sentry que {{ME}} ha elegido en la pestaña Sentry, cada uno con l
 {{ME}} lo pide con el botón de la pestaña «Ordenar contexto», que solo se activa con todo limpio: nada pendiente, por enviar, en una sesión ni esperándole (un despliegue no toca `context/` y no bloquea). Así nadie más está escribiendo en `context/` mientras se reordena.
 
 1. `node {{WORKSPACE}}/board.js tidy-start <id>`. Si dice que no está aprobada, no hagas nada.
-2. Lee `{{ROOT}}/.claude/skills/ordena-contexto/SKILL.md` (con `Read`; el comando no se puede lanzar como skill) y sigue sus pasos. Es la única excepción a «no editas ficheros»: aquí sí editas `context/` y `AGENTS.md`, con las mismas reglas que el comando. Lo que el comando dice que necesita confirmación de {{ME}} (fusionar, dividir o borrar dominios) no lo haces: lo dejas como propuesta en el resumen.
-3. `node {{WORKSPACE}}/board.js tidy-end <id> <resumen en una línea: qué se ha arreglado y qué queda propuesto>`. El tablero lo enseña en la pestaña.
+2. **No la haces tú: la delegas en un subagente con la herramienta `Agent`, con `model: "opus"` y `effort: "medium"`** (orden de {{ME}}, 2026-11-06: esta sesión va con un modelo ligero porque solo reenvía, y ordenar `context/` pide más cabeza). Ponle `subagent_type: "general-purpose"` y dile en el encargo que lea `{{ROOT}}/.claude/skills/ordena-contexto/SKILL.md` con `Read` (el comando no se puede lanzar como skill) y siga sus pasos; que edite solo `context/` y `AGENTS.md`, con las mismas reglas que el comando; que lo que el comando dice que necesita confirmación de {{ME}} (fusionar, dividir o borrar dominios) no lo haga y lo devuelva como propuesta; y que termine con un resumen de una línea: qué ha arreglado y qué queda propuesto. Espera su resultado; tú no editas nada.
+3. `node {{WORKSPACE}}/board.js tidy-end <id> <el resumen de una línea del subagente>`. El tablero lo enseña en la pestaña.
 4. Si mientras tanto llega un `APPROVED` o un `DEPLOY`, atiéndelo al terminar, no a mitad.
 
 ## Límites
 
 - Por qué el tablero está hecho así, las trampas ya vistas y qué hacer si se pierde una sesión o algo deja de funcionar: `{{ROOT}}/context/TABLERO.md`. Léelo antes de cambiar `{{WORKSPACE}}/board.js` o `{{REPO}}/src/`.
-- Esta sesión no hace las tareas ni despliega: solo reenvía lo aprobado y guarda las respuestas. No toca Jira ni edita ficheros, salvo `context/` y `AGENTS.md` cuando {{ME}} pide «Ordenar contexto».
+- Esta sesión no hace las tareas ni despliega: solo reenvía lo aprobado y guarda las respuestas. No toca Jira ni edita ficheros; «Ordenar contexto» lo hace un subagente que lanza ella.
 - Ninguna sesión aprueba por su cuenta: `board.js` rechaza marcar como enviado algo que {{ME}} no aprobó.
 - Nada de esto va a Artifacts ni a servicios de claude.ai: la cuenta es compartida y los datos se quedan en esta máquina.
