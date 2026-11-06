@@ -209,18 +209,34 @@ function createPanel(conversation, name, onClose) {
   loadXterm().then(
     () => {
       if (panel.closed) return;
-      const term = new window.Terminal({ fontSize: window.matchMedia("(max-width: 760px)").matches ? 11 : 13, fontFamily: "ui-monospace, Consolas, monospace", theme: TERM_THEME, scrollback: 5000 });
+      const term = new window.Terminal({ fontSize: window.matchMedia("(max-width: 760px)").matches ? 11 : 13, fontFamily: "ui-monospace, Consolas, monospace", theme: TERM_THEME, scrollback: 5000, macOptionClickForcesSelection: true });
       const fit = new window.FitAddon.FitAddon();
       term.loadAddon(fit);
       term.open(screen);
       Object.assign(panel, { term, fit });
       term.onData((d) => panel.send(d));
+      term.attachCustomKeyEventHandler((e) => {
+        if (e.type !== "keydown" || !(e.ctrlKey || e.metaKey) || e.altKey || e.key.toLowerCase() !== "c" || !term.hasSelection()) return true;
+        copyText(term.getSelection());
+        term.clearSelection();
+        e.preventDefault();
+        return false;
+      });
+      term.parser.registerOscHandler(52, (data) => {
+        const b64 = data.slice(data.indexOf(";") + 1);
+        if (!b64 || b64 === "?" || Date.now() - (panel.openedAt || 0) < 2500) return true;
+        try {
+          copyText(new TextDecoder().decode(Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))));
+        } catch (x) {}
+        return true;
+      });
       const connect = () => {
         if (panel.closed) return;
         const proto = location.protocol === "https:" ? "wss" : "ws";
         const ws = new WebSocket(`${proto}://${location.host}/api/term/${conversation}`);
         panel.ws = ws;
         ws.onopen = () => {
+          panel.openedAt = Date.now();
           status.textContent = "En directo";
           term.reset();
           if (!document.hidden && !panel.replaying) setTimeout(() => panel.claim("conectar"), 400);
@@ -439,6 +455,23 @@ export function livePanel(conversation, name) {
     if (entering) setTimeout(() => p.claim("entrar"), 150);
   });
   return p.root;
+}
+
+function copyText(text) {
+  if (!text) return;
+  const fallback = () => {
+    const t = document.createElement("textarea");
+    t.value = text;
+    t.style.position = "fixed";
+    t.style.opacity = "0";
+    document.body.appendChild(t);
+    t.select();
+    try {
+      document.execCommand("copy");
+    } catch (x) {}
+    t.remove();
+  };
+  (navigator.clipboard && window.isSecureContext ? navigator.clipboard.writeText(text) : Promise.reject()).then(() => toast("Copiado."), () => (fallback(), toast("Copiado.")));
 }
 
 export function closeTerminal() {
