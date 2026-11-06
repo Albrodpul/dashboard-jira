@@ -45,7 +45,7 @@ const log = (m) => {
 
 const isPrimary = () => !CLUSTER || st.role === "primary";
 const primaryNow = () => !CLUSTER || readState().role === "primary";
-const info = () => ({ label: CLUSTER ? CLUSTER.label || null : null, role: isPrimary() ? "primary" : "follower", since: st.since, manual: !!(isPrimary() && st.manual), lastSnapshot: st.lastSnapshot || null, lastTranscripts: st.lastTranscripts || null, pendingPull: st.pendingPull || null, host: os.hostname(), self: CLUSTER ? CLUSTER.self : null, peer: CLUSTER ? CLUSTER.peer : null, claudeToken: require("../features/claude-token").tokenStatus() });
+const info = () => ({ label: CLUSTER ? CLUSTER.label || null : null, role: isPrimary() ? "primary" : "follower", since: st.since, manual: !!(isPrimary() && st.manual), lastSnapshot: st.lastSnapshot || null, lastTranscripts: st.lastTranscripts || null, pendingPull: st.pendingPull || null, host: os.hostname(), self: CLUSTER ? CLUSTER.self : null, peer: CLUSTER ? CLUSTER.peer : null, claudeToken: require("../features/claude-token").tokenStatus(), macPower: process.platform === "darwin" ? require("../features/mac-power").status() : st.peerMacPower || null });
 
 async function peerGet(route, ms = 8000) {
   const ctrl = new AbortController();
@@ -350,8 +350,9 @@ function keepAwake() {
   if (!CLUSTER) return;
   const p = Object.fromEntries(new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Madrid", weekday: "short", hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(new Date()).map((x) => [x.type, x.value]));
   const min = Number(p.hour) * 60 + Number(p.minute);
-  const want = !["Sat", "Sun"].includes(p.weekday) && min >= 7 * 60 + 30 && min < 18 * 60 + 30;
   const hours = require("../core/hours");
+  const macPower = require("../features/mac-power");
+  const want = macPower.inWindow(hours.clock());
   const ot = hours.overtime();
   const day = (iso) => new Date(iso).toLocaleDateString("en-CA", { timeZone: "Europe/Madrid" });
   if (ot && want && day(ot.since) !== day(new Date())) {
@@ -371,12 +372,13 @@ function keepAwake() {
     process.kill(pid, 0);
     if (/caffeinate/.test(cp.execFileSync("/bin/ps", ["-o", "comm=", "-p", String(pid)]).toString())) return;
   } catch (e) {}
-  const seconds = (18 * 60 + 30 - min) * 60;
+  const end = macPower.schedule().sleep;
+  const seconds = Math.max(60, (Number(end.slice(0, 2)) * 60 + Number(end.slice(3)) - min) * 60);
   const child = cp.spawn("/usr/bin/caffeinate", extra ? ["-i"] : ["-i", "-t", String(seconds)], { detached: true, stdio: "ignore" });
   child.unref();
   fs.writeFileSync(pidFile, String(child.pid));
   if (extra) fs.writeFileSync(extraFile, child.pid + "");
-  log(extra ? "caffeinate: fuera de horario activado, el Mac no se dormirá hasta que lo termines" : "caffeinate: el Mac no se dormirá solo hasta las 18:30");
+  log(extra ? "caffeinate: fuera de horario activado, el Mac no se dormirá hasta que lo termines" : `caffeinate: el Mac no se dormirá solo hasta las ${end}`);
 }
 
 function letSleep() {
@@ -402,6 +404,7 @@ async function tick() {
   busy = true;
   try {
     const peer = await peerGet("/api/cluster");
+    if (peer && peer.macPower && process.platform !== "darwin") st.peerMacPower = peer.macPower;
     if (!peer) {
       st.peerDownSince = st.peerDownSince || now();
       st.noneSince = null;

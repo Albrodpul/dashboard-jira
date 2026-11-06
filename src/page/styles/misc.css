@@ -18,3 +18,11 @@
 .token-renew .setup-note { margin: 0; }
 .token-code { font: inherit; color: var(--ink); background: var(--surface-2); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; flex: 1 1 260px; min-width: 0; }
 .token-tail { margin: 0; padding: 8px 10px; background: var(--surface-2); border-radius: 6px; font-family: var(--mono); font-size: 12px; color: var(--ink-2); white-space: pre-wrap; overflow-wrap: anywhere; max-height: 160px; overflow: auto; }
+
+.mac-schedule { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
+.mac-schedule h3 { margin: 0; font-size: 15px; }
+.mac-schedule .meta { margin: 0; }
+.schedule-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.schedule-row label { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; }
+.time-input { font: inherit; padding: 4px 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink); }
+.mac-schedule code.cmd { display: block; font-family: var(--mono); font-size: 12.5px; padding: 8px 10px; background: var(--surface-2); border-radius: 6px; overflow-wrap: anywhere; user-select: all; }
