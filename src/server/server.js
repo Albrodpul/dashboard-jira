@@ -24,7 +24,7 @@ function handle(req, res) {
   handleLocal(req, res, url);
 }
 
-const LOCAL_API = /^\/api\/(cluster|claude-token\/|push\/|host\/(respawned|prompt|sessions)|permission\/(check|perm-)|quit)/;
+const LOCAL_API = /^\/api\/(cluster|tunnel|claude-token\/|push\/|host\/(respawned|prompt|sessions)|permission\/(check|perm-)|quit)/;
 const forwardsToPrimary = (url) => url.startsWith("/api/") && !LOCAL_API.test(url) && !cluster.isPrimary() && !!cluster.info().peer;
 
 function peerHeaders(req, peer) {

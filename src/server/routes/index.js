@@ -202,7 +202,6 @@ const POST_ROUTES = {
       .catch((e) => send(res, 500, { error: String(e.message || e) }));
   },
   "/api/devservers": (res, { action, id }, send) => {
-    if (require("../../features/tunnel").status().open) return send(res, 409, { error: "los proyectos están abiertos en el otro ordenador: cierra antes el túnel" });
     const run = { start: () => devservers.start(id), stop: () => devservers.stop(id), restart: () => devservers.restart(id), startAll: () => devservers.startAll(false), stopAll: devservers.stopAll }[action];
     if (!run) return send(res, 400, { error: "acción desconocida" });
     run()
@@ -258,6 +257,14 @@ function handleGet(req, res, url) {
       .hostRequest("GET", "/sessions")
       .then((v) => serveBody(res, "application/json", JSON.stringify({ up: true, sessions: v, hosted: host.readConfig() })))
       .catch(() => serveBody(res, "application/json", JSON.stringify({ up: false, sessions: [], hosted: host.readConfig() })));
+    return true;
+  }
+  if (url === "/api/tunnel") {
+    const tunnel = require("../../features/tunnel");
+    tunnel
+      .remote()
+      .then((remote) => serveBody(res, "application/json", JSON.stringify({ ...tunnel.status(), remote })))
+      .catch((e) => serveBody(res, "application/json", JSON.stringify({ ...tunnel.status(), remote: null, error: String(e.message || e) })));
     return true;
   }
   if (url === "/api/devservers") {
