@@ -72,17 +72,48 @@ const vsCodeLink = (s) => {
   return h("a", { class: "btn link", href: `vscode://anthropic.claude-code/open?session=${encodeURIComponent(s.conversation)}`, text: "Ir a su pestaña" });
 };
 
-function sessionCard(s, group) {
-  const kids = [h("div", { class: "top" }, [h("span", { class: `dot ${DOTS[group]}` }), h("strong", { class: "session-title", text: s.name }), h("span", { class: "time", text: s.since ? `desde ${when(s.since)}` : "" })])];
-  if (s.reason) {
-    const t = s.reason.task;
-    kids.push(h("div", { class: "reason" }, [h("b", { text: s.reason.text + (t ? " " : "") }), t ? h("button", { class: "task-link", type: "button", text: t.key, title: t.title, onclick: () => switchView(s.reason.view) }) : null]));
-  }
-  if (s.subagents) kids.push(h("div", { class: "meta", text: s.subagents === 1 ? "Con un subagente en marcha" : `Con ${s.subagents} subagentes en marcha` }));
-  const others = s.tasks.filter((t) => !s.reason || t !== s.reason.task);
-  if (others.length) kids.push(h("div", { class: "meta", text: `Con ${others.map((t) => t.key).join(", ")}` }));
-  kids.push(h("div", { class: "home-footer" }, [h("span", { class: "meta", text: s.sessionName || "" }), vsCodeLink(s)]));
-  return h("article", { class: `card home-session ${group}` }, kids);
+function sessionRow(s, group) {
+  const t = s.reason && s.reason.task;
+  const others = s.tasks.filter((x) => x !== t);
+  const detail = [];
+  if (s.reason) detail.push(h("b", { text: s.reason.text + (t ? " " : "") }), t ? h("button", { class: "task-link", type: "button", text: t.key, title: t.title, onclick: () => switchView(s.reason.view) }) : null);
+  else if (group === "working") detail.push("Trabajando");
+  else detail.push("Libre");
+  if (others.length) detail.push(` · con ${others.map((x) => x.key).join(", ")}`);
+  if (s.subagents) detail.push(` · ${s.subagents === 1 ? "un subagente" : `${s.subagents} subagentes`}`);
+  return h("div", { class: `session-row ${group}` }, [
+    h("span", { class: `dot ${DOTS[group]}` }),
+    h("div", { class: "session-main" }, [h("strong", { class: "session-title", text: s.name }), h("div", { class: "session-detail" }, detail)]),
+    h("span", { class: "time", text: s.since ? `desde ${when(s.since)}` : "" }),
+    vsCodeLink(s),
+  ]);
+}
+
+function sessionsSection(root, s) {
+  const order = ["blocked", "working", "free"];
+  const total = order.reduce((n, id) => n + s[id].length, 0);
+  const LABEL = { blocked: ["bloqueada", "bloqueadas"], working: ["trabajando", "trabajando"], free: ["libre", "libres"] };
+  const summary = order.filter((id) => s[id].length).map((id) => `${s[id].length} ${LABEL[id][s[id].length === 1 ? 0 : 1]}`);
+  const head = h("div", { class: "home-section-head" }, [h("h3", { text: "Sesiones" }), h("span", { class: "meta", text: summary.join(" · ") })]);
+  const rows = order.flatMap((id) => s[id].map((x) => sessionRow(x, id)));
+  const list = total ? h("div", { class: "session-list" }, rows) : h("div", { class: "session-list empty-list" }, [h("span", { class: "meta", text: "No hay sesiones de área abiertas. Las que abras aparecen aquí solas." })]);
+  const system = s.system.length
+    ? h(
+        "div",
+        { class: "system-chips" },
+        [h("span", { class: "meta", text: "Del tablero" }), ...s.system.map((x) => h("span", { class: "system-chip", title: x.working ? "Trabajando" : x.open ? "Abierta" : "Cerrada" }, [h("span", { class: `dot ${x.working ? "busy" : x.open ? "on" : ""}` }), x.name]))]
+      )
+    : null;
+  root.appendChild(h("section", { class: "home-section" }, [head, list, system]));
+}
+
+export function homeAlerts(items) {
+  const cs = state.contextSync;
+  const rows = [];
+  if (cs && cs.state === "conflict") rows.push(h("div", { class: "token-banner high" }, [h("div", {}, [h("strong", { text: "El contexto compartido no se sincroniza" }), h("span", { text: "Hay un choque entre los dos ordenadores: hay que resolverlo a mano en myproject (git status)." })])]));
+  else if (cs && cs.state === "error") rows.push(h("div", { class: "token-banner high" }, [h("div", {}, [h("strong", { text: "El contexto compartido no se sincroniza" }), h("span", { text: String(cs.error || "").split(/\r?\n/)[0] })])]));
+  rows.push(...items.filter(Boolean));
+  return rows.length ? h("div", { class: "alerts" }, rows) : null;
 }
 
 export function shortcuts(root) {
@@ -157,49 +188,39 @@ export function dailyCard(root) {
     dailyAsked = new Date().toISOString();
     post("/api/daily", { today }, today ? "Preparando el resumen de hoy…" : "Rehaciendo el resumen…");
   };
+  let open = false;
+  try {
+    open = localStorage.getItem("daily-expanded") === "1";
+  } catch (e) {}
   const actions = [];
   if (d && d.text) actions.push(button("Copiar", { onClick: () => copyDaily(d.text) }));
   actions.push(button(busy ? "Preparando…" : "Rehacer", { cls: "subtle", disabled: !!busy, onClick: () => ask(false) }));
   actions.push(button("El de hoy", { cls: "subtle", disabled: !!busy, title: "Lo que llevas hecho hoy, por si apagas antes y quieres tenerlo ya", onClick: () => ask(true) }));
-  const body = !d ? "Se prepara solo cada mañana con lo del último día laborable." : d.empty ? "Ese día no hay movimiento en Jira, commits ni despliegues tuyos." : d.text;
-  const det = h("details", { class: "card daily-card" }, [
-    h("summary", {}, [h("strong", { text: "Para la daily" }), h("span", { class: "meta", text: day ? ` · ${day}` : "" })]),
-    d && d.text ? dailyBody(d.text) : h("p", { class: "daily-text", text: body }),
-    h("div", { class: "actions" }, actions),
+  const text = !d ? "Se prepara solo cada mañana con lo del último día laborable." : d.empty ? "Ese día no hay movimiento en Jira, commits ni despliegues tuyos." : null;
+  const body = text ? h("p", { class: "daily-text", text }) : dailyBody(d.text);
+  const card = h("section", { class: `card daily-card${open ? " open" : ""}${text ? " short" : ""}` }, [
+    h("div", { class: "daily-head" }, [h("h3", {}, ["Para la daily", h("span", { class: "meta", text: day ? ` · ${day}` : "" })]), h("div", { class: "actions" }, actions)]),
+    body,
   ]);
-  try {
-    det.open = localStorage.getItem("daily-open") !== "0";
-  } catch (e) {
-    det.open = true;
+  if (!text) {
+    const more = h("button", { type: "button", class: "daily-more", text: open ? "Ver menos" : "Ver entero" });
+    more.onclick = () => {
+      open = !open;
+      card.classList.toggle("open", open);
+      more.textContent = open ? "Ver menos" : "Ver entero";
+      try {
+        localStorage.setItem("daily-expanded", open ? "1" : "0");
+      } catch (e) {}
+    };
+    card.appendChild(more);
   }
-  det.addEventListener("toggle", () => {
-    try {
-      localStorage.setItem("daily-open", det.open ? "1" : "0");
-    } catch (e) {}
-  });
-  root.appendChild(det);
+  root.appendChild(card);
 }
 
 export function renderHome(root) {
-  const cs = state.contextSync;
-  if (cs && cs.state === "conflict") root.appendChild(h("p", { class: "setup-note warn", text: "El contexto compartido tiene un choque entre los dos ordenadores y no se sincroniza. Hay que resolverlo a mano en myproject (git status)." }));
-  else if (cs && cs.state === "error") root.appendChild(h("p", { class: "setup-note warn", text: `El contexto compartido no se sincroniza: ${String(cs.error || "").split(/\r?\n/)[0]}` }));
   shortcuts(root);
+  sessionsSection(root, sessionSituation());
   dailyCard(root);
-  const s = sessionSituation();
-  if (!s.working.length && !s.blocked.length && !s.free.length) root.appendChild(empty("No hay sesiones de área abiertas.", "Las que abras aparecen aquí solas."));
-  else {
-    const columns = BOARD.map((id) => {
-      const [, title, note] = GROUPS.find((g) => g[0] === id);
-      const head = h("div", { class: "board-head", title: note }, [h("span", { class: `dot ${DOTS[id]}` }), h("span", { text: title }), h("span", { class: "n", text: String(s[id].length) })]);
-      const cards = s[id].length ? s[id].map((x) => sessionCard(x, id)) : [h("div", { class: "board-empty", text: "Ninguna" })];
-      return h("section", { class: "board-col" }, [head, ...cards]);
-    });
-    root.appendChild(h("div", { class: "board" }, columns));
-  }
-  if (s.system.length) {
-    root.appendChild(h("p", { class: "meta home-system", text: "Del tablero: " + s.system.map((x) => `${x.name} ${x.working ? "trabajando" : x.open ? "abierta" : "cerrada"}`).join(" · ") }));
-  }
 }
 
 export function sessionStrip() {
