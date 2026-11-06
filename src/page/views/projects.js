@@ -3,15 +3,16 @@ import { state, h, button, when, toast, requestOrFail, render, empty } from "../
 const STATE_LABEL = { up: "Funcionando", starting: "Arrancando…", down: "Parado" };
 const DOT = { up: "on", starting: "busy", down: "off" };
 let data = null;
+let tunnel = null;
 let loading = false;
 const busy = new Set();
 
 function load() {
   if (loading) return;
   loading = true;
-  fetch("/api/devservers", { cache: "no-store" })
-    .then((r) => r.json())
-    .then((d) => (data = d))
+  const get = (u) => fetch(u, { cache: "no-store" }).then((r) => r.json());
+  Promise.all([get("/api/devservers"), get("/api/tunnel").catch(() => null)])
+    .then(([d, t]) => ((data = d), (tunnel = t)))
     .catch(() => (data = { servers: [], error: "No se pudo leer el estado de los proyectos." }))
     .finally(() => {
       loading = false;
@@ -50,9 +51,9 @@ function tunnelAct(action, b) {
 }
 
 function tunnelPanel() {
-  const t = data.tunnel || {};
-  if (!data.remote && !t.open) return null;
-  const who = (data.remote && data.remote.label) || "el otro ordenador";
+  const t = tunnel || {};
+  if (!t.remote && !t.open) return null;
+  const who = (t.remote && t.remote.label) || "el otro ordenador";
   const working = busy.has("tunnel");
   if (t.open)
     return h("div", { class: "proj-tunnel open" }, [
@@ -74,11 +75,9 @@ function tunnelPanel() {
 function row(s) {
   const working = busy.has(s.id);
   const actions = [];
-  const tunneled = data.tunnel && data.tunnel.open;
-  if (s.url && s.state === "up") actions.push(h("a", { class: "btn link", href: `${location.protocol}//${tunneled ? "localhost" : location.hostname}:${s.port}`, target: "_blank", rel: "noopener", text: "Abrir ↗" }));
-  if (tunneled) {
-    if (!s.url) return null;
-  } else if (s.state === "down") actions.push(button("Arrancar", { cls: "primary", disabled: working, onClick: (b) => act("start", s.id, `Arrancando ${s.name}…`, b) }));
+  const tunneled = tunnel && tunnel.open;
+  if (s.url && s.state === "up" && (tunneled || !(tunnel && tunnel.remote))) actions.push(h("a", { class: "btn link", href: `${location.protocol}//${tunneled ? "localhost" : location.hostname}:${s.port}`, target: "_blank", rel: "noopener", text: "Abrir ↗" }));
+  if (s.state === "down") actions.push(button("Arrancar", { cls: "primary", disabled: working, onClick: (b) => act("start", s.id, `Arrancando ${s.name}…`, b) }));
   else {
     actions.push(button("Reiniciar", { disabled: working, onClick: (b) => act("restart", s.id, `Reiniciando ${s.name}…`, b) }));
     actions.push(button("Parar", { cls: "subtle", disabled: working, onClick: (b) => window.confirm(`¿Parar ${s.name}? Si alguna sesión lo está usando, se queda sin él.`) && act("stop", s.id, `${s.name} parado.`, b) }));
@@ -90,7 +89,7 @@ function row(s) {
       h("div", { class: "proj-name" }, [h("strong", { text: s.name }), h("span", { class: "proj-port", text: `:${s.port}` })]),
       h("span", { class: "meta", text: [roleOf(s), s.autoStart ? "" : "lo arranca la sesión que lo necesita"].filter(Boolean).join(" · ") }),
     ]),
-    h("span", { class: `proj-state ${st}`, text: working ? "Un momento…" : tunneled ? (s.state === "up" ? `En el ${(data.remote && data.remote.label) || "otro"}` : "Sin respuesta") : STATE_LABEL[s.state] }),
+    h("span", { class: `proj-state ${st}`, text: working ? "Un momento…" : STATE_LABEL[s.state] }),
     h("div", { class: "proj-actions" }, actions),
   ]);
 }
@@ -104,7 +103,6 @@ export function renderProjects(root) {
   if (!data.servers.length) return root.appendChild(empty("No hay proyectos configurados.", "Añádelos en devServers de board.config.json."));
   const panel = tunnelPanel();
   if (panel) root.appendChild(panel);
-  if (data.tunnel && data.tunnel.open) return root.appendChild(h("div", { class: "proj-list" }, data.servers.map(row).filter(Boolean)));
   const up = data.servers.filter((s) => s.state === "up").length;
   const auto = data.autoStartedOn ? `Hoy arrancaron solos con el primer reporte (${data.autoStartedOn.split("-").reverse().slice(0, 2).join("/")}).` : "Arrancan solos con el primer reporte del día.";
   root.appendChild(
