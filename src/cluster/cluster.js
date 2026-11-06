@@ -196,7 +196,7 @@ async function refreshFromPeer(onlyNewerThan) {
   if (!changed.length) return failed.length ? -1 : 0;
   const host = require("../sessions/host");
   const running = await runningConversations();
-  const restart = changed.filter((c) => running.has(c.conversation));
+  const restart = isPrimary() ? changed.filter((c) => running.has(c.conversation)) : [];
   for (const c of restart) await host.hostRequest("POST", "/stop", { conversation: c.conversation }).catch(() => {});
   writeTranscripts(changed);
   for (const c of restart) await host.hostRequest("POST", "/start", { conversation: c.conversation, name: c.name }).catch(() => {});
