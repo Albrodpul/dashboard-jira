@@ -303,7 +303,7 @@ function paint() {
     const old = brand.querySelector(".mobile-battery");
     if (old) old.remove();
     const small = batteryBadge(c && c.macPower && c.macPower.battery);
-    if (small) brand.appendChild(h("span", { class: "mobile-battery" }, [small]));
+    brand.appendChild(h("span", { class: "mobile-battery" }, [small, quotaBlock()]));
   }
   right.appendChild(quotaBlock());
   document.querySelector(".app").setAttribute("data-view", state.tab);

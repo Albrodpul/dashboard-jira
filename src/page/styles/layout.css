@@ -141,7 +141,9 @@ h1 { font-size: 16px; font-weight: 600; letter-spacing: -0.01em; margin: 0; }
 .token-banner.high { background: var(--danger-soft); }
 .token-banner.high strong { color: var(--danger); }
 
-.mobile-battery { margin-left: auto; }
+.mobile-battery { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+.mobile-battery .quota { flex-direction: row; align-items: center; gap: 6px; margin: 0; padding: 0; }
+.mobile-battery .quota-reset, .mobile-battery .quota-stale, .mobile-battery .token-warn { display: none; }
 @media (min-width: 761px) {
   .mobile-battery { display: none; }
 }
