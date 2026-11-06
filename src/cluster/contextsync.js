@@ -41,6 +41,7 @@ async function updateBoard() {
   if (!runningHead || !after.ok || runningHead === after.out.trim()) return;
   const changed = await repoGit(["diff", "--name-only", runningHead, after.out.trim()]);
   if (/package(-lock)?\.json/.test(changed.out)) await new Promise((r) => cp.execFile(process.platform === "win32" ? "npm.cmd" : "npm", ["ci", "--no-audit", "--no-fund"], { cwd: REPO, shell: process.platform === "win32", windowsHide: true, timeout: 300000 }, () => r()));
+  if (/(^|\n)(templates\/|install\.js)/.test(changed.out)) await new Promise((r) => cp.execFile(process.execPath, [path.join(REPO, "install.js"), config.workspace], { windowsHide: true, timeout: 60000 }, () => r()));
   cp.spawn(process.execPath, [path.join(REPO, "src", "cli.js"), "restart"], { detached: true, stdio: "ignore", windowsHide: true, env: { ...process.env, TOWER_WORKSPACE: config.workspace } }).unref();
 }
 
