@@ -6,7 +6,7 @@ import { renderTalk } from "./views/talk.js";
 import { renderContext } from "./views/context.js";
 import { renderFollowUp } from "./views/follow-up.js";
 import { renderReport, updateStamp, mountHeader, quotaBlock, tokenBanner, overtimeBanner } from "./components/report.js";
-import { renderHome, sessionStrip, shortcuts, dailyCard } from "./views/home.js";
+import { renderHome, sessionStrip, shortcuts, dailyCard, homeAlerts } from "./views/home.js";
 import { renderLearning } from "./views/learning.js";
 import { renderSentry } from "./views/sentry.js";
 import { renderProjects } from "./views/projects.js";
@@ -62,7 +62,7 @@ const GROUPS = [
 ];
 const VIEWS = {
   learning: ["Aprendizaje", "Si el contexto que van guardando las sesiones hace que vuelvan menos tareas de revisión."],
-  home: ["Inicio", "Qué sesiones están trabajando, cuáles se han parado con algo pendiente y cuáles están libres."],
+  home: ["Inicio", "Lo que te necesita, cómo van las sesiones y tu resumen para la daily."],
   pending: ["Pendientes", "Tareas nuevas o devueltas que puedes pasar a la sesión de su epic. Nada se envía hasta que pulsas Hacer."],
   approved: ["Por enviar", "Aprobadas con Hacer, esperando a que la sesión que orquesta las envíe."],
   sent: ["En curso", "Lo que ya está en su sesión, con lo que ha contestado."],
@@ -300,10 +300,8 @@ function paint() {
   const root = document.getElementById("groups");
   root.textContent = "";
   if (["home", "today"].includes(state.tab)) {
-    const extra = overtimeBanner();
-    if (extra) root.appendChild(extra);
-    const banner = tokenBanner(() => switchView("machines", true));
-    if (banner) root.appendChild(banner);
+    const alerts = homeAlerts([overtimeBanner(), tokenBanner(() => switchView("machines", true))]);
+    if (alerts) root.appendChild(alerts);
   }
   if (section === "tasks") {
     try {
@@ -315,8 +313,8 @@ function paint() {
     const strip = sessionStrip();
     if (strip) root.appendChild(strip);
     shortcuts(root);
-    dailyCard(root);
-    return renderToday(root, errors);
+    renderToday(root, errors);
+    return dailyCard(root);
   }
   if (state.tab === "more") return renderMore(root, waitingDeploys, errors);
   if (!mobile && isTaskTab(state.tab) && state.tab !== "ignored") root.appendChild(viewSwitch(board ? "board" : "list"));

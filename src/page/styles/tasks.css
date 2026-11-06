@@ -56,8 +56,6 @@ textarea.comment-box { font-family: inherit; }
 .board-col .top .dot { align-self: flex-start; margin-top: 6px; }
 .board-col .session-title { font-size: 14px; }
 .board-col .time { flex: none; font-size: 11px; }
-.board-col .home-footer .meta { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.board-col .home-footer a.btn.link { flex: none; white-space: nowrap; padding: 4px 10px; font-size: 13px; }
 @media (max-width: 760px) {
   .board-col { max-height: none; }
   .today-empty { margin: 0; font-size: 13.5px; color: var(--ink-3); }
