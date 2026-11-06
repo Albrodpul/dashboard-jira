@@ -127,7 +127,7 @@ function state() {
     followUps: d.followUps.slice(0, 80).map((x) => ({ ...x, environment: environmentOf(x, d) })),
     permissions: permissions.forPage(d),
     contextSync: d.contextSync || null,
-    daily: d.daily || null,
+    daily: require("../features/daily").dailyState(),
     sessionProfiles: require("../sessions/profiles").profiles(),
     cluster: require("../cluster/cluster").info(),
     hosted: require("../sessions/host").readConfig(),

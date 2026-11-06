@@ -6,7 +6,8 @@ import { renderTalk } from "./views/talk.js";
 import { renderContext } from "./views/context.js";
 import { renderFollowUp } from "./views/follow-up.js";
 import { renderReport, updateStamp, mountHeader, quotaBlock, tokenBanner, overtimeBanner } from "./components/report.js";
-import { renderHome, sessionStrip, shortcuts, dailyCard, homeAlerts } from "./views/home.js";
+import { renderHome, sessionStrip, shortcuts, homeAlerts } from "./views/home.js";
+import { renderDaily } from "./views/daily.js";
 import { renderLearning } from "./views/learning.js";
 import { renderSentry } from "./views/sentry.js";
 import { renderProjects } from "./views/projects.js";
@@ -26,7 +27,8 @@ const GROUPS = [
   [
     "Mi día",
     [
-      { id: "home", label: "Inicio", hint: "Qué pasa ahora y tu daily" },
+      { id: "home", label: "Inicio", hint: "Qué pasa ahora" },
+      { id: "daily", label: "Daily", hint: "El resumen de ayer y lo de hoy" },
       { id: "tasks", label: "Tareas", hint: "Lo de Jira y lo que te espera" },
       { id: "talk", label: "Hablar", hint: "Escribir a una sesión" },
     ],
@@ -62,7 +64,8 @@ const GROUPS = [
 ];
 const VIEWS = {
   learning: ["Aprendizaje", "Si el contexto que van guardando las sesiones hace que vuelvan menos tareas de revisión."],
-  home: ["Inicio", "Lo que te necesita, cómo van las sesiones y tu resumen para la daily."],
+  home: ["Inicio", "Lo que te necesita y cómo van las sesiones."],
+  daily: ["Daily", "El resumen del último día laborable para copiar en Slack y lo que llevas hoy. Lo de hoy se va rellenando solo; redactarlo lo hace Claude cuando lo pides."],
   pending: ["Pendientes", "Tareas nuevas o devueltas que puedes pasar a la sesión de su epic. Nada se envía hasta que pulsas Hacer."],
   approved: ["Por enviar", "Aprobadas con Hacer, esperando a que la sesión que orquesta las envíe."],
   sent: ["En curso", "Lo que ya está en su sesión, con lo que ha contestado."],
@@ -84,6 +87,7 @@ const VIEWS = {
 const NON_TASK_VIEWS = {
   learning: renderLearning,
   home: renderHome,
+  daily: renderDaily,
   sessions: renderSessions,
   find: renderFind,
   machines: renderMachines,
@@ -102,6 +106,7 @@ const ICONS = {
 };
 const NAV_ICONS = {
   home: ICONS.today,
+  daily: '<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 10h18M8 14h5"/>',
   tasks: ICONS.tasks,
   talk: ICONS.talk,
   sentry: '<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/>',
@@ -209,7 +214,7 @@ function statusChips(root, counts, board) {
 }
 
 function renderMore(root, waitingDeploys, errors) {
-  const options = [...GROUPS.filter(([g]) => g !== "Mi día").flatMap(([, list]) => list)];
+  const options = GROUPS.flatMap(([, list]) => list).filter((t) => !["home", "tasks", "talk"].includes(t.id));
   const menu = h(
     "div",
     { class: "more-menu" },
@@ -310,11 +315,10 @@ function paint() {
     statusChips(root, counts, board);
   }
   if (state.tab === "today") {
+    shortcuts(root);
     const strip = sessionStrip();
     if (strip) root.appendChild(strip);
-    shortcuts(root);
-    renderToday(root, errors);
-    return dailyCard(root);
+    return renderToday(root, errors);
   }
   if (state.tab === "more") return renderMore(root, waitingDeploys, errors);
   if (!mobile && isTaskTab(state.tab) && state.tab !== "ignored") root.appendChild(viewSwitch(board ? "board" : "list"));
