@@ -97,12 +97,13 @@ const WINDOWS = [
   ["five_hour", "5 h"],
   ["seven_day", "Semana"],
 ];
-const fmtReset = new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", weekday: "short", hour: "2-digit", minute: "2-digit" });
+const fmtWeekday = new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", weekday: "long" });
+const fmtHour = new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", hour: "2-digit", minute: "2-digit" });
 
 function resets(iso) {
   if (!iso) return "";
   const d = new Date(Math.round(new Date(iso).getTime() / 60000) * 60000);
-  return d - Date.now() < 20 * 3600000 ? `se renueva a las ${when(d.toISOString())}` : `se renueva el ${fmtReset.format(d)}`;
+  return d - Date.now() < 20 * 3600000 ? `se renueva a las ${when(d.toISOString())}` : `se renueva el ${fmtWeekday.format(d)} a las ${fmtHour.format(d)}`;
 }
 
 function tokenWarning() {
@@ -144,25 +145,33 @@ export function quotaBlock() {
   return box;
 }
 
+function quotaMeter(c, k, name, main) {
+  const used = Math.round(c[k].used);
+  const level = used >= 90 ? " high" : used >= 70 ? " medium" : "";
+  return h("span", { class: `quota-meter${level}${main ? "" : " minor"}`, title: `${name}: ${used} % usado, ${resets(c[k].resetsAt)}` }, [
+    h("span", { class: "quota-name", text: name }),
+    h("span", { class: "quota-bar" }, [h("span", { class: "quota-fill", style: `width:${Math.min(100, used)}%` })]),
+    h("b", { text: `${used}%` }),
+  ]);
+}
+
 function quotaBlockInner() {
   const c = state.quota;
-  const windows = c ? WINDOWS.filter(([k]) => c[k] && !(c[k].resetsAt && new Date(c[k].resetsAt) < new Date())) : [];
-  const box = h("div", { class: "quota" }, [h("span", { class: "quota-title", text: "Plan de Claude" })]);
-  if (!windows.length) {
-    box.appendChild(h("span", { class: "meta", text: c ? "Ventanas recién renovadas." : "Aún sin datos." }));
+  const live = (k) => c && c[k] && !(c[k].resetsAt && new Date(c[k].resetsAt) < new Date());
+  const box = h("div", { class: "quota" }, [h("span", { class: "quota-title", text: "Claude" })]);
+  if (!live("seven_day") && !live("five_hour")) {
+    box.appendChild(h("span", { class: "meta", text: c ? "Semana recién renovada" : "Aún sin datos" }));
     return box;
   }
-  const parts = windows.map(([k, name]) => {
-    const used = Math.round(c[k].used);
-    const level = used >= 90 ? " high" : used >= 70 ? " medium" : "";
-    return h("span", { class: `quota-item${level}`, title: resets(c[k].resetsAt) }, [`${name} `, h("b", { text: `${used} %` })]);
-  });
-  box.appendChild(h("span", { class: "quota-items" }, parts.flatMap((p, i) => (i ? [" · ", p] : [p]))));
+  const items = [];
+  if (live("seven_day")) items.push(quotaMeter(c, "seven_day", "Semana", true));
+  if (live("five_hour") && c.five_hour.used >= 50) items.push(quotaMeter(c, "five_hour", "5 h", false));
+  box.appendChild(h("span", { class: "quota-items" }, items));
+  if (live("seven_day")) box.appendChild(h("span", { class: "quota-reset", text: resets(c.seven_day.resetsAt) }));
   if (minutesSince(c.at) > 30) {
     box.classList.add("stale");
-    box.appendChild(h("span", { class: "quota-stale", text: `Dato de ${when(c.at)}` }));
+    box.appendChild(h("span", { class: "quota-stale", text: `dato de ${when(c.at)}` }));
   }
-  box.title = windows.map(([k, name]) => `${name}: ${resets(c[k].resetsAt)}`).join(". ") + (minutesSince(c.at) > 30 ? `. Dato de las ${when(c.at)}` : "");
   return box;
 }
 

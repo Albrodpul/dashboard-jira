@@ -8,6 +8,7 @@ import { renderFollowUp } from "./views/follow-up.js";
 import { renderReport, updateStamp, mountHeader, quotaBlock, tokenBanner, overtimeBanner } from "./components/report.js";
 import { renderHome, sessionStrip, shortcuts, homeAlerts } from "./views/home.js";
 import { renderDaily } from "./views/daily.js";
+import { batteryBadge } from "./components/battery.js";
 import { renderLearning } from "./views/learning.js";
 import { renderSentry } from "./views/sentry.js";
 import { renderProjects } from "./views/projects.js";
@@ -74,7 +75,7 @@ const VIEWS = {
   ignored: ["Ignoradas", "Descartadas con Ignorar. Se pueden recuperar."],
   deploy: ["Desplegar", "Sube proyectos a develop, a producción o a los dos. La orden sale de aquí hacia la sesión que despliega; nada se sube hasta que pulsas Desplegar."],
   sessions: ["Sesiones", "Qué sesión lleva cada epic y en qué está cada una. Las dormidas se despiertan solas cuando les llega algo."],
-  machines: ["Ordenadores", "Los ordenadores de tu Tailscale, cuál manda y desde cuándo. Puedes pasar el mando a mano."],
+  machines: ["Ordenadores", "Quién manda, el horario del Mac y el token de Claude."],
   find: ["Buscar", "Lo que coincide en las tareas del tablero, en las sesiones y en Jira. Lo de Jira se puede traer a Pendientes."],
   today: ["Hoy", "Lo que necesita algo de ti ahora mismo y, debajo, el último reporte."],
   more: ["Más", "Errores, despliegues, tu ordenador, lo que hacen los demás y ajustes."],
@@ -295,11 +296,14 @@ function paint() {
     const text = stale ? `${stale}: el otro no responde` : c.role === "primary" ? `Manda el ${c.label || "ordenador"}` : "Sin ordenador al mando";
     right.appendChild(h("span", { class: `commander${stale || c.role !== "primary" ? " warn" : ""}`, title: c.role === "primary" ? `Manda desde ${new Date(c.since).toLocaleString("es-ES")}` : "", text }));
   }
-  const bat = c && c.macPower && c.macPower.battery;
-  if (bat) {
-    const low = !bat.charging && !bat.onAC && bat.percent <= 20;
-    const label = bat.charging ? `Mac ${bat.percent} % · cargando` : bat.onAC && bat.percent >= 99 ? `Mac ${bat.percent} % · cargado` : bat.onAC ? `Mac ${bat.percent} % · enchufado` : `Mac ${bat.percent} %`;
-    right.appendChild(h("span", { class: `mac-battery${low ? " low" : ""}${bat.charging ? " charging" : ""}`, title: `Batería del Mac a las ${new Date(bat.at).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}`, text: label }));
+  const badge = batteryBadge(c && c.macPower && c.macPower.battery);
+  if (badge) right.appendChild(badge);
+  const brand = document.querySelector(".nav > .brand");
+  if (brand) {
+    const old = brand.querySelector(".mobile-battery");
+    if (old) old.remove();
+    const small = batteryBadge(c && c.macPower && c.macPower.battery);
+    if (small) brand.appendChild(h("span", { class: "mobile-battery" }, [small]));
   }
   right.appendChild(quotaBlock());
   document.querySelector(".app").setAttribute("data-view", state.tab);

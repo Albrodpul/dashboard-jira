@@ -1,4 +1,5 @@
 import { state, h, button, when, toast, requestOrFail, render, empty } from "../lib/base.js";
+import { batteryIcon, batteryText } from "../components/battery.js";
 
 let data = null;
 let loading = false;
@@ -44,31 +45,42 @@ function boardOf(device) {
   return boards.find((b) => b.self && hostOf(b.self) === device.dns) || null;
 }
 
+const ICON = {
+  macOS: '<rect x="4" y="4" width="16" height="11" rx="1.5"/><path d="M2 19h20l-1.5-2.5h-17z"/>',
+  windows: '<rect x="2.5" y="3.5" width="19" height="13" rx="1.5"/><path d="M8 20.5h8M12 16.5v4"/>',
+};
+const deviceIcon = (os) => {
+  const el = h("span", { class: "dev-icon", "aria-hidden": "true" });
+  el.innerHTML = `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${ICON[os] || ICON.windows}</svg>`;
+  return el;
+};
+const row = (label, value) => h("div", { class: "dev-row" }, [h("span", { class: "dev-label", text: label }), h("span", { class: "dev-value" }, [].concat(value))]);
+const fmtDate = (d) => (d ? d.split("-").reverse().join("/") : "");
+
 function card(device) {
   const b = boardOf(device);
   const commander = b && b.role === "primary";
-  const top = [
-    h("span", { class: `dot ${device.online ? "on" : "off"}` }),
-    h("strong", { text: b && b.label ? `${b.label} · ${device.name}` : device.name }),
-    h("span", { class: "meta", text: device.os }),
-    h("span", { class: `chip ${commander ? "done" : "ignored"}`, text: !device.online ? "Desconectado" : !b ? (data.self && hostOf(data.self.peer) === device.dns ? "Su tablero no responde" : "Sin tablero") : commander ? "Manda" : "En espera" }),
-  ];
-  const lines = [];
-  if (!device.online && device.lastSeen) lines.push(`Visto por última vez ${when(device.lastSeen)}`);
-  if (b && commander) lines.push(`Manda desde ${when(b.since)}`);
-  if (b && !commander && device.online) lines.push(`Datos copiados ${b.lastSnapshot ? when(b.lastSnapshot) : "nunca"} · conversaciones ${b.lastTranscripts ? when(b.lastTranscripts) : "nunca"}`);
-  if (b && b.claudeToken) lines.push(tokenLine(b.claudeToken));
-  if (device.ip) lines.push(device.ip);
+  const isMac = device.os === "macOS";
+  const status = !device.online ? ["off", "Desconectado"] : !b ? ["warn", data.self && hostOf(data.self.peer) === device.dns ? "Su tablero no responde" : "Sin tablero"] : commander ? ["on", "Manda"] : ["idle", "En espera"];
+  const head = h("div", { class: "dev-head" }, [
+    deviceIcon(device.os),
+    h("div", { class: "dev-title" }, [h("strong", { text: (b && b.label) || device.name }), h("span", { class: "meta", text: `${device.name} · ${device.os}` })]),
+    h("span", { class: `dev-status ${status[0]}` }, [h("span", { class: "dot" }), status[1]]),
+  ]);
+  const rows = [];
+  const mp = state.cluster && state.cluster.macPower;
+  if (isMac && mp && mp.battery) rows.push(row("Batería", h("span", { class: "dev-battery" }, [batteryIcon(mp.battery, 30), `${mp.battery.percent} % · ${batteryText(mp.battery).toLowerCase()}`])));
+  if (isMac && mp && mp.schedule) rows.push(row("Horario", `despierto de ${mp.schedule.wake} a ${mp.schedule.sleep}, de lunes a viernes`));
+  if (!device.online && device.lastSeen) rows.push(row("Visto", when(device.lastSeen)));
+  if (b && commander) rows.push(row("Manda desde", when(b.since)));
+  if (b && !commander && device.online) rows.push(row("Copia", `datos ${b.lastSnapshot ? when(b.lastSnapshot) : "nunca"} · conversaciones ${b.lastTranscripts ? when(b.lastTranscripts) : "nunca"}`));
+  if (b && b.claudeToken) rows.push(row("Token", b.claudeToken.sessions ? `hasta el ${fmtDate(b.claudeToken.expires) || "?"}${b.claudeToken.vscode ? " · también VS Code" : " · VS Code aún con /login"}` : "no tiene; usa el /login"));
+  if (device.ip) rows.push(row("Tailscale", device.ip));
   const actions = [];
   if (b && device.online && !commander) actions.push(button(`Que mande el ${b.label}`, { cls: "primary", disabled: busy, onClick: () => window.confirm(`¿Pasar el mando al ${b.label}? El otro ordenador para sus sesiones y este las retoma.`) && act(b.label, "take", `Pasando el mando al ${b.label}…`) }));
-  return h("article", { class: "card dev-server" }, [h("div", { class: "top" }, top), ...lines.map((t) => h("div", { class: "meta", text: t })), actions.length ? h("div", { class: "actions" }, actions) : null]);
+  return h("article", { class: `card dev-card${commander ? " is-commander" : ""}${device.online ? "" : " offline"}` }, [head, h("div", { class: "dev-rows" }, rows), actions.length ? h("div", { class: "actions" }, actions) : null]);
 }
 
-function tokenLine(t) {
-  if (!t.sessions) return "Token de Claude: no tiene; las sesiones usan el /login";
-  const until = t.expires ? `, caduca el ${t.expires.split("-").reverse().join("/")}` : ", sin fecha de caducidad apuntada";
-  return `Token de Claude: sí${until} · VS Code ${t.vscode ? "también lo usa" : "aún con su /login"}`;
-}
 
 let job = { state: "idle" };
 let jobTimer = null;
@@ -109,7 +121,7 @@ function jobAction(body, label) {
 }
 
 function tokenRenew() {
-  const box = h("section", { class: "token-renew" }, [h("h3", { text: "Token de Claude" })]);
+  const box = h("section", { class: "card setting-card token-renew" }, [h("h3", { text: "Token de Claude" })]);
   const startButton = (label) =>
     button(label, {
       cls: "primary",
@@ -149,7 +161,9 @@ function tokenRenew() {
   }
   if (job.state === "failed") box.appendChild(h("p", { class: "setup-note warn", text: `No se ha renovado: ${job.error || "error desconocido"}` }));
   if (job.state === "failed" && job.tail) box.appendChild(h("pre", { class: "token-tail", text: job.tail }));
-  box.appendChild(h("p", { class: "setup-note", text: "Las sesiones del tablero y VS Code, en los dos ordenadores, usan un token de un año que no depende del /login. Renuévalo si caduca, si te quitan el acceso o si las sesiones caen todas con «Failed to authenticate». Se puede renovar antes de tiempo: si tu navegador aún tiene abierta la sesión de claude.ai con la cuenta de empresa, autorizas tú solo." }));
+  const exp = (mine && mine.expires) || (theirs && theirs.expires);
+  if (exp) box.appendChild(h("p", { class: "token-exp" }, [h("strong", { text: `Caduca el ${fmtDate(exp)}` }), h("span", { class: "meta", text: " · sesiones y VS Code, en los dos ordenadores" })]));
+  box.appendChild(h("p", { class: "meta", text: "Renuévalo si caduca, si te quitan el acceso o si todas las sesiones caen con «Failed to authenticate». Si tu navegador sigue dentro de claude.ai con la cuenta de empresa, lo autorizas tú solo." }));
   box.appendChild(h("div", { class: "actions" }, [startButton("Renovar token de Claude")]));
   return box;
 }
@@ -160,11 +174,15 @@ export function renderMachines(root) {
     return root.appendChild(empty("Mirando los equipos…", ""));
   }
   if (data.error) return root.appendChild(h("div", { class: "setup-note warn", text: data.error }));
-  root.appendChild(h("p", { class: "setup-note", text: "El mando solo cambia cuando tú lo pasas con el botón, o si el que manda deja de responder (apagado o suspendido): entonces el otro lo toma al minuto y lo conserva cuando el primero vuelve. Al encender por la mañana, un ordenador solo coge el mando si no manda ninguno." }));
   if (!data.devices) return root.appendChild(empty("No se pudo leer Tailscale en este ordenador.", ""));
-  root.appendChild(h("div", { class: "cards" }, data.devices.map(card)));
-  root.appendChild(macSchedule());
-  root.appendChild(tokenRenew());
+  root.appendChild(h("div", { class: "dev-grid" }, data.devices.map(card)));
+  root.appendChild(
+    h("details", { class: "dev-help" }, [
+      h("summary", { text: "¿Cuándo cambia el mando?" }),
+      h("p", { text: "Solo cuando tú lo pasas con el botón, o si el que manda deja de responder (apagado o suspendido): entonces el otro lo toma al minuto y lo conserva cuando el primero vuelve. Al encender por la mañana, un ordenador solo coge el mando si no manda ninguno." }),
+    ])
+  );
+  root.appendChild(h("div", { class: "settings-grid" }, [macSchedule(), tokenRenew()]));
   if (!jobLoaded) pollJob();
 }
 
@@ -183,8 +201,9 @@ function macSchedule() {
   });
   const kids = [
     h("h3", { text: "Horario del Mac" }),
-    h("p", { class: "meta", text: "De lunes a viernes se despierta solo a la primera hora y se duerme a la segunda. Entre medias no se duerme, ni con la tapa cerrada, esté o no enchufado: vigila la batería arriba. Si baja del 10 % sin cargar, se deja dormir para no apagarse de golpe." }),
-    h("div", { class: "schedule-row" }, [h("label", {}, ["Se despierta ", wake]), h("label", {}, ["Se duerme ", sleep]), save]),
+    h("p", { class: "meta", text: "De lunes a viernes. Entre las dos horas no se duerme, ni con la tapa cerrada ni sin cargador; si baja del 10 % sin cargar, se deja dormir." }),
+    h("div", { class: "schedule-row" }, [h("label", {}, [h("span", { text: "Se despierta" }), wake]), h("label", {}, [h("span", { text: "Se duerme" }), sleep])]),
+    h("div", { class: "actions" }, [save]),
   ];
   if (mp && mp.allowed === false)
     kids.push(
@@ -194,5 +213,5 @@ function macSchedule() {
         h("p", { class: "meta", text: "Solo permite al tablero usar pmset, el ajuste de energía del Mac; nada más." }),
       ])
     );
-  return h("section", { class: "card mac-schedule" }, kids);
+  return h("section", { class: "card setting-card mac-schedule" }, kids);
 }
