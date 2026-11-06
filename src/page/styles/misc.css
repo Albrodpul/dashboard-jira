@@ -13,16 +13,43 @@
   .top-search .find-box { margin: 0; }
   .top-search .find-input { padding: 7px 12px; }
 }
-.token-renew { margin-top: 18px; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 14px 16px; max-width: 820px; display: flex; flex-direction: column; gap: 10px; }
-.token-renew h3 { margin: 0; font-size: 15px; font-weight: 600; }
 .token-renew .setup-note { margin: 0; }
 .token-code { font: inherit; color: var(--ink); background: var(--surface-2); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; flex: 1 1 260px; min-width: 0; }
 .token-tail { margin: 0; padding: 8px 10px; background: var(--surface-2); border-radius: 6px; font-family: var(--mono); font-size: 12px; color: var(--ink-2); white-space: pre-wrap; overflow-wrap: anywhere; max-height: 160px; overflow: auto; }
 
-.mac-schedule { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
-.mac-schedule h3 { margin: 0; font-size: 15px; }
-.mac-schedule .meta { margin: 0; }
-.schedule-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
-.schedule-row label { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; }
 .time-input { font: inherit; padding: 4px 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink); }
 .mac-schedule code.cmd { display: block; font-family: var(--mono); font-size: 12.5px; padding: 8px 10px; background: var(--surface-2); border-radius: 6px; overflow-wrap: anywhere; user-select: all; }
+
+.dev-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; }
+.dev-card { display: flex; flex-direction: column; gap: 14px; padding: 16px 18px; }
+.dev-card.is-commander { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+.dev-card.offline { opacity: 0.7; }
+.dev-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; }
+.dev-icon { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 10px; background: var(--surface-2); color: var(--ink-2); }
+.dev-card.is-commander .dev-icon { background: var(--accent-soft); color: var(--accent); }
+.dev-title { display: flex; flex-direction: column; min-width: 0; }
+.dev-title strong { font-size: 17px; font-weight: 600; }
+.dev-title .meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dev-status { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--surface-2); color: var(--ink-2); }
+.dev-status .dot { width: 7px; height: 7px; }
+.dev-status.on { background: var(--ok-soft); color: var(--ok); }
+.dev-status.on .dot { background: var(--ok); box-shadow: none; }
+.dev-status.off, .dev-status.warn { background: var(--danger-soft); color: var(--danger); }
+.dev-status.off .dot, .dev-status.warn .dot { background: var(--danger); box-shadow: none; }
+.dev-rows { display: flex; flex-direction: column; }
+.dev-row { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 10px; align-items: center; padding: 7px 0; font-size: 13.5px; }
+.dev-row + .dev-row { border-top: 1px solid var(--line); }
+.dev-label { color: var(--ink-3); font-size: 12px; }
+.dev-value { color: var(--ink); overflow-wrap: anywhere; min-width: 0; }
+.dev-battery { display: inline-flex; align-items: center; gap: 8px; }
+.dev-help { margin-top: 10px; font-size: 13px; color: var(--ink-2); }
+.dev-help summary { cursor: pointer; color: var(--ink-3); width: fit-content; }
+.dev-help p { margin: 6px 0 0; max-width: 760px; line-height: 1.5; }
+.settings-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; margin-top: 18px; align-items: start; }
+.setting-card { display: flex; flex-direction: column; gap: 10px; padding: 16px 18px; }
+.setting-card h3 { margin: 0; font-size: 15px; font-weight: 600; }
+.setting-card .meta, .setting-card .setup-note { margin: 0; }
+.schedule-row { display: flex; flex-wrap: wrap; gap: 12px; }
+.schedule-row label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--ink-3); }
+.schedule-row .time-input { font-size: 18px; font-variant-numeric: tabular-nums; padding: 6px 10px; }
+.token-exp { margin: 0; font-size: 14px; }
