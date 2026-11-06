@@ -86,8 +86,23 @@ async function fetchQuota() {
   const fresh = await quotaFromPeer();
   if (fresh && Date.now() - new Date(fresh.at).getTime() < 30 * 60000) return fresh;
   const backup = require("../sessions/registry").sessionToken();
-  if (!backup || Date.now() < waitUntil()) return fresh;
-  return askUsage(backup);
+  return backup ? quotaFromHeaders(backup) : fresh;
+}
+
+async function quotaFromHeaders(token) {
+  const r = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "anthropic-version": "2023-06-01", "anthropic-beta": "oauth-2025-04-20", "content-type": "application/json" },
+    body: JSON.stringify({ model: "claude-haiku-4-5", max_tokens: 1, system: "You are Claude Code, Anthropic's official CLI for Claude.", messages: [{ role: "user", content: "ok" }] }),
+  });
+  const quota = { at: new Date().toISOString(), source: "headers" };
+  for (const [k, name] of [["seven_day", "7d"], ["five_hour", "5h"]]) {
+    const used = Number(r.headers.get(`anthropic-ratelimit-unified-${name}-utilization`));
+    const reset = Number(r.headers.get(`anthropic-ratelimit-unified-${name}-reset`));
+    if (r.headers.has(`anthropic-ratelimit-unified-${name}-utilization`) && Number.isFinite(used)) quota[k] = { used: Math.round(used * 100), resetsAt: reset ? new Date(reset * 1000).toISOString() : null };
+  }
+  if (!quota.seven_day && !quota.five_hour) throw new Error(`la llamada de cuota respondió ${r.status} sin cabeceras de límite`);
+  return saveQuota(quota);
 }
 
 module.exports = { readQuota, fetchQuota };
