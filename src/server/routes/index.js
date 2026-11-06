@@ -221,24 +221,6 @@ function handleGet(req, res, url) {
   if (url === "/api/push/reason") return serveBody(res, "application/json", JSON.stringify(pushReason()));
   if (url === "/api/push/key") return serveBody(res, "application/json", JSON.stringify({ key: pushKeys().publicKey }));
   if (url.startsWith("/api/permission/perm-")) return serveBody(res, "application/json", JSON.stringify(permissions.poll(url.slice("/api/permission/".length))));
-  if (url === "/api/cluster/logs") {
-    const tail = (f) => {
-      try {
-        return fs.readFileSync(path.join(DATA_DIR, f), "utf8").split("\n").slice(-40).join("\n");
-      } catch (e) {
-        return "";
-      }
-    };
-    return serveBody(res, "application/json", JSON.stringify({ host: tail("host.log"), cluster: tail("cluster.log"), startup: tail("startup.log") }));
-  }
-  if (url === "/api/cluster/procs" && process.platform === "win32") {
-    const script = "$c=(Get-Date).AddMinutes(-3); Get-CimInstance Win32_Process | Where-Object { $_.CreationDate -gt $c } | ForEach-Object { $p=Get-CimInstance Win32_Process -Filter ('ProcessId=' + $_.ParentProcessId) -ErrorAction SilentlyContinue; [pscustomobject]@{ at=$_.CreationDate.ToString('HH:mm:ss'); name=$_.Name; parent=$(if ($p) { $p.Name } else { '' }); cmd=([string]$_.CommandLine).Substring(0, [Math]::Min(140, ([string]$_.CommandLine).Length)) } } | ConvertTo-Json -Compress";
-    let out = "[]";
-    try {
-      out = require("child_process").execFileSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], { windowsHide: true, encoding: "utf8", timeout: 30000 }) || "[]";
-    } catch (e) {}
-    return serveBody(res, "application/json", out);
-  }
   if (url === "/api/cluster/quota") return serveBody(res, "application/json", JSON.stringify(require("../../features/quota").readQuota()));
   if (url === "/api/cluster/memory") return serveBody(res, "application/json", JSON.stringify({ files: require("../../features/memory-sync").memoryFiles() }));
   if (url === "/api/cluster") return serveBody(res, "application/json", JSON.stringify(require("../../cluster/cluster").info()));
