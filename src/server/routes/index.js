@@ -202,10 +202,19 @@ const POST_ROUTES = {
       .catch((e) => send(res, 500, { error: String(e.message || e) }));
   },
   "/api/devservers": (res, { action, id }, send) => {
+    if (require("../../features/tunnel").status().open) return send(res, 409, { error: "los proyectos están abiertos en el otro ordenador: cierra antes el túnel" });
     const run = { start: () => devservers.start(id), stop: () => devservers.stop(id), restart: () => devservers.restart(id), startAll: () => devservers.startAll(false), stopAll: devservers.stopAll }[action];
     if (!run) return send(res, 400, { error: "acción desconocida" });
     run()
       .then((r) => send(res, 200, { result: r }))
+      .catch((e) => send(res, 500, { error: String(e.message || e) }));
+  },
+  "/api/tunnel": (res, { action }, send) => {
+    const tunnel = require("../../features/tunnel");
+    const run = { open: tunnel.open, close: async () => tunnel.close() }[action];
+    if (!run) return send(res, 400, { error: "acción desconocida" });
+    run()
+      .then((t) => send(res, 200, t))
       .catch((e) => send(res, 500, { error: String(e.message || e) }));
   },
   "/api/sentry/status": (res, { issueId, id, status }, send) => {

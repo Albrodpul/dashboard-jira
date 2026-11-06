@@ -92,6 +92,9 @@
 }
 
 .proj-summary { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+.proj-tunnel { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.proj-tunnel.open { border-color: var(--accent); }
+.proj-tunnel-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1 1 280px; }
 .proj-count { font-size: 15px; }
 .proj-count strong { font-size: 18px; font-weight: 600; }
 .proj-bulk { display: flex; gap: 8px; }
