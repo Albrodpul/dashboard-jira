@@ -148,11 +148,7 @@ export function quotaBlock() {
 function quotaMeter(c, k, name, main) {
   const used = Math.round(c[k].used);
   const level = used >= 90 ? " high" : used >= 70 ? " medium" : "";
-  return h("span", { class: `quota-meter${level}${main ? "" : " minor"}`, title: `${name}: ${used} % usado, ${resets(c[k].resetsAt)}` }, [
-    h("span", { class: "quota-name", text: name }),
-    h("span", { class: "quota-bar" }, [h("span", { class: "quota-fill", style: `width:${Math.min(100, used)}%` })]),
-    h("b", { text: `${used}%` }),
-  ]);
+  return h("span", { class: `quota-meter${level}${main ? "" : " minor"}`, title: `${main ? "Semana" : name}: ${used} % usado, ${resets(c[k].resetsAt)}` }, [main ? null : h("span", { class: "quota-name", text: name }), h("b", { text: `${used}%` })]);
 }
 
 function quotaBlockInner() {
