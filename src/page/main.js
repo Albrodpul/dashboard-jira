@@ -295,6 +295,12 @@ function paint() {
     const text = stale ? `${stale}: el otro no responde` : c.role === "primary" ? `Manda el ${c.label || "ordenador"}` : "Sin ordenador al mando";
     right.appendChild(h("span", { class: `commander${stale || c.role !== "primary" ? " warn" : ""}`, title: c.role === "primary" ? `Manda desde ${new Date(c.since).toLocaleString("es-ES")}` : "", text }));
   }
+  const bat = c && c.macPower && c.macPower.battery;
+  if (bat) {
+    const low = !bat.charging && !bat.onAC && bat.percent <= 20;
+    const label = bat.charging ? `Mac ${bat.percent} % · cargando` : bat.onAC && bat.percent >= 99 ? `Mac ${bat.percent} % · cargado` : bat.onAC ? `Mac ${bat.percent} % · enchufado` : `Mac ${bat.percent} %`;
+    right.appendChild(h("span", { class: `mac-battery${low ? " low" : ""}${bat.charging ? " charging" : ""}`, title: `Batería del Mac a las ${new Date(bat.at).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}`, text: label }));
+  }
   right.appendChild(quotaBlock());
   document.querySelector(".app").setAttribute("data-view", state.tab);
   const board = !mobile && isTaskTab(state.tab) && state.tab !== "ignored" && taskView() === "board";

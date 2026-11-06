@@ -163,6 +163,36 @@ export function renderMachines(root) {
   root.appendChild(h("p", { class: "setup-note", text: "El mando solo cambia cuando tú lo pasas con el botón, o si el que manda deja de responder (apagado o suspendido): entonces el otro lo toma al minuto y lo conserva cuando el primero vuelve. Al encender por la mañana, un ordenador solo coge el mando si no manda ninguno." }));
   if (!data.devices) return root.appendChild(empty("No se pudo leer Tailscale en este ordenador.", ""));
   root.appendChild(h("div", { class: "cards" }, data.devices.map(card)));
+  root.appendChild(macSchedule());
   root.appendChild(tokenRenew());
   if (!jobLoaded) pollJob();
+}
+
+function macSchedule() {
+  const mp = (state.cluster && state.cluster.macPower) || null;
+  const s = (mp && mp.schedule) || { wake: "06:00", sleep: "21:00" };
+  const wake = h("input", { type: "time", value: s.wake, class: "time-input" });
+  const sleep = h("input", { type: "time", value: s.sleep, class: "time-input" });
+  const save = button("Guardar", {
+    onClick: (b) => {
+      b.disabled = true;
+      requestOrFail("/api/mac-power", { wake: wake.value, sleep: sleep.value })
+        .then(() => toast(`El Mac se despertará a las ${wake.value} y se dormirá a las ${sleep.value}, de lunes a viernes.`))
+        .finally(() => (b.disabled = false));
+    },
+  });
+  const kids = [
+    h("h3", { text: "Horario del Mac" }),
+    h("p", { class: "meta", text: "De lunes a viernes se despierta solo a la primera hora y se duerme a la segunda. Entre medias no se duerme, ni con la tapa cerrada, esté o no enchufado: vigila la batería arriba. Si baja del 10 % sin cargar, se deja dormir para no apagarse de golpe." }),
+    h("div", { class: "schedule-row" }, [h("label", {}, ["Se despierta ", wake]), h("label", {}, ["Se duerme ", sleep]), save]),
+  ];
+  if (mp && mp.allowed === false)
+    kids.push(
+      h("div", { class: "setup-note warn" }, [
+        h("p", { text: "Falta un permiso para que el Mac pueda programar su despertar y quedarse despierto con la tapa cerrada. Ejecuta esto una vez en la terminal del Mac (te pedirá tu contraseña):" }),
+        h("code", { class: "cmd", text: "echo \"$(whoami) ALL=(root) NOPASSWD: /usr/bin/pmset\" | sudo tee /etc/sudoers.d/nutria-pmset" }),
+        h("p", { class: "meta", text: "Solo permite al tablero usar pmset, el ajuste de energía del Mac; nada más." }),
+      ])
+    );
+  return h("section", { class: "card mac-schedule" }, kids);
 }

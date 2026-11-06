@@ -190,6 +190,11 @@ const POST_ROUTES = {
     send(res, 200);
   },
   "/api/permission/rule-remove": (res, { key }, send) => send(res, permissions.removeRule(String(key)) ? 200 : 404),
+  "/api/mac-power": (res, { wake, sleep }, send) => {
+    const ok = (t) => !t || /^([01]\d|2[0-3]):[0-5]\d$/.test(t);
+    if (!ok(wake) || !ok(sleep)) return send(res, 400, { error: "hora no válida (HH:MM)" });
+    send(res, 200, { schedule: require("../../features/mac-power").setSchedule({ wake, sleep }) });
+  },
   "/api/overtime": (res, { on }, send) => {
     require("../startup")
       .setOvertime(!!on)
