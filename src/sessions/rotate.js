@@ -38,8 +38,32 @@ async function freshConversation(role, fallbackName) {
   return true;
 }
 
+const LATEST = 10 * 60;
+
+function morning() {
+  const t = require("../core/hours").clock();
+  return !t.weekend && t.min < LATEST;
+}
+
 async function rotateDaily() {
+  if (!morning()) return;
   for (const [role, name] of ROLES) await freshConversation(role, name);
 }
 
-module.exports = { rotateDaily };
+let busy = false;
+
+async function rotateIfMorning() {
+  if (busy || !require("../cluster/cluster").isPrimary()) return;
+  const t = require("../core/hours").clock();
+  if (t.weekend || t.min < 7 * 60 + 30 || t.min >= LATEST) return;
+  const routes = require("./registry").loadRoutes();
+  if (ROLES.every(([role]) => !routes[role] || routes[role].rotatedOn === today())) return;
+  busy = true;
+  try {
+    require("../server/startup").launchStartup();
+  } finally {
+    setTimeout(() => (busy = false), 10 * 60 * 1000);
+  }
+}
+
+module.exports = { rotateDaily, rotateIfMorning };
