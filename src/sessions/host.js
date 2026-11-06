@@ -51,6 +51,10 @@ function serve() {
   function spawn(entry, notify) {
     const prev = sessions.get(entry.conversation);
     if (prev && prev.pty) return prev;
+    if (!require("../cluster/cluster").primaryNow()) {
+      log(`no arranco ${entry.name}: este ordenador no manda`);
+      return prev || null;
+    }
     if (notify) setTimeout(() => tellBoard(entry.conversation), 20000);
     const s = prev || { conversation: entry.conversation, name: entry.name, buffer: "", clients: new Set(), cols: 120, rows: 40, restarts: 0 };
     s.name = entry.name;
@@ -220,6 +224,10 @@ function serve() {
   });
 
   setInterval(() => {
+    if (!require("../cluster/cluster").primaryNow()) {
+      for (const [conversation, s] of sessions) if (s.pty && stop(conversation)) log(`paro ${s.name}: este ordenador ya no manda`);
+      return;
+    }
     const list = readConfig();
     let changed = false;
     for (const e of list) {
