@@ -86,8 +86,10 @@ function fail(text) {
 }
 
 function launchServer(message) {
-  cp.spawn(process.execPath, [ENTRY, "serve"], { detached: true, stdio: "ignore", windowsHide: true }).unref();
-  setTimeout(() => ping((ok) => console.log(ok ? `${message}: ${BASE_URL}` : "No se pudo arrancar el tablero")), 800);
+  const agent = require("./core/mac-agent");
+  const viaAgent = agent.isMac && agent.loaded() && agent.kickstart();
+  if (!viaAgent) cp.spawn(process.execPath, [ENTRY, "serve"], { detached: true, stdio: "ignore", windowsHide: true }).unref();
+  setTimeout(() => ping((ok) => console.log(ok ? `${message}: ${BASE_URL}` : "No se pudo arrancar el tablero")), viaAgent ? 6000 : 800);
 }
 
 function destinationOf(s) {

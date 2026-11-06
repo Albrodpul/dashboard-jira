@@ -122,6 +122,15 @@ function proxyTerminalToPrimary(req, socket, head) {
 }
 
 function serve() {
+  const agent = require("../core/mac-agent");
+  if (agent.isMac && !agent.underAgent()) {
+    const { DATA_DIR } = require("../core/data");
+    const config = require("../core/config");
+    if (agent.install(require("path").join(__dirname, "..", "cli.js"), config.workspace, require("path").join(DATA_DIR, "serve.log"))) {
+      console.log("NutrIA pasa a ejecutarse como servicio del Mac (launchd), que lo mantiene siempre en marcha.");
+      return process.exit(0);
+    }
+  }
   const server = http.createServer(handle);
   server.on("upgrade", proxyTerminal);
   host.ensureHost().catch(() => {});
