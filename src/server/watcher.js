@@ -117,7 +117,7 @@ function watchDispatches() {
     announceNew(
       () => [load().contextTidy].filter((o) => o && o.status === "approved" && o.approvedVia === "board"),
       (o) => o.id,
-      (xs) => `TIDY ${xs[0].id}: ${ME} ha pulsado Ordenar contexto. Hazlo ya con los pasos de «Ordenar contexto» de ${ORCHESTRA}.`
+      (xs) => `TIDY ${xs[0].id}: ${ME} ha pulsado Ordenar contexto. Relee ahora la sección «Ordenar contexto» de ${ORCHESTRA} y síguela: la ordenación la hace un subagente (Agent con model opus y effort medium), no tú.`
     ),
     1000
   );
