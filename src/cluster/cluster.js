@@ -82,6 +82,36 @@ function transcriptPath(conversation) {
   return null;
 }
 
+function lastReply(conversation) {
+  if (!/^[0-9a-f-]{36}$/.test(conversation)) return null;
+  const f = transcriptPath(conversation);
+  if (!f) return null;
+  const size = fs.statSync(f).size;
+  const fd = fs.openSync(f, "r");
+  const len = Math.min(size, 4 * 1024 * 1024);
+  const buf = Buffer.alloc(len);
+  fs.readSync(fd, buf, 0, len, size - len);
+  fs.closeSync(fd);
+  const lines = buf.toString("utf8").split("\n");
+  const parts = [];
+  for (let i = lines.length - 1; i >= 0; i--) {
+    let e;
+    try {
+      e = JSON.parse(lines[i]);
+    } catch (x) {
+      continue;
+    }
+    if (e.isSidechain) continue;
+    const content = e.message && e.message.content;
+    if (e.type === "user" && !e.isMeta && (typeof content === "string" || (Array.isArray(content) && content.some((c) => c.type === "text")))) {
+      if (parts.length) break;
+      continue;
+    }
+    if (e.type === "assistant" && Array.isArray(content)) for (const c of [...content].reverse()) if (c.type === "text" && c.text.trim()) parts.unshift(c.text.trim());
+  }
+  return parts.join("\n\n");
+}
+
 function transcripts() {
   const out = [];
   for (const e of require("../sessions/host").readConfig()) {
@@ -522,4 +552,4 @@ async function machines() {
   return { self: info(), peer, devices };
 }
 
-module.exports = { isPrimary, primaryNow, info, peerGet, projectDir, keepAwake, letSleep, snapshot, transcripts, serveTranscript, tick, handleYield, command, takeHere, backToAuto, machines, sendClaudeToken, clusterEnabled: () => !!CLUSTER };
+module.exports = { lastReply, isPrimary, primaryNow, info, peerGet, projectDir, keepAwake, letSleep, snapshot, transcripts, serveTranscript, tick, handleYield, command, takeHere, backToAuto, machines, sendClaudeToken, clusterEnabled: () => !!CLUSTER };

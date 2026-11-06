@@ -259,6 +259,10 @@ function handleGet(req, res, url) {
       .catch(() => serveBody(res, "application/json", JSON.stringify({ up: false, sessions: [], hosted: host.readConfig() })));
     return true;
   }
+  if (url.startsWith("/api/last-reply/")) {
+    const text = cluster.lastReply(url.slice("/api/last-reply/".length));
+    return serveBody(res, "application/json", JSON.stringify({ text: text || "" }));
+  }
   if (url === "/api/tunnel") {
     const tunnel = require("../../features/tunnel");
     tunnel
