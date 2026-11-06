@@ -112,7 +112,8 @@ function createPanel(conversation, name, onClose) {
   const dot = h("span", { class: "dot", "aria-hidden": "true" });
   const activity = h("span", { class: "term-activity" });
   const adjust = h("button", { class: "btn subtle term-adjust", type: "button", hidden: true, text: "Ajustar a esta pantalla", title: "Otro dispositivo tiene la sesión a su tamaño. Pulsa para ponerla al de esta pantalla." });
-  const head = [h("span", { class: "term-title" }, [dot, h("strong", { text: name }), h("span", { class: "term-sub" }, [activity, status])]), adjust, profileControls(conversation, name)];
+  const copyBtn = h("button", { class: "btn subtle term-copy", type: "button", text: "Copiar", title: "Copiar la última respuesta o lo que se ve en pantalla", onclick: () => openCopySheet(panel, conversation) });
+  const head = [h("span", { class: "term-title" }, [dot, h("strong", { text: name }), h("span", { class: "term-sub" }, [activity, status])]), adjust, copyBtn, profileControls(conversation, name)];
   if (onClose) head.push(h("button", { class: "btn subtle", type: "button", text: "Cerrar", onclick: onClose }));
   const input = h("textarea", { class: "term-input", rows: "1", placeholder: "Escribe aquí y pulsa Enviar", "aria-label": `Escribir a ${name}` });
   const sendBtn = h("button", { class: "btn primary", type: "button", text: "Enviar" });
@@ -220,6 +221,29 @@ function createPanel(conversation, name, onClose) {
         copyText(term.getSelection());
         term.clearSelection();
         e.preventDefault();
+        return false;
+      });
+      const MOUSE = new Set([9, 1000, 1001, 1002, 1003, 1005, 1006, 1015, 1016]);
+      let appMouse = false;
+      const keepMouseLocal = (final) => (params) => {
+        const ps = (Array.isArray(params) ? params : params.toArray()).map((p) => (Array.isArray(p) ? p[0] : p));
+        if (!ps.some((p) => MOUSE.has(p))) return false;
+        if (ps.some((p) => p >= 1000 && p <= 1003)) appMouse = final === "h";
+        const rest = ps.filter((p) => !MOUSE.has(p));
+        if (rest.length) term.write(`\x1b[?${rest.join(";")}${final}`);
+        return true;
+      };
+      term.parser.registerCsiHandler({ prefix: "?", final: "h" }, keepMouseLocal("h"));
+      term.parser.registerCsiHandler({ prefix: "?", final: "l" }, keepMouseLocal("l"));
+      let wheel = 0;
+      term.attachCustomWheelEventHandler((e) => {
+        if (!appMouse || term.buffer.active.type !== "alternate") return true;
+        e.preventDefault();
+        wheel += e.deltaMode === 1 ? e.deltaY * 20 : e.deltaY;
+        while (Math.abs(wheel) >= 40) {
+          panel.send(wheel < 0 ? "\x1b[<64;1;1M" : "\x1b[<65;1;1M");
+          wheel += wheel < 0 ? 40 : -40;
+        }
         return false;
       });
       term.parser.registerOscHandler(52, (data) => {
@@ -455,6 +479,49 @@ export function livePanel(conversation, name) {
     if (entering) setTimeout(() => p.claim("entrar"), 150);
   });
   return p.root;
+}
+
+function screenText(term) {
+  if (!term) return "";
+  const b = term.buffer.active;
+  const out = [];
+  for (let i = 0; i < b.length; i++) {
+    const line = b.getLine(i);
+    out.push(line ? line.translateToString(true) : "");
+  }
+  return out.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+
+function openCopySheet(panel, conversation) {
+  const old = panel.root.querySelector(".term-copysheet");
+  if (old) return old.remove();
+  const area = h("textarea", { class: "term-copytext", readonly: true, "aria-label": "Texto para copiar" });
+  const tabs = {};
+  const show = (which) => {
+    Object.entries(tabs).forEach(([k, b]) => b.classList.toggle("on", k === which));
+    if (which === "screen") {
+      area.value = screenText(panel.term);
+      return;
+    }
+    area.value = "Cargando…";
+    fetch(`/api/last-reply/${conversation}`, { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => (area.value = d.text || "No encuentro ninguna respuesta todavía."))
+      .catch(() => (area.value = "No se pudo leer la respuesta."));
+  };
+  tabs.reply = h("button", { type: "button", class: "term-copytab", text: "Última respuesta", onclick: () => show("reply") });
+  tabs.screen = h("button", { type: "button", class: "term-copytab", text: "Lo que se ve", onclick: () => show("screen") });
+  const sheet = h("div", { class: "term-copysheet" }, [
+    h("div", { class: "term-copyhead" }, [
+      h("div", { class: "term-copytabs" }, [tabs.reply, tabs.screen]),
+      h("button", { type: "button", class: "btn primary", text: "Copiar todo", onclick: () => copyText(area.value) }),
+      h("button", { type: "button", class: "btn subtle", text: "Cerrar", onclick: () => sheet.remove() }),
+    ]),
+    h("p", { class: "meta term-copyhint", text: "Pulsa «Copiar todo», o marca un trozo con el ratón y Ctrl+C (Cmd+C en el Mac)." }),
+    area,
+  ]);
+  panel.root.querySelector(".term-wrap").appendChild(sheet);
+  show("reply");
 }
 
 function copyText(text) {
