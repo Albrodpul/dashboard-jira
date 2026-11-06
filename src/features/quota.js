@@ -37,14 +37,24 @@ const waitUntil = () => {
   }
 };
 
-async function fetchQuota() {
-  if (!require("../cluster/cluster").isPrimary()) return null;
-  if (Date.now() < waitUntil()) return null;
-  const raw = readCredentials();
-  const oauth = raw ? JSON.parse(raw).claudeAiOauth : null;
-  const live = oauth && oauth.accessToken && !(oauth.expiresAt && oauth.expiresAt < Date.now()) ? oauth.accessToken : null;
-  const token = live || require("../sessions/registry").sessionToken();
-  if (!token) return null;
+function loginToken() {
+  try {
+    const raw = readCredentials();
+    const oauth = raw ? JSON.parse(raw).claudeAiOauth : null;
+    return oauth && oauth.accessToken && !(oauth.expiresAt && oauth.expiresAt < Date.now()) ? oauth.accessToken : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function saveQuota(quota) {
+  const tmp = `${FILE}.${process.pid}.tmp`;
+  fs.writeFileSync(tmp, JSON.stringify(quota));
+  fs.renameSync(tmp, FILE);
+  return quota;
+}
+
+async function askUsage(token) {
   const r = await fetch(USAGE_URL, { headers: { Authorization: `Bearer ${token}`, "anthropic-beta": "oauth-2025-04-20" } });
   if (r.status === 429) {
     const seconds = Number(r.headers.get("retry-after")) || 1800;
@@ -55,10 +65,29 @@ async function fetchQuota() {
   const j = await r.json();
   const quota = { at: new Date().toISOString() };
   for (const k of WINDOWS) if (j[k] && typeof j[k].utilization === "number") quota[k] = { used: j[k].utilization, resetsAt: j[k].resets_at || null };
-  const tmp = `${FILE}.${process.pid}.tmp`;
-  fs.writeFileSync(tmp, JSON.stringify(quota));
-  fs.renameSync(tmp, FILE);
-  return quota;
+  return saveQuota(quota);
+}
+
+async function quotaFromPeer() {
+  const cluster = require("../cluster/cluster");
+  if (!cluster.clusterEnabled()) return null;
+  const theirs = await cluster.peerGet("/api/cluster/quota", 8000);
+  const mine = readQuota();
+  if (!theirs || !theirs.at || (mine && mine.at >= theirs.at)) return null;
+  return saveQuota(theirs);
+}
+
+async function fetchQuota() {
+  const primary = require("../cluster/cluster").isPrimary();
+  const login = loginToken();
+  if (!primary && !login) return null;
+  if (login && Date.now() >= waitUntil()) return askUsage(login);
+  if (!primary) return null;
+  const fresh = await quotaFromPeer();
+  if (fresh && Date.now() - new Date(fresh.at).getTime() < 30 * 60000) return fresh;
+  const backup = require("../sessions/registry").sessionToken();
+  if (!backup || Date.now() < waitUntil()) return fresh;
+  return askUsage(backup);
 }
 
 module.exports = { readQuota, fetchQuota };
