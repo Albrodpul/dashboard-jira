@@ -1,4 +1,4 @@
-import { state, h, when, minutesSince, switchView, empty, fixedAreaIds, button, post, toast, refresh } from "../lib/base.js";
+import { state, h, when, minutesSince, switchView, empty, fixedAreaIds, button, post, toast } from "../lib/base.js";
 
 
 const GROUPS = [
@@ -6,7 +6,7 @@ const GROUPS = [
   ["blocked", "Bloqueadas", "Paradas con algo pendiente: te esperan, a medias o sin avisar de una tarea enviada."],
   ["free", "Libres", "Abiertas y sin nada entre manos."],
 ];
-const BOARD = ["free", "working", "blocked"];
+const BOARD = ["working", "blocked", "free"];
 const DOTS = { working: "busy", blocked: "bad", free: "on" };
 const SILENT_MIN = 5;
 
@@ -72,40 +72,7 @@ const vsCodeLink = (s) => {
   return h("a", { class: "btn link", href: `vscode://anthropic.claude-code/open?session=${encodeURIComponent(s.conversation)}`, text: "Ir a su pestaña" });
 };
 
-function sessionRow(s, group) {
-  const t = s.reason && s.reason.task;
-  const others = s.tasks.filter((x) => x !== t);
-  const detail = [];
-  if (s.reason) detail.push(h("b", { text: s.reason.text + (t ? " " : "") }), t ? h("button", { class: "task-link", type: "button", text: t.key, title: t.title, onclick: () => switchView(s.reason.view) }) : null);
-  else if (group === "working") detail.push("Trabajando");
-  else detail.push("Libre");
-  if (others.length) detail.push(` · con ${others.map((x) => x.key).join(", ")}`);
-  if (s.subagents) detail.push(` · ${s.subagents === 1 ? "un subagente" : `${s.subagents} subagentes`}`);
-  return h("div", { class: `session-row ${group}` }, [
-    h("span", { class: `dot ${DOTS[group]}` }),
-    h("div", { class: "session-main" }, [h("strong", { class: "session-title", text: s.name }), h("div", { class: "session-detail" }, detail)]),
-    h("span", { class: "time", text: s.since ? `desde ${when(s.since)}` : "" }),
-    vsCodeLink(s),
-  ]);
-}
 
-function sessionsSection(root, s) {
-  const order = ["blocked", "working", "free"];
-  const total = order.reduce((n, id) => n + s[id].length, 0);
-  const LABEL = { blocked: ["bloqueada", "bloqueadas"], working: ["trabajando", "trabajando"], free: ["libre", "libres"] };
-  const summary = order.filter((id) => s[id].length).map((id) => `${s[id].length} ${LABEL[id][s[id].length === 1 ? 0 : 1]}`);
-  const head = h("div", { class: "home-section-head" }, [h("h3", { text: "Sesiones" }), h("span", { class: "meta", text: summary.join(" · ") })]);
-  const rows = order.flatMap((id) => s[id].map((x) => sessionRow(x, id)));
-  const list = total ? h("div", { class: "session-list" }, rows) : h("div", { class: "session-list empty-list" }, [h("span", { class: "meta", text: "No hay sesiones de área abiertas. Las que abras aparecen aquí solas." })]);
-  const system = s.system.length
-    ? h(
-        "div",
-        { class: "system-chips" },
-        [h("span", { class: "meta", text: "Del tablero" }), ...s.system.map((x) => h("span", { class: "system-chip", title: x.working ? "Trabajando" : x.open ? "Abierta" : "Cerrada" }, [h("span", { class: `dot ${x.working ? "busy" : x.open ? "on" : ""}` }), x.name]))]
-      )
-    : null;
-  root.appendChild(h("section", { class: "home-section" }, [head, list, system]));
-}
 
 export function homeAlerts(items) {
   const cs = state.contextSync;
@@ -122,232 +89,35 @@ export function shortcuts(root) {
     ["pending", "Pendientes", ["pending"]],
     ["waiting", "Te esperan", ["waiting", "partial"]],
     ["sent", "En curso", ["sent"]],
-    ["done", "Hechas por revisar", ["done"]],
+    ["done", "Hechas", ["done"]],
   ].map(([id, label, statuses]) => [id, label, count(statuses) + (id === "waiting" ? ((state.permissions && state.permissions.pending) || []).length : 0)]);
   root.appendChild(h("div", { class: "shortcuts" }, data.map(([id, label, n]) => h("button", { type: "button", class: `shortcut${n ? " filled" : ""}${id === "waiting" && n ? " urgent" : ""}`, onclick: () => switchView(id) }, [h("strong", { text: String(n) }), h("span", { text: label })]))));
 }
 
-let dailyAsked = null;
-
-function dailyLines(text) {
-  const raw = String(text).split("\n");
-  const title = (raw.find((l) => l.trim()) || "").trim();
-  const items = [];
-  let group = null;
-  let sub = null;
-  const section = (t) => /:$/.test(t) && t.split(/\s+/).length <= 3;
-  for (const line of raw.slice(raw.findIndex((l) => l.trim()) + 1)) {
-    if (!line.trim()) {
-      if (sub) sub = null;
-      else group = null;
-      continue;
-    }
-    const t = line.trim().replace(/^[-•*◦]\s+/, "");
-    const node = { text: t, children: [] };
-    if (group && section(t)) {
-      sub = node;
-      group.children.push(node);
-    } else if (/:$/.test(t)) {
-      items.push(node);
-      group = node;
-      sub = null;
-    } else if (sub) sub.children.push(node);
-    else if (group) group.children.push(node);
-    else items.push(node);
+function sessionCard(s, group) {
+  const kids = [h("div", { class: "top" }, [h("span", { class: `dot ${DOTS[group]}` }), h("strong", { class: "session-title", text: s.name }), h("span", { class: "time", text: s.since ? `desde ${when(s.since)}` : "" })])];
+  if (s.reason) {
+    const t = s.reason.task;
+    kids.push(h("div", { class: "reason" }, [h("b", { text: s.reason.text + (t ? " " : "") }), t ? h("button", { class: "task-link", type: "button", text: t.key, title: t.title, onclick: () => switchView(s.reason.view) }) : null]));
   }
-  return { title, items };
-}
-
-const toHtml = (list, esc) => `<ul>${list.map((i) => `<li>${esc(i.text)}${i.children.length ? toHtml(i.children, esc) : ""}</li>`).join("")}</ul>`;
-const toPlain = (list, depth) => list.flatMap((i) => [`${"    ".repeat(depth)}${depth ? "◦" : "•"} ${i.text}`, ...toPlain(i.children, depth + 1)]);
-const toNodes = (list) => h("ul", {}, list.map((i) => h("li", {}, [i.text, i.children.length ? toNodes(i.children) : null])));
-
-function dailyBody(text) {
-  const { title, items } = dailyLines(text);
-  return h("div", { class: "daily-text" }, [title ? h("p", { text: title }) : null, toNodes(items)]);
-}
-
-function copyDaily(text) {
-  const { title, items } = dailyLines(text);
-  const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  const html = `${title ? `<p>${esc(title)}</p>` : ""}${toHtml(items, esc)}`;
-  const plain = [title, ...toPlain(items, 0)].filter(Boolean).join("\n");
-  const done = () => toast("Copiado.");
-  if (window.ClipboardItem && navigator.clipboard.write)
-    return navigator.clipboard
-      .write([new ClipboardItem({ "text/html": new Blob([html], { type: "text/html" }), "text/plain": new Blob([plain], { type: "text/plain" }) })])
-      .then(done, () => navigator.clipboard.writeText(plain).then(done));
-  return navigator.clipboard.writeText(plain).then(done);
-}
-
-export function dailyCard(root, opts = {}) {
-  const d = state.daily;
-  const busy = dailyAsked && (!d || d.at < dailyAsked);
-  const day = d && d.day ? d.day.split("-").reverse().slice(0, 2).join("/") : "";
-  const ask = (today) => {
-    dailyAsked = new Date().toISOString();
-    post("/api/daily", { today }, today ? "Preparando el resumen de hoy…" : "Rehaciendo el resumen…");
-  };
-  let open = false;
-  try {
-    open = localStorage.getItem("daily-expanded") === "1";
-  } catch (e) {}
-  if (opts.scroll) open = true;
-  const actions = [];
-  if (d && d.text) actions.push(button("Copiar", { onClick: () => copyDaily(d.text) }));
-  actions.push(button(busy ? "Preparando…" : "Rehacer", { cls: "subtle", disabled: !!busy, onClick: () => ask(false) }));
-  actions.push(button("El de hoy", { cls: "subtle", disabled: !!busy, title: "Lo que llevas hecho hoy, por si apagas antes y quieres tenerlo ya", onClick: () => ask(true) }));
-  const text = !d ? "Se prepara solo cada mañana con lo del último día laborable." : d.empty ? "Ese día no hay movimiento en Jira, commits ni despliegues tuyos." : null;
-  const body = text ? h("p", { class: "daily-text", text }) : dailyBody(d.text);
-  const card = h("section", { class: `card daily-card${open ? " open" : ""}${text ? " short" : ""}${opts.cls ? " " + opts.cls : ""}` }, [
-    h("div", { class: "daily-head" }, [h("h3", {}, ["Para la daily", h("span", { class: "meta", text: day ? ` · ${day}` : "" })]), h("div", { class: "actions" }, actions)]),
-    body,
-  ]);
-  if (!text && !opts.scroll) {
-    const more = h("button", { type: "button", class: "daily-more", text: open ? "Ver menos" : "Ver entero" });
-    more.onclick = () => {
-      open = !open;
-      card.classList.toggle("open", open);
-      more.textContent = open ? "Ver menos" : "Ver entero";
-      try {
-        localStorage.setItem("daily-expanded", open ? "1" : "0");
-      } catch (e) {}
-    };
-    card.appendChild(more);
-  }
-  root.appendChild(card);
-}
-
-const VARIANTS = [
-  ["a", "A · Tarjetas"],
-  ["b", "B · Dos columnas"],
-  ["c", "C · Por estado"],
-];
-
-function homeVariant() {
-  try {
-    return localStorage.getItem("home-variant") || "a";
-  } catch (e) {
-    return "a";
-  }
-}
-
-function variantPicker(current) {
-  return h("div", { class: "variant-picker" }, [
-    h("span", { class: "meta", text: "Diseño de prueba:" }),
-    ...VARIANTS.map(([id, label]) =>
-      h("button", {
-        type: "button",
-        class: `variant-btn${id === current ? " on" : ""}`,
-        text: label,
-        onclick: () => {
-          try {
-            localStorage.setItem("home-variant", id);
-          } catch (e) {}
-          refresh(true);
-        },
-      })
-    ),
-  ]);
-}
-
-function openSession(s) {
-  if (!s.conversation) return;
-  if ((state.hosted || []).some((x) => x.conversation === s.conversation && !x.waitingForVsCode)) return import("./terminal.js").then((m) => m.openTerminal(s.conversation, s.name || s.sessionName));
-  window.location.href = `vscode://anthropic.claude-code/open?session=${encodeURIComponent(s.conversation)}`;
-}
-
-const STATE_TEXT = { blocked: "Te necesita", working: "Trabajando", free: "Libre" };
-
-function reasonLine(s, group) {
-  const t = s.reason && s.reason.task;
-  const bits = [];
-  if (s.reason) bits.push(s.reason.text + (t ? " " : ""), t ? h("button", { class: "task-link", type: "button", text: t.key, title: t.title, onclick: (e) => (e.stopPropagation(), switchView(s.reason.view)) }) : null);
-  const others = s.tasks.filter((x) => x !== t);
-  if (others.length) bits.push(`${bits.length ? " · " : ""}con ${others.map((x) => x.key).join(", ")}`);
-  if (s.subagents) bits.push(`${bits.length ? " · " : ""}${s.subagents === 1 ? "un subagente" : `${s.subagents} subagentes`}`);
-  return bits;
-}
-
-function sessionTile(s, group) {
-  const tile = h("article", { class: `sess-tile ${group}`, tabindex: "0", title: "Abrir la sesión" }, [
-    h("span", { class: `state-pill ${group}` }, [h("span", { class: `dot ${DOTS[group]}` }), STATE_TEXT[group]]),
-    h("strong", { class: "sess-name", text: s.name }),
-    h("div", { class: "sess-detail" }, reasonLine(s, group)),
-    h("div", { class: "sess-foot" }, [h("span", { text: s.since ? `desde ${when(s.since)}` : "" }), h("span", { class: "sess-open", text: "Abrir ›" })]),
-  ]);
-  tile.onclick = () => openSession(s);
-  tile.onkeydown = (e) => e.key === "Enter" && openSession(s);
-  return tile;
-}
-
-function systemLine(s, cls) {
-  if (!s.system.length) return null;
-  return h("div", { class: cls }, [h("span", { class: "sys-label", text: "Del tablero" }), ...s.system.map((x) => h("span", { class: "sys-item", title: x.working ? "Trabajando" : x.open ? "Abierta" : "Cerrada" }, [h("span", { class: `dot ${x.working ? "busy" : x.open ? "on" : ""}` }), x.name]))]);
-}
-
-function sectionHead(title, s) {
-  const LABEL = { blocked: ["te necesita", "te necesitan"], working: ["trabajando", "trabajando"], free: ["libre", "libres"] };
-  const summary = ["blocked", "working", "free"].filter((id) => s[id].length).map((id) => `${s[id].length} ${LABEL[id][s[id].length === 1 ? 0 : 1]}`);
-  return h("div", { class: "home-section-head" }, [h("h3", { text: title }), h("span", { class: "meta", text: summary.join(" · ") })]);
-}
-
-function homeA(root, s) {
-  const all = ["blocked", "working", "free"].flatMap((id) => s[id].map((x) => sessionTile(x, id)));
-  root.appendChild(
-    h("section", { class: "home-section" }, [
-      sectionHead("Sesiones", s),
-      all.length ? h("div", { class: "sess-grid" }, all) : h("p", { class: "meta quiet-empty", text: "No hay sesiones de área abiertas. Las que abras aparecen aquí solas." }),
-      systemLine(s, "sys-line"),
-    ])
-  );
-  dailyCard(root, { cls: "soft" });
-}
-
-function homeB(root, s) {
-  const row = (x, id) => {
-    const r = h("div", { class: `sess-line ${id}`, tabindex: "0" }, [h("span", { class: `dot ${DOTS[id]}` }), h("div", { class: "sess-line-main" }, [h("strong", { text: x.name }), h("span", { class: "sess-detail" }, [STATE_TEXT[id], ...(x.reason || x.tasks.length || x.subagents ? [" · ", ...reasonLine(x, id)] : [])])]), h("span", { class: "sess-time", text: x.since ? when(x.since) : "" })]);
-    r.onclick = () => openSession(x);
-    return r;
-  };
-  const rows = ["blocked", "working", "free"].flatMap((id) => s[id].map((x) => row(x, id)));
-  const left = h("section", { class: "home-section" }, [
-    sectionHead("Sesiones", s),
-    rows.length ? h("div", { class: "sess-lines" }, rows) : h("p", { class: "meta quiet-empty", text: "No hay sesiones de área abiertas." }),
-    systemLine(s, "sys-stack"),
-  ]);
-  const right = h("div", { class: "home-col" });
-  dailyCard(right, { scroll: true, cls: "side" });
-  root.appendChild(h("div", { class: "home-cols" }, [left, right]));
-}
-
-function homeC(root, s) {
-  const need = s.blocked.map((x) => {
-    const c = h("article", { class: "need-card", tabindex: "0" }, [h("div", { class: "need-top" }, [h("strong", { text: x.name }), h("span", { class: "sess-time", text: x.since ? `desde ${when(x.since)}` : "" })]), h("div", { class: "need-why" }, reasonLine(x, "blocked"))]);
-    c.onclick = () => openSession(x);
-    return c;
-  });
-  const pill = (x, id) => {
-    const p = h("button", { type: "button", class: `sess-pill ${id}`, title: id === "working" ? "Trabajando" : "Libre" }, [h("span", { class: `dot ${DOTS[id]}` }), x.name, x.subagents ? h("span", { class: "pill-meta", text: `+${x.subagents}` }) : null]);
-    p.onclick = () => openSession(x);
-    return p;
-  };
-  const kids = [h("div", { class: "home-section-head" }, [h("h3", { text: "Sesiones" })])];
-  if (need.length) kids.push(h("div", { class: "group-label danger", text: s.blocked.length === 1 ? "Te necesita" : "Te necesitan" }), h("div", { class: "need-list" }, need));
-  if (s.working.length) kids.push(h("div", { class: "group-label", text: "Trabajando" }), h("div", { class: "pill-row" }, s.working.map((x) => pill(x, "working"))));
-  if (s.free.length) kids.push(h("div", { class: "group-label", text: "Libres" }), h("div", { class: "pill-row" }, s.free.map((x) => pill(x, "free"))));
-  if (!need.length && !s.working.length && !s.free.length) kids.push(h("p", { class: "meta quiet-empty", text: "No hay sesiones de área abiertas." }));
-  if (s.system.length) kids.push(h("div", { class: "group-label", text: "Del tablero" }), h("div", { class: "pill-row muted" }, s.system.map((x) => h("span", { class: "sess-pill sys" }, [h("span", { class: `dot ${x.working ? "busy" : x.open ? "on" : ""}` }), x.name]))));
-  root.appendChild(h("section", { class: "home-section home-c" }, kids));
-  dailyCard(root, { cls: "note" });
+  if (s.subagents) kids.push(h("div", { class: "meta", text: s.subagents === 1 ? "Con un subagente en marcha" : `Con ${s.subagents} subagentes en marcha` }));
+  const others = s.tasks.filter((t) => !s.reason || t !== s.reason.task);
+  if (others.length) kids.push(h("div", { class: "meta", text: `Con ${others.map((t) => t.key).join(", ")}` }));
+  kids.push(h("div", { class: "home-footer" }, [h("span", { class: "meta", text: s.sessionName || "" }), vsCodeLink(s)]));
+  return h("article", { class: `card home-session ${group}` }, kids);
 }
 
 export function renderHome(root) {
-  const v = homeVariant();
-  root.appendChild(variantPicker(v));
   shortcuts(root);
   const s = sessionSituation();
-  ({ a: homeA, b: homeB, c: homeC }[v] || homeA)(root, s);
+  const columns = BOARD.map((id) => {
+    const [, title, note] = GROUPS.find((g) => g[0] === id);
+    const head = h("div", { class: "board-head", title: note }, [h("span", { class: `dot ${DOTS[id]}` }), h("span", { text: title }), h("span", { class: "n", text: String(s[id].length) })]);
+    const cards = s[id].length ? s[id].map((x) => sessionCard(x, id)) : [h("div", { class: "board-empty", text: "Ninguna" })];
+    return h("section", { class: "board-col" }, [head, ...cards]);
+  });
+  root.appendChild(h("div", { class: "board" }, columns));
+  if (s.system.length) root.appendChild(h("div", { class: "system-chips" }, [h("span", { class: "meta", text: "Del tablero" }), ...s.system.map((x) => h("span", { class: "system-chip", title: x.working ? "Trabajando" : x.open ? "Abierta" : "Cerrada" }, [h("span", { class: `dot ${x.working ? "busy" : x.open ? "on" : ""}` }), x.name]))]));
 }
 
 export function sessionStrip() {
@@ -359,7 +129,7 @@ export function sessionStrip() {
     ["blocked", "bad", s.blocked.length === 1 ? "bloqueada" : "bloqueadas"],
     ["free", "on", s.free.length === 1 ? "libre" : "libres"],
   ].filter(([id]) => s[id].length);
-  const summary = h("summary", { class: "strip-summary" }, [h("span", { class: "strip-title", text: "Sesiones abiertas:" }), ...parts.flatMap(([id, dot, label], i) => [i ? " · " : null, h("span", { class: `dot ${dot}` }), ` ${s[id].length} ${label}`]).filter(Boolean)]);
+  const summary = h("summary", { class: "strip-summary" }, [h("span", { class: "strip-title", text: "Sesiones abiertas:" }), ...parts.flatMap(([id, dot, label], i) => [i ? " · " : null, h("span", { class: "strip-part" }, [h("span", { class: `dot ${dot}` }), ` ${s[id].length} ${label}`])]).filter(Boolean)]);
   const list = h(
     "div",
     { class: "strip-list" },
@@ -375,7 +145,8 @@ export function sessionStrip() {
   );
   const det = h("details", { class: "session-strip" }, [summary, list]);
   try {
-    det.open = sessionStorage.getItem("strip-open") === "1";
+    const saved = sessionStorage.getItem("strip-open");
+    det.open = saved ? saved === "1" : s.blocked.length > 0;
   } catch (e) {}
   det.addEventListener("toggle", () => {
     try {

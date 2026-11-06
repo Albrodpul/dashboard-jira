@@ -105,7 +105,7 @@ async function makeDaily(day) {
   const errors = errorsOf(day);
   const tasks = tasksOf(day);
   if (!commits.length && !errors.length && !tasks.length) {
-    mutate((d) => (d.daily = { day, text: "", empty: true, at: now() }));
+    saveDaily(day, { day, text: "", empty: true, at: now() });
     return;
   }
   const prompt = [
@@ -132,7 +132,42 @@ async function makeDaily(day) {
     ...(errors.length ? errors : ["(ninguno)"]),
   ].join("\n");
   const text = await write(prompt);
-  if (text) mutate((d) => (d.daily = { day, text, at: now() }));
+  if (text) saveDaily(day, { day, text, at: now() });
+}
+
+function saveDaily(day, entry) {
+  mutate((d) => {
+    const all = { ...(d.dailies || {}) };
+    if (d.daily && d.daily.day && !all[d.daily.day]) all[d.daily.day] = d.daily;
+    all[day] = entry;
+    for (const k of Object.keys(all).sort().slice(0, -10)) delete all[k];
+    d.dailies = all;
+    delete d.daily;
+  });
+}
+
+const today = () => dayOf(new Date());
+let factsCache = null;
+
+function todayFacts() {
+  const day = today();
+  if (factsCache && factsCache.day === day && Date.now() - factsCache.t < 5 * 60000) return factsCache.facts;
+  let facts;
+  try {
+    facts = { day, tasks: tasksOf(day), commits: commitsOf(day), errors: errorsOf(day), at: now() };
+  } catch (e) {
+    facts = { day, tasks: [], commits: [], errors: [], at: now() };
+  }
+  factsCache = { day, t: Date.now(), facts };
+  return facts;
+}
+
+function dailyState() {
+  const d = load();
+  const all = { ...(d.dailies || {}) };
+  if (d.daily && d.daily.day && !all[d.daily.day]) all[d.daily.day] = d.daily;
+  const prev = lastWorkday();
+  return { prevDay: prev, prev: all[prev] || null, today: today(), todayText: all[today()] || null, facts: todayFacts(), busy: !!running };
 }
 
 function dailyFor(day) {
@@ -143,9 +178,9 @@ function dailyFor(day) {
 async function dailyIfMissing() {
   if (!require("../cluster/cluster").isPrimary()) return;
   const day = lastWorkday();
-  const cur = load().daily;
-  if (cur && cur.day === day) return;
+  const d = load();
+  if ((d.dailies && d.dailies[day]) || (d.daily && d.daily.day === day)) return;
   await dailyFor(day);
 }
 
-module.exports = { dailyFor, dailyIfMissing, lastWorkday };
+module.exports = { dailyFor, dailyIfMissing, lastWorkday, dailyState };
