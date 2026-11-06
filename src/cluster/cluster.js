@@ -44,6 +44,7 @@ const log = (m) => {
 };
 
 const isPrimary = () => !CLUSTER || st.role === "primary";
+const primaryNow = () => !CLUSTER || readState().role === "primary";
 const info = () => ({ label: CLUSTER ? CLUSTER.label || null : null, role: isPrimary() ? "primary" : "follower", since: st.since, manual: !!(isPrimary() && st.manual), lastSnapshot: st.lastSnapshot || null, lastTranscripts: st.lastTranscripts || null, pendingPull: st.pendingPull || null, host: os.hostname(), self: CLUSTER ? CLUSTER.self : null, peer: CLUSTER ? CLUSTER.peer : null, claudeToken: require("../features/claude-token").tokenStatus() });
 
 async function peerGet(route, ms = 8000) {
@@ -517,4 +518,4 @@ async function machines() {
   return { self: info(), peer, devices };
 }
 
-module.exports = { isPrimary, info, peerGet, projectDir, keepAwake, letSleep, snapshot, transcripts, serveTranscript, tick, handleYield, command, takeHere, backToAuto, machines, sendClaudeToken, clusterEnabled: () => !!CLUSTER };
+module.exports = { isPrimary, primaryNow, info, peerGet, projectDir, keepAwake, letSleep, snapshot, transcripts, serveTranscript, tick, handleYield, command, takeHere, backToAuto, machines, sendClaudeToken, clusterEnabled: () => !!CLUSTER };
