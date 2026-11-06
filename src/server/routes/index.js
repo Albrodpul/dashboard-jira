@@ -221,6 +221,29 @@ function handleGet(req, res, url) {
   if (url === "/api/push/reason") return serveBody(res, "application/json", JSON.stringify(pushReason()));
   if (url === "/api/push/key") return serveBody(res, "application/json", JSON.stringify({ key: pushKeys().publicKey }));
   if (url.startsWith("/api/permission/perm-")) return serveBody(res, "application/json", JSON.stringify(permissions.poll(url.slice("/api/permission/".length))));
+  if (url === "/api/cluster/wakeinfo" && process.platform === "win32") {
+    const run = (exe, args) => {
+      try {
+        return require("child_process").execFileSync(exe, args, { windowsHide: true, encoding: "utf8", timeout: 30000 });
+      } catch (e) {
+        return String((e && e.stdout) || e.message || e);
+      }
+    };
+    const ps = (c) => run("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", c]);
+    return serveBody(
+      res,
+      "application/json",
+      JSON.stringify({
+        sleepStates: run("powercfg", ["/a"]),
+        wlanCaps: run("netsh", ["wlan", "show", "wirelesscapabilities"]),
+        adapters: ps("Get-NetAdapter | Select-Object Name,InterfaceDescription,Status,MediaType,LinkSpeed | Format-Table -AutoSize | Out-String -Width 200"),
+        adapterPower: ps("Get-NetAdapterPowerManagement | Format-List Name,WakeOnMagicPacket,WakeOnPattern,DeviceSleepOnDisconnect,ArpOffload,NSOffload | Out-String -Width 200"),
+        wakeArmed: run("powercfg", ["/devicequery", "wake_armed"]),
+        machine: ps("Get-CimInstance Win32_ComputerSystem | Select-Object Manufacturer,Model | Format-List | Out-String; Get-CimInstance Win32_BaseBoard | Select-Object Manufacturer,Product | Format-List | Out-String"),
+        wakeTimers: run("powercfg", ["/q", "SCHEME_CURRENT", "SUB_SLEEP", "BD3B718A-0680-4D9D-8AB2-E1D2B4AC806D"]),
+      })
+    );
+  }
   if (url === "/api/cluster/quota") return serveBody(res, "application/json", JSON.stringify(require("../../features/quota").readQuota()));
   if (url === "/api/cluster/memory") return serveBody(res, "application/json", JSON.stringify({ files: require("../../features/memory-sync").memoryFiles() }));
   if (url === "/api/cluster") return serveBody(res, "application/json", JSON.stringify(require("../../cluster/cluster").info()));
