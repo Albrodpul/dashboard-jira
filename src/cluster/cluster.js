@@ -45,7 +45,7 @@ const log = (m) => {
 
 const isPrimary = () => !CLUSTER || st.role === "primary";
 const primaryNow = () => !CLUSTER || readState().role === "primary";
-const info = () => ({ label: CLUSTER ? CLUSTER.label || null : null, role: isPrimary() ? "primary" : "follower", since: st.since, manual: !!(isPrimary() && st.manual), lastSnapshot: st.lastSnapshot || null, lastTranscripts: st.lastTranscripts || null, pendingPull: st.pendingPull || null, host: os.hostname(), self: CLUSTER ? CLUSTER.self : null, peer: CLUSTER ? CLUSTER.peer : null, claudeToken: require("../features/claude-token").tokenStatus(), macPower: process.platform === "darwin" ? require("../features/mac-power").status() : st.peerMacPower || null });
+const info = () => ({ label: CLUSTER ? CLUSTER.label || null : null, role: isPrimary() ? "primary" : "follower", since: st.since, manual: !!(isPrimary() && st.manual), lastSnapshot: st.lastSnapshot || null, lastTranscripts: st.lastTranscripts || null, pendingPull: st.pendingPull || null, host: os.hostname(), sshUser: os.userInfo().username, self: CLUSTER ? CLUSTER.self : null, peer: CLUSTER ? CLUSTER.peer : null, claudeToken: require("../features/claude-token").tokenStatus(), macPower: process.platform === "darwin" ? require("../features/mac-power").status() : st.peerMacPower || null });
 
 async function peerGet(route, ms = 8000) {
   const ctrl = new AbortController();
@@ -326,6 +326,7 @@ async function promote(reason, manual) {
   require("../server/push")
     .sendPush("sessions", true, `${os.hostname()} pasa a mandar: ${reason}`)
     .catch(() => {});
+  require("../features/tunnel").guard();
   await startRoles();
   const board = require("../sessions/registry").loadRoutes().board;
   if (board && board.session) require("../sessions/registry").wakeSession(board.session, "Aviso del tablero: arranca la sesión del tablero. Eres la sesión del tablero registrada: ejecuta ahora .claude/commands/tablero.md (regla de AGENTS.md).").catch(() => {});

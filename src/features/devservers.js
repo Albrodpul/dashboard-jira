@@ -44,7 +44,9 @@ async function status() {
     out.push({ id: s.id, name: s.name, port: s.port, url: s.url || null, autoStart: s.autoStart !== false, state: up ? "up" : st && Date.now() - st < (s.startSeconds || 90) * 1000 ? "starting" : "down" });
   }
   const d = load().devServers || {};
-  return { servers: out, autoStartedOn: d.autoStartedOn || null, autoStoppedOn: d.autoStoppedOn || null, at: now() };
+  const tunnel = require("./tunnel").status();
+  const remote = await require("./tunnel").remote();
+  return { servers: out, tunnel, remote, autoStartedOn: d.autoStartedOn || null, autoStoppedOn: d.autoStoppedOn || null, at: now() };
 }
 
 function spawnHidden(command, args, cwd, log) {
@@ -129,6 +131,7 @@ async function restart(id) {
 
 async function startAll(auto) {
   const started = [];
+  if (require("./tunnel").status().open) return started;
   for (const s of servers()) if (!(auto && s.autoStart === false) && (await start(s.id))) started.push(s.id);
   return started;
 }
