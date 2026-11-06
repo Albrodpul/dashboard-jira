@@ -82,7 +82,7 @@ const VIEWS = {
   talk: ["Hablar", "Las sesiones del tablero en directo: las fijas y cualquier otra que esté abierta. Escríbeles o córtalas, o abre una nueva para hablar."],
   projects: ["Proyectos", "Los servidores locales que usan las sesiones: MySQL, api, Assistant, admin y web."],
   sentry: ["Errores", "Errores sin resolver de web, admin y api. Elige la sesión y pulsa Enviar: la orquestadora se lo pasa con el enlace y te cuenta aquí lo que ha encontrado."],
-  context: ["Ordenar contexto", "La orquestadora repasa y ordena context/ y el índice de AGENTS.md. Solo se puede lanzar con todo limpio: nada pendiente, por enviar, en sesión ni desplegándose."],
+  context: ["Ordenar contexto", "La orquestadora repasa y ordena context/ y el índice de AGENTS.md. Solo se puede lanzar con todo limpio: sin tareas pendientes, por enviar ni en sesión."],
   "follow-up": ["Seguimiento", "Lo que hace cada uno según sus peticiones a la API, separado por persona: beta se resume sola cada hora y producción cada dos; cualquiera de los dos, también cuando lo pidas."],
 };
 const NON_TASK_VIEWS = {

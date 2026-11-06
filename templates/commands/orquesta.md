@@ -114,7 +114,7 @@ Son issues de Sentry que {{ME}} ha elegido en la pestaña Sentry, cada uno con l
 
 ## Ordenar contexto
 
-{{ME}} lo pide con el botón de la pestaña «Ordenar contexto», que solo se activa con todo limpio: nada pendiente, por enviar, en una sesión, esperándole ni desplegándose. Así nadie más está escribiendo en `context/` mientras se reordena.
+{{ME}} lo pide con el botón de la pestaña «Ordenar contexto», que solo se activa con todo limpio: nada pendiente, por enviar, en una sesión ni esperándole (un despliegue no toca `context/` y no bloquea). Así nadie más está escribiendo en `context/` mientras se reordena.
 
 1. `node {{WORKSPACE}}/board.js tidy-start <id>`. Si dice que no está aprobada, no hagas nada.
 2. Lee `{{ROOT}}/.claude/skills/ordena-contexto/SKILL.md` (con `Read`; el comando no se puede lanzar como skill) y sigue sus pasos. Es la única excepción a «no editas ficheros»: aquí sí editas `context/` y `AGENTS.md`, con las mismas reglas que el comando. Lo que el comando dice que necesita confirmación de {{ME}} (fusionar, dividir o borrar dominios) no lo haces: lo dejas como propuesta en el resumen.

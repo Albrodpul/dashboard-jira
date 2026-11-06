@@ -79,8 +79,6 @@ function tidyBlockers(d) {
     count[t.status] = (count[t.status] || 0) + 1;
   }
   const out = Object.entries(count).map(([s, n]) => `${n} tarea${n === 1 ? "" : "s"} ${labels[s]}`);
-  const deploys = d.deployments.filter((x) => x.status === "approved" || (x.status === "sent" && !x.reply)).length;
-  if (deploys) out.push(`${deploys} despliegue${deploys === 1 ? "" : "s"} sin terminar`);
   if (d.contextTidy && ["approved", "in-progress"].includes(d.contextTidy.status)) out.push("ya hay una ordenación en marcha");
   return out;
 }
