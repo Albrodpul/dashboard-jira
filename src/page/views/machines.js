@@ -186,15 +186,44 @@ export function renderMachines(root) {
   if (!jobLoaded) pollJob();
 }
 
+const scheduleDrafts = {};
+
+function keepDraft(key, current) {
+  const d = scheduleDrafts[key];
+  if (!d) return current;
+  const { saved, ...values } = d;
+  if (saved && Object.keys(values).every((k) => values[k] === current[k])) {
+    delete scheduleDrafts[key];
+    return current;
+  }
+  return { ...current, ...values };
+}
+
+function timeInput(key, field, value) {
+  const input = h("input", { type: "time", value, class: "time-input" });
+  const keep = () => {
+    const d = scheduleDrafts[key] || {};
+    delete d.saved;
+    scheduleDrafts[key] = { ...d, [field]: input.value };
+  };
+  input.addEventListener("input", keep);
+  input.addEventListener("change", keep);
+  return input;
+}
+
 function workSchedule() {
   const s = state.workSchedule || { start: "07:30", end: "18:30" };
-  const start = h("input", { type: "time", value: s.start, class: "time-input" });
-  const end = h("input", { type: "time", value: s.end, class: "time-input" });
+  const v = keepDraft("work", s);
+  const start = timeInput("work", "start", v.start);
+  const end = timeInput("work", "end", v.end);
   const save = button("Guardar", {
     onClick: (b) => {
       b.disabled = true;
       requestOrFail("/api/work-hours", { start: start.value, end: end.value })
-        .then(() => toast(`Jornada de ${start.value} a ${end.value}, de lunes a viernes.`))
+        .then(() => {
+          scheduleDrafts.work = { start: start.value, end: end.value, saved: true };
+          toast(`Jornada de ${start.value} a ${end.value}, de lunes a viernes.`);
+        })
         .finally(() => (b.disabled = false));
     },
   });
@@ -213,12 +242,14 @@ function workSchedule() {
 function macSchedule() {
   const mp = (state.cluster && state.cluster.macPower) || null;
   const s = (mp && mp.schedule) || { wake: "06:00", sleep: "21:00" };
-  const wake = h("input", { type: "time", value: s.wake, class: "time-input" });
-  const sleep = h("input", { type: "time", value: s.sleep, class: "time-input" });
+  const v = keepDraft("mac", s);
+  const wake = timeInput("mac", "wake", v.wake);
+  const sleep = timeInput("mac", "sleep", v.sleep);
   const save = button("Guardar", {
     onClick: (b) => {
       b.disabled = true;
       requestOrFail("/api/mac-power", { wake: wake.value, sleep: sleep.value })
+        .then(() => (scheduleDrafts.mac = { wake: wake.value, sleep: sleep.value, saved: true }))
         .then(() => toast(`El Mac se despertará a las ${wake.value} y se dormirá a las ${sleep.value}, de lunes a viernes.`))
         .finally(() => (b.disabled = false));
     },
