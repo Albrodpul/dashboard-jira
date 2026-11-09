@@ -63,7 +63,7 @@ const POST_ROUTES = {
     send(res, 200);
   },
   "/api/term-claim": (res, input, send) => {
-    fs.appendFileSync(path.join(DATA_DIR, "term-claims.log"), `${new Date().toISOString()} ${String(input.conversation || "").slice(0, 8)} ${input.why} ${input.from} -> ${input.cols}x${input.rows} ${String(input.device || "").slice(0, 120)}
+    require("../../core/logfile").appendLog(path.join(DATA_DIR, "term-claims.log"), `${new Date().toISOString()} ${String(input.conversation || "").slice(0, 8)} ${input.why} ${input.from} -> ${input.cols}x${input.rows} ${String(input.device || "").slice(0, 120)}
 `);
     send(res, 200);
   },

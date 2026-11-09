@@ -1,17 +1,13 @@
-const fs = require("fs");
 const path = require("path");
 const { DATA_DIR } = require("../core/data");
+const { appendLog } = require("../core/logfile");
 
 const ROLES = [
   ["reporter", "Reporte JIRA"],
   ["orchestrator", "Orquestar agentes"],
 ];
 
-const log = (m) => {
-  try {
-    fs.appendFileSync(path.join(DATA_DIR, "startup.log"), `${new Date().toISOString()} ${m}\n`);
-  } catch (e) {}
-};
+const log = (m) => appendLog(path.join(DATA_DIR, "startup.log"), `${new Date().toISOString()} ${m}\n`);
 
 const today = () => new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
 

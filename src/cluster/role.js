@@ -3,6 +3,7 @@ const path = require("path");
 const os = require("os");
 const config = require("../core/config");
 const { DATA_DIR, now } = require("../core/data");
+const { appendLog } = require("../core/logfile");
 
 const CLUSTER = config.cluster || null;
 const STATE_FILE = path.join(DATA_DIR, "cluster.json");
@@ -23,11 +24,7 @@ const save = () => {
   st.savedAt = now();
   fs.writeFileSync(STATE_FILE, JSON.stringify(st, null, 1));
 };
-const log = (m) => {
-  try {
-    fs.appendFileSync(path.join(DATA_DIR, "cluster.log"), `[${now()}] ${m}\n`);
-  } catch (e) {}
-};
+const log = (m) => appendLog(path.join(DATA_DIR, "cluster.log"), `[${now()}] ${m}\n`);
 
 const isPrimary = () => !CLUSTER || st.role === "primary";
 const primaryNow = () => !CLUSTER || readState().role === "primary";

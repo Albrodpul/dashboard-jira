@@ -23,7 +23,7 @@ function call(method, url, body) {
 function trace(event, result) {
   try {
     const dir = process.env.TOWER_WORKSPACE ? require("path").join(process.env.TOWER_WORKSPACE, "data") : null;
-    if (dir) require("fs").appendFileSync(require("path").join(dir, "hook.log"), `${new Date().toISOString()} ${String(event.session_id || "").slice(0, 8)} ${event.tool_name} ${result}
+    if (dir) require("../src/core/logfile").appendLog(require("path").join(dir, "hook.log"), `${new Date().toISOString()} ${String(event.session_id || "").slice(0, 8)} ${event.tool_name} ${result}
 `);
   } catch (e) {}
 }

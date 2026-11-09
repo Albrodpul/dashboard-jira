@@ -14,6 +14,7 @@ function launchServer(message) {
 
 module.exports = {
   serve() {
+    require("../core/logfile").rotateInPlace(require("path").join(require("../core/data").DATA_DIR, "serve.log"));
     require("../server/server").serve();
   },
 

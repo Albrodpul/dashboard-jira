@@ -2,6 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const cp = require("child_process");
 const { DATA_DIR, ENTRY, UUID } = require("../core/data");
+const { appendLog } = require("../core/logfile");
 const { openInVsCode, wakeSession } = require("../sessions/registry");
 const { state, ping, wait } = require("./state");
 
@@ -16,9 +17,7 @@ function madridTime() {
 }
 
 function log(text) {
-  try {
-    fs.appendFileSync(STARTUP_LOG, `${new Date().toISOString()} ${text}\n`);
-  } catch (e) {}
+  appendLog(STARTUP_LOG, `${new Date().toISOString()} ${text}\n`);
 }
 
 async function openAndWait(read, who) {

@@ -1,16 +1,12 @@
-const fs = require("fs");
 const path = require("path");
 const config = require("../core/config");
 const { DATA_DIR } = require("../core/data");
+const { appendLog } = require("../core/logfile");
 
 const IDLE_MS = 30 * 60000;
 const PENDING = ["approved", "sent", "waiting", "partial"];
 
-const log = (m) => {
-  try {
-    fs.appendFileSync(path.join(DATA_DIR, "autosleep.log"), `${new Date().toISOString()} ${m}\n`);
-  } catch (e) {}
-};
+const log = (m) => appendLog(path.join(DATA_DIR, "autosleep.log"), `${new Date().toISOString()} ${m}\n`);
 
 async function sleepIdleSessions(now) {
   if (!require("../cluster/cluster").isPrimary()) return;

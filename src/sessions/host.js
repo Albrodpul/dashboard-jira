@@ -3,6 +3,7 @@ const path = require("path");
 const http = require("http");
 const cp = require("child_process");
 const { DATA_DIR, ROOT, BASE_URL } = require("../core/data");
+const { appendLog } = require("../core/logfile");
 
 const HOST_PORT = Number(process.env.TOWER_HOST_PORT) || 4749;
 const HOST_URL = `http://127.0.0.1:${HOST_PORT}`;
@@ -29,11 +30,7 @@ const readConfig = () => {
   }
 };
 const writeConfig = (list) => fs.writeFileSync(CONFIG_FILE, JSON.stringify(list, null, 1));
-const log = (m) => {
-  try {
-    fs.appendFileSync(LOG_FILE, `[${new Date().toISOString()}] ${m}\n`);
-  } catch (e) {}
-};
+const log = (m) => appendLog(LOG_FILE, `[${new Date().toISOString()}] ${m}\n`);
 const sizeFrame = (s) => `\u0000${JSON.stringify({ cols: s.cols, rows: s.rows })}`;
 const plain = (s) => s.replace(/\x1b\[[0-9;?]*[ -\/]*[@-~]/g, "").replace(/\x1b\][^\x07]*\x07/g, "");
 

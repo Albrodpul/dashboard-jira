@@ -2,16 +2,13 @@ const fs = require("fs");
 const path = require("path");
 const cp = require("child_process");
 const { DATA_DIR, load, mutate } = require("../core/data");
+const { appendLog } = require("../core/logfile");
 
 const DEFAULT = { wake: "06:00", sleep: "21:00", days: "MTWRF" };
 const STATE_FILE = path.join(DATA_DIR, "mac-power.json");
 const isMac = process.platform === "darwin";
 
-const log = (m) => {
-  try {
-    fs.appendFileSync(path.join(DATA_DIR, "mac-power.log"), `[${new Date().toISOString()}] ${m}\n`);
-  } catch (e) {}
-};
+const log = (m) => appendLog(path.join(DATA_DIR, "mac-power.log"), `[${new Date().toISOString()}] ${m}\n`);
 
 function schedule() {
   const s = (load().config || {}).macSchedule || {};
