@@ -10,6 +10,17 @@ const KEYS = [
   ["Enter", "\r", "Enter"],
 ];
 const TERM_THEME = { background: "#0d1117", foreground: "#e6edf3", cursor: "#e6edf3", cursorAccent: "#0d1117", selectionBackground: "#264f78", black: "#0d1117", brightBlack: "#6e7681" };
+const TERM_THEME_V2 = { background: "#0e1519", foreground: "#dfe7ea", cursor: "#5fc4d6", cursorAccent: "#0e1519", selectionBackground: "#1f4b57", black: "#0e1519", red: "#e5737a", green: "#7cc79a", yellow: "#e2c07a", blue: "#6aaee0", magenta: "#c49be0", cyan: "#5fc4d6", white: "#c9d4d8", brightBlack: "#6b7f87", brightRed: "#f0959a", brightGreen: "#9bd8b2", brightYellow: "#eed49c", brightBlue: "#8cc2ea", brightMagenta: "#d5b5ea", brightCyan: "#86d4e2", brightWhite: "#f2f6f7" };
+const termPreview = (() => {
+  try {
+    const q = new URLSearchParams(location.search).get("terminal");
+    if (q === "nuevo") localStorage.setItem("termPreview", "1");
+    if (q === "actual") localStorage.removeItem("termPreview");
+    return localStorage.getItem("termPreview") === "1";
+  } catch (e) {
+    return false;
+  }
+})();
 const PENDING_MAX = 4 * 1024 * 1024;
 let loading = null;
 let overlay = null;
@@ -127,7 +138,7 @@ function createPanel(conversation, name, onClose) {
     h("button", { type: "button", title: "Bajar (Av Pág)", "aria-label": "Bajar", text: "⇟", onclick: () => panel.send("[6~") }),
     h("button", { type: "button", title: "Ir al final (Ctrl+Fin)", "aria-label": "Ir al final", text: "⤓", onclick: () => panel.send("[1;5F") }),
   ]);
-  const root = h("div", { class: "term-panel" }, [h("div", { class: "term-head" }, head), h("div", { class: "term-wrap" }, [screen, scrollBtns]), keys, h("div", { class: "term-compose" }, [attachButton(input), input, sendBtn, mentions(input)])]);
+  const root = h("div", { class: `term-panel${termPreview ? " term-v2" : ""}` }, [h("div", { class: "term-head" }, head), h("div", { class: "term-wrap" }, [screen, scrollBtns]), keys, h("div", { class: "term-compose" }, [attachButton(input), input, sendBtn, mentions(input)])]);
   const panel = { root, conversation, ws: null, term: null, fit: null, closed: false, pending: [], pendingBytes: 0, overflowed: false, replaying: false };
   panel.paintActivity = () => {
     const [cls, text] = activityOf(conversation);
@@ -210,7 +221,8 @@ function createPanel(conversation, name, onClose) {
   loadXterm().then(
     () => {
       if (panel.closed) return;
-      const term = new window.Terminal({ fontSize: window.matchMedia("(max-width: 760px)").matches ? 11 : 13, fontFamily: "ui-monospace, Consolas, monospace", theme: TERM_THEME, scrollback: 5000, macOptionClickForcesSelection: true });
+      const small = window.matchMedia("(max-width: 760px)").matches;
+      const term = new window.Terminal({ fontSize: termPreview ? (small ? 11.5 : 13.5) : small ? 11 : 13, lineHeight: termPreview ? 1.18 : 1, fontFamily: termPreview ? '"SF Mono", "Cascadia Code", "JetBrains Mono", ui-monospace, Consolas, monospace' : "ui-monospace, Consolas, monospace", theme: termPreview ? TERM_THEME_V2 : TERM_THEME, scrollback: 5000, macOptionClickForcesSelection: true });
       const fit = new window.FitAddon.FitAddon();
       term.loadAddon(fit);
       term.open(screen);
