@@ -63,7 +63,8 @@ function followUpStatus(d, r) {
   if (!o || !o.conversation) return null;
   const live = (d.sessions.list || []).find((s) => s.conversation === o.conversation);
   const request = d.followUpRequest && !d.followUpRequest.handled ? d.followUpRequest : null;
-  return { title: o.title || "Seguimiento", session: live ? live.name : null, conversation: o.conversation, open: !!live, last: (d.followUps[0] || {}).at || null, environments: environments(d), request, paused: isPaused(d) };
+  const envs = environments(d);
+  return { title: o.title || "Seguimiento", session: live ? live.name : null, conversation: o.conversation, open: !!live, last: (d.followUps[0] || {}).at || null, environments: envs, due: require("../features/followup-schedule").pending(d, envs), request, paused: isPaused(d) };
 }
 
 function deployerArea(r) {

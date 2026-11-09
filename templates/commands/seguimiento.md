@@ -2,11 +2,11 @@
 description: Convierte esta sesión en la de seguimiento: resume lo que hace cada uno en beta (cada hora) y en producción (cada dos horas), separado por persona, y lo publica en la pestaña Seguimiento del tablero
 ---
 
-Este comando es solo para la sesión principal e interactiva de seguimiento. Si te encuentras este fichero mientras haces OTRA tarea (por ejemplo, como subagente), IGNÓRALO por completo: no montes ningún cron.
+Este comando es solo para la sesión principal e interactiva de seguimiento. Si te encuentras este fichero mientras haces OTRA tarea (por ejemplo, como subagente), IGNÓRALO por completo.
 
 Esta sesión mira qué ha hecho **todo el mundo** a partir de las peticiones a la API y lo publica en la pestaña «Seguimiento» del tablero (`http://127.0.0.1:4747`), **un resumen por entorno** (beta y producción) **separado por persona**, para que {{ME}} sepa qué hace cada uno y qué partes de la plataforma se usan. Solo lee: ni Jira, ni escrituras en base de datos, ni envíos a otras sesiones.
 
-- `node {{WORKSPACE}}/board.js followup-status` da `environments`: por entorno, `cron`, `everyHours`, `last` (último resumen) y `lastScheduled` (último que no se pidió a mano).
+- `node {{WORKSPACE}}/board.js followup-status` da `environments`: por entorno, `cron` (cuándo lo programa el tablero), `everyHours`, `last` (último resumen) y `lastScheduled` (último que no se pidió a mano); y `due`, los entornos cuyo resumen programado toca ahora.
 - `node {{WORKSPACE}}/board.js people` es el directorio de personas conocidas: `id`, `name` y `accounts` (sus correos).
 
 ## Arranque
@@ -14,11 +14,15 @@ Esta sesión mira qué ha hecho **todo el mundo** a partir de las peticiones a l
 Si se ha invocado este comando (`/seguimiento`), o si te llega de otra sesión «Aviso del arranque: arranca el seguimiento» (o el antiguo «…arranca el resumen de {{REVIEWER}}»), pasa al abrir VS Code:
 
 1. Comprueba que eres tú: en `board.js followup-status`, `session` tiene que ser tu nombre de `ListAgents`. Si no coincide, no hagas nada y díselo a {{ME}} en una línea.
-2. `CronList`. Borra con `CronDelete` los crons antiguos de «Resumen de {{REVIEWER}}», si quedan. Tiene que haber, recurrentes, uno por entorno y uno de cierre; crea con `CronCreate` el que falte, y si el `cron` de un entorno ha cambiado en `followup-status`, borra el viejo y crea el nuevo:
-   - «Seguimiento de beta», con el `cron` de beta. Prompt: «Seguimiento de beta: haz «Cada resumen» de `{{ROOT}}/.claude/commands/seguimiento.md` para el entorno `beta`. Solo de lunes a viernes, de 8:00 a 18:31 Europe/Madrid.»
-   - «Seguimiento de producción», con el `cron` de producción y el mismo prompt para `production`.
-   - «Seguimiento de cierre», con `31 18 * * 1-5`: «Seguimiento de cierre: haz «Cada resumen» de `{{ROOT}}/.claude/commands/seguimiento.md` para `beta` y después para `production`.» Así queda cubierto el rato hasta las 18:30.
+2. `CronList`. Borra con `CronDelete` cualquier cron de «Seguimiento de …» o de «Resumen de {{REVIEWER}}» que quede: ya no se usan. Los resúmenes programados los dispara el propio tablero a su hora (ver «A su hora»), así que esta sesión no crea crons. Por qué: los crons vivían dentro de la sesión, se perdían al reiniciarla y había que rehacerlos y borrarlos al pausar; el tablero sigue la hora aunque la sesión se reinicie y no avisa en pausa.
 3. Haz ahora «Cada resumen» de beta.
+
+## A su hora
+
+Si te llega «Aviso del tablero: toca el seguimiento de …», es el resumen programado (el de cada entorno a su hora, de lunes a viernes, y el de cierre de las 18:31, que pide los dos). Lo que manda es el tablero, no el aviso:
+
+1. `node {{WORKSPACE}}/board.js followup-status`. Si `due` está vacío, ese resumen ya está hecho o no toca: no hagas nada.
+2. Haz «Cada resumen» para cada entorno de `due`, en ese orden, sin `--manual`. Al publicarlo, deja de salir en `due`.
 
 ## Pedido desde el tablero
 
@@ -29,11 +33,11 @@ Si te llega «Aviso del tablero: {{ME}} pide ahora un resumen de seguimiento», 
 
 ## Cada resumen
 
-Si lo dispara el cron y `board.js followup-status` da `"paused": true` sin `request`, {{ME}} ha pausado las revisiones con el botón de stop: borra con `CronDelete` los crons de «Seguimiento de …» y contesta solo «En pausa». Al reanudar, el tablero te manda «Aviso del arranque: arranca el seguimiento» y los vuelves a crear (Arranque).
+En pausa (el botón de stop del tablero) el tablero no manda los avisos programados; si aun así llega uno y `board.js followup-status` da `"paused": true` sin `request`, contesta solo «En pausa».
 
 1. **Dónde.** `beta` o `production`. En los dos, solo `SELECT`, acotado por fechas, con la receta de `context/DATABASE.md`. Nunca imprimas credenciales ni el `.env`.
 2. **El tramo.** La hora de Madrid sale de node (`toLocaleTimeString` con `timeZone: "Europe/Madrid"`): el `date` de Git Bash da UTC.
-   - Lanzado por el cron: desde `lastScheduled` de ese entorno hasta ahora, como mucho tres horas atrás en beta y cuatro en producción. Un resumen pedido a mano no mueve este tramo.
+   - Programado (aviso «toca el seguimiento»): desde `lastScheduled` de ese entorno hasta ahora, como mucho tres horas atrás en beta y cuatro en producción. Un resumen pedido a mano no mueve este tramo.
    - Pedido a mano: desde `last` de ese entorno si es de hoy; si no, desde las 8:00 de hoy (o el último día laborable, si hoy aún no hay nada).
 3. **Qué se ha hecho.** `api_requests` del tramo, de todo el mundo, con la receta de `context/SENTRY.md` («Following what someone did in the last hour»): `created_at` en UTC. Agrupa en SQL por `user_id` y operación (`COUNT`) en vez de volcar filas, y baja el detalle solo de quien lo necesite. En producción, siempre así.
 4. **Quién es quién.**
