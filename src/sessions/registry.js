@@ -423,6 +423,7 @@ module.exports = {
   STARTUP_NOTICE,
   titleKey,
   conversationTitle,
+  transcriptOf,
   liveSessions,
   assignRefs,
   loadRoutes,

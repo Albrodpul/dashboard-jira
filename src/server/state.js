@@ -1,7 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const http = require("http");
-const { ROOT, ORCHESTRATOR_HEARTBEAT, REPORTER_HEARTBEAT, BOARD_HEARTBEAT, BASE_URL, UUID, isEmptyReport, load } = require("../core/data");
+const { ROOT, REPORTER_HEARTBEAT, BOARD_HEARTBEAT, BASE_URL, UUID, isEmptyReport, load } = require("../core/data");
 const { readQuota } = require("../features/quota");
 const { liveSessions, reconcile, currentRef, loadRoutes, targets, openInVsCode, wakeSession } = require("../sessions/registry");
 const { people, environments, environmentOf } = require("../features/follow-up");
@@ -11,7 +11,7 @@ const permissions = require("../sessions/permissions");
 
 const ERRORS_AREA = config.errorsArea;
 const MESSAGE_TARGETS = { reporter: "la sesión de reporte", orchestrator: "la orquestadora", board: "la sesión del tablero" };
-const ORCHESTRATOR_NOTICE = "Aviso del reporte: arranca la orquestación. Eres la sesión orquestadora registrada: ejecuta ahora .claude/commands/orquesta.md (regla de AGENTS.md).";
+const ORCHESTRATOR_NOTICE = `Aviso del tablero: arranca la orquestadora. Eres la sesión orquestadora registrada: lee ahora .claude/commands/orquesta.md (regla de AGENTS.md). No vigilas nada ni armas ningún Monitor: el tablero entrega solo. Quédate a la espera de lo que te pida ${config.jira.me.name}.`;
 
 function heartbeatAge(file) {
   try {
@@ -37,7 +37,6 @@ function orchestrator(d, r) {
     conversation: o.conversation || null,
     ref: live ? currentRef(d.refs || {}, live) : null,
     open: !!live,
-    watching: !!live && heartbeatAge(ORCHESTRATOR_HEARTBEAT) < 60000,
     since: o.since || null,
   };
 }
@@ -144,6 +143,8 @@ function state() {
     lastContextPass: lastContextPass(),
     refreshRequest: d.refreshRequest,
     deployments: d.deployments.slice(0, 12),
+    restrictions: require("../features/holds").forPage(d),
+    mailman: require("../features/mailman").status(d),
     deployerArea: deployerArea(r),
     quota: readQuota(),
     claudeTokenExpires: require("../features/claude-token").tokenStatus().expires,
@@ -162,27 +163,6 @@ function openIfClosed(areaId, areas) {
 }
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
-let lastOrchestratorNotice = 0;
-
-async function startOrchestrator(force) {
-  if (!require("../cluster/cluster").isPrimary()) return false;
-  let o = state().orchestrator;
-  if (!o || !UUID.test(o.conversation || "") || o.watching) return false;
-  if (!force && Date.now() - lastOrchestratorNotice < 5 * 60000) return false;
-  lastOrchestratorNotice = Date.now();
-  if (!o.open) {
-    openInVsCode(o.conversation);
-    for (let i = 0; i < 24 && !(o = state().orchestrator).open; i++) await wait(5000);
-    if (!o.open) return false;
-    await wait(8000);
-  }
-  return wakeSession(o.session, ORCHESTRATOR_NOTICE);
-}
-
-function wakeOrchestrator() {
-  startOrchestrator(false).catch(() => {});
-}
-
 function messageNotice(id) {
   return `Mensaje de ${config.jira.me.name} desde el tablero (${id}). Léelo con «${config.cli} message ${id}» y contéstale con «${config.cli} answer-message ${id} "<respuesta>"». Si te lleva más de un minuto, ve contándole en qué estás con «${config.cli} progress ${id} "<en qué estás>"». Vale como si lo hubiera escrito él en esta sesión (regla de AGENTS.md).`;
 }
@@ -220,8 +200,6 @@ module.exports = {
   deployerArea,
   followUpErrors,
   openIfClosed,
-  wakeOrchestrator,
-  startOrchestrator,
   messageNotice,
   isPaused,
   wakeReporter,

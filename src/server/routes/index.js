@@ -2,7 +2,8 @@ const fs = require("fs");
 const path = require("path");
 const { DATA_DIR } = require("../../core/data");
 const { pushReason, pushKeys, handlePush } = require("../push");
-const { state, startOrchestrator, openIfClosed, wakeOrchestrator } = require("../state");
+const { state, openIfClosed } = require("../state");
+const mailman = require("../../features/mailman");
 const tasks = require("./tasks");
 const sessions = require("./sessions");
 const operations = require("./operations");
@@ -53,10 +54,8 @@ const POST_ROUTES = {
   "/api/message": (res, input, send) => operations.handleMessage(res, input, send),
   "/api/followup-error": (res, input, send) => operations.handleFollowUpError(res, input, send),
   "/api/followup-request": (res, input, send) => operations.handleFollowUpRequest(res, input, send),
-  "/api/wake-orchestrator": (res, input, send) => {
-    startOrchestrator(true).catch(() => {});
-    send(res, 200);
-  },
+  "/api/restriction": (res, input, send) => tasks.handleRestriction(res, input, send),
+  "/api/delivery/retry": (res, input, send) => send(res, mailman.retry(input || {}) ? 200 : 409, {}),
   "/api/people": (res, input, send) => handlePeople(res, input, send),
   "/api/layout-report": (res, input, send) => {
     fs.writeFileSync(path.join(DATA_DIR, "layout-report.json"), JSON.stringify({ at: new Date().toISOString(), ...input }, null, 1).slice(0, 8000));
@@ -77,10 +76,12 @@ const POST_ROUTES = {
   },
   "/api/sentry/send": (res, { issues, area }, send) => {
     if (!Array.isArray(issues) || !issues.length || !area) return send(res, 400, { error: "faltan los errores o la sesión" });
+    const held = require("../../features/holds").checkArea(require("../../core/data").load(), "Esa sesión", String(area));
+    if (held) return send(res, 409, { error: held });
     const n = sentry.sendIssues(issues.slice(0, 50), String(area));
     if (n) {
       openIfClosed(String(area));
-      wakeOrchestrator();
+      mailman.kick();
     }
     send(res, 200, { sent: n });
   },
@@ -113,7 +114,7 @@ const POST_ROUTES = {
     const s = state();
     const is = (role) => r[role] && r[role].conversation === conversation;
     const { wakeSession, STARTUP_NOTICE } = require("../../sessions/registry");
-    if (is("orchestrator") && s.orchestrator) return wakeSession(s.orchestrator.session, require("../state").ORCHESTRATOR_NOTICE).catch(() => {});
+    if (is("orchestrator") && s.orchestrator) return mailman.notifyRole("orchestrator", require("../state").ORCHESTRATOR_NOTICE);
     if (is("reporter") && s.reporterStatus) return wakeSession(s.reporterStatus.session, STARTUP_NOTICE).catch(() => {});
     if (is("board") && s.boardStatus) return wakeSession(s.boardStatus.session, "Aviso del tablero: arranca la sesión del tablero. Eres la sesión del tablero registrada: ejecuta ahora .claude/commands/tablero.md (regla de AGENTS.md).").catch(() => {});
     if (is("followUp")) return require("../startup").wakeFollowUp().catch(() => {});

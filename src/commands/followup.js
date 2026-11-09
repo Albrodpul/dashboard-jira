@@ -3,6 +3,7 @@ const { sendPush } = require("../server/push");
 const { state } = require("../server/state");
 const { markSent: markSentrySent, saveResult: saveSentryResult } = require("../features/sentry");
 const { a, rest, keyList, json, option, withoutOptions, environmentOption, ME, fail } = require("./args");
+const config = require("../core/config");
 
 module.exports = {
   followup() {
@@ -73,6 +74,11 @@ module.exports = {
       for (const r of d.followUps) {
         for (const e of r.errors || []) {
           if (!ids.includes(e.id) || e.state !== "approved" || e.approvedVia !== "board") continue;
+          const held = require("../features/holds").checkArea(d, `El posible error ${e.id}`, config.errorsArea);
+          if (held) {
+            console.error(held);
+            continue;
+          }
           Object.assign(e, { state: "sent", sentAt: now() });
           k++;
         }

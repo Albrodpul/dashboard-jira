@@ -2,7 +2,9 @@ const { IN_SESSION, now, load, mutate } = require("../../core/data");
 const { loadRoutes, realArea, sessionsCli } = require("../../sessions/registry");
 const { ME, jiraGet, jiraSearch, jiraRequest, summarizeIssue, adfFromText } = require("../../jira/client");
 const config = require("../../core/config");
-const { state, openIfClosed, wakeOrchestrator, isPaused, wakeReporter } = require("../state");
+const { state, openIfClosed, isPaused, wakeReporter } = require("../state");
+const holds = require("../../features/holds");
+const kickMailman = () => require("../../features/mailman").kick();
 
 const RESUME_NOTICE = `Aviso del tablero: reanuda las revisiones. Compruébalo con «${config.cli} reporter» (paused: false) y sigue «Pausa» de .claude/commands/resumen-jira.md.`;
 const REVIEW_NOTICE = `Aviso del tablero: ${config.jira.me.name} pide una revisión. Compruébalo con «${config.cli} refresh-request» y sigue «Pausa» de .claude/commands/resumen-jira.md.`;
@@ -22,6 +24,8 @@ function handleTask(res, { key, patch }, send) {
   const result = mutate((d) => {
     const task = d.tasks[key];
     if (!task) return { code: 404, error: "tarea desconocida" };
+    const held = (patch.status === "approved" || byHand) && holds.checkTask(d, task, area || task.area);
+    if (held) return { code: 409, error: held };
     if (IN_SESSION.includes(task.status) && patch.status === "pending" && patch.resend === true) {
       const changes = (task.changes || []).map((c) => c.text);
       Object.assign(task, {
@@ -53,6 +57,8 @@ function handleTask(res, { key, patch }, send) {
     if (patch.status === "approved") {
       task.decidedAt = now();
       task.approvedVia = "board";
+      delete task.delivery;
+      delete task.heldBack;
     } else if (patch.status) {
       task.decidedAt = patch.status === "ignored" ? now() : null;
       delete task.approvedVia;
@@ -63,7 +69,7 @@ function handleTask(res, { key, patch }, send) {
   const t = result.task;
   if (patch.status === "approved" && t.area) {
     openIfClosed(t.area);
-    wakeOrchestrator();
+    kickMailman();
     routeEpic(t);
   }
   send(res, 200);
@@ -74,13 +80,21 @@ function handleBatch(res, { items }, send) {
   const routes = loadRoutes();
   const pairs = items.map((i) => ({ key: String(i.key), area: realArea(i.area) }));
   if (pairs.some((p) => !p.area || !routes.areas[p.area])) return send(res, 400, { error: "todas las tareas necesitan una sesión" });
+  const held = [];
   const approved = mutate((d) => {
     const at = now();
     const out = [];
     for (const p of pairs) {
       const task = d.tasks[p.key];
       if (!task || task.status !== "pending") continue;
+      const error = holds.checkTask(d, task, p.area);
+      if (error) {
+        held.push({ key: p.key, error });
+        continue;
+      }
       Object.assign(task, { status: "approved", area: p.area, decidedAt: at, approvedVia: "board" });
+      delete task.delivery;
+      delete task.heldBack;
       out.push({ ...task });
     }
     return out;
@@ -93,8 +107,9 @@ function handleBatch(res, { items }, send) {
     epics.add(t.epicKey);
     routeEpic(t);
   }
-  if (approved.length) wakeOrchestrator();
-  send(res, 200, { approved: approved.length });
+  if (approved.length) kickMailman();
+  if (held.length && !approved.length) return send(res, 409, { error: held.map((x) => x.error).join(" "), held });
+  send(res, 200, { approved: approved.length, held });
 }
 
 function markDeleted(d, k) {
@@ -147,7 +162,7 @@ function handleAnswer(res, { key, text }, send) {
     return "";
   });
   if (error) return send(res, 409, { error });
-  wakeOrchestrator();
+  kickMailman();
   send(res, 200);
 }
 
@@ -212,7 +227,7 @@ function handleComment(res, { key, text }, send) {
         x.publishedComment = { at, text: clean };
         x.answer = { text: `${config.jira.me.name} ha publicado en Jira tu comentario${changed ? " con cambios" : " tal cual"}. Texto publicado: «${clean}». Sigue con la tarea cuando haya respuesta en Jira, o con lo que no dependa de ella.`, at, delivered: false };
       });
-      wakeOrchestrator();
+      kickMailman();
       send(res, 200);
     })
     .catch((e) => send(res, 502, { error: String(e.message || e) }));
@@ -336,4 +351,12 @@ function handleImport(res, { keys }, send) {
     .catch(() => send(res, 502, { error: "No se pudo consultar Jira" }));
 }
 
-module.exports = { handleTask, handleBatch, handleDelete, archiveDone, handleAnswer, handleReviewed, handleReviewedAll, reviewJobState, handleComment, handleConfig, handleRefresh, handleSearch, handleTicket, handleImport };
+function handleRestriction(res, input, send) {
+  const areas = Object.keys(loadRoutes().areas);
+  const r = mutate((d) => (input.action === "release" ? holds.releaseRestriction(d, String(input.id || ""), { by: "board" }) : holds.addRestriction(d, { ...input, createdBy: "board" }, { areas })));
+  if (r.error) return send(res, 400, { error: r.error });
+  kickMailman();
+  send(res, 200, r);
+}
+
+module.exports = { handleRestriction, handleTask, handleBatch, handleDelete, archiveDone, handleAnswer, handleReviewed, handleReviewedAll, reviewJobState, handleComment, handleConfig, handleRefresh, handleSearch, handleTicket, handleImport };

@@ -5,6 +5,8 @@ const config = require("../core/config");
 const { ERRORS_AREA, MESSAGE_TARGETS, state, tidyBlockers, lastContextPass, followUpErrors } = require("../server/state");
 const { sentryIssues } = require("../features/sentry");
 const { cmd, a, b, rest, json, ME, fail } = require("./args");
+const holds = require("../features/holds");
+const mailman = require("../features/mailman");
 
 function destinationOf(s) {
   return (id) => {
@@ -17,13 +19,15 @@ const commands = {
   dispatches() {
     const s = state();
     const destination = destinationOf(s);
-    const note = (t) => ((t.note ? `${t.noteBy ? t.noteBy + ": " : ""}${t.note}` : "") + (t.changes && t.changes.length ? " Cambios en Jira: " + t.changes.map((c) => c.text).join("; ") + "." : "")).trim().slice(0, 900);
-    const tasks = s.tasks
-      .filter((t) => t.status === "approved" && HUMAN_APPROVALS.includes(t.approvedVia))
-      .map((t) => ({ key: t.key, title: t.title, kind: t.kind, epic: [t.epicKey, t.epicName].filter(Boolean).join(" "), approvedVia: t.approvedVia, assignee: t.assignee || "sin asignar", note: note(t), area: t.area, destination: destination(t.area) }));
+    const d = load();
+    const approved = s.tasks.filter((t) => t.status === "approved" && HUMAN_APPROVALS.includes(t.approvedVia));
+    const held = approved.filter((t) => holds.checkTask(d, t, t.area)).map((t) => ({ key: t.key, area: t.area, error: holds.checkTask(d, t, t.area) }));
+    const tasks = approved
+      .filter((t) => !holds.checkTask(d, t, t.area))
+      .map((t) => ({ key: t.key, title: t.title, kind: t.kind, epic: [t.epicKey, t.epicName].filter(Boolean).join(" "), approvedVia: t.approvedVia, assignee: t.assignee || "sin asignar", note: mailman.taskNote(t), mandatory: holds.notesFor(d, holds.taskTarget(t, t.area)).map((r) => `${r.id}: ${r.reason}`), delivery: t.delivery || null, area: t.area, destination: destination(t.area) }));
     const deployments = s.deployments
-      .filter((x) => x.status === "approved" && x.approvedVia === "board")
-      .map((x) => ({ id: x.id, projects: x.projects, environment: x.environment, version: x.version, area: x.area, destination: destination(x.area) }));
+      .filter((x) => x.status === "approved" && x.approvedVia === "board" && !holds.checkArea(d, x.id, x.area))
+      .map((x) => ({ id: x.id, projects: x.projects, environment: x.environment, version: x.version, area: x.area, delivery: x.delivery || null, destination: destination(x.area) }));
     (async () => {
       for (const t of tasks) {
         try {
@@ -36,12 +40,12 @@ const commands = {
         .filter((t) => t.answer && !t.answer.delivered)
         .map((t) => ({ key: t.key, title: t.title, asked: (t.notice && t.notice.text) || "", answer: t.answer.text, area: t.area, destination: destination(t.area) }));
       const errors = followUpErrors(load())
-        .filter((e) => e.state === "approved" && e.approvedVia === "board")
+        .filter((e) => e.state === "approved" && e.approvedVia === "board" && !holds.checkArea(d, e.id, ERRORS_AREA))
         .map((e) => ({ id: e.id, text: e.text, seenAt: e.at, destination: destination(ERRORS_AREA) }));
       const sentry = sentryIssues(load())
-        .filter((x) => x.state === "approved" && x.approvedVia === "board")
+        .filter((x) => x.state === "approved" && x.approvedVia === "board" && !holds.checkArea(d, x.id, x.area))
         .map((x) => ({ id: x.id, title: x.title, culprit: x.culprit, project: x.project, url: x.url, events: x.count, users: x.users, lastSeen: x.lastSeen, again: x.rounds > 1, destination: destination(x.area) }));
-      json({ tasks, deployments, answers, errors, sentry });
+      json({ deliveredBy: "board", note: `El tablero entrega todo esto solo, en cuanto ${ME} lo aprueba: esta lista es para consultar. No lo envíes tú.`, tasks, held, deployments, answers, errors, sentry });
     })();
   },
 
@@ -67,6 +71,7 @@ const commands = {
       if (extra.length) return `solo se pueden cambiar status, sentAt y reply (sobra: ${extra.join(", ")})`;
       if (patch.status && patch.status !== "sent") return `un despliegue solo lo ordena o lo cancela ${ME}, en el tablero`;
       if (patch.status === "sent" && !(x.status === "approved" && x.approvedVia === "board")) return `${a} no está esperando envío: no se puede marcar como enviado`;
+      if (patch.status === "sent" && holds.checkArea(d, `El despliegue ${a}`, x.area)) return holds.checkArea(d, `El despliegue ${a}`, x.area);
       if (patch.status === "sent" && !patch.sentAt) patch.sentAt = now();
       Object.assign(x, patch);
       return "";

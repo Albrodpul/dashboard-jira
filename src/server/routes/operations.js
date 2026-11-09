@@ -1,6 +1,8 @@
 const { UUID, now, load, mutate } = require("../../core/data");
 const { loadRoutes, changeRoutes, realArea, openInVsCode, wakeSession } = require("../../sessions/registry");
-const { ERRORS_AREA, MESSAGE_TARGETS, talkTarget, state, tidyBlockers, openIfClosed, wakeOrchestrator, messageNotice, wait } = require("../state");
+const { ERRORS_AREA, MESSAGE_TARGETS, talkTarget, state, tidyBlockers, openIfClosed, messageNotice, wait } = require("../state");
+const holds = require("../../features/holds");
+const kickMailman = () => require("../../features/mailman").kick();
 const followUp = require("../../features/follow-up");
 const config = require("../../core/config");
 
@@ -28,6 +30,8 @@ function handleDeploy(res, { projects, environment, version, area, cancel }, sen
   const target = realArea(area) && routes.areas[area] ? area : null;
   if (!target) return send(res, 400, { error: "elige la sesión que despliega" });
   if (routes.deployer !== target) changeRoutes((r) => (r.deployer = target));
+  const heldDeploy = holds.checkArea(load(), "El despliegue", target);
+  if (heldDeploy) return send(res, 409, { error: heldDeploy });
   const created = mutate((d) => {
     if (d.deployments.some((x) => x.status === "approved")) return null;
     const at = now();
@@ -38,7 +42,7 @@ function handleDeploy(res, { projects, environment, version, area, cancel }, sen
   });
   if (!created) return send(res, 409, { error: "ya hay un despliegue esperando envío" });
   openIfClosed(target);
-  wakeOrchestrator();
+  kickMailman();
   send(res, 200, created);
 }
 
@@ -51,7 +55,7 @@ function handleTidy(res, send) {
     return { code: 200 };
   });
   if (r.code !== 200) return send(res, r.code, { error: r.error });
-  wakeOrchestrator();
+  kickMailman();
   send(res, 200);
 }
 
@@ -104,6 +108,7 @@ function summaryToErrors(d, at) {
 function handleFollowUpError(res, { id, at, action }, send) {
   if (!["send", "discard", "summary"].includes(action)) return send(res, 400, { error: "acción desconocida" });
   const error = mutate((d) => {
+    if (action !== "discard" && holds.checkArea(d, "La sesión de errores", ERRORS_AREA)) return holds.checkArea(d, "La sesión de errores", ERRORS_AREA);
     if (action === "summary") return summaryToErrors(d, at);
     for (const r of d.followUps) {
       const e = (r.errors || []).find((x) => x.id === id);
@@ -117,7 +122,7 @@ function handleFollowUpError(res, { id, at, action }, send) {
   if (error) return send(res, 409, { error });
   if (action !== "discard") {
     openIfClosed(ERRORS_AREA);
-    wakeOrchestrator();
+    kickMailman();
   }
   send(res, 200);
 }

@@ -94,6 +94,11 @@ function markSent(ids) {
     for (const id of ids) {
       const x = (d.sentry || {})[id];
       if (!x || x.state !== "approved" || x.approvedVia !== "board") continue;
+      const held = require("./holds").checkArea(d, `El error ${id}`, x.area);
+      if (held) {
+        console.error(held);
+        continue;
+      }
       Object.assign(x, { state: "sent", sentAt: now() });
       k++;
     }

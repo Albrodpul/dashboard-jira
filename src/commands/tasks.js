@@ -4,7 +4,8 @@ const { syncJiraEpics, downloadAttachments } = require("../jira/client");
 const { sendPush } = require("../server/push");
 const { TASK_KIND, CAUSE } = require("../core/migrate");
 const config = require("../core/config");
-const { state, wakeOrchestrator } = require("../server/state");
+const { state } = require("../server/state");
+const holds = require("../features/holds");
 const { cmd, a, b, rest, keyList, json, status, ME, MY_FIRST_NAME, fail } = require("./args");
 
 const NOTICE_OF = { done: "done", partial: "partial", question: "question", comment: "comment" };
@@ -37,7 +38,9 @@ const commands = {
         if (comesBack) {
           task.proposedArea = fields.proposedArea || previous.area || previous.proposedArea || "";
           task.rounds = (previous.rounds || 0) + 1;
-          if (d.config && d.config.autoReturned && previous.area) {
+          const held = d.config && d.config.autoReturned && previous.area ? holds.checkTask(d, task, previous.area) : "";
+          if (held) out.push(`${t.key}: ya estaba ${previous.status}; tu regla de devueltas la mandaría sola, pero ${held} Queda en Pendientes.`);
+          else if (d.config && d.config.autoReturned && previous.area) {
             Object.assign(task, { status: "approved", area: previous.area, decidedAt: now(), approvedVia: "rule" });
             auto++;
             out.push(`${t.key}: ya estaba ${previous.status}; vuelve sola a su sesión (${previous.area}) por la regla de devueltas de ${ME}`);
@@ -50,7 +53,6 @@ const commands = {
       return { out, pending, auto };
     });
     console.log(r.out.join("\n"));
-    if (r.auto) wakeOrchestrator();
     if (r.pending) sendPush("tasks", false, r.pending === 1 ? "Hay una tarea nueva en Pendientes" : `Hay ${r.pending} tareas nuevas en Pendientes`).then((n) => n && console.log(`aviso enviado a ${n} dispositivo(s)`));
   },
 
@@ -72,6 +74,7 @@ const commands = {
       if ("approvedVia" in patch || "decidedAt" in patch) return "approvedVia y decidedAt solo los pone el tablero";
       if (patch.status && patch.status !== "sent") return `el estado «${patch.status}» lo decide ${ME}: en el tablero, o por chat con approve-chat`;
       if (patch.status === "sent" && !(t.status === "approved" && HUMAN_APPROVALS.includes(t.approvedVia))) return `${a} no está aprobada por ${ME}: no se puede marcar como enviada`;
+      if (patch.status === "sent" && holds.checkTask(d, t, t.area)) return holds.checkTask(d, t, t.area);
       if (patch.status === "sent" && !patch.sentAt) patch.sentAt = now();
       Object.assign(t, patch);
       return "";
@@ -88,7 +91,10 @@ const commands = {
       if (t.status === "sent") return `${a} ya está enviada`;
       const areas = loadRoutes().areas;
       if (!area || !areas[area]) return `área desconocida: ${area || "(falta)"}. Las que hay: ${Object.keys(areas).join(", ")}`;
+      const held = holds.checkTask(d, t, area);
+      if (held) return held;
       Object.assign(t, { status: "approved", area, decidedAt: now(), approvedVia: "chat" });
+      delete t.delivery;
       return "";
     });
     if (error) fail(error);
@@ -259,6 +265,7 @@ function sentOrReply() {
       if (!item) out.push(`no existe ${k}`);
       else if (cmd === "reply") item.reply = text;
       else if (item.status !== "approved" || !(t ? HUMAN_APPROVALS.includes(t.approvedVia) : x.approvedVia === "board")) out.push(`${k} no está aprobada por ${ME} y esperando envío`);
+      else if (t ? holds.checkTask(d, t, t.area) : holds.checkArea(d, `El despliegue ${k}`, x.area)) out.push(t ? holds.checkTask(d, t, t.area) : holds.checkArea(d, `El despliegue ${k}`, x.area));
       else {
         Object.assign(item, { status: "sent", sentAt: now() });
         delete item.changes;
