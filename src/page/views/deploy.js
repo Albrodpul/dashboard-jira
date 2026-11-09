@@ -108,7 +108,7 @@ function statusRow(env, e, earlier) {
 function deployStatusPanel(root) {
   const st = state.deployStatus;
   const refreshBtn = button(dsBusy ? "Comprobando…" : "Comprobar ahora", {
-    cls: "ds-refresh",
+    cls: "subtle",
     disabled: dsBusy,
     onClick: () => {
       dsBusy = true;
@@ -121,21 +121,27 @@ function deployStatusPanel(root) {
         });
     },
   });
-  root.appendChild(h("div", { class: "group-head" }, [h("span", { class: "group-name", text: "Estado ahora" }), h("span", { class: "meta", text: st ? `Comprobado ${ago(st.at)}` : "Sin comprobar todavía" }), refreshBtn]));
+  root.appendChild(
+    h("div", { class: "issues-bar" }, [
+      h("div", { class: "proj-count" }, [h("strong", { text: "Estado ahora" })]),
+      h("div", { class: "issues-read" }, [h("span", { class: "meta", text: st ? `Comprobado ${ago(st.at)}` : "Sin comprobar todavía" }), refreshBtn]),
+    ])
+  );
   if (!st) return root.appendChild(empty("Todavía no hay estado.", "Añade el repo de cada proyecto en deployProjects de board.config.json para seguir sus despliegues."));
-  const grid = h("div", { class: "ds-grid" });
+  const list = h("div", { class: "ds-list" });
   for (const item of st.items) {
-    const card = h("article", { class: "ds-card" }, [h("div", { class: "ds-head" }, [h("strong", { text: item.id }), item.envs.develop && item.envs.develop.hasCodedeploy ? h("span", { class: "meta", text: "GitHub Actions + CodeDeploy" }) : h("span", { class: "meta", text: "GitHub Actions" })])]);
-    if (item.error) card.appendChild(h("div", { class: "meta", text: `No se pudo leer: ${item.error}` }));
+    const envs = h("div", { class: "ds-envs" });
+    if (item.error) envs.appendChild(h("div", { class: "meta", text: `No se pudo leer: ${item.error}` }));
     for (const env of ["develop", "production"]) {
       const e = item.envs[env];
       if (!e) continue;
-      card.appendChild(statusRow(env, e));
-      for (const p of e.parallel || []) card.appendChild(statusRow(env, p, true));
+      envs.appendChild(statusRow(env, e));
+      for (const p of e.parallel || []) envs.appendChild(statusRow(env, p, true));
     }
-    grid.appendChild(card);
+    const hasCd = item.envs.develop && item.envs.develop.hasCodedeploy;
+    list.appendChild(h("div", { class: "ds-item" }, [h("div", { class: "ds-head" }, [h("strong", { text: item.id }), h("span", { class: "meta", text: hasCd ? "Actions + CodeDeploy" : "Actions" })]), envs]));
   }
-  root.appendChild(grid);
+  root.appendChild(list);
 }
 
 function pill(label, note, pressed, onClick, extra) {
