@@ -148,20 +148,9 @@ textarea.comment-box { font-family: inherit; }
 .tasks-col { min-width: 180px; }
 .tasks-col.wide { min-width: 260px; }
 .tasks-col:has(> .board-empty) { flex: 0.6 1 0; min-width: 130px; }
-.limits { border: 1px solid var(--line); border-radius: 8px; background: var(--surface); padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; margin: 0 0 14px; }
-.limits-head { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
-.limits-title { font-weight: 600; font-size: 13px; }
-.limit-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; border-top: 1px solid var(--line); padding-top: 8px; font-size: 13px; }
-.limit-what { flex: 1 1 240px; min-width: 0; overflow-wrap: anywhere; }
 .chip.limit { text-transform: none; letter-spacing: 0; white-space: nowrap; }
 .chip.limit-hold, .issue-tag.held, .board-tag.held { color: var(--accent); background: var(--accent-soft); }
 .board-tag.held { border-radius: 4px; padding: 0 4px; }
 .chip.limit-note { color: var(--ink-2); background: var(--mute-soft); }
 .limit-chips { display: flex; gap: 6px; flex-wrap: wrap; }
-.limit-new { border-top: 1px solid var(--line); padding-top: 8px; }
-.limit-new summary { cursor: pointer; font-size: 13px; color: var(--accent); }
-.limit-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px 12px; padding-top: 10px; align-items: end; }
-.limit-field { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-.limit-field input, .limit-field select { font: inherit; color: var(--ink); background: var(--surface-2); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; min-width: 0; width: 100%; box-sizing: border-box; flex: none; }
-.limit-add { display: flex; align-items: end; }
 .delivery-error { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 13px; color: var(--danger); }

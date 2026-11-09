@@ -72,9 +72,10 @@ async function startReporter(force) {
   if (!require("../cluster/cluster").isPrimary()) return log("este ordenador no manda: no arranco el reporte");
   if ((state().reporterStatus || {}).paused) return log("revisiones en pausa desde el tablero: no se arranca el reporte");
   await require("../sessions/rotate").rotateDaily().catch((e) => log("error al empezar las conversaciones del día: " + (e.message || e)));
+  const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
   for (let attempt = 1; attempt <= 3; attempt++) {
     const rep0 = state().reporterStatus;
-    if (rep0 && rep0.watching) return log("la sesión de reporte ya vigila");
+    if (require("../core/data").load().reporterStartedOn === today) return log("la sesión de reporte ya arrancó hoy");
     if (!rep0 || !UUID.test(rep0.conversation || "")) return log("no hay sesión de reporte registrada: lanza /resumen-jira una vez a mano");
     const rep = await openAndWait(() => state().reporterStatus, "la sesión de reporte");
     if (!rep) {
@@ -83,10 +84,11 @@ async function startReporter(force) {
     }
     const ok = await wakeSession(rep.session);
     log(`aviso de arranque a ${rep.session}: ${ok ? "enviado" : "falló"}`);
-    for (let i = 0; i < 18; i++) {
-      await wait(10000);
-      if ((state().reporterStatus || {}).watching) return log("la sesión de reporte ya vigila");
+    if (ok) {
+      require("../core/data").mutate((d) => (d.reporterStartedOn = today));
+      return;
     }
+    await wait(30000);
   }
   log("no se consiguió arrancar el reporte en tres intentos");
 }

@@ -2,12 +2,10 @@ const { IN_SESSION, now, load, mutate } = require("../../core/data");
 const { loadRoutes, realArea, sessionsCli } = require("../../sessions/registry");
 const { ME, jiraGet, jiraSearch, jiraRequest, summarizeIssue, adfFromText } = require("../../jira/client");
 const config = require("../../core/config");
-const { state, openIfClosed, isPaused, wakeReporter } = require("../state");
+const { state, openIfClosed, isPaused } = require("../state");
 const holds = require("../../features/holds");
 const kickMailman = () => require("../../features/mailman").kick();
 
-const RESUME_NOTICE = `Aviso del tablero: reanuda las revisiones. Compruébalo con «${config.cli} reporter» (paused: false) y sigue «Pausa» de .claude/commands/resumen-jira.md.`;
-const REVIEW_NOTICE = `Aviso del tablero: ${config.jira.me.name} pide una revisión. Compruébalo con «${config.cli} refresh-request» y sigue «Pausa» de .claude/commands/resumen-jira.md.`;
 const DAY = 24 * 3600 * 1000;
 
 function routeEpic(t) {
@@ -243,7 +241,6 @@ function handleConfig(res, input, send) {
     }
   });
   if (input.paused === false) {
-    wakeReporter(RESUME_NOTICE).catch(() => {});
     require("../startup").wakeFollowUp().catch(() => {});
   }
   send(res, 200);
@@ -257,7 +254,6 @@ function handleRefresh(res, send) {
     }
     return d.refreshRequest;
   });
-  if (isPaused(load())) wakeReporter(REVIEW_NOTICE).catch(() => {});
   send(res, 200, request);
 }
 

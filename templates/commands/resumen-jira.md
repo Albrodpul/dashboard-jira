@@ -10,16 +10,12 @@ Si de verdad se ha invocado este comando (`/resumen-jira`):
 
 1. Registra esta sesión como la de reporte: llama a `ListAgents`, toma tu propio nombre y ref de la línea «This session is … […]» y ejecuta `node {{WORKSPACE}}/sessions.js iam reporter <nombre> <ref>`.
 2. Arranca el tablero: `node {{WORKSPACE}}/board.js ensure` (página en http://127.0.0.1:4747, datos en `{{WORKSPACE}}/data/`).
-3. Arma un Monitor con `node {{WORKSPACE}}/board.js watch reports` (timeout_ms 1800000; vuelve a armarlo cada vez que avise de que caduca o dé `RESTART`, que es que ha cambiado el código del tablero: rearma y relee este fichero). Es el disparador principal y da dos tipos de evento, que se atienden en el momento:
-   - `CYCLE hh:mm …`: toca la revisión periódica y Jira tiene algo sin contar. Haz «Cada revisión». El monitor mira Jira cada minuto (de lunes a viernes, de 8:00 a 18:30) con `jira-window.js --check`, solo código: si no hay nada nuevo, apunta él mismo «sin novedades» y no te despierta. Por qué: la mayoría de las revisiones salían vacías y cada una era un turno entero de esta sesión (orden de {{ME}}, 2026-11-09). Si la comprobación falla, da `CYCLE` igual.
-   - `REFRESH …`: {{ME}} ha pulsado Refrescar. Haz «Cada revisión» aunque no haya novedades.
-   - `MESSAGE <id>`: casi nunca llega, porque la pestaña Hablar ya es la propia sesión en directo y no un chat (el servidor lo conserva). Si llega, léelo con `node g:/workspace/myproject/scripts/board.js message <id>` (vale como escrito aquí), hazlo y contesta con `node g:/workspace/myproject/scripts/board.js answer-message <id> "<respuesta>"`.
-   El ciclo lo marca el propio monitor y no un `/loop`. Hacer, Desplegar y las respuestas no pasan por aquí: los entrega el tablero.
-4. No crees crons de respaldo, y borra con `CronDelete` los de «Revisión de Jira de respaldo» si quedan: el servidor del tablero vigila el latido del monitor y, si lleva más de 3 minutos caído en horario, te despierta con «Aviso del arranque: arranca el reporte». Por qué: el cron de respaldo era un turno de esta sesión cada 5 minutos solo para contestar «Vigilando».
+3. No armes ningún Monitor ni crons: si te queda un Monitor `watch reports` armado, páralo, y borra con `CronDelete` los de «Revisión de Jira de respaldo» si quedan. **Quien vigila Jira es el servidor del tablero**: cada minuto (de lunes a viernes, de 8:00 a 18:30, o con el modo fuera de horario) mira con `jira-window.js --check`, solo código, si hay algo sin contar. Si no hay nada, apunta él mismo «sin novedades» y no te despierta. Si hay algo, te escribe aquí «Tablero: hay N novedades sin contar en Jira…», y si {{ME}} pulsa Refrescar, «Tablero: {{ME}} ha pulsado Refrescar…»: en los dos casos haz «Cada revisión». Hacer, Desplegar y las respuestas tampoco pasan por aquí: los entrega el tablero. Por qué (2026-11-09): la mayoría de revisiones salían vacías y cada una era un turno entero de esta sesión, y el Monitor caducaba cada 30 minutos y costaba otro turno rearmarlo.
+4. Haz ahora una «Cada revisión», que es la primera del día.
 
 ## Cada revisión
 
-La misma, la dispare el ciclo o un `REFRESH`:
+La misma, la pida el tablero por novedades, por Refrescar o al arrancar:
 
 1. Las sesiones abiertas no hay que guardarlas: el tablero las lee solo del registro de Claude Code (`~/.claude/sessions/<pid>.json`, que trae el uuid de la conversación y el nombre automático actual) y enlaza cada sesión con su conversación por ese uuid, que no cambia al reanudar. Los ficheros `.key` de esa carpeta son secretos: no se leen.
 2. Lee Jira tú mismo, en esta sesión (no delegues en un subagente): `node {{WORKSPACE}}/jira-window.js`, sin número. Mira desde el último reporte publicado, con margen: vale igual para la primera revisión del día, tras un festivo o tras tener el ordenador suspendido. **Solo saca lo que no se ha contado todavía**: cada evento queda como contado al publicar el reporte, así que no hay que descartar nada a mano y lo que Jira entrega con retraso sale en la revisión siguiente. `--all` enseña también lo ya contado, por si hace falta repasar. El script deja fuera lo que hace {{ME}} (salvo los tickets que crea: esos se reportan y dan tarjeta como cualquier ticket nuevo, porque los crea para que se hagan), los enlaces y los cambios de Rank, saca cada evento con la hora en Madrid y con su epic, y al final lista qué sesión lleva cada epic. Si falla, usa las herramientas `mcp__jira__*` con JQL "{{JQLPROJECTS}} AND updated >= -30m", sin filtrar por sprint, comprobando `created`/`reporter`, el changelog Y el campo `comment` de cada ticket (los comentarios no siempre salen en el changelog; pasa las horas de Jira a Europe/Madrid).
@@ -46,11 +42,10 @@ Al abrir la carpeta del espacio de trabajo en VS Code, la tarea «Arrancar el re
 
 ## Pausa
 
-{{ME}} puede pausar las revisiones desde el tablero (el botón de stop junto a la campana, en la cabecera del reporte), por ejemplo cuando {{REVIEWER}} está de vacaciones. Cada ciclo es un turno entero de esta sesión, así que en pausa no se gasta ninguno:
+{{ME}} puede pausar las revisiones desde el tablero (el botón de stop junto a la campana, en la cabecera del reporte), por ejemplo cuando {{REVIEWER}} está de vacaciones. 
 
-- **Al llegar el evento `PAUSE`** (o si `board.js reporter` da `"paused": true`): el Monitor `watch reports` sí se mantiene armado y se rearma al caducar: en pausa no da ciclos, solo `REFRESH` (y `MESSAGE`, que casi nunca llega), así que no gasta turnos. En el chat, una línea: «Revisiones en pausa».
-- **«Aviso del tablero: {{ME}} pide una revisión»** ({{ME}} ha pulsado Refrescar en pausa y el tablero te despierta): comprueba con `board.js refresh-request` que hay una petición y haz una sola «Cada revisión». Si el Monitor no está armado, ármalo (ver el punto anterior).
-- **«Aviso del tablero: reanuda las revisiones»**: comprueba que `board.js reporter` da `"paused": false` y haz el paso 3 del principio (Monitor) y una «Cada revisión».
+- En pausa el servidor no mira Jira ni te escribe, así que no se gasta ningún turno. Si {{ME}} pulsa Refrescar, te llega igual «Tablero: {{ME}} ha pulsado Refrescar…»: haz una sola «Cada revisión».
+- Al reanudar no hace falta nada: el servidor vuelve a mirar Jira al minuto siguiente.
 - Hablar sigue llegando: si nadie lo lee en 45 segundos, el tablero despierta a la sesión.
 
 ## Límites

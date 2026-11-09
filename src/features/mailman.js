@@ -298,6 +298,10 @@ let env = null;
 const E = () => env || (env = defaultEnv());
 
 function targetOf(s, job) {
+  if (job.role === "reporter") {
+    const r = s.reporterStatus;
+    return r ? { name: "Reporte", conversation: r.conversation, sessionName: r.session, open: r.open, ref: null, repeatedName: false } : null;
+  }
   if (job.role === "orchestrator") {
     const o = s.orchestrator;
     return o ? { name: o.title || "Orquestadora", conversation: o.conversation, sessionName: o.session, open: o.open, ref: o.ref, repeatedName: false } : null;

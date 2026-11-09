@@ -1,5 +1,5 @@
 import { state, h, post, switchView, setRender, setRefresh, empty, reviewer } from "./lib/base.js";
-import { renderTasks, renderToday, renderBoard, restrictionsPanel } from "./views/tasks.js";
+import { renderTasks, renderToday, renderBoard } from "./views/tasks.js";
 import { renderSessions } from "./views/sessions.js";
 import { renderDeploy } from "./views/deploy.js";
 import { renderTalk } from "./views/talk.js";
@@ -333,7 +333,6 @@ function paint() {
   if (state.tab === "more") return renderMore(root, waitingDeploys, errors);
   if (!mobile && isTaskTab(state.tab) && state.tab !== "ignored") root.appendChild(viewSwitch(board ? "board" : "list"));
   if (state.tab === "pending" || board) returnedRule(root);
-  if (isTaskTab(state.tab) && state.tab !== "ignored") restrictionsPanel(root);
   if (!state.ok) return root.appendChild(empty("El tablero no responde.", "Arráncalo con: node board.js ensure"));
   if (board) return renderBoard(root);
   (NON_TASK_VIEWS[state.tab] || renderTasks)(root);

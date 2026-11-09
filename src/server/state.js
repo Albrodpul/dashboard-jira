@@ -45,7 +45,7 @@ function reporter(d, r) {
   const o = r.reporter;
   if (!o || !(o.conversation || o.session)) return null;
   const live = liveOf(d, o);
-  return { session: live ? live.name : o.session || null, conversation: o.conversation || null, open: !!live, watching: heartbeatAge(REPORTER_HEARTBEAT) < 60000, paused: isPaused(d) };
+  return { session: live ? live.name : o.session || null, conversation: o.conversation || null, open: !!live, watching: !!live, paused: isPaused(d) };
 }
 
 function boardStatus(d, r) {
