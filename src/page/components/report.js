@@ -74,15 +74,11 @@ export function updateStamp() {
     line.appendChild(h("strong", { text: `Revisado ${ago}` }));
     line.appendChild(document.createTextNode(paused ? " · en pausa" : u.empty ? " · sin novedades" : " · con novedades"));
     line.title = `Última revisión: ${when(u.at)}`;
-    line.classList.toggle("late", mins > 8 && !paused);
+    line.classList.toggle("late", mins > 3 && !paused);
   }
   const m = state.mailman || { failing: [], delivering: [] };
   const failing = m.failing || [];
-  if (!failing.length) {
-    const busy = (m.delivering || []).length;
-    el.appendChild(h("span", { class: "orch", title: "El tablero escribe cada envío en su sesión y lo da por enviado cuando aparece en su conversación." }, [h("i"), busy ? "Entregando…" : "Envíos activos"]));
-    return;
-  }
+  if (!failing.length) return;
   const list = failing.map((f) => `${f.id}: ${f.error}`).join("\n");
   const bad = h("button", { type: "button", class: "orch bad wake", title: `${list}\nPulsa para verlas en Por enviar.` }, [h("i"), failing.length === 1 ? "1 envío sin entregar" : `${failing.length} envíos sin entregar`]);
   bad.addEventListener("click", () => switchView("approved"));
