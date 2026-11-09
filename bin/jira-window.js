@@ -30,6 +30,7 @@ function minutesSinceLastReport() {
 
 const args = process.argv.slice(2);
 const all = args.includes("--all") || args.includes("--todo");
+const checkOnly = args.includes("--check");
 const arg = args.find((x) => !x.startsWith("--")) || "auto";
 const minutes = ["close", "cierre"].includes(arg) ? minutesSinceLastClose() : arg === "auto" ? minutesSinceLastReport() : Number(arg);
 const credentials = config.credentials();
@@ -154,6 +155,7 @@ function board(cmd, data) {
   const seen = readJson(SEEN_FILE, { ids: {} }).ids || {};
   const fresh = all ? out : out.filter((e) => !seen[e.id]);
   const repeated = out.length - fresh.length;
+  if (checkOnly) return console.log(JSON.stringify({ fresh: fresh.length }));
   const toCount = new Set(readJson(TO_COUNT_FILE, { ids: [] }).ids || []);
   for (const e of fresh) toCount.add(e.id);
   try {

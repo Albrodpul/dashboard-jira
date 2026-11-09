@@ -11,12 +11,12 @@ Si de verdad se ha invocado este comando (`/resumen-jira`):
 1. Registra esta sesión como la de reporte: llama a `ListAgents`, toma tu propio nombre y ref de la línea «This session is … […]» y ejecuta `node {{WORKSPACE}}/sessions.js iam reporter <nombre> <ref>`.
 2. Arranca el tablero: `node {{WORKSPACE}}/board.js ensure` (página en http://127.0.0.1:4747, datos en `{{WORKSPACE}}/data/`).
 3. Arma un Monitor con `node {{WORKSPACE}}/board.js watch reports` (timeout_ms 1800000; vuelve a armarlo cada vez que avise de que caduca o dé `RESTART`, que es que ha cambiado el código del tablero: rearma y relee este fichero). Es el disparador principal y da dos tipos de evento, que se atienden en el momento:
-   - `CYCLE hh:mm …`: toca la revisión periódica (cada 5 minutos, de lunes a viernes de 8:00 a 18:30). Haz «Cada revisión».
+   - `CYCLE hh:mm …`: toca la revisión periódica y Jira tiene algo sin contar. Haz «Cada revisión». El monitor mira Jira cada 5 minutos (de lunes a viernes, de 8:00 a 18:30) con `jira-window.js --check`, solo código: si no hay nada nuevo, apunta él mismo «sin novedades» y no te despierta. Por qué: la mayoría de las revisiones salían vacías y cada una era un turno entero de esta sesión (orden de {{ME}}, 2026-11-09). Si la comprobación falla, da `CYCLE` igual.
    - `REFRESH …`: {{ME}} ha pulsado Refrescar. Haz «Cada revisión» aunque no haya novedades.
    - `MESSAGE <id>`: casi nunca llega, porque la pestaña Hablar ya es la propia sesión en directo y no un chat (el servidor lo conserva). Si llega, léelo con `node g:/workspace/myproject/scripts/board.js message <id>` (vale como escrito aquí), hazlo y contesta con `node g:/workspace/myproject/scripts/board.js answer-message <id> "<respuesta>"`.
    El ciclo lo marca el propio monitor y no un `/loop`. Los botones Hacer y Desplegar los vigila la orquestadora con `watch dispatches`; `watch` sin argumento da los cuatro eventos y solo se usa si no hay orquestadora (ver «Si no hay orquestadora»).
 4. Despierta a la orquestadora (pasos de «Orquestadora despierta»): tras reiniciar VS Code nadie la ha arrancado, y {{ME}} no tiene que escribir nada en ella.
-5. Crea un cron de respaldo, por si el monitor caduca sin que te enteres: dos `CronCreate`, uno con cron `2-57/5 8-17 * * 1-5` y otro con `2-27/5 18 * * 1-5` (con uno solo de 8 a 18 seguía saltando hasta las 18:57, fuera de horario), los dos con este prompt: «Revisión de Jira de respaldo. Primero ejecuta `node {{WORKSPACE}}/board.js reporter`: si dice "paused": true, contesta solo «En pausa» y borra este cron con `CronDelete`; si dice "watching": true, el monitor está armado y no hagas nada ni contestes más que una palabra («Vigilando»). Si dice false: arma un Monitor (command `node {{WORKSPACE}}/board.js watch reports`, timeout_ms 1800000) y haz «Cada revisión» de `{{ROOT}}/.claude/commands/resumen-jira.md`. Solo en horario 8:00-18:30 Europe/Madrid.» Los cron disparan aunque el monitor esté armado: sin esa comprobación, cada cinco minutos habría una revisión de más.
+5. No crees crons de respaldo, y borra con `CronDelete` los de «Revisión de Jira de respaldo» si quedan: el servidor del tablero vigila el latido del monitor y, si lleva más de 3 minutos caído en horario, te despierta con «Aviso del arranque: arranca el reporte». También despierta él a la orquestadora si no vigila. Por qué: el cron de respaldo era un turno de esta sesión cada 5 minutos solo para contestar «Vigilando».
 
 ## Cada revisión
 
@@ -59,11 +59,11 @@ Es un aviso para que arranque, no una orden de enviar nada: lo que autoriza cada
 
 ## Pausa
 
-{{ME}} puede pausar las revisiones desde el tablero (el botón de stop junto a la campana, en la cabecera del reporte), por ejemplo cuando {{REVIEWER}} está de vacaciones. Cada ciclo y cada cron es un turno entero de esta sesión, así que en pausa no se gasta ninguno:
+{{ME}} puede pausar las revisiones desde el tablero (el botón de stop junto a la campana, en la cabecera del reporte), por ejemplo cuando {{REVIEWER}} está de vacaciones. Cada ciclo es un turno entero de esta sesión, así que en pausa no se gasta ninguno:
 
-- **Al llegar el evento `PAUSE`** (o si `board.js reporter` da `"paused": true`): borra con `CronDelete` los dos crons de respaldo. El Monitor `watch reports` sí se mantiene armado y se rearma al caducar: en pausa no da ciclos, solo `REFRESH` (y `MESSAGE`, que casi nunca llega), así que no gasta turnos. En el chat, una línea: «Revisiones en pausa».
-- **«Aviso del tablero: {{ME}} pide una revisión»** ({{ME}} ha pulsado Refrescar en pausa y el tablero te despierta): comprueba con `board.js refresh-request` que hay una petición y haz una sola «Cada revisión». Si el Monitor no está armado, ármalo (ver el punto anterior); los crons no.
-- **«Aviso del tablero: reanuda las revisiones»**: comprueba que `board.js reporter` da `"paused": false` y haz los pasos 3 a 5 del principio (Monitor, orquestadora, crons) y una «Cada revisión».
+- **Al llegar el evento `PAUSE`** (o si `board.js reporter` da `"paused": true`): el Monitor `watch reports` sí se mantiene armado y se rearma al caducar: en pausa no da ciclos, solo `REFRESH` (y `MESSAGE`, que casi nunca llega), así que no gasta turnos. En el chat, una línea: «Revisiones en pausa».
+- **«Aviso del tablero: {{ME}} pide una revisión»** ({{ME}} ha pulsado Refrescar en pausa y el tablero te despierta): comprueba con `board.js refresh-request` que hay una petición y haz una sola «Cada revisión». Si el Monitor no está armado, ármalo (ver el punto anterior).
+- **«Aviso del tablero: reanuda las revisiones»**: comprueba que `board.js reporter` da `"paused": false` y haz los pasos 3 y 4 del principio (Monitor y orquestadora) y una «Cada revisión».
 - Hablar sigue llegando: si nadie lo lee en 45 segundos, el tablero despierta a la sesión.
 
 ## Si no hay orquestadora

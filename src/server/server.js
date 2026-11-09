@@ -154,6 +154,7 @@ function serve() {
   every(require("../sessions/autosleep").sleepIdleSessions, 5 * 60 * 1000);
   every(require("../sessions/hostfresh").refreshHostWhenQuiet, 3 * 60 * 1000);
   every(require("../features/followup-schedule").tick, 30 * 1000);
+  every(require("../features/monitor-guard").tick, 60 * 1000);
   every(require("../features/daily").dailyIfMissing, 5 * 60 * 1000);
   every(require("../features/claude-token").warnExpiry, 3 * 60 * 60 * 1000);
   every(require("../features/memory-sync").syncMemory, 10 * 60 * 1000);

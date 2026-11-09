@@ -24,6 +24,32 @@ function heartbeat(file) {
   }, 15000);
 }
 
+function freshInJira() {
+  return new Promise((resolve) => {
+    require("child_process").execFile(process.execPath, [path.join(__dirname, "..", "..", "bin", "jira-window.js"), "--check"], { windowsHide: true, timeout: 90000, env: { ...process.env, TOWER_WORKSPACE: config.workspace } }, (err, out) => {
+      if (err) return resolve(null);
+      try {
+        const line = String(out).trim().split(/\r?\n/).pop();
+        const n = JSON.parse(line).fresh;
+        resolve(Number.isInteger(n) ? n : null);
+      } catch (e) {
+        resolve(null);
+      }
+    });
+  });
+}
+
+function quietReview(p, last) {
+  const hhmm = (iso) => new Date(iso).toLocaleTimeString("es-ES", { timeZone: "Europe/Madrid", hour: "2-digit", minute: "2-digit" });
+  const since = last ? ` desde las ${hhmm(last)}` : "";
+  try {
+    require("child_process").execFileSync(process.execPath, [path.join(__dirname, "..", "cli.js"), "report", `**Revisión de las ${p.hour}:${p.minute}: sin novedades${since}.**`], { windowsHide: true, timeout: 30000, stdio: "ignore", env: { ...process.env, TOWER_WORKSPACE: config.workspace } });
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
 function announceNew(list, keyOf, line) {
   const seen = new Set();
   return () => {
@@ -75,7 +101,10 @@ function watchReports() {
     if (d.config && d.config.paused) return;
     const last = (d.lastReview && d.lastReview.at) || (d.reports[0] && d.reports[0].at);
     if (last && Date.now() - new Date(last).getTime() < 2 * 60000) return;
-    console.log(`CYCLE ${p.hour}:${p.minute}: revisión periódica de Jira. ${CYCLE}`);
+    freshInJira().then((n) => {
+      if (n === 0 && quietReview(p, last)) return;
+      console.log(`CYCLE ${p.hour}:${p.minute}: revisión periódica de Jira. ${CYCLE}`);
+    });
   }, 10000);
 }
 
