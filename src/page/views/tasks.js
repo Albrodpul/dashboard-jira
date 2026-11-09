@@ -239,17 +239,20 @@ function sentCard(t, kids) {
   kids.push(h("div", { class: "actions" }, [backToPendingButton(t, hasChanges(t)), deleteButton(t)]));
 }
 
-export function card(t) {
+export function card(t, bare) {
   const pending = t.status === "pending";
-  const kids = [
-    h("div", { class: "top" }, [
-      h("span", { class: "key", text: t.key }),
-      h("span", { class: `chip ${pending ? t.kind : t.status}`, text: pending ? PENDING_CHIP[t.kind] || "Nueva" : t.manual ? "A mano" : STATUS_CHIP[t.status] }),
-      t.jiraClosedAt ? h("span", { class: "chip sent", text: "Listo en Jira" }) : null,
-      h("span", { class: "time", text: when(t.at) }),
-    ]),
-    h("div", { class: "title", text: t.title }),
-  ];
+  const kids = bare
+    ? []
+    : [
+        h("div", { class: "top" }, [
+          h("span", { class: "key", text: t.key }),
+          h("span", { class: `chip ${pending ? t.kind : t.status}`, text: pending ? PENDING_CHIP[t.kind] || "Nueva" : t.manual ? "A mano" : STATUS_CHIP[t.status] }),
+          t.jiraClosedAt ? h("span", { class: "chip sent", text: "Listo en Jira" }) : null,
+          h("span", { class: "time", text: when(t.at) }),
+        ]),
+        h("div", { class: "title", text: t.title }),
+      ];
+  if (bare && t.title.length > 60) kids.push(h("div", { class: "title", text: t.title }));
   if (t.note) kids.push(h("div", { class: "note" }, [h("b", { text: t.noteBy ? `${t.noteBy}: ` : "" }), t.note]));
   kids.push(h("div", { class: "meta", text: `Asignado: ${t.assignee || "sin asignar"}` }));
   if (t.withdrawn && t.status === "ignored") kids.push(h("div", { class: "withdrawn", text: `Retirada sola a las ${when(t.withdrawn.at)}: el ticket lo tiene ahora ${t.withdrawn.by}.` }));
@@ -272,8 +275,52 @@ export function card(t) {
   } else if (["waiting", "partial", "done"].includes(t.status)) inSession(t, kids);
   else if (t.status === "sent") sentCard(t, kids);
   else if (t.status === "ignored") kids.push(h("div", { class: "actions" }, [undoButton(t, "Recuperar"), deleteButton(t)]));
-  return h("article", { class: `card ${pending ? t.kind : ""}` }, kids);
+  return h(bare ? "div" : "article", { class: bare ? "task-detail" : `card ${pending ? t.kind : ""}` }, kids);
 }
+
+const openRows = new Set();
+const closedRows = new Set();
+const OPEN_BY_DEFAULT = ["pending", "waiting", "partial"];
+const isOpen = (t) => openRows.has(t.id) || (!closedRows.has(t.id) && OPEN_BY_DEFAULT.includes(t.status));
+
+function rowTag(t) {
+  if (t.status === "waiting") return ["again", "Te espera"];
+  if (t.status === "partial") return ["again", "A medias"];
+  if (hasChanges(t) && t.status !== "pending") return ["again", "Cambió en Jira"];
+  if (t.status === "pending") return [t.kind === "new" || !PENDING_CHIP[t.kind] ? "sent" : "again", PENDING_CHIP[t.kind] || "Nueva"];
+  if (t.jiraClosedAt) return ["answered", "Listo en Jira"];
+  if (t.manual) return ["", "A mano"];
+  if (t.status === "done") return t.reviewedAt ? ["answered", "En revisión"] : ["sent", "Por revisar"];
+  if (t.status === "sent" && t.sentAt && Date.now() - new Date(t.sentAt).getTime() >= 3 * 3600000) return ["again", "Sin noticias"];
+  return null;
+}
+
+function taskRow(t, groupArea) {
+  const open = isOpen(t);
+  const toggle = () => {
+    if (open) {
+      openRows.delete(t.id);
+      closedRows.add(t.id);
+    } else {
+      closedRows.delete(t.id);
+      openRows.add(t.id);
+    }
+    render();
+  };
+  const tag = rowTag(t);
+  const own = t.area || t.proposedArea;
+  const area = groupArea !== undefined && own === groupArea ? "" : areaName(own);
+  const head = h("button", { type: "button", class: "issue-head", "aria-expanded": String(open), onclick: toggle }, [
+    h("span", { class: "key task-key", text: t.key }),
+    h("span", { class: "issue-msg task-title", text: t.title, title: t.title }),
+    tag ? h("span", { class: `issue-tag ${tag[0]}`, text: tag[1] }) : h("span", { class: "issue-tag none" }),
+    h("span", { class: "task-area", text: area || "" }),
+    h("span", { class: "issue-when", text: when(t.sentAt || t.decidedAt || t.at) }),
+  ]);
+  return h("div", { class: `issue-row${open ? " open" : ""}` }, [head, open ? h("div", { class: "issue-body" }, [card(t, true)]) : null]);
+}
+
+export const taskList = (items, groupArea) => h("div", { class: "issue-list task-list" }, items.map((t) => taskRow(t, groupArea)));
 
 
 function backToPendingGroup(g) {
@@ -322,27 +369,30 @@ function deleteBar(root, list) {
   const closed = list.filter((t) => t.jiraClosedAt);
   const ids = (xs) => xs.map((t) => t.id);
   const withChanges = list.filter((t) => !t.manual && hasChanges(t));
-  root.appendChild(
-    h("div", { class: "toolbar" }, [
-      closed.length ? button(`Borrar las ${closed.length} que ya están Listo en Jira`, { onClick: (b) => ((b.disabled = true), deleteTasks(ids(closed))) }) : null,
-      button(`Borrar las de días anteriores (${old.length})`, { disabled: !old.length, onClick: (b) => ((b.disabled = true), deleteTasks(ids(old))) }),
-      button(`Borrar todas (${list.length})`, {
+  const only = "Solo las quita del tablero; en Jira no cambia nada.";
+  return [
+    withChanges.length && state.tab === "sent"
+      ? button(`Pasar a Pendientes las ${withChanges.length} con cambios en Jira`, {
+          cls: "primary",
+          title: "Devuelve a Pendientes las que han cambiado en Jira después de enviarlas, para volver a enviarlas juntas.",
+          onClick: (b) => moveToPending(ids(withChanges), b),
+        })
+      : null,
+    h("div", { class: "issues-read task-delete" }, [
+      h("span", { class: "meta", text: "Quitar del tablero:", title: only }),
+      closed.length ? button(`Listo en Jira (${closed.length})`, { cls: "subtle", title: `Las que ya están Listo en Jira. ${only}`, onClick: (b) => ((b.disabled = true), deleteTasks(ids(closed))) }) : null,
+      button(`De días anteriores (${old.length})`, { cls: "subtle", title: only, disabled: !old.length, onClick: (b) => ((b.disabled = true), deleteTasks(ids(old))) }),
+      button(`Todas (${list.length})`, {
+        cls: "subtle",
+        title: only,
         onClick: (b) => {
           if (!window.confirm(`¿Borrar las ${list.length} ${name}, incluidas las de hoy?`)) return;
           b.disabled = true;
           deleteTasks(ids(list));
         },
       }),
-      h("span", { class: "meta", text: "Solo las quita del tablero; en Jira no cambia nada." }),
-      withChanges.length && state.tab === "sent"
-        ? button(`Pasar a Pendientes las ${withChanges.length} con cambios en Jira`, {
-            cls: "primary",
-            title: "Devuelve a Pendientes las que han cambiado en Jira después de enviarlas, para volver a enviarlas juntas.",
-            onClick: (b) => moveToPending(ids(withChanges), b),
-          })
-        : null,
-    ])
-  );
+    ]),
+  ];
 }
 
 export function renderTasks(root) {
@@ -350,11 +400,10 @@ export function renderTasks(root) {
   const permissionsShown = state.tab === "waiting" ? renderPermissions(root) : 0;
   if (!list.length) return permissionsShown ? null : root.appendChild(empty(...EMPTY_LISTS[state.tab]));
   const deletable = list.filter((t) => t.status !== "waiting");
-  if (state.tab === "done") {
-    const all = reviewAllButton(list);
-    if (all) root.appendChild(h("div", { class: "toolbar" }, [all]));
-  }
-  if (["sent", "ignored", "done", "waiting"].includes(state.tab) && deletable.length) deleteBar(root, deletable);
+  const bar = [h("div", { class: "proj-count" }, [h("strong", { text: String(list.length) }), h("span", { text: list.length === 1 ? " tarea" : " tareas" })])];
+  if (state.tab === "done") bar.push(reviewAllButton(list));
+  if (["sent", "ignored", "done", "waiting"].includes(state.tab) && deletable.length) bar.push(...deleteBar(root, deletable));
+  root.appendChild(h("div", { class: "issues-bar task-bar" }, bar.filter(Boolean)));
   const byEpic = new Map();
   for (const t of list) {
     const k = t.epicKey || "no-epic";
@@ -366,7 +415,7 @@ export function renderTasks(root) {
     const batch = state.tab === "pending" && g.items.length > 1;
     const sendBack = (["sent", "done"].includes(state.tab) || (state.tab === "waiting" && g.items.every((t) => t.status === "partial"))) && g.items.some((t) => !t.manual);
     const head = h("div", { class: "group-head" }, [g.key ? h("span", { class: "group-key", text: g.key }) : null, h("span", { class: "group-name", text: g.name }), batch ? batchControls(g) : sendBack ? backToPendingGroup(g) : areaLabel(g)]);
-    root.appendChild(h("section", {}, [head, h("div", { class: "cards" }, g.items.map(card))]));
+    root.appendChild(h("section", { class: "task-group" }, [head, taskList(g.items, g.area)]));
   }
 }
 
@@ -376,7 +425,7 @@ export function renderToday(root, errors) {
     const list = state.tasks.filter((t) => statuses.includes(t.status));
     if (!list.length) continue;
     any = true;
-    root.appendChild(h("section", { class: "today-group" }, [h("h3", { text: `${title} (${list.length})` }), ...list.map(card)]));
+    root.appendChild(h("section", { class: "today-group" }, [h("h3", { text: `${title} (${list.length})` }), taskList(list)]));
   }
   if (errors) {
     any = true;

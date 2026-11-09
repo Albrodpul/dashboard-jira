@@ -24,7 +24,7 @@ textarea.comment-box { font-family: inherit; }
 .attach { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; font-size: 12px; min-width: 0; }
 .attach-names { color: var(--ink-2); font-family: var(--mono); font-size: 11.5px; overflow-wrap: anywhere; min-width: 0; }
 .state-line { font-size: 13px; color: var(--ink-2); }
-.reply { font-size: 13px; color: var(--ink-2); border-left: 2px solid var(--line); padding-left: 10px; overflow-wrap: anywhere; }
+.reply { font-size: 13px; color: var(--ink-2); background: var(--surface-2); border-radius: 6px; padding: 8px 10px; overflow-wrap: anywhere; }
 @media (prefers-reduced-motion: no-preference) {
   .card { transition: box-shadow 0.15s; }
   .card:hover { box-shadow: 0 1px 6px rgba(0,0,0,0.08); }
@@ -115,4 +115,33 @@ textarea.comment-box { font-family: inherit; }
 }
 @media (max-width: 760px) {
   #ticket-drawer { width: 100%; padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px)); }
+}
+.task-group { display: flex; flex-direction: column; }
+.task-bar { min-height: 34px; }
+.task-delete { flex-wrap: wrap; gap: 2px 4px; }
+.task-list .issue-head { grid-template-columns: 92px minmax(0, 1fr) auto auto 76px; }
+.task-list .task-key { font-size: 12.5px; color: var(--accent); white-space: nowrap; }
+.task-list .task-title { color: var(--ink); }
+.task-list .task-area { justify-self: end; max-width: 160px; font-size: 12px; color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.task-list .issue-row.open .issue-head { background: var(--surface); }
+.task-list .issue-row .issue-head:hover { background: var(--surface-2); }
+.task-list .issue-body { padding: 0 14px 14px; background: var(--surface); }
+.task-detail { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.task-detail .actions { margin-top: 2px; }
+@media (max-width: 900px) {
+  .task-list .issue-head { grid-template-columns: auto minmax(0, 1fr) auto; }
+  .task-list .issue-head .task-key { grid-column: 1; grid-row: 1; }
+  .task-list .issue-head .issue-tag { grid-column: 2; grid-row: 1; justify-self: start; }
+  .task-list .issue-head .issue-when { grid-column: 3; grid-row: 1; }
+  .task-list .issue-head .task-title { grid-column: 1 / -1; grid-row: 2; }
+  .task-list .issue-head .task-area { grid-column: 1 / -1; grid-row: 3; justify-self: start; }
+  .task-list .issue-head .task-area:empty { display: none; }
+}
+@media (max-width: 760px) {
+  .task-delete { width: 100%; margin-left: 0; }
+  .task-delete .meta { flex-basis: 100%; }
+  .task-delete button.btn { flex: 1 1 auto; padding-inline: 8px; }
+}
+@media (max-width: 900px) {
+  .task-detail > .title { display: none; }
 }
