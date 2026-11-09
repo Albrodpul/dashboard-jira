@@ -40,10 +40,13 @@ async function freshConversation(role, fallbackName) {
 
 const LATEST = 10 * 60;
 
-function morning() {
-  const t = require("../core/hours").clock();
+function morning(t = require("../core/hours").clock()) {
   return !t.weekend && t.min < LATEST;
 }
+
+const EARLIEST = 7 * 60 + 30;
+
+const inRotationWindow = (t = require("../core/hours").clock()) => !t.weekend && t.min >= EARLIEST && t.min < LATEST;
 
 async function rotateDaily() {
   if (!morning()) return;
@@ -54,8 +57,7 @@ let busy = false;
 
 async function rotateIfMorning() {
   if (busy || !require("../cluster/cluster").isPrimary()) return;
-  const t = require("../core/hours").clock();
-  if (t.weekend || t.min < 7 * 60 + 30 || t.min >= LATEST) return;
+  if (!inRotationWindow()) return;
   const routes = require("./registry").loadRoutes();
   if (ROLES.every(([role]) => !routes[role] || routes[role].rotatedOn === today())) return;
   busy = true;
@@ -66,4 +68,4 @@ async function rotateIfMorning() {
   }
 }
 
-module.exports = { rotateDaily, rotateIfMorning };
+module.exports = { rotateDaily, rotateIfMorning, morning, inRotationWindow };

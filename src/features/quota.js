@@ -105,4 +105,4 @@ async function quotaFromHeaders(token) {
   return saveQuota(quota);
 }
 
-module.exports = { readQuota, fetchQuota };
+module.exports = { readQuota, fetchQuota, askUsage, quotaFromHeaders, loginToken };

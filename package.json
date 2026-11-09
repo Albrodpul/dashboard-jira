@@ -3,6 +3,9 @@
   "private": true,
   "type": "commonjs",
   "description": "Local Jira board, session orchestration and deployments for Claude Code sessions",
+  "scripts": {
+    "test": "node --test \"test/*.test.js\""
+  },
   "dependencies": {
     "@lydell/node-pty": "^1.2.0-beta.18",
     "@xterm/addon-fit": "^0.11.0",
