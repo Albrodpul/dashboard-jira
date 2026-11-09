@@ -3,6 +3,7 @@ const path = require("path");
 const { DatabaseSync } = require("node:sqlite");
 const config = require("./config");
 const migrate = require("./migrate");
+const { stampRecords, STAMPS_KEY } = require("./records");
 
 const WORKSPACE = config.workspace;
 const ROOT = config.root;
@@ -99,12 +100,11 @@ function mutate(fn, options = {}) {
     const { d, raw } = read();
     const result = fn(d);
     if (!options.keepStamps && d.tasks && JSON.stringify(d.tasks) !== raw.tasks) stampTasks(raw.tasks ? JSON.parse(raw.tasks) : {}, d.tasks);
+    const texts = {};
+    for (const [k, v] of Object.entries(d)) if (v !== undefined) texts[k] = JSON.stringify(v);
+    if (!options.keepStamps && stampRecords(raw, d, texts)) texts[STAMPS_KEY] = JSON.stringify(d[STAMPS_KEY]);
     const put = conn.prepare("INSERT INTO documents (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value");
-    for (const [k, v] of Object.entries(d)) {
-      if (v === undefined) continue;
-      const text = JSON.stringify(v);
-      if (text !== raw[k]) put.run(k, text);
-    }
+    for (const [k, text] of Object.entries(texts)) if (text !== raw[k]) put.run(k, text);
     const remove = conn.prepare("DELETE FROM documents WHERE key = ?");
     for (const k of Object.keys(raw)) if (d[k] === undefined) remove.run(k);
     conn.exec("COMMIT");

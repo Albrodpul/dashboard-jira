@@ -3,6 +3,7 @@ const path = require("path");
 const os = require("os");
 const config = require("../core/config");
 const { mergeTranscript } = require("../sessions/transcriptmerge");
+const { SPECS, STAMPS_KEY, mergeRecords } = require("../core/records");
 const { DATA_DIR, SEEN_FILE, load, mutate, now } = require("../core/data");
 
 const CLUSTER = config.cluster || null;
@@ -248,7 +249,7 @@ function snapshot() {
   for (const [id, a] of Object.entries(routes.areas || {})) if (a.conversation) Object.assign(areas[id], { conversation: a.conversation, session: a.session || null });
   const roles = {};
   for (const role of ROUTE_ROLES) if (routes[role] && routes[role].conversation) roles[role] = { conversation: routes[role].conversation, session: routes[role].session || null, title: routes[role].title || null, since: routes[role].since || null, rotatedOn: routes[role].rotatedOn || null };
-  return { at: now(), host: os.hostname(), docs, seen, areas, roles, deployer: routes.deployer || null };
+  return { at: now(), host: os.hostname(), docs, stamps: d[STAMPS_KEY] || {}, seen, areas, roles, deployer: routes.deployer || null };
 }
 
 const MERGED_KEYS = ["tasks", "deleted"];
@@ -272,17 +273,24 @@ function mergeTasks(d, docs, theirsOnTie) {
   d.deleted = deleted;
 }
 
-function mergePeerTasks(s) {
-  if (!s || !s.docs || !s.docs.tasks) return false;
-  mutate((d) => mergeTasks(d, s.docs, false), { keepStamps: true });
+function mergePeer(s) {
+  if (!s || !s.docs) return false;
+  mutate(
+    (d) => {
+      if (s.docs.tasks) mergeTasks(d, s.docs, false);
+      mergeRecords(d, s.docs, s.stamps, false);
+    },
+    { keepStamps: true }
+  );
   return true;
 }
 
 function applySnapshot(s) {
   if (!s || !s.docs) return false;
   mutate((d) => {
-    for (const k of SYNC_KEYS) if (s.docs[k] !== undefined && !MERGED_KEYS.includes(k)) d[k] = s.docs[k];
+    for (const k of SYNC_KEYS) if (s.docs[k] !== undefined && !MERGED_KEYS.includes(k) && !SPECS[k]) d[k] = s.docs[k];
     if (s.docs.tasks) mergeTasks(d, s.docs, true);
+    mergeRecords(d, s.docs, s.stamps, true);
   }, { keepStamps: true });
   if (s.seen) fs.writeFileSync(SEEN_FILE, JSON.stringify(s.seen, null, 1));
   require("../sessions/registry").changeRoutes((r) => {
@@ -465,7 +473,7 @@ async function tick() {
     st.noneSince = null;
     if (peer.role !== "primary" && Date.now() - lastPull > SNAPSHOT_MS) {
       lastPull = Date.now();
-      if (mergePeerTasks(await peerGet("/api/cluster/snapshot", 30000))) st.lastFollowerMerge = now();
+      if (mergePeer(await peerGet("/api/cluster/snapshot", 30000))) st.lastFollowerMerge = now();
     }
     if (st.pendingPull && peer.role !== "primary" && (await refreshFromPeer()) >= 0) {
       log("conversaciones del otro ordenador traídas tras el relevo");
@@ -545,4 +553,4 @@ async function machines() {
   return { self: info(), peer, devices };
 }
 
-module.exports = { lastReply, mergeTasks, mergePeerTasks, applySnapshot, isPrimary, primaryNow, info, peerGet, projectDir, keepAwake, letSleep, snapshot, transcripts, serveTranscript, tick, handleYield, command, takeHere, backToAuto, machines, sendClaudeToken, clusterEnabled: () => !!CLUSTER };
+module.exports = { lastReply, mergeTasks, mergePeer, applySnapshot, isPrimary, primaryNow, info, peerGet, projectDir, keepAwake, letSleep, snapshot, transcripts, serveTranscript, tick, handleYield, command, takeHere, backToAuto, machines, sendClaudeToken, clusterEnabled: () => !!CLUSTER };

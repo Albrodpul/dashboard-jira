@@ -58,20 +58,20 @@ test("mergeTasks: a tombstone equal to the task stamp still deletes it", () => {
   assert.equal(d.tasks.A, undefined);
 });
 
-test("mergePeerTasks keeps the primary on ties and takes newer follower changes", () => {
+test("mergePeer keeps the primary on ties and takes newer follower changes", () => {
   mutate(
     (d) => {
       d.tasks = { A: task("A", T1, { from: "primary" }), B: task("B", T1, { from: "primary" }) };
     },
     { keepStamps: true }
   );
-  assert.equal(cluster.mergePeerTasks({ docs: { tasks: { A: task("A", T1, { from: "follower" }), B: task("B", T2, { from: "follower" }) } } }), true);
+  assert.equal(cluster.mergePeer({ docs: { tasks: { A: task("A", T1, { from: "follower" }), B: task("B", T2, { from: "follower" }) } } }), true);
   const t = load().tasks;
   assert.equal(t.A.from, "primary");
   assert.equal(t.B.from, "follower");
   assert.equal(t.B.updatedAt, T2);
-  assert.equal(cluster.mergePeerTasks(null), false);
-  assert.equal(cluster.mergePeerTasks({ docs: {} }), false);
+  assert.equal(cluster.mergePeer(null), false);
+  assert.equal(cluster.mergePeer({ docs: {} }), true);
 });
 
 test("applySnapshot gives ties to the primary, keeps newer local tasks and writes seen and routes", () => {
