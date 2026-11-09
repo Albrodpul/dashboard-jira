@@ -57,12 +57,12 @@ export function renderLearning(root) {
   });
   const read = data && data.read;
   root.appendChild(
-    h("div", { class: "toolbar" }, [
-      reread,
+    h("div", { class: "issues-bar" }, [
       h("span", { class: "meta", text: data && data.reading ? "Leyendo Jira ahora…" : read ? `Leído de Jira a las ${when(read.at)} (${read.tickets} tickets)` : "Todavía no se ha leído Jira: la primera lectura tarda unos minutos." }),
+      reread,
     ])
   );
-  root.appendChild(h("p", { class: "setup-note", text: "Todo va en tasas por entrega, no en cifras absolutas: el número de tareas crece porque el equipo mete IA en cada vez más flujos de trabajo, y eso no dice nada de si se aprende. Una devolución es una tarea que otra persona saca de revisión; las vueltas que haces tú no cuentan." }));
+  root.appendChild(h("p", { class: "setup-note learning-note", text: "Todo va en tasas por entrega, no en cifras absolutas: el número de tareas crece porque el equipo mete IA en cada vez más flujos de trabajo, y eso no dice nada de si se aprende. Una devolución es una tarea que otra persona saca de revisión; las vueltas que haces tú no cuentan." }));
   if (!data) return root.appendChild(empty("Cargando…", ""));
   const weeks = data.weeks.filter((s) => s.deliveries || s.returns);
   if (!weeks.length) return root.appendChild(empty("Sin datos todavía.", "Aparecen en cuanto termine la primera lectura de Jira."));

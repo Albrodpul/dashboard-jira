@@ -41,8 +41,9 @@ button.btn:disabled { opacity: 0.45; cursor: not-allowed; filter: none; }
 .empty strong { color: var(--ink); font-weight: 600; }
 .setup-note { color: var(--ink-2); margin: 0 0 12px; max-width: 70ch; }
 .setup-note.warn { color: var(--back); }
-.rows { display: flex; flex-direction: column; gap: 8px; }
-.row { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1fr); gap: 8px 12px; align-items: center; }
+.rows { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); overflow: hidden; }
+.row { padding: 10px 14px; display: grid; grid-template-columns: minmax(0, 200px) minmax(0, 1fr) auto; gap: 8px 14px; align-items: center; }
+.row + .row { border-top: 1px solid var(--line); }
 .row.off { opacity: 0.6; }
 .row-id { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; min-width: 0; overflow-wrap: anywhere; }
 .row input[type="text"] { font: inherit; color: var(--ink); background: var(--surface-2); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; min-width: 0; width: 100%; }

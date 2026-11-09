@@ -1,4 +1,4 @@
-.learning-table { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 14px 16px; }
+.learning-table { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; }
 .learning-table h3 { margin: 0 0 4px; font-size: 15px; font-weight: 600; }
 .learning-table > .meta { margin: 0 0 10px; }
 .learning-scroll { overflow-x: auto; }
@@ -21,4 +21,8 @@
   .learning-table td:not(.first) { grid-column: 1 / -1; display: flex; justify-content: space-between; gap: 8px; }
   .learning-table td:not(.first)::before { float: none; }
   .learning-table td:empty { display: none; }
+}
+.learning-note { margin: 0; }
+@media (max-width: 760px) {
+  .learning-table { padding: 12px; }
 }

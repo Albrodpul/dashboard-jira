@@ -42,7 +42,7 @@ function resultRows(root) {
   if (!search.results.length) return root.appendChild(empty("Ninguna tarea coincide.", "Prueba con otro texto o quita algún filtro."));
   const eligible = search.results.filter((x) => x.available && !x.onBoard);
   const all = eligible.length > 1 ? h("span", { class: "group-actions" }, [button(`Traer las ${eligible.length}`, { onClick: (b) => ((b.disabled = true), importTasks(eligible.map((x) => x.key))) })]) : null;
-  root.appendChild(h("div", { class: "group-head" }, [h("span", { class: "group-name", text: `${search.results.length}${search.results.length === 1 ? " tarea" : " tareas"}${search.capped ? " (hay más: afina la búsqueda)" : ""}` }), all]));
+  const head = h("div", { class: "issues-bar find-jira-bar" }, [h("span", { class: "meta", text: `${search.results.length}${search.results.length === 1 ? " tarea" : " tareas"}${search.capped ? " (hay más: afina la búsqueda)" : ""}` }), all]);
   const rows = search.results.map((x) => {
     const bring = button(x.onBoard ? "Ya en el tablero" : x.available ? "Traer al tablero" : `La lleva ${x.assignee}`, { disabled: !(x.available && !x.onBoard), onClick: (b) => ((b.disabled = true), importTasks([x.key])) });
     const meta = `Asignado: ${x.assignee || "sin asignar"} · Epic: ${x.epicKey ? `${x.epicKey} ${x.epicName || ""}` : "sin epic"} · Sesión: ${x.area ? areaName(x.area) : "sin sesión"}`;
@@ -52,7 +52,7 @@ function resultRows(root) {
       bring,
     ]);
   });
-  root.appendChild(h("div", { class: "rows" }, rows));
+  root.appendChild(h("section", { class: "list-section" }, [head, h("div", { class: "rows" }, rows)]));
 }
 
 export const find = { q: "", draft: "" };
@@ -75,8 +75,7 @@ export function searchBox() {
 }
 
 function section(root, title, rows) {
-  root.appendChild(h("div", { class: "group-head" }, [h("span", { class: "group-name", text: title })]));
-  root.appendChild(h("div", { class: "rows" }, rows));
+  root.appendChild(h("section", { class: "list-section" }, [h("div", { class: "group-head" }, [h("span", { class: "group-name", text: title })]), h("div", { class: "rows" }, rows)]));
 }
 
 export function renderFind(root) {
@@ -109,6 +108,7 @@ export function renderFind(root) {
         ])
       )
     );
-  root.appendChild(h("div", { class: "group-head" }, [h("span", { class: "group-name", text: "En Jira, sin terminar" })]));
-  jiraResults(root, find.q);
+  const jira = h("section", { class: "list-section find-jira" }, [h("div", { class: "group-head" }, [h("span", { class: "group-name", text: "En Jira, sin terminar" })])]);
+  root.appendChild(jira);
+  jiraResults(jira, find.q);
 }

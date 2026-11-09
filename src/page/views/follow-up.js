@@ -253,7 +253,7 @@ export function renderFollowUp(root) {
   const errors = list.flatMap((r) => (r.errors || []).filter((x) => x.state === "proposed" || r === list[0]));
   if (errors.length) {
     root.appendChild(
-      h("section", { class: "fu-section" }, [
+      h("section", { class: "list-section" }, [
         h("div", { class: "group-head" }, [h("span", { class: "group-name", text: `Posibles errores vistos en ${env.name.toLowerCase()}` }), h("span", { class: "group-key", text: String(errors.length) })]),
         h("div", { class: "issue-list" }, errors.map(errorCard)),
       ])
@@ -261,7 +261,7 @@ export function renderFollowUp(root) {
   }
   if (list.length > 1)
     root.appendChild(
-      h("section", { class: "fu-section" }, [
+      h("section", { class: "list-section" }, [
         h("div", { class: "group-head" }, [h("span", { class: "group-name", text: "Resúmenes anteriores" }), h("span", { class: "group-key", text: String(list.length - 1) })]),
         h("div", { class: "issue-list fu-older" }, list.slice(1, olderAll ? undefined : OLDER_SHOWN + 1).map(olderRow)),
         list.length - 1 > OLDER_SHOWN ? h("div", { class: "fu-more" }, [button(olderAll ? "Ver menos" : `Ver todos (${list.length - 1})`, { cls: "subtle", onClick: () => ((olderAll = !olderAll), render()) })]) : null,

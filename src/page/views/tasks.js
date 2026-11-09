@@ -415,7 +415,7 @@ export function renderTasks(root) {
     const batch = state.tab === "pending" && g.items.length > 1;
     const sendBack = (["sent", "done"].includes(state.tab) || (state.tab === "waiting" && g.items.every((t) => t.status === "partial"))) && g.items.some((t) => !t.manual);
     const head = h("div", { class: "group-head" }, [g.key ? h("span", { class: "group-key", text: g.key }) : null, h("span", { class: "group-name", text: g.name }), batch ? batchControls(g) : sendBack ? backToPendingGroup(g) : areaLabel(g)]);
-    root.appendChild(h("section", { class: "task-group" }, [head, taskList(g.items, g.area)]));
+    root.appendChild(h("section", { class: "list-section" }, [head, taskList(g.items, g.area)]));
   }
 }
 

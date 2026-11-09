@@ -116,7 +116,6 @@ textarea.comment-box { font-family: inherit; }
 @media (max-width: 760px) {
   #ticket-drawer { width: 100%; padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px)); }
 }
-.task-group { display: flex; flex-direction: column; }
 .task-bar { min-height: 34px; }
 .task-delete { flex-wrap: wrap; gap: 2px 4px; }
 .task-list .issue-head { grid-template-columns: 92px minmax(0, 1fr) auto auto 76px; }
@@ -145,3 +144,7 @@ textarea.comment-box { font-family: inherit; }
 @media (max-width: 900px) {
   .task-detail > .title { display: none; }
 }
+.task-board { overflow-x: auto; padding-bottom: 4px; }
+.tasks-col { min-width: 180px; }
+.tasks-col.wide { min-width: 260px; }
+.tasks-col:has(> .board-empty) { flex: 0.6 1 0; min-width: 130px; }

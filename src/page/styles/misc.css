@@ -114,3 +114,13 @@
   .proj-row { grid-template-columns: auto minmax(0, 1fr) auto; row-gap: 8px; }
   .proj-actions { grid-column: 1 / -1; justify-content: flex-start; min-width: 0; }
 }
+.context-result { padding: 16px 18px; gap: 8px; }
+@media (max-width: 760px) {
+  .context-result { padding: 12px; }
+}
+.list-section { display: flex; flex-direction: column; min-width: 0; }
+.find-jira-bar { margin-bottom: 8px; }
+.groups > .find-box { margin: 0; }
+@media (max-width: 760px) {
+  .row > button.btn { justify-self: start; min-width: 120px; }
+}

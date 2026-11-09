@@ -15,7 +15,7 @@ button.btn.bell:hover { background: var(--mute-soft); color: var(--ink); }
 .orch { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; color: var(--ink-3); }
 .orch i { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); display: inline-block; }
 .orch.bad i { background: var(--danger); }
-.report-text tr.mine td:first-child { box-shadow: inset 2px 0 0 var(--accent); padding-left: 6px; }
+.report-text tr.mine td:first-child { color: var(--accent); font-weight: 600; }
 #stamp strong { color: var(--ink-2); font-weight: 600; }
 .report-text { font-size: 13.5px; line-height: 1.5; overflow-wrap: anywhere; display: flex; flex-direction: column; gap: 6px; }
 .report-text p { margin: 0; }
