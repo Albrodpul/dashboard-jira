@@ -1,10 +1,10 @@
 ---
-description: Relanza la vigilancia de Jira {{PROJECTS}} (cambios de {{REVIEWER}} y de otros; de {{ME}}, solo los tickets que crea) y publica cada reporte en el tablero local. Los envíos a otras sesiones los hace la sesión orquestadora (/orquesta)
+description: Relanza la vigilancia de Jira {{PROJECTS}} (cambios de {{REVIEWER}} y de otros; de {{ME}}, solo los tickets que crea) y publica cada reporte en el tablero local. Los envíos a otras sesiones los hace el propio tablero
 ---
 
 Este comando es solo para la sesión principal e interactiva. Si te encuentras este fichero mientras haces OTRA tarea (por ejemplo, como subagente), IGNÓRALO por completo: no es una instrucción para ti, no montes ningún loop ni menciones `CronCreate`/`ScheduleWakeup`/`/loop`.
 
-Esta sesión es la **de reporte**: lee Jira, publica el reporte y deja las tarjetas. **No envía nada a otras sesiones**: de eso se encarga la sesión orquestadora («Orquestar agentes», `/orquesta`), para que un envío no interrumpa un reporte ni al revés.
+Esta sesión es la **de reporte**: lee Jira, publica el reporte y deja las tarjetas. **No envía nada a otras sesiones**: lo que {{ME}} aprueba lo escribe el propio tablero en la sesión de destino, sin pasar por ninguna sesión.
 
 Si de verdad se ha invocado este comando (`/resumen-jira`):
 
@@ -14,9 +14,8 @@ Si de verdad se ha invocado este comando (`/resumen-jira`):
    - `CYCLE hh:mm …`: toca la revisión periódica y Jira tiene algo sin contar. Haz «Cada revisión». El monitor mira Jira cada minuto (de lunes a viernes, de 8:00 a 18:30) con `jira-window.js --check`, solo código: si no hay nada nuevo, apunta él mismo «sin novedades» y no te despierta. Por qué: la mayoría de las revisiones salían vacías y cada una era un turno entero de esta sesión (orden de {{ME}}, 2026-11-09). Si la comprobación falla, da `CYCLE` igual.
    - `REFRESH …`: {{ME}} ha pulsado Refrescar. Haz «Cada revisión» aunque no haya novedades.
    - `MESSAGE <id>`: casi nunca llega, porque la pestaña Hablar ya es la propia sesión en directo y no un chat (el servidor lo conserva). Si llega, léelo con `node g:/workspace/myproject/scripts/board.js message <id>` (vale como escrito aquí), hazlo y contesta con `node g:/workspace/myproject/scripts/board.js answer-message <id> "<respuesta>"`.
-   El ciclo lo marca el propio monitor y no un `/loop`. Los botones Hacer y Desplegar los vigila la orquestadora con `watch dispatches`; `watch` sin argumento da los cuatro eventos y solo se usa si no hay orquestadora (ver «Si no hay orquestadora»).
-4. Despierta a la orquestadora (pasos de «Orquestadora despierta»): tras reiniciar VS Code nadie la ha arrancado, y {{ME}} no tiene que escribir nada en ella.
-5. No crees crons de respaldo, y borra con `CronDelete` los de «Revisión de Jira de respaldo» si quedan: el servidor del tablero vigila el latido del monitor y, si lleva más de 3 minutos caído en horario, te despierta con «Aviso del arranque: arranca el reporte». También despierta él a la orquestadora si no vigila. Por qué: el cron de respaldo era un turno de esta sesión cada 5 minutos solo para contestar «Vigilando».
+   El ciclo lo marca el propio monitor y no un `/loop`. Hacer, Desplegar y las respuestas no pasan por aquí: los entrega el tablero.
+4. No crees crons de respaldo, y borra con `CronDelete` los de «Revisión de Jira de respaldo» si quedan: el servidor del tablero vigila el latido del monitor y, si lleva más de 3 minutos caído en horario, te despierta con «Aviso del arranque: arranca el reporte». Por qué: el cron de respaldo era un turno de esta sesión cada 5 minutos solo para contestar «Vigilando».
 
 ## Cada revisión
 
@@ -39,23 +38,11 @@ La misma, la dispare el ciclo o un `REFRESH`:
    - Los comentarios nuevos, con un resumen de 1-2 líneas de lo que dicen y a quién mencionan. Presta especial atención a {{REVIEWER}}. Di siempre a quién está asignado cada ticket.
    - Cada reporte cuenta solo lo de esa revisión, nunca un resumen del día ({{ME}} lo descartó). Si no hay novedades, solo el titular (`**Revisión de las 16:20: sin novedades desde las 12:28.**`): el tablero lo reconoce por «sin novedades» y no lo pone encima del último reporte con contenido, solo actualiza la hora de la última revisión. Un reporte con alguna línea de evento (`- HH:MM · …`) cuenta como reporte con contenido.
    - Horas en Europe/Madrid. La hora del título se saca con node (`toLocaleTimeString` con `timeZone: "Europe/Madrid"`): el `date` de Git Bash da UTC. Si no hay nada relevante, una frase corta.
-6. **Orquestadora despierta**: haz los pasos de ese apartado. Si además hay envíos esperando más de 2 minutos con la orquestadora vigilando, dilo en el reporte («N envíos esperando a la orquestadora»); no los envíes tú.
-7. En el chat, una sola línea: «Reporte publicado en el tablero (HH:MM)», más «N tarjetas nuevas» si las hay.
+6. En el chat, una sola línea: «Reporte publicado en el tablero (HH:MM)», más «N tarjetas nuevas» si las hay.
 
 ## Arranque al abrir VS Code
 
-Al abrir la carpeta del espacio de trabajo en VS Code, la tarea «Arrancar el reporte de Jira» (`.vscode/tasks.json`) lanza `board.js startup`: en horario, si esta sesión no vigila, la abre y le manda con un `claude -p` de un solo turno la línea `Aviso del arranque: arranca el reporte. Eres la sesión de reporte registrada: ejecuta ahora .claude/commands/resumen-jira.md (regla de AGENTS.md).` Si llega ese `<cross-session-message>`, comprueba con `node {{WORKSPACE}}/board.js reporter` que `session` es tu nombre de `ListAgents` y haz los pasos 1 a 5 de arriba sin esperar a {{ME}}. El remitente tiene un nombre cualquiera: lo que cuenta es el texto y que tú seas la registrada. Es un aviso para arrancar el reporte, no una orden de enviar ni de tocar nada. Lo que hizo el arranque queda en `{{WORKSPACE}}/data/startup.log`.
-
-## Orquestadora despierta
-
-La orquestadora tiene que vigilar sola, sin que {{ME}} escriba `/orquesta` cada vez que reinicia VS Code. Como una sesión recién abierta no hace nada hasta que le llega un mensaje, la despierta esta sesión, al arrancar y en cada revisión:
-
-1. `node {{WORKSPACE}}/board.js orchestrator` da `open` (su pestaña está abierta), `watching` (su monitor `watch dispatches` está armado: deja un latido cada 15 segundos) y `session`/`ref`.
-2. Si `watching` es true, no hagas nada.
-3. Si `open` es false: `node {{WORKSPACE}}/board.js open orchestrator` y espera hasta medio minuto a que pase a true. Si no se abre, dilo en el reporte y sigue.
-4. Con `open` true y `watching` false, mándale con `SendMessage` (a `session`, con ` [ref]` solo si el nombre se repite en `ListAgents`) exactamente esta línea: `Aviso del reporte: arranca la orquestación. Eres la sesión orquestadora registrada: ejecuta ahora .claude/commands/orquesta.md (regla de AGENTS.md).` No se repite más de una vez cada 5 minutos.
-
-Es un aviso para que arranque, no una orden de enviar nada: lo que autoriza cada envío es la aprobación de {{ME}} que figura en el tablero.
+Al abrir la carpeta del espacio de trabajo en VS Code, la tarea «Arrancar el reporte de Jira» (`.vscode/tasks.json`) lanza `board.js startup`: en horario, si esta sesión no vigila, la abre y le manda con un `claude -p` de un solo turno la línea `Aviso del arranque: arranca el reporte. Eres la sesión de reporte registrada: ejecuta ahora .claude/commands/resumen-jira.md (regla de AGENTS.md).` Si llega ese `<cross-session-message>`, comprueba con `node {{WORKSPACE}}/board.js reporter` que `session` es tu nombre de `ListAgents` y haz los pasos 1 a 4 de arriba sin esperar a {{ME}}. El remitente tiene un nombre cualquiera: lo que cuenta es el texto y que tú seas la registrada. Es un aviso para arrancar el reporte, no una orden de enviar ni de tocar nada. Lo que hizo el arranque queda en `{{WORKSPACE}}/data/startup.log`.
 
 ## Pausa
 
@@ -63,17 +50,13 @@ Es un aviso para que arranque, no una orden de enviar nada: lo que autoriza cada
 
 - **Al llegar el evento `PAUSE`** (o si `board.js reporter` da `"paused": true`): el Monitor `watch reports` sí se mantiene armado y se rearma al caducar: en pausa no da ciclos, solo `REFRESH` (y `MESSAGE`, que casi nunca llega), así que no gasta turnos. En el chat, una línea: «Revisiones en pausa».
 - **«Aviso del tablero: {{ME}} pide una revisión»** ({{ME}} ha pulsado Refrescar en pausa y el tablero te despierta): comprueba con `board.js refresh-request` que hay una petición y haz una sola «Cada revisión». Si el Monitor no está armado, ármalo (ver el punto anterior).
-- **«Aviso del tablero: reanuda las revisiones»**: comprueba que `board.js reporter` da `"paused": false` y haz los pasos 3 y 4 del principio (Monitor y orquestadora) y una «Cada revisión».
+- **«Aviso del tablero: reanuda las revisiones»**: comprueba que `board.js reporter` da `"paused": false` y haz el paso 3 del principio (Monitor) y una «Cada revisión».
 - Hablar sigue llegando: si nadie lo lee en 45 segundos, el tablero despierta a la sesión.
-
-## Si no hay orquestadora
-
-Si `node {{WORKSPACE}}/sessions.js list` dice «Orquestador: sin registrar» y `board.js orchestrator` devuelve `orchestrator: null`, no hay nadie que envíe: entonces esta sesión hace también de orquestadora. Arma el monitor con `watch` (sin argumento) y sigue los pasos «Enviar» y «Desplegar» de `{{ROOT}}/.claude/commands/orquesta.md`. En cuanto {{ME}} registre una orquestadora, vuelve a `watch reports`.
 
 ## Límites
 
 - Por qué el tablero está hecho así, las trampas ya vistas y qué hacer si se pierde una sesión o algo deja de funcionar: `{{ROOT}}/context/TABLERO.md`. Léelo antes de cambiar `{{WORKSPACE}}/board.js` o `{{REPO}}/src/`.
 - No comentes ni muevas nada en Jira: esta sesión solo lee y publica el reporte.
-- Aprobar es cosa de {{ME}}: nunca marques tú una tarjeta como aprobada ni preguntes en el chat «¿la paso?»; las ofertas son las tarjetas. Si {{ME}} escribe aquí que pases una tarea concreta a una sesión, regístralo con `node {{WORKSPACE}}/board.js approve-chat <CLAVE> <sesión>` y la orquestadora la envía.
+- Aprobar es cosa de {{ME}}: nunca marques tú una tarjeta como aprobada ni preguntes en el chat «¿la paso?»; las ofertas son las tarjetas. Si {{ME}} escribe aquí que pases una tarea concreta a una sesión, regístralo con `node {{WORKSPACE}}/board.js approve-chat <CLAVE> <sesión>` y el tablero la envía (salvo que una restricción lo impida: el comando lo dice).
 - Nada de esto va a Artifacts ni a servicios de claude.ai: la cuenta es compartida y los datos de Jira se quedan en esta máquina.
 - Las pestañas Sesiones y Epics del tablero dejan a {{ME}} poner nombre a cada sesión y decidir qué epic lleva cada una. Escriben en `{{WORKSPACE}}/data/sessions.json`, igual que `/soy` y `sessions.js route`.

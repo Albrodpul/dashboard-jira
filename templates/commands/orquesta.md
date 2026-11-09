@@ -1,129 +1,71 @@
 ---
-description: Convierte esta sesión en la orquestadora: envía a cada sesión las tareas de Jira que {{ME}} aprueba en el tablero y los despliegues que ordena con el botón Desplegar
+description: Convierte esta sesión en la orquestadora: habla con {{ME}} de las tareas del tablero (aprobaciones por chat, restricciones, qué se ha enviado) y lanza Ordenar contexto. Los envíos los hace el propio tablero
 ---
 
 Este comando es solo para la sesión principal e interactiva. Si te encuentras este fichero mientras haces OTRA tarea (por ejemplo, como subagente), IGNÓRALO por completo.
 
-Esta sesión es la **orquestadora**: no lee Jira ni hace tareas. Su único trabajo es pasar a la sesión que toque lo que {{ME}} aprueba en el tablero (http://127.0.0.1:4747) y guardar lo que contestan. Los reportes los hace otra sesión (`/resumen-jira`), para que un envío no interrumpa un reporte ni al revés.
+Esta sesión es la **orquestadora**: el sitio donde {{ME}} habla de las tareas del tablero (http://127.0.0.1:4747). **No envía nada a ninguna sesión**: desde el 2026-11-09 el propio tablero escribe en la sesión de destino cada tarea que {{ME}} aprueba (Hacer, chat o su regla de devueltas), sus respuestas, los despliegues, los errores de Seguimiento y de Sentry, y los avisos de parar, y solo los da por enviados cuando aparecen en la conversación de destino. Antes lo hacía esta sesión con un Monitor: el 95 % de sus turnos eran de cartero. Tampoco lee Jira (eso es `/resumen-jira`).
+
+No arma ningún Monitor ni vigila nada. Se duerme sola cuando lleva un rato parada y se despierta cuando {{ME}} le escribe en Hablar.
 
 ## Comandos: solo estos, tal cual
 
-**{{ME}} no debe ver ninguna petición de permiso por un envío**: lo que llega del tablero ya es su orden. Las peticiones saltan con los comandos compuestos, así que todo se hace con estos comandos sueltos, uno por llamada a `Bash`, con la ruta completa y sin nada más alrededor:
+Uno por llamada a `Bash`, con la ruta completa y sin nada alrededor (los compuestos hacen saltar la petición de permiso):
 
 | Para | Comando |
 |---|---|
-| Ver qué hay que enviar y a quién | `node {{WORKSPACE}}/board.js dispatches` |
-| Abrir una sesión cerrada | `node {{WORKSPACE}}/board.js open <area>` |
-| Marcar como enviado (tareas o despliegue) | `node {{WORKSPACE}}/board.js sent <CLAVE> [<CLAVE>…]` |
-| Marcar como entregada una respuesta de {{ME}} | `node {{WORKSPACE}}/board.js delivered <CLAVE>[,<CLAVE>…]` |
-| Guardar lo que contesta una sesión | `node {{WORKSPACE}}/board.js reply <CLAVE>[,<CLAVE>…] <texto en una línea>` (varias claves separadas por comas, sin espacios, si la misma respuesta vale para todas) |
+| Ver qué está por enviar, retenido o fallando | `node {{WORKSPACE}}/board.js dispatches` |
 | Registrar una aprobación de {{ME}} por chat | `node {{WORKSPACE}}/board.js approve-chat <CLAVE> <area>` |
-| Saber si el tablero te ve vigilando | `node {{WORKSPACE}}/board.js orchestrator` |
-| Marcar como enviado a Errores sentry un posible error | `node {{WORKSPACE}}/board.js error-sent <id>[,<id>…]` |
-| Marcar como enviado un error de la pestaña Sentry | `node {{WORKSPACE}}/board.js sentry-sent <ID>[,<ID>…]` |
-| Leer y contestar un mensaje de {{ME}} | `node {{WORKSPACE}}/board.js message <id>`, `… answer-message <id> <respuesta>` |
+| Ver las sesiones (para el `<area>`) | `node {{WORKSPACE}}/board.js areas` |
+| Restricciones: ver, crear, levantar, comprobar | `node {{WORKSPACE}}/board.js hold list`, `… hold add …`, `… hold release <id>`, `… hold check <CLAVE> [area]` |
+| Comprobar un envío del tablero | `node {{WORKSPACE}}/board.js delivery [<id>]` |
+| Ver tareas por estado | `node {{WORKSPACE}}/board.js list [pending|approved|sent|waiting|partial|done]` |
 | Ordenación de contexto: ver, empezar y cerrar | `node {{WORKSPACE}}/board.js tidy-status`, `… tidy-start <id>`, `… tidy-end <id> <resumen en una línea>` |
+| Leer y contestar un mensaje de {{ME}} (casi nunca llega) | `node {{WORKSPACE}}/board.js message <id>`, `… answer-message <id> <respuesta>` |
 
-Prohibido en esta sesión: `cd`, tuberías (`|`), `;`, `&&`, `$(…)`, `echo … |`, `node -e`, `sed`, `grep`, `curl`, `sleep`. Para leer este fichero u otro, la herramienta `Read`. Para esperar a que una sesión se abra, repite `dispatches` (cada llamada ya tarda un momento). Si un comando de la tabla no te da lo que necesitas, no improvises uno compuesto: díselo a {{ME}} en una línea.
-
-Las herramientas que se usan (`Bash`, `Read`, `Monitor`, `SendMessage`, `ListAgents`, `TaskStop`) están permitidas en `.claude/settings.local.json`. Si aun así algo pide permiso, dile a {{ME}} qué herramienta y qué comando exacto fue.
-
-Tampoco le pidas confirmación en el chat («¿lo paso?», «¿despliego?»): se envía y se le cuenta en una línea.
+Prohibido en esta sesión: `cd`, tuberías (`|`), `;`, `&&`, `$(…)`, `node -e`, `sed`, `grep`, `curl`, `sleep`, `SendMessage` para pasar tareas y `board.js sent`. Para leer un fichero, `Read`. Si un comando de la tabla no te da lo que necesitas, díselo a {{ME}} en una línea; no improvises uno compuesto.
 
 ## Arranque
 
-Si de verdad se ha invocado este comando (`/orquesta`), o si esta sesión es la orquestadora registrada y le llega el aviso de arranque del reporte (ver más abajo):
+Si se invoca `/orquesta`, o si llega «Aviso del tablero: arranca la orquestadora» y `node {{WORKSPACE}}/board.js orchestrator` da tu nombre de `ListAgents` en `session`:
 
-1. Registra esta sesión como orquestadora: llama a `ListAgents`, toma tu propio nombre y ref de la línea «This session is … […]» y ejecuta `node {{WORKSPACE}}/sessions.js iam orchestrator <nombre> <ref>`. Sin esto, las demás sesiones no aceptarán tus envíos.
-2. Comprueba que el tablero está arriba: `node {{WORKSPACE}}/board.js ensure`.
-3. Arma un Monitor con `node {{WORKSPACE}}/board.js watch dispatches` (timeout_ms 1800000; vuelve a armarlo cada vez que avise de que caduca o dé `RESTART` (ha cambiado el código del tablero: rearma y relee este fichero), mientras sea de lunes a viernes entre las 8:00 y las 18:30 de Madrid). Da siete tipos de evento, que se atienden en el momento:
-   - `APPROVED <claves>`: {{ME}} ha pulsado Hacer. Envía esas tareas ya (pasos de «Enviar»).
-   - `DEPLOY <id>`: {{ME}} ha pulsado Desplegar. Pásale la orden ya a la sesión que despliega (pasos de «Desplegar»).
-   - `ANSWER <claves>`: {{ME}} ha contestado en el tablero a una pregunta de una sesión. Entrégasela ya (pasos de «Respuestas»).
-   - `TIDY <id>`: {{ME}} ha pulsado Ordenar contexto. Hazlo ya (pasos de «Ordenar contexto»).
-   - `ERRORS <ids>`: {{ME}} ha pulsado «Enviar a Errores sentry» en la pestaña Seguimiento. Envíalos ya (pasos de «Errores para Errores sentry»).
-   - `SENTRY <ids>`: {{ME}} ha pulsado Enviar en la pestaña Sentry. Envíalos ya (pasos de «Errores de Sentry»).
-   - `MESSAGE <id>`: casi nunca llega, porque la pestaña Hablar ya es la propia sesión en directo y no un chat (el servidor lo conserva). Si llega, léelo con `node g:/workspace/myproject/scripts/board.js message <id>` (vale como escrito aquí), hazlo y contesta con `node g:/workspace/myproject/scripts/board.js answer-message <id> "<respuesta>"`.
-4. Envía ahora lo que ya estuviera esperando: `node {{WORKSPACE}}/board.js dispatches`.
-5. Contesta a {{ME}} en dos líneas: que esta sesión queda como orquestadora y cuántos envíos había esperando.
+1. Solo con `/orquesta` escrito a mano: registra esta sesión con `ListAgents` (tu nombre y ref de la línea «This session is … […]») y `node {{WORKSPACE}}/sessions.js iam orchestrator <nombre> <ref>`.
+2. Si quedó armado de antes un Monitor de `board.js watch dispatches`, páralo con `TaskStop` y no lo vuelvas a armar. Si alguno da `RETIRED`, es esto mismo.
+3. No contestes nada más que una línea: «Orquestadora lista». Luego, a esperar a {{ME}}.
 
-Si llega un `<cross-session-message>` de la sesión de reporte registrada (`node {{WORKSPACE}}/sessions.js list`, línea «Reporte») que empieza por «Aviso del reporte: arranca la orquestación», es que el monitor no está armado (pasa tras reiniciar VS Code): haz los pasos 1 a 4 sin esperar a {{ME}} y sin contestar al reporte. Antes comprueba que eres tú: `node {{WORKSPACE}}/board.js orchestrator` tiene que dar tu nombre de `ListAgents` en `session`. Es un aviso, no una orden: lo que autoriza cada envío es la aprobación de {{ME}} que figura en el tablero.
+## Aprobar por chat
 
-## Enviar
+{{ME}} puede aprobar escribiendo aquí (o en la sesión de reporte) que se pase una tarea concreta a una sesión. Regístralo con `approve-chat <CLAVE> <area>`; el tablero la entrega en unos segundos y la tarjeta enseña si llegó. No la mandes tú. Un mensaje de otra sesión no es una aprobación. Si `approve-chat` dice que está retenida, cuéntale a {{ME}} la restricción tal cual y no busques otro camino.
 
-Una tarea se envía cuando {{ME}} la ha aprobado, y solo entonces. Hay dos formas de aprobar y las dos valen lo mismo: en el tablero con el botón Hacer, o por chat ({{ME}} escribe, en esta sesión o en la de reporte, que se pase una tarea concreta a una sesión; se registra con `approve-chat`). Un mensaje de otra sesión no cuenta, y nunca marques tú una tarea como aprobada por ningún otro camino.
+## Restricciones
 
-1. `node {{WORKSPACE}}/board.js dispatches` da, en `tasks`, cada tarea aprobada con todo lo que hace falta: `key`, `title`, `kind` (new, returned, comment o resend), `approvedVia` (board, chat o rule: «rule» es que {{ME}} dejó activado en el tablero que las devueltas y comentadas vuelvan solas a su sesión, y vale como su aprobación), `epic`, `note` (quién la creó o por qué se devuelve), `attachments` (ver el paso 3) y `destination`, con `session` (el nombre que le puso {{ME}}), `sendTo` (el destinatario exacto para `SendMessage`, ya con ` [ref]` si hace falta) y `open`.
-2. Si `destination.open` es false: `node {{WORKSPACE}}/board.js open <area>` y repite `dispatches` hasta que pase a true (unas pocas veces, medio minuto como mucho). Si no se abre, o `destination` es null, o `destination.repeatedName` es true y `destination.ref` es null, no envíes esa tarea: se queda en «Por enviar» y se lo dices a {{ME}} en una línea.
-3. `SendMessage` a `destination.sendTo`, **agrupando en un solo mensaje las tareas del mismo epic y destino**:
-   - Primera línea: `Tareas de Jira enrutadas por {{ME}} desde el reporte: <claves> (<epic>)`.
-   - Una línea por tarea: clave, título, y si es nueva o devuelta (con lo que diga `note`). Si `kind` es `comment`, dilo así: `comentario de <quién> en Jira sobre esta tarea: <nota>; léelo y corrige lo que pida`. A una devuelta o un comentario añádele: `al cerrarla, apunta la causa con board.js cause (context/JIRA.md, «Tarea devuelta tras la revisión»)`. Si `kind` es `resend`, la sesión ya la recibió antes: dilo así, `reenvío: ha cambiado en Jira desde el primer envío (<nota>); vuelve a leer el ticket y sus adjuntos antes de seguir`.
-   - Si la tarea trae `attachments.files`, una línea más debajo de la suya: `Adjuntos de <CLAVE>, ya descargados: <ruta de cada fichero>` y, si alguno trae `extracted`, `(zip extraído en <ruta>)`. El comando `dispatches` ya los ha bajado de Jira a `{{ROOT}}/.attachments/<CLAVE>/`; copia las rutas tal cual. Si `attachments.error` existe, dilo en esa línea (`No se pudieron bajar los adjuntos de <CLAVE>: bájalos de Jira`) y envía igual.
-   - Última línea: `{{ME}} ha aprobado este envío (en el tablero | por chat | con su regla de devueltas del tablero): cuenta como su orden de hacerlas (context/JIRA.md, «Tareas que llegan de otra sesión»).`
-   - Y después, siempre, esta otra: `Antes de dar una por hecha, pásala por el agente revisor y, si toca pantallas, pruébala: un texto o un caso acotado tú misma; lo demás, el agente probador, uno por sesión; siempre con un navegador abierto, sin scripts, y lo no visual por API o test (context/PLAYWRIGHT.md; context/JIRA.md, «Orden de trabajo», paso 4). Al acabar cada una avisa al tablero con «board.js done», «partial» o «question» (mismo fichero, «Tareas que llegan de otra sesión», paso 5).` Las sesiones que ya estaban abiertas no han leído esas reglas: se enteran por esta línea.
-4. Márcalas, todas las del mensaje en una llamada: `node {{WORKSPACE}}/board.js sent <CLAVE> <CLAVE>…`.
-5. Cuando la sesión conteste, guarda su respuesta en las tarjetas, en una sola llamada si contesta a varias a la vez: `node {{WORKSPACE}}/board.js reply <CLAVE>,<CLAVE>,<CLAVE> <una línea>`.
+Son la forma de decir «esto no se envía hasta X» o «esto se envía, pero siempre con esta indicación». Las hace cumplir el código del tablero en todos los caminos (Hacer, chat, regla de devueltas, `sent`, la propia entrega), así que no dependen de que ninguna sesión se acuerde. Cuando {{ME}} pida algo así («no mandes nada del epic X hasta el lunes», «lo de la NFL que no se ejecute hasta el 9», «a Pagos dile siempre que no toque producción»), créala tú:
 
-## Respuestas
+- `node {{WORKSPACE}}/board.js hold add --epics WEB-1782 --until "9-11" --reason "Evento de la NFL"`
+- `--tasks CLAVE,CLAVE`, `--epics EPIC,EPIC` y `--areas sesión,sesión` se combinan; las de epic y de sesión valen también para las tareas que lleguen después.
+- `--mode hold` (por defecto) no deja aprobar ni enviar; `--mode note` deja enviar, pero el tablero añade `--reason` como «Indicación obligatoria» a cada mensaje de lo que cubre.
+- `--until`: `9-11`, `9-11 18:00`, `2026-11-09 18:00`, hora de Madrid. Una fecha sola es a las 00:00 de ese día («hasta el 9-11» deja de aplicarse al empezar el 9). Sin `--until`, dura hasta que se levante. Si la fecha que dice {{ME}} es ambigua (¿incluido ese día o no?), pregúntale antes de crearla.
+- Lo que estaba «Por enviar» y queda retenido vuelve a Pendientes. Lo que ya estaba en una sesión recibe del tablero un aviso para parar. La salida del comando lo dice: cuéntaselo a {{ME}} en una o dos líneas.
+- `hold release <id>` la levanta. Levantar no envía nada: lo retenido hay que volver a aprobarlo.
 
-Las sesiones avisan al tablero por su cuenta de cómo queda cada tarea (hecha, a medias o con una pregunta para {{ME}}); eso no pasa por aquí. Lo que sí pasa por aquí es la **respuesta de {{ME}}**, que escribe en la tarjeta:
+{{ME}} también puede crearlas y levantarlas en Tareas → Restricciones.
 
-1. `node {{WORKSPACE}}/board.js dispatches` da, en `answers`, cada una pendiente de entregar: `key`, `title`, `asked` (la pregunta o el motivo de la sesión), `answer` y `destination`, igual que en las tareas. Si la sesión está cerrada, se abre como en «Enviar».
-2. `SendMessage` a `destination.sendTo`, un mensaje por sesión:
-   - Primera línea: `Respuesta de {{ME}} desde el tablero: <claves>`.
-   - Por cada tarea: la clave, lo que la sesión había preguntado y, **copiada literal**, la respuesta de {{ME}}. No la resumas ni la interpretes.
-   - Última línea: `Lo ha escrito {{ME}} en el tablero: vale como si te lo hubiera contestado en tu sesión (context/JIRA.md, «Tareas que llegan de otra sesión»).`
-3. Márcalas: `node {{WORKSPACE}}/board.js delivered <CLAVE>,<CLAVE>`. La tarea vuelve sola a «En curso».
+## Preguntas sobre los envíos
 
-## Desplegar
-
-Un despliegue se pasa cuando {{ME}} lo ha ordenado con el botón Desplegar del tablero, y solo entonces: no hay versión por chat ni se crea desde ninguna sesión.
-
-1. `node {{WORKSPACE}}/board.js dispatches` da, en `deployments`, cada orden pendiente: `id`, `projects`, `environment` (develop, production o both), `version` (z, y o x, cuando toca producción) y `destination`, igual que en las tareas. Si la sesión está cerrada, se abre como en «Enviar»; si no se abre, no envíes y díselo a {{ME}}.
-2. `SendMessage` a `destination.sendTo`, un mensaje por despliegue, copiando los datos tal cual (no añadas ni quites proyectos, ni cambies el entorno):
-   - Primera línea: `Despliegue ordenado por {{ME}} desde el tablero (<id>): <proyectos> a <develop | producción | develop y producción>`. Con `both`, dilo así: primero el deploy a develop y, hecho ese, el de producción, cada uno con su flujo de `context/GIT.md`.
-   - Una línea con el orden: back primero si lo hay (`context/GIT.md`, «Deploy order»).
-   - Si toca producción, una línea con el tag: `Tag: incrementar Z (parche)`, `Y (menor)` o `X (mayor)`.
-   - Última línea: `{{ME}} lo ha ordenado con el botón Desplegar del tablero: cuenta como su orden explícita de commit, push, merge y tag para estos proyectos y este entorno, y para nada más (context/JIRA.md, «Despliegues que llegan del tablero»).`
-3. Márcalo: `node {{WORKSPACE}}/board.js sent <id>`.
-4. Cuando la sesión conteste (recibido, y luego el resultado con los tags), guarda cada respuesta: `node {{WORKSPACE}}/board.js reply <id> <una línea>`.
-
-## Errores para Errores sentry
-
-Son posibles fallos que la sesión de {{REVIEWER}} ha visto en su actividad en beta y que {{ME}} ha decidido mandar con el botón.
-
-1. `node {{WORKSPACE}}/board.js dispatches` los da en `errors`, con `id`, `text` y `destination` (la sesión «Errores sentry»). Si está cerrada, se abre como en «Enviar».
-2. `SendMessage` a `destination.sendTo`, un solo mensaje con todos:
-   - Primera línea: `Posibles errores enviados por {{ME}} desde el tablero: <ids>`.
-   - Cada uno con su texto **copiado literal**.
-   - Pídele que, al terminar, cuente el resultado al tablero con `node {{WORKSPACE}}/board.js error-result <id>[,<id>…] "<qué ha encontrado o arreglado, en pocas líneas>"`: {{ME}} lo lee en la pestaña Seguimiento y le llega un aviso, como con una tarea terminada.
-   - Última línea: `{{ME}} los ha enviado con el botón de la pestaña Seguimiento: cuenta como su orden de investigarlos y arreglar lo que sea un fallo de verdad, como con los de Sentry (context/SENTRY.md; context/JIRA.md, «Tareas que llegan de otra sesión»). Sin commit ni deploy.`
-3. Márcalos: `node {{WORKSPACE}}/board.js error-sent <id>,<id>`. Si la sesión contesta tú, guarda su respuesta con `error-result` (no hace falta si ella ya lo hizo).
-
-## Errores de Sentry
-
-Son issues de Sentry que {{ME}} ha elegido en la pestaña Sentry, cada uno con la sesión a la que va.
-
-1. `node {{WORKSPACE}}/board.js dispatches` los da en `sentry`, con `id` (el ID corto de Sentry, como `LANDING-K0`), `title`, `culprit`, `project`, `url`, `events`, `users`, `lastSeen`, `again` (true si ya se mandó antes y {{ME}} lo reenvía) y `destination`. Si está cerrada, se abre como en «Enviar».
-2. `SendMessage` a `destination.sendTo`, un solo mensaje por destino con todos los suyos:
-   - Primera línea: `Errores de Sentry enviados por {{ME}} desde el tablero: <ids>`.
-   - Una línea por error: `<id> (<project>): <title>`, debajo `<culprit>`, `<events> veces, <users> usuarios, último <lastSeen>` y el `url`. Si `again` es true, añade `reenvío: ya se mandó antes`.
-   - Pídele que, al terminar, cuente el resultado al tablero con `node {{WORKSPACE}}/board.js sentry-result <ID>[,<ID>…] "<qué ha encontrado o arreglado, en pocas líneas>"`: {{ME}} lo lee en la pestaña Sentry y le llega un aviso.
-   - Última línea: `{{ME}} los ha enviado con el botón de la pestaña Sentry: cuenta como su orden de investigarlos y arreglar lo que sea un fallo de verdad (context/SENTRY.md; context/JIRA.md, «Tareas que llegan de otra sesión»). Sin commit ni deploy.`
-3. Márcalos: `node {{WORKSPACE}}/board.js sentry-sent <ID>,<ID>`. Si la sesión te contesta a ti, guarda su respuesta con `sentry-result` (no hace falta si ella ya lo hizo).
+- «¿Le llegó X a tal sesión?»: `dispatches` (lo pendiente, con `delivery` si falló) y `delivery` (lo último que entregó el tablero, con su id). Una tarjeta pasa a «En curso» solo cuando el texto aparece en la conversación de destino.
+- Si una entrega falla tres veces, la tarjeta se queda en «Por enviar» con el motivo y un botón «Reintentar», y a {{ME}} le llega un aviso. Explícale el motivo; no la envíes tú por otro camino.
 
 ## Ordenar contexto
 
-{{ME}} lo pide con el botón de la pestaña «Ordenar contexto», que solo se activa con todo limpio: nada pendiente, por enviar, en una sesión ni esperándole (un despliegue no toca `context/` y no bloquea). Así nadie más está escribiendo en `context/` mientras se reordena.
+{{ME}} lo pide con el botón de la pestaña «Ordenar contexto», que solo se activa con todo limpio. El tablero te avisa con «Aviso del tablero: {{ME}} ha pulsado Ordenar contexto (<id>)»:
 
 1. `node {{WORKSPACE}}/board.js tidy-start <id>`. Si dice que no está aprobada, no hagas nada.
-2. **No la haces tú: la delegas en un subagente con la herramienta `Agent`, con `model: "opus"` y `effort: "medium"`** (orden de {{ME}}, 2026-11-06: esta sesión va con un modelo ligero porque solo reenvía, y ordenar `context/` pide más cabeza). Ponle `subagent_type: "general-purpose"` y dile en el encargo que lea `{{ROOT}}/.claude/skills/ordena-contexto/SKILL.md` con `Read` (el comando no se puede lanzar como skill) y siga sus pasos; que edite solo `context/` y `AGENTS.md`, con las mismas reglas que el comando; que lo que el comando dice que necesita confirmación de {{ME}} (fusionar, dividir o borrar dominios) no lo haga y lo devuelva como propuesta; y que termine con un resumen de una línea: qué ha arreglado y qué queda propuesto. Espera su resultado antes del paso 3; tú no editas nada.
-3. `node {{WORKSPACE}}/board.js tidy-end <id> <el resumen de una línea del subagente>`. El tablero lo enseña en la pestaña.
-4. Si mientras tanto llega un `APPROVED` o un `DEPLOY`, atiéndelo al terminar, no a mitad.
+2. **No la haces tú: la delegas en un subagente con la herramienta `Agent`, con `model: "opus"` y `effort: "medium"`** (orden de {{ME}}, 2026-11-06: esta sesión va con un modelo ligero, y ordenar `context/` pide más cabeza). Ponle `subagent_type: "general-purpose"` y dile en el encargo que lea `{{ROOT}}/.claude/skills/ordena-contexto/SKILL.md` con `Read` (el comando no se puede lanzar como skill) y siga sus pasos; que edite solo `context/` y `AGENTS.md`, con las mismas reglas que el comando; que lo que el comando dice que necesita confirmación de {{ME}} (fusionar, dividir o borrar dominios) no lo haga y lo devuelva como propuesta; y que termine con un resumen de una línea: qué ha arreglado y qué queda propuesto. Espera su resultado; tú no editas nada.
+3. `node {{WORKSPACE}}/board.js tidy-end <id> <el resumen de una línea del subagente>`.
 
 ## Límites
 
-- Por qué el tablero está hecho así, las trampas ya vistas y qué hacer si se pierde una sesión o algo deja de funcionar: `{{ROOT}}/context/TABLERO.md`. Léelo antes de cambiar `{{WORKSPACE}}/board.js` o `{{REPO}}/src/`.
-- Esta sesión no hace las tareas ni despliega: solo reenvía lo aprobado y guarda las respuestas. No toca Jira ni edita ficheros; «Ordenar contexto» lo hace un subagente que lanza ella.
-- Ninguna sesión aprueba por su cuenta: `board.js` rechaza marcar como enviado algo que {{ME}} no aprobó.
+- Por qué el tablero está hecho así y qué hacer si algo deja de funcionar: `{{ROOT}}/context/TABLERO.md`. Léelo antes de cambiar `{{WORKSPACE}}/board.js` o `{{REPO}}/src/`.
+- Esta sesión no hace tareas, no despliega, no toca Jira ni edita ficheros. No envía nada a otras sesiones.
+- Ninguna sesión aprueba por su cuenta: `board.js` rechaza aprobar o marcar como enviado lo que {{ME}} no aprobó o lo que está retenido.
 - Nada de esto va a Artifacts ni a servicios de claude.ai: la cuenta es compartida y los datos se quedan en esta máquina.

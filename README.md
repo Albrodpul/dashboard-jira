@@ -15,7 +15,7 @@ When several AI coding sessions work in parallel (one per product area), someone
 
    ![Tasks: Jira cards by state, from pending approval to done](docs/tasks.png)
 
-3. **An orchestrator session delivers** the approved work, with the ticket's attachments already downloaded. Each session reports back `done`, `partial` or `question`, and you answer from the board.
+3. **The board delivers** the approved work itself: it types the message into the destination session through the session host and marks it sent only when it shows up in that conversation, with the ticket's attachments already downloaded. Restrictions (holds and mandatory notes per task, epic or session) are enforced in code on every path. Each session reports back `done`, `partial` or `question`, and you answer from the board.
 
 It also has:
 - **a session host**: the fixed sessions (reporter, orchestrator, follow-up, board) and the area sessions run as `claude` processes inside the board's own terminals (`node-pty`). They start by themselves at boot, wake up when work arrives, go to sleep after 30 idle minutes, and the reporter and orchestrator start a fresh conversation every day;
@@ -48,7 +48,7 @@ node dashboard-jira/install.js C:/work/acme/board   # renders the Claude Code sl
 node C:/work/acme/board/board.js ensure            # http://127.0.0.1:4747
 ```
 
-Then run `/resumen-jira` in one Claude Code session and `/orquesta` in another. The full walkthrough is below.
+Then run `/resumen-jira` in one Claude Code session (and `/orquesta` in another if you want a session to talk to about tasks). The full walkthrough is below.
 
 ## Requirements
 
@@ -137,7 +137,7 @@ This time it renders `/resumen-jira`, `/orquesta`, `/soy`, `/seguimiento` and `/
 
 1. `node C:/work/acme/board/board.js ensure`, then open <http://127.0.0.1:4747>. This also starts the session host on `127.0.0.1:4749`.
 2. In one Claude Code session, run `/resumen-jira`. That session becomes the reporter.
-3. In another, run `/orquesta`. That session becomes the orchestrator.
+3. Optionally, in another, run `/orquesta`. That session becomes the orchestrator, a conversational partner for approvals by chat and restrictions; it does not deliver anything.
 4. In each working session, run `/soy <area>`. Then assign epics to areas in the Sessions tab. New sessions can also be created from Talk ("+ Sesión nueva").
 5. `node C:/work/acme/board/board.js startup` boots everything: the board, the host and the fixed sessions, each with its start notice. Run it at login: from a Windows startup shortcut, from a macOS LaunchAgent with `RunAtLoad`, or from a VS Code task like this one in `<root>/.vscode/tasks.json`:
 
@@ -205,7 +205,7 @@ node <workspace>/board.js ensure      # starts the board at http://127.0.0.1:474
 In Claude Code:
 
 - `/resumen-jira` turns a session into the **reporter** (reads Jira, publishes a report, creates cards).
-- `/orquesta` turns a session into the **orchestrator** (sends approved cards, deployments and your answers).
+- `/orquesta` turns a session into the **orchestrator**: approvals by chat, restrictions (`board.js hold`) and Ordenar contexto. Deliveries are done by the board.
 - `/soy <area>` registers a session as the one that owns an area; epics are routed to areas from the board.
 - `/seguimiento` turns a session into the **follow-up** one (activity of beta and production, split by person).
 - `/tablero` turns a session into the **board** one: it takes the changes you ask for the board itself from the Talk tab, so the reporter only deals with Jira.
