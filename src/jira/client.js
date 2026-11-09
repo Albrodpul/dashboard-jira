@@ -99,7 +99,7 @@ async function downloadAttachments(key) {
       if (!fs.existsSync(extracted)) {
         fs.mkdirSync(extracted, { recursive: true });
         try {
-          cp.execFileSync(path.join(process.env.SystemRoot || "C:\\Windows", "System32", "tar.exe"), ["-xf", target, "-C", extracted], { windowsHide: true, stdio: "ignore", timeout: 60000 });
+          cp.execFileSync(process.platform === "win32" ? path.join(process.env.SystemRoot || "C:\\Windows", "System32", "tar.exe") : "tar", ["-xf", target, "-C", extracted], { windowsHide: true, stdio: "ignore", timeout: 60000 });
         } catch (e) {
           fs.rmSync(extracted, { recursive: true, force: true });
         }
