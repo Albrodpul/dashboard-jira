@@ -9,7 +9,7 @@ const DOC = ".claude/commands/resumen-jira.md";
 const WAIT_MS = 5 * 60000;
 const madrid = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Madrid", weekday: "short", hour: "2-digit", minute: "2-digit", hour12: false });
 
-const reviewHours = (t = hours.clock()) => !t.weekend && t.min >= 8 * 60 && t.min <= 18 * 60 + 30;
+const reviewHours = (t = hours.clock()) => !t.weekend && t.min >= hours.startMin() && t.min <= hours.endMin();
 const lastOf = (d) => (d.lastReview && d.lastReview.at) || (d.reports && d.reports[0] && d.reports[0].at) || null;
 const hhmm = (iso) => new Date(iso).toLocaleTimeString("es-ES", { timeZone: "Europe/Madrid", hour: "2-digit", minute: "2-digit" });
 const env = () => ({ ...process.env, TOWER_WORKSPACE: config.workspace });

@@ -182,8 +182,32 @@ export function renderMachines(root) {
       h("p", { text: "Solo cuando tú lo pasas con el botón, o si el que manda deja de responder (apagado o suspendido): entonces el otro lo toma al minuto y lo conserva cuando el primero vuelve. Al encender por la mañana, un ordenador solo coge el mando si no manda ninguno." }),
     ])
   );
-  root.appendChild(h("div", { class: "settings-grid" }, [macSchedule(), tokenRenew()]));
+  root.appendChild(h("div", { class: "settings-grid" }, [workSchedule(), macSchedule(), tokenRenew()]));
   if (!jobLoaded) pollJob();
+}
+
+function workSchedule() {
+  const s = state.workSchedule || { start: "07:30", end: "18:30" };
+  const start = h("input", { type: "time", value: s.start, class: "time-input" });
+  const end = h("input", { type: "time", value: s.end, class: "time-input" });
+  const save = button("Guardar", {
+    onClick: (b) => {
+      b.disabled = true;
+      requestOrFail("/api/work-hours", { start: start.value, end: end.value })
+        .then(() => toast(`Jornada de ${start.value} a ${end.value}, de lunes a viernes.`))
+        .finally(() => (b.disabled = false));
+    },
+  });
+  const kids = [
+    h("h3", { text: "Horario de trabajo" }),
+    h("p", { class: "meta", text: "De lunes a viernes. Al empezar arrancan las sesiones fijas y el reporte; durante la jornada se mira Jira cada minuto y salen los seguimientos; al acabar se paran los proyectos y se redacta la daily hora y media antes. Fuera de este horario solo funciona con «Activarlo todo»." }),
+    h("div", { class: "schedule-row" }, [h("label", {}, [h("span", { text: "Empieza" }), start]), h("label", {}, [h("span", { text: "Acaba" }), end])]),
+    h("div", { class: "actions" }, [save]),
+  ];
+  const mp = (state.cluster && state.cluster.macPower) || null;
+  const toMin = (t) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3));
+  if (mp && mp.schedule && (toMin(mp.schedule.wake) > toMin(s.start) || toMin(mp.schedule.sleep) < toMin(s.end))) kids.push(h("div", { class: "setup-note warn" }, [h("p", { text: `El Mac está despierto de ${mp.schedule.wake} a ${mp.schedule.sleep}: no cubre toda la jornada.` })]));
+  return h("section", { class: "card setting-card work-schedule" }, kids);
 }
 
 function macSchedule() {

@@ -6,7 +6,6 @@ const config = require("../core/config");
 const { DATA_DIR, load, mutate, now } = require("../core/data");
 
 const LOG_DIR = path.join(DATA_DIR, "devservers");
-const STOP_AT = { hour: 18, minute: 30 };
 const STOP_WINDOW_MIN = 10;
 const madrid = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Madrid", weekday: "short", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false });
 const starting = new Map();
@@ -151,7 +150,7 @@ async function schedule() {
   if (["Sat", "Sun"].includes(t.weekday)) return;
   const d = load();
   const ds = d.devServers || {};
-  const stopAt = STOP_AT.hour * 60 + STOP_AT.minute;
+  const stopAt = require("../core/hours").endMin();
   if (t.minutes < stopAt && ds.autoStartedOn !== t.day && firstReportToday(d, t.day)) {
     mutate((x) => (x.devServers = { ...(x.devServers || {}), autoStartedOn: t.day }));
     await startAll(true);

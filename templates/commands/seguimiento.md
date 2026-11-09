@@ -19,7 +19,7 @@ Si se ha invocado este comando (`/seguimiento`), o si te llega de otra sesión �
 
 ## A su hora
 
-Si te llega «Aviso del tablero: toca el seguimiento de …», es el resumen programado (el de cada entorno a su hora, de lunes a viernes, y el de cierre de las 18:31, que pide los dos). Lo que manda es el tablero, no el aviso:
+Si te llega «Aviso del tablero: toca el seguimiento de …», es el resumen programado (el de cada entorno a su hora, de lunes a viernes, y el de cierre, un minuto después del fin de la jornada, que pide los dos). Lo que manda es el tablero, no el aviso:
 
 1. `node {{WORKSPACE}}/board.js followup-status`. Si `due` está vacío, ese resumen ya está hecho o no toca: no hagas nada.
 2. Haz «Cada resumen» para cada entorno de `due`, en ese orden, sin `--manual`. Al publicarlo, deja de salir en `due`.

@@ -196,6 +196,11 @@ const POST_ROUTES = {
     if (!ok(wake) || !ok(sleep)) return send(res, 400, { error: "hora no válida (HH:MM)" });
     send(res, 200, { schedule: require("../../features/mac-power").setSchedule({ wake, sleep }) });
   },
+  "/api/work-hours": (res, { start, end }, send) => {
+    const r = require("../../core/hours").setSchedule({ start, end });
+    if (r.error) return send(res, 400, { error: r.error });
+    send(res, 200, r);
+  },
   "/api/overtime": (res, { on }, send) => {
     require("../startup")
       .setOvertime(!!on)

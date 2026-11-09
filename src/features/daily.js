@@ -157,14 +157,13 @@ function dailyFor(day, auto) {
   return running;
 }
 
-const DRAFT_AT = 17 * 60;
 const has = (d, day) => (d.dailies && d.dailies[day]) || (d.daily && d.daily.day === day);
 
 async function dailyIfMissing() {
   if (!require("../cluster/cluster").isPrimary()) return;
   const d = load();
   const t = require("../core/hours").clock();
-  if (!t.weekend && t.min >= DRAFT_AT && !has(d, today())) return dailyFor(today(), true);
+  if (!t.weekend && t.min >= require("../core/hours").endMin() - 90 && !has(d, today())) return dailyFor(today(), true);
   const day = lastWorkday();
   if (!has(d, day)) await dailyFor(day, true);
 }

@@ -149,6 +149,7 @@ function state() {
     quota: readQuota(),
     claudeTokenExpires: require("../features/claude-token").tokenStatus().expires,
     workHours: require("../core/hours").workHours(),
+    workSchedule: require("../core/hours").schedule(),
     jiraSetup: config.forPage(),
   };
 }

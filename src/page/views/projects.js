@@ -115,5 +115,5 @@ export function renderProjects(root) {
     ])
   );
   root.appendChild(h("div", { class: "proj-list" }, data.servers.map(row)));
-  root.appendChild(h("p", { class: "meta proj-note", text: `${auto} Se paran solos a las 18:30 de lunes a viernes, salvo con el modo fuera de horario; si los arrancas después, siguen hasta el día siguiente.` }));
+  root.appendChild(h("p", { class: "meta proj-note", text: `${auto} Se paran solos a las ${(state.workSchedule || {}).end || "18:30"} de lunes a viernes, salvo con el modo fuera de horario; si los arrancas después, siguen hasta el día siguiente.` }));
 }

@@ -5,6 +5,7 @@ const { DATA_DIR, ENTRY, UUID } = require("../core/data");
 const { appendLog } = require("../core/logfile");
 const { openInVsCode, wakeSession } = require("../sessions/registry");
 const { state, ping, wait } = require("./state");
+const hours = () => require("../core/hours");
 
 const STARTUP_LOG = path.join(DATA_DIR, "startup.log");
 const STARTUP_LOCK = path.join(DATA_DIR, "startup.lock");
@@ -37,7 +38,7 @@ async function openAndWait(read, who) {
 async function startFollowUp(force) {
   if (!require("../cluster/cluster").isPrimary()) return log("este ordenador no manda: no arranco el seguimiento");
   const t = madridTime();
-  if (!force && (t.weekend || t.min < 7 * 60 + 50 || t.min >= 18 * 60 + 30)) return;
+  if (!force && (t.weekend || t.min < hours().startMin() + 20 || t.min >= hours().endMin())) return;
   const e0 = state().followUpStatus;
   if (!e0) return log("no hay sesión de seguimiento registrada");
   if (e0.paused) return log("revisiones en pausa desde el tablero: no se arranca el seguimiento");
@@ -56,10 +57,11 @@ async function startReporter(force) {
   fs.writeFileSync(STARTUP_LOCK, String(process.pid));
   const t = madridTime();
   if (force) log("fuera de horario activado a mano: arranco todo");
-  else if (t.weekend || t.min >= 18 * 60 + 30) return log("fuera de horario: no se arranca nada");
-  if (!force && t.min < 7 * 60 + 55) {
-    log("antes de las 7:55: espero");
-    while (madridTime().min < 7 * 60 + 55) {
+  else if (t.weekend || t.min >= hours().endMin()) return log("fuera de horario: no se arranca nada");
+  const ready = hours().startMin() + 25;
+  if (!force && t.min < ready) {
+    log(`antes de las ${String(Math.floor(ready / 60)).padStart(2, "0")}:${String(ready % 60).padStart(2, "0")}: espero`);
+    while (madridTime().min < ready) {
       await wait(60000);
       fs.writeFileSync(STARTUP_LOCK, String(process.pid));
     }

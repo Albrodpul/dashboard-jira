@@ -34,15 +34,13 @@ async function freshConversation(role, fallbackName) {
   return true;
 }
 
-const LATEST = 10 * 60;
 
 function morning(t = require("../core/hours").clock()) {
-  return !t.weekend && t.min < LATEST;
+  return !t.weekend && t.min < require("../core/hours").startMin() + 150;
 }
 
-const EARLIEST = 7 * 60 + 30;
 
-const inRotationWindow = (t = require("../core/hours").clock()) => !t.weekend && t.min >= EARLIEST && t.min < LATEST;
+const inRotationWindow = (t = require("../core/hours").clock()) => !t.weekend && t.min >= require("../core/hours").startMin() && morning(t);
 
 async function rotateDaily() {
   if (!morning()) return;

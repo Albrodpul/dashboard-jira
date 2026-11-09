@@ -7,9 +7,6 @@ const CONFIG_FILE = path.join(config.workspace, "board.config.json");
 
 const ENVIRONMENT_NAMES = { beta: "beta", production: "producción" };
 const ENVIRONMENTS = Object.keys(ENVIRONMENT_NAMES);
-const MINUTE = { beta: 3, production: 33 };
-const FIRST_HOUR = 9;
-const LAST_HOUR = 18;
 
 const slug = (s) =>
   String(s || "")
@@ -36,10 +33,7 @@ function settings() {
 }
 
 function cronOf(environment, hours) {
-  const n = Math.max(1, Math.min(9, Math.round(hours)));
-  const last = LAST_HOUR - ((LAST_HOUR - FIRST_HOUR) % n);
-  const span = n === 1 ? `${FIRST_HOUR}-${LAST_HOUR}` : `${FIRST_HOUR}-${last}/${n}`;
-  return `${MINUTE[environment]} ${span} * * 1-5`;
+  return require("./followup-schedule").cronOf(environment, hours);
 }
 
 const productionPeople = new WeakMap();

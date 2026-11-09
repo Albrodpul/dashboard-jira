@@ -3,15 +3,15 @@ const { load, mutate, now } = require("../core/data");
 const hours = require("../core/hours");
 
 const MINUTE = { beta: 3, production: 33 };
-const FIRST_HOUR = 9;
-const LAST_HOUR = 18;
-const CLOSING = 18 * 60 + 31;
+const firstHour = () => Math.ceil((hours.startMin() + 57) / 60);
+const lastHour = (environment) => Math.floor((hours.endMin() - MINUTE[environment] - 1) / 60);
+const closing = () => hours.endMin() + 1;
 const WINDOW = 10;
 
 function slots(environment, everyHours) {
   const n = Math.max(1, Math.min(9, Math.round(everyHours || 1)));
   const out = [];
-  for (let h = FIRST_HOUR; h <= LAST_HOUR; h += n) out.push(h * 60 + MINUTE[environment]);
+  for (let h = firstHour(); h <= lastHour(environment); h += n) out.push(h * 60 + MINUTE[environment]);
   return out;
 }
 
@@ -21,7 +21,8 @@ function dueNow(environments, t = hours.clock()) {
     const slot = slots(e.id, e.everyHours).find((s) => t.min >= s && t.min < s + WINDOW);
     if (slot !== undefined) return { environments: [e.id], slot };
   }
-  if (t.min >= CLOSING && t.min < CLOSING + WINDOW) return { environments: environments.map((e) => e.id), slot: CLOSING };
+  const close = closing();
+  if (t.min >= close && t.min < close + WINDOW) return { environments: environments.map((e) => e.id), slot: close };
   return null;
 }
 
@@ -68,4 +69,9 @@ async function tick() {
   }
 }
 
-module.exports = { tick, slots, dueNow, pending };
+function cronOf(environment, everyHours) {
+  const list = slots(environment, everyHours).map((m) => Math.floor(m / 60));
+  return `${MINUTE[environment]} ${list.join(",") || "-"} * * 1-5`;
+}
+
+module.exports = { tick, slots, dueNow, pending, cronOf };
