@@ -53,7 +53,7 @@ const commands = {
     const s = state();
     const waiting = s.tasks.filter((t) => t.status === "approved" && HUMAN_APPROVALS.includes(t.approvedVia)).map((t) => ({ key: t.key, since: t.decidedAt }));
     for (const x of s.deployments.filter((y) => y.status === "approved")) waiting.push({ key: x.id, since: x.at });
-    json({ orchestrator: s.orchestrator, waiting });
+    json({ orchestrator: s.orchestrator && { ...s.orchestrator, watching: true }, note: "El tablero entrega solo lo que se aprueba: la orquestadora no vigila nada y no hay que despertarla.", waiting });
   },
 
   deployments() {
