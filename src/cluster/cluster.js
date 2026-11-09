@@ -384,13 +384,6 @@ function keepAwake() {
   const hours = require("../core/hours");
   const macPower = require("../features/mac-power");
   const want = macPower.inWindow(hours.clock());
-  const ot = hours.overtime();
-  const day = (iso) => new Date(iso).toLocaleDateString("en-CA", { timeZone: "Europe/Madrid" });
-  if (ot && want && day(ot.since) !== day(new Date())) {
-    hours.setOvertime(false);
-    letSleep();
-    log("fuera de horario: se desactiva solo al empezar la jornada");
-  }
   const extra = !!hours.overtime() && isPrimary();
   if (process.platform !== "darwin") return;
   const extraFile = path.join(DATA_DIR, "caffeinate.extra");
@@ -552,4 +545,4 @@ async function machines() {
   return { self: info(), peer, devices };
 }
 
-module.exports = { lastReply, isPrimary, primaryNow, info, peerGet, projectDir, keepAwake, letSleep, snapshot, transcripts, serveTranscript, tick, handleYield, command, takeHere, backToAuto, machines, sendClaudeToken, clusterEnabled: () => !!CLUSTER };
+module.exports = { lastReply, mergeTasks, mergePeerTasks, applySnapshot, isPrimary, primaryNow, info, peerGet, projectDir, keepAwake, letSleep, snapshot, transcripts, serveTranscript, tick, handleYield, command, takeHere, backToAuto, machines, sendClaudeToken, clusterEnabled: () => !!CLUSTER };
