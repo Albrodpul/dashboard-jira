@@ -283,3 +283,26 @@ test("typeInto pastes, submits and confirms by finding the mark in the transcrip
   assert.equal(r.ok, false);
   assert.equal(writes.length, 3);
 });
+
+test("a message that shows up late in the transcript is confirmed on the retry instead of being typed again", async () => {
+  let late = null;
+  stubEnv({ typeInto: async (c, text, token) => (typed.push({ text, token }), (late = token), { ok: false, error: "no aparece" }), seen: (c, token) => token === late });
+  reset({ "WEB-7": task("WEB-7") });
+  await runAll();
+  assert.equal(typed.length, 1);
+  mutate((d) => (d.tasks["WEB-7"].delivery.at = OLD));
+  await runAll();
+  assert.equal(typed.length, 1);
+  assert.equal(load().tasks["WEB-7"].status, "sent");
+  assert.ok(load().deliveries.some((x) => x.status === "confirmed" && x.late));
+});
+
+test("a session in an unknown state (a dialog may be open) is not typed into and spends no attempt", async () => {
+  stubEnv({ live: () => Object.values(CONV).map((conversation) => ({ conversation, started: OLD, status: "waiting" })) });
+  reset({ "WEB-8": task("WEB-8") });
+  await runAll();
+  assert.equal(typed.length, 0);
+  const t = load().tasks["WEB-8"];
+  assert.equal(t.status, "approved");
+  assert.ok(t.delivery.soft);
+});

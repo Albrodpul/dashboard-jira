@@ -307,6 +307,7 @@ function targetOf(s, job) {
 }
 
 class SoftWait extends Error {}
+const READY_STATES = new Set(["idle", "busy", "shell"]);
 
 async function reachDestination(job) {
   const e = E();
@@ -327,6 +328,7 @@ async function reachDestination(job) {
     const age = live ? Date.now() - Date.parse(live.started) : READY_MS;
     if (age < READY_MS) await e.wait(READY_MS - age);
     if (e.nativePrompt(conversation)) throw new SoftWait(`«${t.name}» tiene una pregunta de permiso abierta: se entrega en cuanto la contestes`);
+    if (live && live.status && !READY_STATES.has(live.status)) throw new SoftWait(`«${t.name}» está en estado «${live.status}» (puede tener un diálogo abierto): se entrega en cuanto vuelva a estar libre o trabajando`);
   }
   const hosted = conversation ? await e.hosted(conversation) : false;
   if (!hosted) {
@@ -357,6 +359,7 @@ async function runJob(job) {
       }
     }
   }
+  if (lateConfirm(job, ids)) return;
   const d = load();
   const fresh = itemsOf(d, job);
   const freshIds = idsOf(job, fresh);
@@ -386,6 +389,23 @@ async function runJob(job) {
     return marked;
   });
   log(`${id} confirmado${r.retried ? " (con un segundo Enter)" : ""}: ${done.join(",")}`);
+}
+
+function lateConfirm(job, ids) {
+  const want = new Set(ids);
+  const earlier = (load().deliveries || []).filter((x) => x.status === "failed" && x.conversation && (x.ids || []).some((i) => want.has(i)));
+  for (const rec of earlier) {
+    if (!E().seen(rec.conversation, mark(rec.id))) continue;
+    mutate((x) => {
+      const r = (x.deliveries || []).find((y) => y.id === rec.id);
+      if (!r || r.status !== "failed") return;
+      r.marked = markDelivered(x, { kind: r.kind, area: r.area, role: r.role }, r.ids, r.id, now());
+      Object.assign(r, { status: "confirmed", endedAt: now(), late: true });
+    });
+    log(`${rec.id} confirmado tarde: no se vuelve a escribir`);
+    return true;
+  }
+  return false;
 }
 
 function fail(job, ids, err, soft, name) {
