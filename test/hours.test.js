@@ -31,29 +31,24 @@ test("overtime turned on before the workday expires when the workday starts", ()
   assert.equal(hours.expired(ot, at("2026-11-09T11:00:00")), true);
 });
 
-test("overtime turned on the night before expires at the next workday start", () => {
-  const ot = { since: at("2026-11-08T22:00:00").toISOString() };
-  assert.equal(hours.expired(ot, at("2026-11-08T23:30:00")), false);
-  assert.equal(hours.expired(ot, at("2026-11-09T07:29:00")), false);
-  assert.equal(hours.expired(ot, at("2026-11-09T07:30:00")), true);
+test("overtime turned on in the evening ends at midnight", () => {
+  const ot = { since: at("2026-11-09T19:00:00").toISOString() };
+  assert.equal(hours.expired(ot, at("2026-11-09T23:59:00")), false);
+  assert.equal(hours.expired(ot, at("2026-11-10T00:00:00")), true);
 });
 
-test("overtime turned on during the workday lasts until the next workday", () => {
-  const ot = { since: at("2026-11-09T10:00:00").toISOString() };
-  assert.equal(hours.expired(ot, at("2026-11-09T17:00:00")), false);
+test("overtime turned on during the workday ends at midnight too", () => {
+  const ot = { since: at("2026-11-09T18:00:00").toISOString() };
   assert.equal(hours.expired(ot, at("2026-11-09T21:00:00")), false);
-  assert.equal(hours.expired(ot, at("2026-11-10T07:29:00")), false);
-  assert.equal(hours.expired(ot, at("2026-11-10T07:30:00")), true);
+  assert.equal(hours.expired(ot, at("2026-11-10T00:00:00")), true);
 });
 
-test("overtime never expires on weekends, only on Monday morning", () => {
-  const friday = { since: at("2026-11-13T19:00:00").toISOString() };
-  assert.equal(hours.expired(friday, at("2026-11-14T12:00:00")), false);
-  assert.equal(hours.expired(friday, at("2026-11-15T23:00:00")), false);
-  assert.equal(hours.expired(friday, at("2026-11-16T07:30:00")), true);
+test("overtime on weekends ends at midnight of the same day", () => {
   const saturday = { since: at("2026-11-14T10:00:00").toISOString() };
-  assert.equal(hours.expired(saturday, at("2026-11-14T15:00:00")), false);
-  assert.equal(hours.expired(saturday, at("2026-11-16T07:30:00")), true);
+  assert.equal(hours.expired(saturday, at("2026-11-14T23:00:00")), false);
+  assert.equal(hours.expired(saturday, at("2026-11-15T00:00:00")), true);
+  const sundayDawn = { since: at("2026-11-15T06:00:00").toISOString() };
+  assert.equal(hours.expired(sundayDawn, at("2026-11-15T09:00:00")), false);
 });
 
 test("missing overtime never counts as expired", () => {

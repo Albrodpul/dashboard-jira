@@ -13,17 +13,24 @@ const day = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Madrid", year: 
 const workHours = (t = clock()) => !t.weekend && t.min >= START && t.min < END;
 
 function expired(ot, d = new Date()) {
-  if (!ot || !ot.since || !workHours(clock(d))) return false;
+  if (!ot || !ot.since) return false;
   const since = new Date(ot.since);
-  return day.format(since) !== day.format(d) || clock(since).min < START;
+  if (day.format(since) !== day.format(d)) return true;
+  const s = clock(since);
+  return !s.weekend && s.min < START && workHours(clock(d));
 }
 
 function overtime() {
   const ot = (load().config || {}).overtime || null;
   if (!expired(ot)) return ot;
+  let dropped = false;
   mutate((d) => {
-    if (d.config && expired(d.config.overtime)) delete d.config.overtime;
+    if (d.config && expired(d.config.overtime)) {
+      delete d.config.overtime;
+      dropped = true;
+    }
   });
+  if (dropped && !workHours() && require("../cluster/cluster").primaryNow()) setImmediate(() => require("../server/startup").setOvertime(false).catch(() => {}));
   return null;
 }
 
