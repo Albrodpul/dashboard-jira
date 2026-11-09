@@ -148,17 +148,25 @@ function dailyState() {
   return { prevDay: prev, prev: all[prev] || null, today: today(), todayText: all[today()] || null, facts: todayFacts(), busy: !!running };
 }
 
-function dailyFor(day) {
+const tried = new Map();
+
+function dailyFor(day, auto) {
+  if (auto && Date.now() - (tried.get(day) || 0) < 60 * 60000) return Promise.resolve();
+  tried.set(day, Date.now());
   if (!running) running = makeDaily(day || lastWorkday()).finally(() => (running = null));
   return running;
 }
 
+const DRAFT_AT = 17 * 60;
+const has = (d, day) => (d.dailies && d.dailies[day]) || (d.daily && d.daily.day === day);
+
 async function dailyIfMissing() {
   if (!require("../cluster/cluster").isPrimary()) return;
-  const day = lastWorkday();
   const d = load();
-  if ((d.dailies && d.dailies[day]) || (d.daily && d.daily.day === day)) return;
-  await dailyFor(day);
+  const t = require("../core/hours").clock();
+  if (!t.weekend && t.min >= DRAFT_AT && !has(d, today())) return dailyFor(today(), true);
+  const day = lastWorkday();
+  if (!has(d, day)) await dailyFor(day, true);
 }
 
 module.exports = { dailyFor, dailyIfMissing, lastWorkday, dailyState };

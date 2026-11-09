@@ -71,7 +71,7 @@ function dayCard({ title, day, entry, today }) {
     kids.push(dailyBody(entry.text));
     kids.push(h("p", { class: "meta daily-at", text: `Redactado a las ${when(entry.at)}` }));
   } else if (entry && entry.empty) kids.push(h("p", { class: "daily-text", text: "Ese día no hay movimiento en Jira, commits ni despliegues tuyos." }));
-  else if (!today) kids.push(h("p", { class: "daily-text meta", text: "Se prepara solo cada mañana con lo del último día laborable." }));
+  else kids.push(h("p", { class: "daily-text meta", text: today ? "Se redacta solo a las 17:00. Lo que hagas después, pulsa «Redactar de nuevo»." : "Se redacta solo a las 17:00 de ese día; si no se pudo, a la mañana siguiente." }));
   if (today) kids.push(factsBlock(d.facts, !!(entry && entry.text)));
   return h("section", { class: `card daily-day${today ? " today" : ""}` }, kids);
 }
