@@ -157,7 +157,8 @@ function waitingOrder(x) {
   const where = x.environment === "both" ? "develop y producción" : x.environment === "production" ? "producción" : "develop";
   return h("div", { class: "notice waiting do-waiting" }, [
     h("b", { text: `Esperando envío · ${when(x.at)}` }),
-    h("div", { text: `${humanList(x.projects)} a ${where}${x.version && touchesProd(x.environment) ? ` (tag ${x.version.toUpperCase()})` : ""}. ${whoSends(true)} la envía a ${target} en cuanto la recoge.` }),
+    h("div", { text: `${humanList(x.projects)} a ${where}${x.version && touchesProd(x.environment) ? ` (tag ${x.version.toUpperCase()})` : ""}. ${whoSends(true)} la escribe en ${target} en unos segundos.` }),
+    x.delivery ? h("div", { class: x.delivery.soft ? "meta" : "delivery-error", text: x.delivery.soft ? `Esperando: ${x.delivery.error}.` : `No se pudo entregar (${x.delivery.attempts} de 3 intentos): ${x.delivery.error}.` }) : null,
     h("div", { class: "actions" }, [button("Cancelar", { onClick: (b) => ((b.disabled = true), post("/api/deploy", { cancel: x.id }, "Despliegue cancelado.")) })]),
   ]);
 }

@@ -1,5 +1,5 @@
 import { state, h, post, switchView, setRender, setRefresh, empty, reviewer } from "./lib/base.js";
-import { renderTasks, renderToday, renderBoard } from "./views/tasks.js";
+import { renderTasks, renderToday, renderBoard, restrictionsPanel } from "./views/tasks.js";
 import { renderSessions } from "./views/sessions.js";
 import { renderDeploy } from "./views/deploy.js";
 import { renderTalk } from "./views/talk.js";
@@ -68,7 +68,7 @@ const VIEWS = {
   home: ["Inicio", "Lo que te necesita y cómo van las sesiones."],
   daily: ["Daily", "El resumen del último día laborable para copiar en Slack y lo que llevas hoy. Lo de hoy se va rellenando solo; redactarlo lo hace Claude cuando lo pides."],
   pending: ["Pendientes", "Tareas nuevas o devueltas que puedes pasar a la sesión de su epic. Nada se envía hasta que pulsas Hacer."],
-  approved: ["Por enviar", "Aprobadas con Hacer, esperando a que la sesión que orquesta las envíe."],
+  approved: ["Por enviar", "Aprobadas con Hacer, mientras el tablero las escribe en su sesión. Si no puede, lo dice aquí."],
   sent: ["En curso", "Lo que ya está en su sesión, con lo que ha contestado."],
   waiting: ["Te esperan", "Una sesión se ha parado en estas tareas: te pregunta algo o no ha podido terminarlas y dice por qué. Contéstale aquí o devuélvelas a Pendientes."],
   done: ["Hechas", "La sesión dice que ha terminado: pendientes de que tú las revises. En Jira siguen «En curso»."],
@@ -81,7 +81,7 @@ const VIEWS = {
   more: ["Más", "Errores, despliegues, tu ordenador, lo que hacen los demás y ajustes."],
   talk: ["Hablar", "Las sesiones del tablero en directo: las fijas y cualquier otra que esté abierta. Escríbeles o córtalas, o abre una nueva para hablar."],
   projects: ["Proyectos", "Los servidores locales que usan las sesiones: MySQL, api, Assistant, admin y web."],
-  sentry: ["Errores", "Errores sin resolver de web, admin y api. Elige la sesión y pulsa Enviar: la orquestadora se lo pasa con el enlace y te cuenta aquí lo que ha encontrado."],
+  sentry: ["Errores", "Errores sin resolver de web, admin y api. Elige la sesión y pulsa Enviar: el tablero se lo pasa con el enlace y te cuenta aquí lo que ha encontrado."],
   context: ["Ordenar contexto", "La orquestadora repasa y ordena context/ y el índice de AGENTS.md. Solo se puede lanzar con todo limpio: sin tareas pendientes, por enviar ni en sesión."],
   "follow-up": ["Seguimiento", "Lo que hace cada uno según sus peticiones a la API, separado por persona: beta se resume sola cada hora y producción cada dos; cualquiera de los dos, también cuando lo pidas."],
 };
@@ -333,12 +333,13 @@ function paint() {
   if (state.tab === "more") return renderMore(root, waitingDeploys, errors);
   if (!mobile && isTaskTab(state.tab) && state.tab !== "ignored") root.appendChild(viewSwitch(board ? "board" : "list"));
   if (state.tab === "pending" || board) returnedRule(root);
+  if (isTaskTab(state.tab) && state.tab !== "ignored") restrictionsPanel(root);
   if (!state.ok) return root.appendChild(empty("El tablero no responde.", "Arráncalo con: node board.js ensure"));
   if (board) return renderBoard(root);
   (NON_TASK_VIEWS[state.tab] || renderTasks)(root);
 }
 
-const FIELDS = ["cluster", "daily", "sessionProfiles", "sessions", "aliases", "reporterRoute", "reporterStatus", "boardStatus", "orchestrator", "epics", "allEpics", "reports", "lastReview", "config", "followUps", "sentry", "permissions", "hosted", "contextSync", "contextTidy", "messages", "tidyBlockers", "lastContextPass", "followUpStatus", "refreshRequest", "deployments", "deployerArea", "quota", "people", "jiraSetup", "voice", "speech", "deployStatus", "reviewJob", "convProfiles", "claudeTokenExpires", "workHours"];
+const FIELDS = ["cluster", "daily", "sessionProfiles", "sessions", "aliases", "reporterRoute", "reporterStatus", "boardStatus", "orchestrator", "epics", "allEpics", "reports", "lastReview", "config", "followUps", "sentry", "permissions", "hosted", "contextSync", "contextTidy", "messages", "tidyBlockers", "lastContextPass", "followUpStatus", "refreshRequest", "deployments", "deployerArea", "quota", "people", "jiraSetup", "voice", "speech", "deployStatus", "reviewJob", "convProfiles", "claudeTokenExpires", "workHours", "restrictions", "mailman"];
 const withoutReadTime = (d) => JSON.stringify(d, (k, v) => (k === "syncedAt" ? undefined : v));
 const editing = () => {
   const a = document.activeElement;

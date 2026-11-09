@@ -37,7 +37,8 @@ const sendOf = (id) => ((state.sentry && state.sentry.sends) || []).find((x) => 
 
 function sendState(s) {
   if (!s) return null;
-  if (s.state === "approved") return h("div", { class: "state-line", text: `Enviando a «${areaName(s.area) || s.area}»: la orquestadora se lo pasa en unos segundos.` });
+  if (s.state === "approved" && s.delivery && !s.delivery.soft) return h("div", { class: "delivery-error", text: `No se pudo entregar a «${areaName(s.area) || s.area}» (${s.delivery.attempts} de 3 intentos): ${s.delivery.error}.` });
+  if (s.state === "approved") return h("div", { class: "state-line", text: `Enviando a «${areaName(s.area) || s.area}»: el tablero se lo pasa en unos segundos.` });
   const kids = [h("b", { text: `Enviado a «${areaName(s.area) || s.area}» a las ${when(s.sentAt || s.at)}` })];
   if (s.result) kids.push(h("span", { text: s.result.text }));
   else kids.push(h("span", { text: "Sin respuesta todavía." }));
@@ -49,7 +50,7 @@ function sendIssue(issue, area, b) {
   b.disabled = true;
   requestOrFail("/api/sentry/send", { issues: [issue], area })
     .then(() => {
-      toast(`${issue.id} enviado: la orquestadora se lo pasa a «${areaName(area)}».`);
+      toast(`${issue.id} enviado: el tablero se lo pasa a «${areaName(area)}».`);
       return refresh(true);
     })
     .catch((e) => {

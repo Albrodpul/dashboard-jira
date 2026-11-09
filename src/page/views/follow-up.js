@@ -44,7 +44,7 @@ function errorCard(e) {
         })
         .then(() => refresh(true));
     };
-    buttons.push(button("Enviar a la sesión de errores", { cls: "primary", onClick: () => act("send", "Enviado: la orquestadora se lo pasa a la sesión de errores.") }));
+    buttons.push(button("Enviar a la sesión de errores", { cls: "primary", onClick: () => act("send", "Enviado: el tablero se lo pasa a la sesión de errores.") }));
     buttons.push(button("Descartar", { onClick: () => act("discard", "Descartado.") }));
     kids.push(h("div", { class: "actions" }, buttons));
   }
@@ -239,7 +239,7 @@ export function renderFollowUp(root) {
       onClick: (b) => {
         b.disabled = true;
         requestOrFail("/api/followup-error", { at: list[0].at, action: "summary" })
-          .then(() => toast("Enviado: la orquestadora se lo pasa a la sesión de errores."))
+          .then(() => toast("Enviado: el tablero se lo pasa a la sesión de errores."))
           .catch((x) => {
             b.disabled = false;
             toast(`No se pudo enviar: ${x.message}`);

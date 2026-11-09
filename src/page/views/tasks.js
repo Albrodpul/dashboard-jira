@@ -1,5 +1,5 @@
 import { renderPermissions } from "../components/permissions.js";
-import { state, choice, drafts, h, button, when, minutesSince, fmtDay, reviewer, reviewStatus, toast, request, requestOrFail, post, saveTask, whoSends, areaName, taskAreaSelect, render, refresh, switchView, empty, openTicket } from "../lib/base.js";
+import { state, choice, drafts, h, button, when, minutesSince, fmtDay, reviewer, reviewStatus, toast, request, requestOrFail, post, saveTask, whoSends, areaName, taskAreaSelect, areaSelect, render, refresh, switchView, empty, openTicket, limitsFor, holdOf, limitChips } from "../lib/base.js";
 import { createSession } from "./sessions.js";
 
 const PENDING_CHIP = { returned: "Devuelta", comment: "Comentario", resend: "Ya enviada" };
@@ -7,7 +7,7 @@ const STATUS_CHIP = { approved: "Por enviar", sent: "En curso", ignored: "Ignora
 const NOTICE_LABEL = { done: "Hecha", partial: "A medias", question: "Pregunta", comment: "Comentario propuesto para Jira" };
 const EMPTY_LISTS = {
   pending: ["Nada pendiente de decidir.", "Cuando alguien cree una tarea nueva sin asignar o para ti, te devuelva una o comente en una tuya, aparecerá aquí con su sesión propuesta."],
-  approved: ["Nada esperando envío.", "Lo que apruebes con Hacer lo envía la sesión que orquesta en unos segundos, si está abierta."],
+  approved: ["Nada esperando envío.", "Lo que apruebes con Hacer lo escribe el tablero en su sesión en unos segundos, y la abre si está dormida."],
   sent: ["Todavía no se ha enviado nada.", "Aquí queda cada tarea enviada, con la respuesta de la sesión que la recibe."],
   waiting: ["Ninguna sesión te está esperando.", "Aquí salen las tareas en las que una sesión te pregunta algo o no ha podido terminar, con el motivo."],
   done: ["Todavía no hay tareas hechas.", "Cuando una sesión termine una tarea la marca aquí, con lo que ha hecho."],
@@ -86,10 +86,11 @@ function pendingActions(t) {
   });
   sel.appendChild(h("option", { value: "__new__", text: "+ Sesión nueva…" }));
   sel.setAttribute("aria-label", `Sesión de destino de ${t.key}`);
+  const held = holdOf(t, current);
   return h("div", { class: "actions" }, [
     sel,
-    button("Hacer", { cls: "primary", disabled: !current, onClick: () => saveTask(t, { status: "approved", area: current }, `${t.key} aprobada: ${whoSends()} la envía a ${areaName(current)} en unos segundos.`) }),
-    button("Resuelta", { title: "Ya la has hecho o mandado tú. Pasa a Enviadas sin avisar a ninguna sesión.", onClick: () => saveTask(t, { status: "sent", manual: true, area: current || undefined }, `${t.key} resuelta a mano: queda en Enviadas.`) }),
+    button("Hacer", { cls: "primary", disabled: !current || !!held, title: held ? held.chip.title : undefined, onClick: () => saveTask(t, { status: "approved", area: current }, `${t.key} aprobada: ${whoSends()} la envía a ${areaName(current)} en unos segundos.`) }),
+    button("Resuelta", { disabled: !!held, title: held ? held.chip.title : "Ya la has hecho o mandado tú. Pasa a Enviadas sin avisar a ninguna sesión.", onClick: () => saveTask(t, { status: "sent", manual: true, area: current || undefined }, `${t.key} resuelta a mano: queda en Enviadas.`) }),
     button("Ignorar", { onClick: () => saveTask(t, { status: "ignored" }, `${t.key} ignorada.`) }),
   ]);
 }
@@ -208,8 +209,22 @@ function answerForSession(t, kids, acts, proposal) {
   );
 }
 
+function stopLines(t, kids) {
+  for (const [id, s] of Object.entries(t.stopNotices || {})) kids.push(h("div", { class: "state-line", text: `Aviso de parar entregado a la sesión a las ${when(s.at)} (restricción ${id}).` }));
+  if (t.stopDelivery && !t.stopDelivery.soft) kids.push(deliveryProblem(t.stopDelivery, "stop", t.key, "No se pudo entregar el aviso de parar"));
+}
+
+function deliveryProblem(x, kind, id, label = "No se pudo entregar") {
+  const done = x.attempts >= 3;
+  return h("div", { class: "delivery-error" }, [
+    h("span", { text: `${label}${x.attempts ? ` (${x.attempts} de 3 intentos)` : ""}: ${x.error}.${done ? "" : " Se reintenta solo."}` }),
+    button("Reintentar", { onClick: (b) => ((b.disabled = true), post("/api/delivery/retry", { kind, id }, "Reintentando la entrega.")) }),
+  ]);
+}
+
 function inSession(t, kids) {
   kids.push(h("div", { class: "state-line", text: `En la sesión ${areaName(t.area) || t.area}${t.sentAt ? `, enviada a las ${when(t.sentAt)}` : ""}.` }));
+  stopLines(t, kids);
   if (t.notice) kids.push(h("div", { class: `notice ${t.status}` }, [h("b", { text: `${NOTICE_LABEL[t.notice.type] || "Aviso"} · ${when(t.notice.at)}` }), h("div", { text: t.notice.text })]));
   if (hasChanges(t)) kids.push(changesList(t, "Cambió en Jira después del envío"));
   const acts = [];
@@ -232,6 +247,7 @@ function sentCard(t, kids) {
     return;
   }
   kids.push(h("div", { class: "state-line", text: `Enviada a ${areaName(t.area) || t.area}${t.sentAt ? ` a las ${when(t.sentAt)}` : ""}.` }));
+  stopLines(t, kids);
   const silentHours = t.sentAt ? Math.floor((Date.now() - new Date(t.sentAt).getTime()) / 3600000) : 0;
   if (silentHours >= 3) kids.push(h("div", {}, [h("span", { class: "chip silent", title: "La sesión no ha avisado al tablero de cómo va: ni hecha, ni a medias, ni con una pregunta. Puede haberse quedado parada.", text: `Sin noticias desde hace ${silentHours} h` })]));
   if (t.reply) kids.push(h("div", { class: "reply", text: t.reply }));
@@ -248,10 +264,13 @@ export function card(t, bare) {
           h("span", { class: "key", text: t.key }),
           h("span", { class: `chip ${pending ? t.kind : t.status}`, text: pending ? PENDING_CHIP[t.kind] || "Nueva" : t.manual ? "A mano" : STATUS_CHIP[t.status] }),
           t.jiraClosedAt ? h("span", { class: "chip sent", text: "Listo en Jira" }) : null,
+          ...limitChips(t, pending ? chosenSession(t) : t.area),
           h("span", { class: "time", text: when(t.at) }),
         ]),
         h("div", { class: "title", text: t.title }),
       ];
+  if (bare && limitsFor(t, pending ? chosenSession(t) : t.area).length) kids.push(h("div", { class: "limit-chips" }, limitChips(t, pending ? chosenSession(t) : t.area)));
+  if (t.heldBack && pending) kids.push(h("div", { class: "meta", text: `Estaba por enviar y volvió a Pendientes al crear la restricción ${t.heldBack.restriction}.` }));
   if (bare && t.title.length > 60) kids.push(h("div", { class: "title", text: t.title }));
   if (t.note) kids.push(h("div", { class: "note" }, [h("b", { text: t.noteBy ? `${t.noteBy}: ` : "" }), t.note]));
   kids.push(h("div", { class: "meta", text: `Asignado: ${t.assignee || "sin asignar"}` }));
@@ -269,8 +288,11 @@ export function card(t, bare) {
   else if (t.status === "approved") {
     const waited = t.decidedAt ? minutesSince(t.decidedAt) : 0;
     const via = t.approvedVia === "chat" ? " por chat" : t.approvedVia === "rule" ? " sola, por tu regla de devueltas," : "";
-    const slow = waited >= 3 ? ` Lleva ${waited} min esperando: ${whoSends()} puede estar ocupada o cerrada.` : "";
-    kids.push(h("div", { class: "state-line", text: `Aprobada${via}${t.decidedAt ? ` a las ${when(t.decidedAt)}` : ""}. ${whoSends(true)} la envía a ${areaName(t.area) || t.area} en cuanto la recoge.${slow}` }));
+    const d = t.delivery;
+    const slow = waited >= 3 && !d ? ` Lleva ${waited} min esperando: la sesión puede estar arrancando.` : "";
+    kids.push(h("div", { class: "state-line", text: `Aprobada${via}${t.decidedAt ? ` a las ${when(t.decidedAt)}` : ""}. ${whoSends(true)} la escribe en ${areaName(t.area) || t.area} y la da por enviada cuando aparece en su conversación.${slow}` }));
+    if (d && d.soft) kids.push(h("div", { class: "state-line", text: `Esperando: ${d.error}.` }));
+    else if (d) kids.push(deliveryProblem(d, "task", t.key));
     kids.push(h("div", { class: "actions" }, [undoButton(t)]));
   } else if (["waiting", "partial", "done"].includes(t.status)) inSession(t, kids);
   else if (t.status === "sent") sentCard(t, kids);
@@ -284,6 +306,9 @@ const OPEN_BY_DEFAULT = ["pending", "waiting", "partial"];
 const isOpen = (t) => openRows.has(t.id) || (!closedRows.has(t.id) && OPEN_BY_DEFAULT.includes(t.status));
 
 function rowTag(t) {
+  const held = holdOf(t, t.status === "pending" ? chosenSession(t) : t.area);
+  if (held) return ["held", held.chip.text, held.chip.title];
+  if (t.status === "approved" && t.delivery && !t.delivery.soft) return ["again", "Sin entregar", t.delivery.error];
   if (t.status === "waiting") return ["again", "Te espera"];
   if (t.status === "partial") return ["again", "A medias"];
   if (hasChanges(t) && t.status !== "pending") return ["again", "Cambió en Jira"];
@@ -313,7 +338,7 @@ function taskRow(t, groupArea) {
   const head = h("button", { type: "button", class: "issue-head", "aria-expanded": String(open), onclick: toggle }, [
     h("span", { class: "key task-key", text: t.key }),
     h("span", { class: "issue-msg task-title", text: t.title, title: t.title }),
-    tag ? h("span", { class: `issue-tag ${tag[0]}`, text: tag[1] }) : h("span", { class: "issue-tag none" }),
+    tag ? h("span", { class: `issue-tag ${tag[0]}`, text: tag[1], title: tag[2] }) : h("span", { class: "issue-tag none" }),
     h("span", { class: "task-area", text: area || "" }),
     h("span", { class: "issue-when", text: when(t.sentAt || t.decidedAt || t.at) }),
   ]);
@@ -348,12 +373,15 @@ function batchControls(g) {
   });
   sel.appendChild(h("option", { value: "__new__", text: "+ Sesión nueva…" }));
   sel.setAttribute("aria-label", `Sesión para todas las tareas de ${g.name}`);
-  const btn = button(g.items.length === 1 ? "Hacer" : `Hacer las ${g.items.length}`, {
+  const free = g.items.filter((t) => !holdOf(t, chosenSession(t)));
+  const heldCount = g.items.length - free.length;
+  const btn = button(free.length === 1 ? "Hacer" : `Hacer las ${free.length}`, {
     cls: "primary",
-    disabled: !ready,
+    disabled: !ready || !free.length,
+    title: heldCount ? `${heldCount === 1 ? "Una está retenida y no se envía" : `${heldCount} están retenidas y no se envían`}.` : undefined,
     onClick: (b) => {
       b.disabled = true;
-      post("/api/batch", { items: g.items.map((t) => ({ key: t.id, area: chosenSession(t) })) }, `${g.items.length} tareas aprobadas: van juntas en un solo mensaje.`);
+      post("/api/batch", { items: free.map((t) => ({ key: t.id, area: chosenSession(t) })) }, free.length === 1 ? "Tarea aprobada." : `${free.length} tareas aprobadas: van juntas en un solo mensaje.`);
     },
   });
   return h("span", { class: "group-actions" }, [sel, btn]);
@@ -445,14 +473,16 @@ const openDrawer = (t) => openTicket(t.id);
 
 function boardRow(t) {
   const tag = t.kind === "returned" ? "Devuelta" : t.kind === "comment" ? "Comentario" : t.kind === "resend" ? "Ya enviada" : "";
-  return h("button", { type: "button", class: `board-row${state.ticket === t.id ? " open" : ""}`, title: t.title, onclick: () => openDrawer(t) }, [h("span", { class: "key", text: t.key }), h("span", { class: "board-row-title", text: t.title }), tag ? h("span", { class: `board-tag ${t.kind}`, text: tag }) : null]);
+  const held = holdOf(t, chosenSession(t));
+  return h("button", { type: "button", class: `board-row${state.ticket === t.id ? " open" : ""}`, title: t.title, onclick: () => openDrawer(t) }, [h("span", { class: "key", text: t.key }), h("span", { class: "board-row-title", text: t.title }), held ? h("span", { class: "board-tag held", title: held.chip.title, text: "Retenida" }) : null, tag ? h("span", { class: `board-tag ${t.kind}`, text: tag }) : null]);
 }
 
 function boardCard(t) {
-  const flag = t.status === "partial" ? "A medias" : t.status === "waiting" ? "Te espera" : t.manual ? "A mano" : hasChanges(t) ? "Cambió en Jira" : "";
+  const held = holdOf(t, t.area);
+  const flag = held ? "Retenida" : t.status === "approved" && t.delivery && !t.delivery.soft ? "Sin entregar" : t.status === "partial" ? "A medias" : t.status === "waiting" ? "Te espera" : t.manual ? "A mano" : hasChanges(t) ? "Cambió en Jira" : "";
   return h("button", { type: "button", class: `board-card${state.ticket === t.id ? " open" : ""}`, onclick: () => openDrawer(t) }, [
     h("span", { class: "board-card-title", text: t.title }),
-    h("span", { class: "board-card-foot" }, [h("span", { class: "key", text: t.key }), h("span", { class: "board-card-area", text: areaName(t.area || t.proposedArea) || "" }), flag ? h("span", { class: "board-tag", text: flag }) : null, h("span", { class: "time", text: when(t.sentAt || t.decidedAt || t.at) })]),
+    h("span", { class: "board-card-foot" }, [h("span", { class: "key", text: t.key }), h("span", { class: "board-card-area", text: areaName(t.area || t.proposedArea) || "" }), flag ? h("span", { class: `board-tag${held ? " held" : ""}`, title: held ? held.chip.title : t.delivery && t.delivery.error, text: flag }) : null, h("span", { class: "time", text: when(t.sentAt || t.decidedAt || t.at) })]),
   ]);
 }
 
@@ -484,4 +514,104 @@ export function renderBoard(root) {
     return h("section", { class: `board-col tasks-col${id === "pending" ? " wide" : ""}` }, [head, ...body]);
   });
   root.appendChild(h("div", { class: "task-board" }, columns));
+}
+
+const limitForm = { open: null, mode: "hold", kind: "tasks", tasks: "", epic: "", area: "", until: "", reason: "" };
+const activeLimits = () => (state.restrictions || []).filter((r) => !r.releasedAt && (!r.until || Date.now() < Date.parse(r.until)));
+
+function limitScopeText(r) {
+  const epicName = (k) => ((state.allEpics || []).find((e) => e.key === k) || {}).name;
+  const parts = [];
+  if (r.scope.tasks.length) parts.push(r.scope.tasks.join(", "));
+  if (r.scope.epics.length) parts.push(r.scope.epics.map((k) => `epic ${k}${epicName(k) ? ` ${epicName(k)}` : ""}`).join(", "));
+  if (r.scope.areas.length) parts.push(r.scope.areas.map((a) => `sesión ${areaName(a)}`).join(", "));
+  return parts.join(" · ");
+}
+
+function limitRow(r) {
+  return h("div", { class: "limit-row" }, [
+    h("span", { class: `chip limit limit-${r.mode}`, title: r.chip.title, text: r.mode === "note" ? "Con indicación" : r.until ? `Retenida hasta ${r.short}` : "Retenida" }),
+    h("span", { class: "limit-what" }, [h("b", { text: limitScopeText(r) }), h("span", { class: "meta", text: ` · ${r.reason} · ${r.untilText}` })]),
+    button("Levantar", {
+      cls: "subtle",
+      title: "Deja de aplicarse ya. No envía nada: lo que estaba retenido hay que aprobarlo otra vez.",
+      onClick: (b) => {
+        if (!window.confirm(`¿Levantar la restricción ${r.id}?`)) return;
+        b.disabled = true;
+        post("/api/restriction", { action: "release", id: r.id }, `Restricción ${r.id} levantada.`);
+      },
+    }),
+  ]);
+}
+
+const field = (label, control) => h("label", { class: "limit-field" }, [h("span", { class: "meta", text: label }), control]);
+
+function limitInput(key, attrs) {
+  const el = h("input", attrs);
+  el.value = limitForm[key];
+  el.addEventListener("input", () => (limitForm[key] = el.value));
+  return el;
+}
+
+function limitSelect(label, options, key, rerender) {
+  const el = h("select", { "aria-label": label }, options.map(([value, text]) => h("option", { value, text })));
+  el.value = limitForm[key];
+  el.addEventListener("change", () => {
+    limitForm[key] = el.value;
+    if (rerender) render();
+  });
+  return el;
+}
+
+function addLimit(b) {
+  const f = limitForm;
+  const body = { action: "add", mode: f.mode, reason: f.reason, until: f.until || null, tasks: f.kind === "tasks" ? f.tasks : [], epics: f.kind === "epic" && f.epic ? [f.epic] : [], areas: f.kind === "area" && f.area ? [f.area] : [] };
+  b.disabled = true;
+  requestOrFail("/api/restriction", body)
+    .then((r) => {
+      Object.assign(f, { tasks: "", epic: "", area: "", until: "", reason: "" });
+      const extra = [r.reverted && r.reverted.length ? `vuelven a Pendientes ${r.reverted.join(", ")}` : "", r.inSession && r.inSession.length ? `se avisa a su sesión para que paren ${r.inSession.join(", ")}` : ""].filter(Boolean).join("; ");
+      toast(`Restricción ${r.restriction.id} guardada${extra ? `: ${extra}` : ""}.`);
+    })
+    .catch((e) => {
+      b.disabled = false;
+      toast(`No se pudo guardar: ${e.message}`);
+    })
+    .then(() => refresh(true));
+}
+
+function limitFormView() {
+  const f = limitForm;
+  const mode = limitSelect("Tipo de restricción", [["hold", "Retener: no se envía"], ["note", "Con indicación: se envía con un texto obligatorio"]], "mode", true);
+  const kind = limitSelect("A qué se aplica", [["tasks", "Tareas"], ["epic", "Epic"], ["area", "Sesión"]], "kind", true);
+  const target =
+    f.kind === "tasks"
+      ? limitInput("tasks", { type: "text", placeholder: "WEB-123, API-45", "aria-label": "Claves de las tareas" })
+      : f.kind === "epic"
+        ? limitSelect("Epic", [["", "Elige epic…"], ...(state.allEpics || []).map((e) => [e.key, `${e.key} ${e.name}`])], "epic")
+        : areaSelect("limit-area", f.area, "Elige sesión…", (v) => (f.area = v));
+  const until = limitInput("until", { type: "datetime-local", "aria-label": "Hasta" });
+  const reason = limitInput("reason", { type: "text", placeholder: f.mode === "note" ? "Texto que llevará cada envío" : "Sale en la tarjeta y en el aviso a la sesión", "aria-label": f.mode === "note" ? "Indicación" : "Motivo" });
+  return h("div", { class: "limit-form" }, [
+    field("Tipo", mode),
+    field("A qué", kind),
+    field(f.kind === "tasks" ? "Claves" : f.kind === "epic" ? "Epic" : "Sesión", target),
+    field("Hasta, hora de Madrid (vacío: hasta que la levantes)", until),
+    field(f.mode === "note" ? "Indicación" : "Motivo", reason),
+    h("div", { class: "limit-add" }, [button("Añadir", { cls: "primary", onClick: addLimit })]),
+  ]);
+}
+
+export function restrictionsPanel(root) {
+  const active = activeLimits();
+  const add = h("details", { class: "limit-new" }, [h("summary", { text: "Añadir restricción" }), limitFormView()]);
+  add.open = !!limitForm.open;
+  add.addEventListener("toggle", () => (limitForm.open = add.open));
+  root.appendChild(
+    h("section", { class: "limits" }, [
+      h("div", { class: "limits-head" }, [h("span", { class: "limits-title", text: "Restricciones" }), h("span", { class: "meta", text: active.length ? `${active.length} activa${active.length === 1 ? "" : "s"}: lo retenido no se puede aprobar ni enviar por ningún camino` : "Ninguna activa" })]),
+      ...active.map(limitRow),
+      add,
+    ])
+  );
 }

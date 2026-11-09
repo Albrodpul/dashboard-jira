@@ -197,7 +197,7 @@ export function renderSessions(root) {
   const fixed = [];
   const area = (id) => state.areas.find((a) => a.id === id);
   if (state.reporterRoute) fixed.push(fixedRow("Reporte de Jira", "Lee Jira y publica el reporte", state.reporterRoute.conversation, "", "reporter"));
-  if (state.orchestrator) fixed.push(fixedRow("Orquestadora", "Envía tareas y despliegues", state.orchestrator.conversation, state.orchestrator.open && !state.orchestrator.watching ? "sin vigilar" : "", "orchestrator"));
+  if (state.orchestrator) fixed.push(fixedRow("Orquestadora", "Habla contigo de tareas, aprobaciones y restricciones", state.orchestrator.conversation, "", "orchestrator"));
   if (state.boardStatus) fixed.push(fixedRow("Tablero", "Mejoras del propio tablero", state.boardStatus.conversation, "", "board"));
   if (state.followUpStatus) fixed.push(fixedRow("Seguimiento", "Lo que hace cada uno en beta y producción", state.followUpStatus.conversation, "", "followUp"));
   if (area(state.deployerArea)) fixed.push(fixedRow("Despliegue", "Despliegues de la pestaña Desplegar", area(state.deployerArea).conversation, "", "deploy"));

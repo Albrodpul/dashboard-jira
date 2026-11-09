@@ -1,4 +1,4 @@
-import { state, h, when, minutesSince, toast, request, post, refresh, renderMd, fmtDay } from "../lib/base.js";
+import { state, h, when, minutesSince, toast, request, post, refresh, renderMd, fmtDay, switchView } from "../lib/base.js";
 
 const weekday = new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", weekday: "long" });
 
@@ -76,21 +76,17 @@ export function updateStamp() {
     line.title = `Última revisión: ${when(u.at)}`;
     line.classList.toggle("late", mins > 8 && !paused);
   }
-  const o = state.orchestrator;
-  const watching = o && o.open && o.watching;
-  const title = watching ? "La orquestadora está abierta y vigila: los envíos salen solos." : o && o.open ? "La orquestadora está abierta pero no vigila: los envíos esperan." : "La orquestadora está cerrada: los envíos esperan.";
-  if (watching || !o) {
-    el.appendChild(h("span", { class: `orch${watching ? "" : " bad"}`, title }, [h("i"), watching ? "Envíos activos" : "Sin orquestadora"]));
+  const m = state.mailman || { failing: [], delivering: [] };
+  const failing = m.failing || [];
+  if (!failing.length) {
+    const busy = (m.delivering || []).length;
+    el.appendChild(h("span", { class: "orch", title: "El tablero escribe cada envío en su sesión y lo da por enviado cuando aparece en su conversación." }, [h("i"), busy ? "Entregando…" : "Envíos activos"]));
     return;
   }
-  const wake = h("button", { type: "button", class: "orch bad wake", title: `${title} Pulsa para despertarla.` }, [h("i"), `Envíos parados${o.open ? "" : " (orquestadora cerrada)"} · despertar`]);
-  wake.addEventListener("click", () => {
-    wake.disabled = true;
-    request("/api/wake-orchestrator")
-      .then(() => toast("Despertando a la orquestadora: en un minuto vuelve a vigilar."))
-      .catch(() => toast("No se pudo despertar a la orquestadora."));
-  });
-  el.appendChild(wake);
+  const list = failing.map((f) => `${f.id}: ${f.error}`).join("\n");
+  const bad = h("button", { type: "button", class: "orch bad wake", title: `${list}\nPulsa para verlas en Por enviar.` }, [h("i"), failing.length === 1 ? "1 envío sin entregar" : `${failing.length} envíos sin entregar`]);
+  bad.addEventListener("click", () => switchView("approved"));
+  el.appendChild(bad);
 }
 
 const WINDOWS = [

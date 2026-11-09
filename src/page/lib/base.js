@@ -72,13 +72,16 @@ export async function requestOrFail(url, body) {
 
 export function post(url, body, okMsg) {
   return request(url, body)
-    .then((r) => {
-      if (!r.ok) throw new Error(r.status);
+    .then(async (r) => {
+      if (!r.ok) {
+        const d = await r.json().catch(() => ({}));
+        throw new Error(d.error || "");
+      }
       if (okMsg) toast(okMsg);
       return refresh(true);
     })
-    .catch(() => {
-      toast("No se pudo guardar. Inténtalo de nuevo.");
+    .catch((e) => {
+      toast(e && e.message ? `No se pudo: ${e.message}` : "No se pudo guardar. Inténtalo de nuevo.");
       refresh(true);
     });
 }
@@ -86,9 +89,20 @@ export function post(url, body, okMsg) {
 export const saveTask = (task, patch, okMsg) => post("/api/task", { key: task.id, patch }, okMsg);
 
 export function whoSends(capitalize) {
-  const o = state.orchestrator;
-  const t = o ? `la sesión «${o.title}»${o.open ? (o.watching ? "" : " (aún sin vigilar: el reporte la despierta en su próxima revisión)") : " (ahora cerrada)"}` : "la sesión de reporte";
-  return capitalize ? t.charAt(0).toUpperCase() + t.slice(1) : t;
+  return capitalize ? "El tablero" : "el tablero";
+}
+
+const activeLimits = () => (state.restrictions || []).filter((r) => !r.releasedAt && (!r.until || Date.now() < Date.parse(r.until)));
+
+export function limitsFor(t, area) {
+  const target = { key: t.key, epicKey: t.epicKey || null, area: area || t.area || t.proposedArea || null };
+  return activeLimits().filter((r) => (target.key && r.scope.tasks.includes(target.key)) || (target.epicKey && r.scope.epics.includes(target.epicKey)) || (target.area && r.scope.areas.includes(target.area)));
+}
+
+export const holdOf = (t, area) => limitsFor(t, area).find((r) => r.mode === "hold") || null;
+
+export function limitChips(t, area) {
+  return limitsFor(t, area).map((r) => h("span", { class: `chip limit limit-${r.mode}`, title: r.chip.title, text: r.chip.text }));
 }
 
 export function areaName(id) {
