@@ -12,6 +12,8 @@ const SPECS = {
   followUps: { type: "list", id: "at", cap: 120 },
   reports: { type: "list", id: "at", cap: 20 },
   permissionRules: { type: "list", id: "key", ascending: true },
+  restrictions: { type: "list", id: "id", at: "createdAt" },
+  deliveries: { type: "list", id: "id", cap: 120 },
   refreshRequest: { type: "doc" },
   lastReview: { type: "doc" },
   contextTidy: { type: "doc" },
@@ -59,7 +61,7 @@ function stampRecords(rawBefore, d, texts = null, at = new Date().toISOString())
 
 function sortList(spec, list) {
   const order = new Map(list.map((r, i) => [r, i]));
-  const at = (r) => String(r.at || "");
+  const at = (r) => String(r[spec.at || "at"] || "");
   list.sort((x, y) => (spec.ascending ? at(x).localeCompare(at(y)) : at(y).localeCompare(at(x))) || order.get(x) - order.get(y));
   return spec.cap ? list.slice(0, spec.cap) : list;
 }

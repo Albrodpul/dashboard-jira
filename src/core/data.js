@@ -9,7 +9,6 @@ const WORKSPACE = config.workspace;
 const ROOT = config.root;
 const DATA_DIR = process.env.TOWER_DATA || migrate.migrateDataDir(WORKSPACE);
 const DB_FILE = process.env.TOWER_DB || path.join(DATA_DIR, "board.db");
-const ORCHESTRATOR_HEARTBEAT = path.join(DATA_DIR, "heartbeat-orchestrator");
 const REPORTER_HEARTBEAT = path.join(DATA_DIR, "heartbeat-reporter");
 const BOARD_HEARTBEAT = path.join(DATA_DIR, "heartbeat-board");
 const ROUTES_FILE = path.join(DATA_DIR, "sessions.json");
@@ -40,6 +39,8 @@ const DEFAULTS = {
   deployments: () => [],
   followUps: () => [],
   messages: () => [],
+  restrictions: () => [],
+  deliveries: () => [],
 };
 
 let db = null;
@@ -153,7 +154,6 @@ module.exports = {
   DB_FILE,
   SEEN_FILE,
   TO_COUNT_FILE,
-  ORCHESTRATOR_HEARTBEAT,
   REPORTER_HEARTBEAT,
   BOARD_HEARTBEAT,
   ROUTES_FILE,
