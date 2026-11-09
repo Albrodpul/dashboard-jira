@@ -1,9 +1,7 @@
 const path = require("path");
 const fs = require("fs");
-const { ORCHESTRATOR_HEARTBEAT, REPORTER_HEARTBEAT, BOARD_HEARTBEAT, HUMAN_APPROVALS, load } = require("../core/data");
-const { followUpErrors, messageNotice } = require("./state");
-const { sentryIssues } = require("../features/sentry");
-const { ENVIRONMENT_NAME } = require("./routes/operations");
+const { REPORTER_HEARTBEAT, BOARD_HEARTBEAT, load } = require("../core/data");
+const { messageNotice } = require("./state");
 const config = require("../core/config");
 
 const ME = config.jira.me.name;
@@ -48,16 +46,6 @@ function quietReview(p, last) {
   } catch (e) {
     return false;
   }
-}
-
-function announceNew(list, keyOf, line) {
-  const seen = new Set();
-  return () => {
-    const fresh = list().filter((x) => !seen.has(keyOf(x)));
-    if (!fresh.length) return;
-    fresh.forEach((x) => seen.add(keyOf(x)));
-    console.log(line(fresh));
-  };
 }
 
 function watchMessages(to) {
@@ -113,55 +101,8 @@ function watchReports() {
 }
 
 function watchDispatches() {
-  heartbeat(ORCHESTRATOR_HEARTBEAT);
-  every(watchMessages("orchestrator"), 1000);
-  every(
-    announceNew(
-      () => followUpErrors(load()).filter((e) => e.state === "approved" && e.approvedVia === "board"),
-      (e) => e.id,
-      (xs) => `ERRORS ${xs.map((e) => e.id).join(",")}: ${ME} ha pulsado «Enviar a Errores sentry» en la pestaña Seguimiento. Envíalos ya con los pasos de «Errores para Errores sentry» de ${ORCHESTRA}.`
-    ),
-    1000
-  );
-  every(
-    announceNew(
-      () => sentryIssues(load()).filter((x) => x.state === "approved" && x.approvedVia === "board"),
-      (x) => `${x.id}@${x.at}`,
-      (xs) => `SENTRY ${xs.map((x) => x.id).join(",")}: ${ME} ha pulsado Enviar en la pestaña Sentry. Envíalos ya con los pasos de «Errores de Sentry» de ${ORCHESTRA}.`
-    ),
-    1000
-  );
-  every(
-    announceNew(
-      () => Object.values(load().tasks).filter((t) => t.status === "approved" && HUMAN_APPROVALS.includes(t.approvedVia)),
-      (t) => `${t.key}@${t.decidedAt || ""}`,
-      (xs) => `APPROVED ${xs.map((t) => t.key).join(",")}: ${ME} ha pulsado Hacer en estas tareas. Envíalas ya con los pasos de «Enviar» de ${ORCHESTRA}.`
-    ),
-    1000
-  );
-  const seenDeploys = new Set();
-  every(() => {
-    for (const x of load().deployments.filter((y) => y.status === "approved" && y.approvedVia === "board" && !seenDeploys.has(y.id))) {
-      seenDeploys.add(x.id);
-      console.log(`DEPLOY ${x.id}: ${ME} ha pulsado Desplegar (${x.projects.join(", ")} a ${ENVIRONMENT_NAME[x.environment]}). Envíalo ya con los pasos de «Desplegar» de ${ORCHESTRA}.`);
-    }
-  }, 1000);
-  every(
-    announceNew(
-      () => [load().contextTidy].filter((o) => o && o.status === "approved" && o.approvedVia === "board"),
-      (o) => o.id,
-      (xs) => `TIDY ${xs[0].id}: ${ME} ha pulsado Ordenar contexto. Relee ahora la sección «Ordenar contexto» de ${ORCHESTRA} y síguela: la ordenación la hace un subagente (Agent con model opus y effort medium), no tú.`
-    ),
-    1000
-  );
-  every(
-    announceNew(
-      () => Object.values(load().tasks).filter((t) => t.answer && !t.answer.delivered),
-      (t) => `${t.key}@${t.answer.at}`,
-      (xs) => `ANSWER ${xs.map((t) => t.key).join(",")}: ${ME} ha contestado en el tablero a lo que preguntaba una sesión. Entrégaselo ya con los pasos de «Respuestas» de ${ORCHESTRA}.`
-    ),
-    1000
-  );
+  console.log(`RETIRED: el tablero ya entrega él mismo lo que ${ME} aprueba (tareas, respuestas, despliegues, errores y Ordenar contexto). Este Monitor no dará más eventos: páralo, no lo vuelvas a armar y relee ${ORCHESTRA}.`);
+  setInterval(() => {}, 1 << 30);
 }
 
 function watchBoard() {
@@ -213,8 +154,8 @@ function watch(mode) {
     process.exit(1);
   }
   if (m === "board") return watchBoard();
-  if (m !== "dispatches") watchReports();
-  if (m !== "reports") watchDispatches();
+  if (m === "dispatches") return watchDispatches();
+  watchReports();
 }
 
 module.exports = { watch };

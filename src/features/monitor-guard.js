@@ -13,7 +13,6 @@ async function tick() {
   if (!reviewHours() && !hours.overtime()) return (staleSince = 0);
   if ((load().config || {}).paused) return (staleSince = 0);
   const state = require("../server/state");
-  state.wakeOrchestrator();
   const r = state.state().reporterStatus;
   if (!r || r.watching) return (staleSince = 0);
   if (!staleSince) staleSince = Date.now();
