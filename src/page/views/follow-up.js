@@ -1,14 +1,36 @@
 import { state, h, button, when, minutesSince, toast, request, requestOrFail, post, render, refresh, renderMd, empty } from "../lib/base.js";
 
 const ERROR_CHIP = { proposed: ["returned", "Por decidir"], approved: ["approved", "Enviándolo"], sent: ["sent", "Enviado a la sesión de errores"], discarded: ["ignored", "Descartado"] };
-let olderOpen = false;
+const olderOpen = new Set();
+const OLDER_SHOWN = 10;
+let olderAll = false;
+
+function headlineOf(text) {
+  const first = String(text || "").split("\n").find((l) => l.trim()) || "";
+  const bold = /^\*\*(.+)\*\*\s*$/.exec(first.trim());
+  const line = bold ? bold[1] : first.replace(/\*\*/g, "");
+  const m = /^(.{3,80}?):\s+(.+)$/.exec(line);
+  const t = (m ? m[2] : line).trim();
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
+
+function olderRow(x) {
+  const open = olderOpen.has(x.at);
+  const toggle = () => {
+    if (open) olderOpen.delete(x.at);
+    else olderOpen.add(x.at);
+    render();
+  };
+  const head = h("button", { type: "button", class: "issue-head", "aria-expanded": String(open), onclick: toggle }, [h("span", { class: "issue-when", text: when(x.at) }), h("span", { class: "issue-msg", text: headlineOf(x.text) }), h("span", { class: "issue-tag none" })]);
+  return h("div", { class: `issue-row${open ? " open" : ""}` }, [head, open ? h("div", { class: "issue-body" }, [followUpText(x.text)]) : null]);
+}
 
 function errorCard(e) {
   const [cls, label] = ERROR_CHIP[e.state];
-  const kids = [h("div", { class: "top" }, [h("span", { class: "time", text: when(e.at) }), e.person ? h("strong", { text: e.person }) : null, h("span", { class: `chip ${cls}`, text: label })]), h("div", { class: "note", text: e.text })];
+  const kids = [h("div", { class: "top" }, [e.person ? h("strong", { text: e.person }) : null, h("span", { class: `chip ${cls}`, text: label }), h("span", { class: "time", text: when(e.at) })]), h("div", { class: "note", text: e.text })];
   if (e.result) {
     kids.push(h("div", { class: "reply" }, [h("b", { text: `Resultado · ${when(e.result.at)}: ` }), e.result.text]));
-    kids[0].lastChild.textContent = "Contestado por la sesión de errores";
+    kids[0].querySelector(".chip").textContent = "Contestado por la sesión de errores";
   }
   if (e.state === "proposed") {
     const buttons = [];
@@ -26,7 +48,7 @@ function errorCard(e) {
     buttons.push(button("Descartar", { onClick: () => act("discard", "Descartado.") }));
     kids.push(h("div", { class: "actions" }, buttons));
   }
-  return h("article", { class: "card" }, kids);
+  return h("div", { class: "fu-error" }, kids);
 }
 
 const FOLLOW_UP_ENVIRONMENTS = [
@@ -153,9 +175,10 @@ function nextText(env) {
 }
 
 function directory(root, people) {
-  const det = h("details", { class: "people-directory" }, [h("summary", { class: "meta", text: `Personas conocidas (${people.length}): con sus cuentas se separa lo que hace cada uno` })]);
+  const det = h("details", { class: "dev-help people-directory" }, [h("summary", { text: `Personas conocidas (${people.length}): con sus cuentas se separa lo que hace cada uno` })]);
   det.open = directoryOpen;
   det.addEventListener("toggle", () => (directoryOpen = det.open));
+  const rows = [];
   for (const p of people) {
     const remove = button("Quitar", {
       cls: "subtle",
@@ -165,8 +188,9 @@ function directory(root, people) {
         post("/api/people", { action: "remove", id: p.id }, `${p.name} quitada.`);
       },
     });
-    det.appendChild(h("div", { class: "person-row" }, [h("strong", { text: p.name }), h("span", { class: "person-accounts", text: (p.accounts || []).join(", ") || "cuentas sin buscar todavía" }), remove]));
+    rows.push(h("div", { class: "person-row" }, [h("strong", { text: p.name }), h("span", { class: "person-accounts", text: (p.accounts || []).join(", ") || "cuentas sin buscar todavía" }), remove]));
   }
+  if (rows.length) det.appendChild(h("div", { class: "fu-people" }, rows));
   const name = h("input", { type: "text", maxlength: "80", placeholder: "Nombre", "aria-label": "Nombre" });
   const accounts = h("input", { type: "text", maxlength: "400", placeholder: "Correos, separados por comas (opcional)", "aria-label": "Correos de sus cuentas" });
   const add = button("Añadir", {
@@ -201,15 +225,16 @@ export function renderFollowUp(root) {
   const line = asked
     ? `Resumen pedido a las ${when(req.at)}. ${minutesSince(req.at) >= 6 ? "Tarda más de lo normal: la sesión de seguimiento puede estar ocupada o cerrada." : "Se está preparando."}`
     : [list.length ? `Último resumen a las ${when(list[0].at)}` : "", nextText(env)].filter(Boolean).join("; ") + "." + (session ? ` ${session}` : "");
-  root.appendChild(h("div", { class: "follow-up-bar" }, [h("span", { class: "meta", text: line.replace(/^\./, "") }), !asked && e ? requestButton(env, req) : null]));
+  root.appendChild(h("div", { class: "issues-bar follow-up-bar" }, [h("span", { class: "meta", text: line.replace(/^\./, "") }), !asked && e ? requestButton(env, req) : null]));
   if (!list.length) {
     root.appendChild(empty(`Todavía no hay resúmenes de ${env.name.toLowerCase()}.`, `Sale uno ${everyText(env.everyHours)} en horario de trabajo, de lunes a viernes, o cuando lo pidas.`));
     return directory(root, state.people || []);
   }
-  root.appendChild(h("section", { class: "jira follow-up" }, [h("div", { class: "jira-head", text: `Resumen de las ${when(list[0].at)}${list[0].manual ? " (pedido a mano)" : ""}` }), followUpText(list[0].text)]));
+  const latest = h("section", { class: "card fu-latest" }, [h("div", { class: "fu-latest-head meta", text: `Resumen de las ${when(list[0].at)}${list[0].manual ? " (pedido a mano)" : ""}` }), followUpText(list[0].text)]);
   const quiet = !list[0].text.trim().includes("\n");
   if (!quiet && !(list[0].errors || []).some((x) => x.state !== "discarded")) {
     const sendAll = button("Enviar este resumen a la sesión de errores", {
+      cls: "subtle",
       title: "Para cuando ves un fallo que la sesión no ha apuntado como posible error. Se manda el resumen entero.",
       onClick: (b) => {
         b.disabled = true;
@@ -222,19 +247,25 @@ export function renderFollowUp(root) {
           .then(() => refresh(true));
       },
     });
-    root.appendChild(h("div", { class: "actions" }, [sendAll]));
+    latest.appendChild(h("div", { class: "actions fu-latest-actions" }, [sendAll]));
   }
+  root.appendChild(latest);
   const errors = list.flatMap((r) => (r.errors || []).filter((x) => x.state === "proposed" || r === list[0]));
   if (errors.length) {
-    root.appendChild(h("div", { class: "jira-head", text: `Posibles errores vistos en ${env.name.toLowerCase()}` }));
-    errors.forEach((x) => root.appendChild(errorCard(x)));
+    root.appendChild(
+      h("section", { class: "fu-section" }, [
+        h("div", { class: "group-head" }, [h("span", { class: "group-name", text: `Posibles errores vistos en ${env.name.toLowerCase()}` }), h("span", { class: "group-key", text: String(errors.length) })]),
+        h("div", { class: "issue-list" }, errors.map(errorCard)),
+      ])
+    );
   }
-  if (list.length > 1) {
-    const det = h("details", {}, [h("summary", { class: "meta", text: `Resúmenes anteriores (${list.length - 1})` })]);
-    det.open = olderOpen;
-    det.addEventListener("toggle", () => (olderOpen = det.open));
-    list.slice(1).forEach((x) => det.appendChild(h("div", { class: "ev" }, [h("span", { class: "t", text: when(x.at) }), followUpText(x.text)])));
-    root.appendChild(det);
-  }
+  if (list.length > 1)
+    root.appendChild(
+      h("section", { class: "fu-section" }, [
+        h("div", { class: "group-head" }, [h("span", { class: "group-name", text: "Resúmenes anteriores" }), h("span", { class: "group-key", text: String(list.length - 1) })]),
+        h("div", { class: "issue-list fu-older" }, list.slice(1, olderAll ? undefined : OLDER_SHOWN + 1).map(olderRow)),
+        list.length - 1 > OLDER_SHOWN ? h("div", { class: "fu-more" }, [button(olderAll ? "Ver menos" : `Ver todos (${list.length - 1})`, { cls: "subtle", onClick: () => ((olderAll = !olderAll), render()) })]) : null,
+      ])
+    );
   directory(root, state.people || []);
 }

@@ -15,10 +15,10 @@
 .fu-block.reading { margin-top: 8px; padding: 12px 14px; border: 0; border-radius: 8px; background: var(--surface-2); }
 .fu-block.reading h4 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-3); }
 .ev .fu-headline { font-size: 14px; margin-bottom: 6px; }
-.follow-up-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; margin: 14px 0 4px; }
-.people-directory { margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--line); }
+.follow-up-bar { gap: 10px 16px; }
 .people-directory > summary { cursor: pointer; }
-.person-row { display: flex; align-items: baseline; gap: 4px 12px; padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+.person-row { display: flex; align-items: center; gap: 4px 12px; padding: 8px 14px; font-size: 13px; }
+.person-row + .person-row { border-top: 1px solid var(--line); }
 .person-row strong { flex: 0 0 150px; }
 .person-accounts { flex: 1 1 auto; min-width: 0; color: var(--ink-3); overflow-wrap: anywhere; }
 .person-row button.btn.subtle { flex: none; padding: 2px 8px; font-size: 12px; }
@@ -32,3 +32,25 @@
   .follow-up-bar > button { width: 100%; }
 }
 .people-chips .error-count { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--danger); color: #fff; font-size: 11px; font-weight: 600; line-height: 18px; text-align: center; }
+.fu-latest { padding: 16px 18px; gap: 8px; }
+.fu-latest .fu-text { max-width: none; }
+.fu-latest-actions { border-top: 1px solid var(--line); padding-top: 12px; }
+.fu-section { display: flex; flex-direction: column; }
+.fu-error { display: flex; flex-direction: column; gap: 8px; padding: 12px 16px; min-width: 0; }
+.fu-error + .fu-error { border-top: 1px solid var(--line); }
+.fu-older .issue-head { grid-template-columns: 96px minmax(0, 1fr) auto; }
+.fu-older .issue-body .fu-headline { font-size: 15px; }
+.fu-more { display: flex; justify-content: center; margin-top: 6px; }
+.fu-people { margin-top: 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); overflow: hidden; }
+.people-directory .person-form { margin-top: 10px; }
+@media (max-width: 900px) {
+  .fu-older .issue-head { grid-template-columns: minmax(0, 1fr); }
+  .fu-older .issue-head .issue-when { grid-column: 1; grid-row: 1; justify-self: start; }
+  .fu-older .issue-head .issue-msg { grid-column: 1; grid-row: 2; }
+  .fu-older .issue-head .issue-tag { display: none; }
+}
+@media (max-width: 760px) {
+  .fu-latest { padding: 12px; }
+  .fu-error { padding: 12px; }
+  .person-row { padding: 8px 12px; }
+}
