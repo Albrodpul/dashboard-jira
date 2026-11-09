@@ -88,21 +88,25 @@ function watchReports() {
     paused = nowPaused;
   }, 1000);
   let lastCycle = "";
+  let waiting = null;
   setInterval(() => {
     const p = Object.fromEntries(madrid.formatToParts(new Date()).map((x) => [x.type, x.value]));
     const hour = Number(p.hour);
     const min = Number(p.minute);
     const outside = ["Sat", "Sun"].includes(p.weekday) || hour < 8 || hour > 18 || (hour === 18 && min > 30);
-    if ((outside && !require("../core/hours").overtime()) || min % 5 !== 0) return;
+    if (outside && !require("../core/hours").overtime()) return;
     const mark = p.weekday + p.hour + p.minute;
     if (mark === lastCycle) return;
     lastCycle = mark;
     const d = load();
     if (d.config && d.config.paused) return;
     const last = (d.lastReview && d.lastReview.at) || (d.reports[0] && d.reports[0].at);
-    if (last && Date.now() - new Date(last).getTime() < 2 * 60000) return;
+    if (last && Date.now() - new Date(last).getTime() < 50000) return;
+    if (waiting && waiting.last === last && Date.now() - waiting.at < 5 * 60000) return;
+    waiting = null;
     freshInJira().then((n) => {
       if (n === 0 && quietReview(p, last)) return;
+      waiting = { last, at: Date.now() };
       console.log(`CYCLE ${p.hour}:${p.minute}: revisión periódica de Jira. ${CYCLE}`);
     });
   }, 10000);
