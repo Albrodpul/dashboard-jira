@@ -216,21 +216,23 @@ function workSchedule() {
   const v = keepDraft("work", s);
   const start = timeInput("work", "start", v.start);
   const end = timeInput("work", "end", v.end);
+  const daily = timeInput("work", "daily", v.daily || "17:00");
   const save = button("Guardar", {
     onClick: (b) => {
       b.disabled = true;
-      requestOrFail("/api/work-hours", { start: start.value, end: end.value })
+      requestOrFail("/api/work-hours", { start: start.value, end: end.value, daily: daily.value })
         .then(() => {
-          scheduleDrafts.work = { start: start.value, end: end.value, saved: true };
-          toast(`Jornada de ${start.value} a ${end.value}, de lunes a viernes.`);
+          scheduleDrafts.work = { start: start.value, end: end.value, daily: daily.value, saved: true };
+          toast(`Jornada de ${start.value} a ${end.value}, de lunes a viernes; la daily se redacta a las ${daily.value}.`);
         })
+        .catch((e) => toast(`No se pudo guardar: ${e.message}`))
         .finally(() => (b.disabled = false));
     },
   });
   const kids = [
     h("h3", { text: "Horario de trabajo" }),
-    h("p", { class: "meta", text: "De lunes a viernes. Al empezar arrancan las sesiones fijas y el reporte; durante la jornada se mira Jira cada minuto y salen los seguimientos; al acabar se paran los proyectos y se redacta la daily hora y media antes. Fuera de este horario solo funciona con «Activarlo todo»." }),
-    h("div", { class: "schedule-row" }, [h("label", {}, [h("span", { text: "Empieza" }), start]), h("label", {}, [h("span", { text: "Acaba" }), end])]),
+    h("p", { class: "meta", text: "De lunes a viernes. Al empezar arrancan las sesiones fijas y el reporte; durante la jornada se mira Jira cada minuto y salen los seguimientos; al acabar se paran los proyectos. La daily se redacta sola a su hora, dentro de la jornada. Fuera de este horario solo funciona con «Activarlo todo»." }),
+    h("div", { class: "schedule-row" }, [h("label", {}, [h("span", { text: "Empieza" }), start]), h("label", {}, [h("span", { text: "Acaba" }), end]), h("label", {}, [h("span", { text: "Daily" }), daily])]),
     h("div", { class: "actions" }, [save]),
   ];
   const mp = (state.cluster && state.cluster.macPower) || null;

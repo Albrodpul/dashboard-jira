@@ -128,7 +128,7 @@ function createPanel(conversation, name, onClose) {
     h("button", { type: "button", title: "Bajar (Av Pág)", "aria-label": "Bajar", text: "⇟", onclick: () => panel.send("[6~") }),
     h("button", { type: "button", title: "Ir al final (Ctrl+Fin)", "aria-label": "Ir al final", text: "⤓", onclick: () => panel.send("[1;5F") }),
   ]);
-  const root = h("div", { class: "term-panel" }, [h("div", { class: "term-head" }, head), h("div", { class: "term-wrap" }, [screen, scrollBtns]), keys, h("div", { class: "term-compose" }, [attachButton(input), input, sendBtn, mentions(input)])]);
+  const root = h("div", { class: "term-panel" }, [h("div", { class: "term-head" }, head), h("div", { class: "term-wrap" }, [screen, scrollBtns]), keys, h("div", { class: "term-compose" }, [attachButton(input, conversation), input, sendBtn, mentions(input)])]);
   const panel = { root, conversation, ws: null, term: null, fit: null, closed: false, pending: [], pendingBytes: 0, overflowed: false, replaying: false };
   panel.paintActivity = () => {
     const [cls, text] = activityOf(conversation);
@@ -310,7 +310,7 @@ function insertAtCaret(input, text) {
   input.focus();
 }
 
-function uploadFiles(input, files) {
+function uploadFiles(input, files, conversation) {
   const list = [...files].filter(Boolean);
   if (!list.length) return;
   toast(list.length === 1 ? "Subiendo el fichero…" : `Subiendo ${list.length} ficheros…`);
@@ -318,8 +318,8 @@ function uploadFiles(input, files) {
     .reduce(
       (chain, file, i) =>
         chain.then(() =>
-          fetch("/api/upload", { method: "POST", headers: { "content-type": "application/octet-stream", "x-file-name": encodeURIComponent(file.name || `captura-${i + 1}.png`) }, body: file })
-            .then((r) => (r.ok ? r.json() : Promise.reject(new Error(r.status === 413 ? "pasa de 25 MB" : `error ${r.status}`))))
+          fetch("/api/upload", { method: "POST", headers: { "content-type": "application/octet-stream", "x-file-name": encodeURIComponent(file.name || `captura-${i + 1}.png`), "x-conversation": conversation || "" }, body: file })
+            .then(async (r) => (r.ok ? r.json() : Promise.reject(new Error(r.status === 413 ? "pasa de 25 MB" : (await r.json().catch(() => ({}))).error || `error ${r.status}`))))
             .then((d) => insertAtCaret(input, `@${d.path} `))
         ),
       Promise.resolve()
@@ -327,23 +327,23 @@ function uploadFiles(input, files) {
     .catch((e) => toast(`No se pudo subir: ${e.message}`));
 }
 
-function attachButton(input) {
+function attachButton(input, conversation) {
   const picker = h("input", { type: "file", multiple: true, hidden: true });
   picker.addEventListener("change", () => {
-    uploadFiles(input, picker.files);
+    uploadFiles(input, picker.files, conversation);
     picker.value = "";
   });
   input.addEventListener("paste", (e) => {
     const files = [...((e.clipboardData && e.clipboardData.files) || [])];
     if (!files.length) return;
     e.preventDefault();
-    uploadFiles(input, files);
+    uploadFiles(input, files, conversation);
   });
   input.addEventListener("dragover", (e) => e.preventDefault());
   input.addEventListener("drop", (e) => {
     if (!e.dataTransfer || !e.dataTransfer.files.length) return;
     e.preventDefault();
-    uploadFiles(input, e.dataTransfer.files);
+    uploadFiles(input, e.dataTransfer.files, conversation);
   });
   const b = h("button", { class: "btn term-attach", type: "button", title: "Adjuntar ficheros o imágenes (también puedes pegarlos o arrastrarlos al cuadro)", "aria-label": "Adjuntar", text: "📎", onclick: () => picker.click() });
   return h("span", { class: "term-attach-wrap" }, [b, picker]);

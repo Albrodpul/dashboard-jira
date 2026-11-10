@@ -211,7 +211,7 @@ async function dailyIfMissing() {
     if (!p.daily || !p.root) continue;
     const d = load();
     const t = require("../core/hours").clock();
-    if (!t.weekend && t.min >= require("../core/hours").endMin() - 90 && !has(d, today(), p)) {
+    if (!t.weekend && t.min >= require("../core/hours").dailyMin() && !has(d, today(), p)) {
       await dailyFor(today(), true, p.id);
       continue;
     }

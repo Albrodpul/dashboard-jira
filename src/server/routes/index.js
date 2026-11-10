@@ -209,8 +209,8 @@ const POST_ROUTES = {
     if (!ok(wake) || !ok(sleep)) return send(res, 400, { error: "hora no válida (HH:MM)" });
     send(res, 200, { schedule: require("../../features/mac-power").setSchedule({ wake, sleep, weeklyOff: typeof weeklyOff === "boolean" ? weeklyOff : undefined }) });
   },
-  "/api/work-hours": (res, { start, end }, send) => {
-    const r = require("../../core/hours").setSchedule({ start, end });
+  "/api/work-hours": (res, { start, end, daily }, send) => {
+    const r = require("../../core/hours").setSchedule({ start, end, daily });
     if (r.error) return send(res, 400, { error: r.error });
     send(res, 200, r);
   },

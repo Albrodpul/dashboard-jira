@@ -10,13 +10,13 @@ const hm = (m) => `${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")}`;
 
 test("defaults are 07:30 to 18:30 with the old follow-up slots", () => {
   mutate((d) => (d.config = {}));
-  assert.deepEqual(hours.schedule(), { start: "07:30", end: "18:30" });
+  assert.deepEqual(hours.schedule(), { start: "07:30", end: "18:30", daily: "17:00" });
   assert.deepEqual(fu.slots("beta", 1).map(hm), ["9:03", "10:03", "11:03", "12:03", "13:03", "14:03", "15:03", "16:03", "17:03", "18:03"]);
   assert.deepEqual(fu.slots("production", 2).map(hm), ["9:33", "11:33", "13:33", "15:33", "17:33"]);
 });
 
 test("a custom workday moves work hours, overtime expiry and follow-up slots", () => {
-  assert.deepEqual(hours.setSchedule({ start: "08:30", end: "17:00" }), { schedule: { start: "08:30", end: "17:00" } });
+  assert.deepEqual(hours.setSchedule({ start: "08:30", end: "17:00" }), { schedule: { start: "08:30", end: "17:00", daily: "15:30" } });
   const w = (s) => hours.workHours(hours.clock(at(s)));
   assert.equal(w("2026-11-09T08:29:00"), false);
   assert.equal(w("2026-11-09T08:30:00"), true);
@@ -32,5 +32,15 @@ test("a custom workday moves work hours, overtime expiry and follow-up slots", (
 test("invalid schedules are refused", () => {
   assert.ok(hours.setSchedule({ start: "25:00" }).error);
   assert.ok(hours.setSchedule({ start: "17:30", end: "18:00" }).error);
-  assert.deepEqual(hours.schedule(), { start: "08:30", end: "17:00" });
+  assert.deepEqual(hours.schedule(), { start: "08:30", end: "17:00", daily: "15:30" });
+});
+
+test("the daily time is configurable and stays inside the workday", () => {
+  assert.equal(hours.setSchedule({ daily: "16:15" }).schedule.daily, "16:15");
+  assert.equal(hours.dailyMin(), 16 * 60 + 15);
+  assert.ok(hours.setSchedule({ daily: "18:00" }).error);
+  assert.ok(hours.setSchedule({ daily: "8:00" }).error);
+  assert.equal(hours.setSchedule({ start: "09:00" }).schedule.daily, "16:15");
+  assert.equal(hours.setSchedule({ end: "16:00" }).schedule.daily, "14:30");
+  assert.deepEqual(hours.setSchedule({ start: "08:30", end: "17:00" }).schedule, { start: "08:30", end: "17:00", daily: "15:30" });
 });

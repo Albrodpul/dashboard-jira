@@ -10,27 +10,38 @@ function clock(d = new Date()) {
 const DEFAULT = { start: "07:30", end: "18:30" };
 const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
 const toMin = (t) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3));
+const toHHMM = (m) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+const DAILY_LEAD = 90;
+const dailyOk = (daily, start, end) => HHMM.test(daily || "") && toMin(daily) > toMin(start) && toMin(daily) <= toMin(end);
 
 function schedule() {
   const s = (load().config || {}).workSchedule || {};
-  const start = HHMM.test(s.start || "") ? s.start : DEFAULT.start;
-  const end = HHMM.test(s.end || "") ? s.end : DEFAULT.end;
-  return toMin(end) > toMin(start) ? { start, end } : { ...DEFAULT };
+  let start = HHMM.test(s.start || "") ? s.start : DEFAULT.start;
+  let end = HHMM.test(s.end || "") ? s.end : DEFAULT.end;
+  if (toMin(end) <= toMin(start)) ({ start, end } = DEFAULT);
+  const daily = dailyOk(s.daily, start, end) ? s.daily : toHHMM(Math.max(toMin(start) + 1, toMin(end) - DAILY_LEAD));
+  return { start, end, daily };
 }
 
-function setSchedule({ start, end }) {
+function setSchedule({ start, end, daily }) {
+  const saved = (load().config || {}).workSchedule || {};
   const next = { ...schedule(), ...(start ? { start } : {}), ...(end ? { end } : {}) };
   if (!HHMM.test(next.start) || !HHMM.test(next.end)) return { error: "hora no válida (HH:MM)" };
   if (toMin(next.end) - toMin(next.start) < 60) return { error: "la jornada tiene que durar al menos una hora" };
+  const wanted = daily || saved.daily;
+  if (daily && !HHMM.test(daily)) return { error: "hora de la daily no válida (HH:MM)" };
+  if (daily && !dailyOk(daily, next.start, next.end)) return { error: "la daily tiene que redactarse dentro de la jornada" };
+  const stored = { start: next.start, end: next.end, ...(wanted && dailyOk(wanted, next.start, next.end) ? { daily: wanted } : {}) };
   mutate((d) => {
     d.config = d.config || {};
-    d.config.workSchedule = next;
+    d.config.workSchedule = stored;
   });
   return { schedule: schedule() };
 }
 
 const startMin = () => toMin(schedule().start);
 const endMin = () => toMin(schedule().end);
+const dailyMin = () => toMin(schedule().daily);
 const day = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Madrid", year: "numeric", month: "2-digit", day: "2-digit" });
 const workHours = (t = clock()) => !t.weekend && t.min >= startMin() && t.min < endMin();
 
@@ -65,4 +76,4 @@ function setOvertime(on) {
   return overtime();
 }
 
-module.exports = { clock, workHours, overtime, setOvertime, expired, schedule, setSchedule, startMin, endMin, toMin };
+module.exports = { clock, workHours, overtime, setOvertime, expired, schedule, setSchedule, startMin, endMin, dailyMin, toMin };

@@ -45,6 +45,34 @@ function otherLiveSessions() {
   return (state.hosted || []).filter((x) => !x.waitingForVsCode && !fixed.has(x.conversation) && (live.has(x.conversation) || own.has(x.conversation))).map((x) => ({ conversation: x.conversation, name: talkName(x.conversation), session: x.name }));
 }
 
+const workspaceList = () => (state.jiraSetup && state.jiraSetup.workspaces) || [];
+const mixed = () => workspaceList().length > 1 && !currentProject();
+
+function projectOfTalk(conversation) {
+  const area = state.areas.find((a) => a.conversation === conversation && a.project);
+  const live = ((state.sessions && state.sessions.list) || []).find((s) => s.conversation === conversation && s.project);
+  return (area && area.project) || (live && live.project) || (workspaceList()[0] || {}).id;
+}
+
+const projectName = (id) => (workspaceList().find((p) => p.id === id) || {}).name || id;
+
+function talkGroups(fixedShown, others) {
+  const fixedRows = fixedShown.map((k) => [k, TALK_NAMES[k], (talkSession(k) || {}).conversation]);
+  const openRows = others.map((o) => [o.conversation, o.name, o.conversation]);
+  if (!mixed()) return [["Fijas", fixedRows], ["Abiertas", openRows]];
+  const main = (workspaceList()[0] || {}).id;
+  const groups = [["Común a todos", fixedRows.filter(([k]) => SHARED_TALK.includes(k))]];
+  const byProject = new Map(workspaceList().map((p) => [p.id, []]));
+  byProject.get(main).push(...fixedRows.filter(([k]) => !SHARED_TALK.includes(k)));
+  for (const row of openRows) {
+    const id = projectOfTalk(row[2]);
+    if (!byProject.has(id)) byProject.set(id, []);
+    byProject.get(id).push(row);
+  }
+  for (const [id, rows] of byProject) groups.push([projectName(id), rows]);
+  return groups;
+}
+
 function talkName(conversation) {
   const area = state.areas.find((a) => a.conversation === conversation && a.name);
   if (area) return area.name;
@@ -85,7 +113,6 @@ function talkActivity(conversation) {
 export function renderTalk(root) {
   const others = otherLiveSessions();
   const fixedShown = shownFixed();
-  const entries = [...fixedShown.map((k) => [k, TALK_NAMES[k], (talkSession(k) || {}).conversation]), ...others.map((o) => [o.conversation, o.name, o.conversation])];
   const list = h("nav", { class: "talk-list", "aria-label": "Qué sesión ver" });
   const group = (title, rows) => {
     if (!rows.length) return;
@@ -100,8 +127,7 @@ export function renderTalk(root) {
       );
     }
   };
-  group("Fijas", entries.slice(0, fixedShown.length));
-  group("Abiertas", entries.slice(fixedShown.length));
+  for (const [title, rows] of talkGroups(fixedShown, others)) group(title, rows);
   list.appendChild(h("button", { type: "button", class: "talk-new", title: "Abre una sesión nueva en el tablero para hablar con ella", text: "+ Sesión nueva", onclick: (e) => newTalkSession(e.currentTarget) }));
   const main = h("div", { class: "talk-main" });
   root.appendChild(h("div", { class: "talk-layout" }, [list, main]));
@@ -109,9 +135,11 @@ export function renderTalk(root) {
 }
 
 function renderTalkMain(root, others) {
-  const choices = [...shownFixed().map((k) => [k, TALK_NAMES[k]]), ...others.map((o) => [o.conversation, o.name])];
-  if (/^[0-9a-f-]{36}$/.test(talkTo) && !choices.some(([k]) => k === talkTo)) choices.push([talkTo, "Sesión abierta"]);
-  const select = h("select", { class: "chat-select", "aria-label": "Qué sesión ver" }, choices.map(([k, label]) => h("option", { value: k, text: label })));
+  const groups = talkGroups(shownFixed(), others).filter(([, rows]) => rows.length);
+  const choices = groups.flatMap(([, rows]) => rows);
+  if (/^[0-9a-f-]{36}$/.test(talkTo) && !choices.some(([k]) => k === talkTo)) groups.push(["Otras", [[talkTo, "Sesión abierta"]]]);
+  const option = ([k, label]) => h("option", { value: k, text: label });
+  const select = h("select", { class: "chat-select", "aria-label": "Qué sesión ver" }, mixed() ? groups.map(([title, rows]) => h("optgroup", { label: title }, rows.map(option))) : groups.flatMap(([, rows]) => rows).map(option));
   select.value = talkTo;
   select.addEventListener("change", () => {
     setTalk(select.value);
