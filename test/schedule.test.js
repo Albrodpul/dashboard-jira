@@ -25,7 +25,7 @@ test("a startup rotates any time before 10:00 on weekdays", () => {
 });
 
 test("the Mac power window defaults to 06:00-21:00 on weekdays", () => {
-  assert.deepEqual(macPower.schedule(), { wake: "06:00", sleep: "21:00", days: "MTWRF" });
+  assert.deepEqual(macPower.schedule(), { wake: "06:00", sleep: "21:00", days: "MTWRF", weeklyOff: true });
   assert.equal(macPower.inWindow(at("2026-11-09T05:59:00")), false);
   assert.equal(macPower.inWindow(at("2026-11-09T06:00:00")), true);
   assert.equal(macPower.inWindow(at("2026-11-09T20:59:00")), true);
@@ -34,11 +34,17 @@ test("the Mac power window defaults to 06:00-21:00 on weekdays", () => {
 });
 
 test("the Mac power window follows the stored schedule and ignores invalid times", () => {
-  assert.deepEqual(macPower.setSchedule({ wake: "07:15" }), { wake: "07:15", sleep: "21:00", days: "MTWRF" });
+  assert.deepEqual(macPower.setSchedule({ wake: "07:15" }), { wake: "07:15", sleep: "21:00", days: "MTWRF", weeklyOff: true });
   assert.equal(macPower.inWindow(at("2026-11-09T07:00:00")), false);
   assert.equal(macPower.inWindow(at("2026-11-09T07:15:00")), true);
   mutate((d) => {
     d.config.macSchedule = { wake: "25:00", sleep: "9pm" };
   });
-  assert.deepEqual(macPower.schedule(), { wake: "06:00", sleep: "21:00", days: "MTWRF" });
+  assert.deepEqual(macPower.schedule(), { wake: "06:00", sleep: "21:00", days: "MTWRF", weeklyOff: true });
+});
+
+test("the Friday shutdown can be switched off and is kept with the other times", () => {
+  assert.equal(macPower.setSchedule({ weeklyOff: false }).weeklyOff, false);
+  assert.equal(macPower.setSchedule({ wake: "06:30" }).weeklyOff, false);
+  assert.equal(macPower.setSchedule({ weeklyOff: true }).weeklyOff, true);
 });
