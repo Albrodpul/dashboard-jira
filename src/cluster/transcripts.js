@@ -7,8 +7,9 @@ const { now } = require("../core/data");
 const { CLUSTER, st, log, isPrimary } = require("./role");
 const { peerGet } = require("./peer");
 
-const PROJECTS = path.join(os.homedir(), ".claude", "projects");
-const projectDir = () => path.join(PROJECTS, config.root.replace(/\\/g, "/").replace(/^([A-Z]):/, (m, d) => `${d.toLowerCase()}:`).replace(/[^a-zA-Z0-9]/g, "-"));
+const agent = () => require("../agents").main();
+const PROJECTS = agent().transcriptsDir();
+const projectDir = () => path.join(PROJECTS, agent().transcriptFolder(config.root));
 
 function transcriptPath(conversation) {
   const own = path.join(projectDir(), `${conversation}.jsonl`);

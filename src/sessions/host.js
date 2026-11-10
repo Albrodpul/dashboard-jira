@@ -14,7 +14,7 @@ const RESTART_MS = 5000;
 const WORKDIR = ROOT.replace(/\\/g, "/").replace(/^([A-Z]):/, (m, d) => `${d.toLowerCase()}:`);
 const PERMISSION_MODE = "acceptEdits";
 const platform = require("../core/platform");
-const CLAUDE = platform.claudeCli();
+const agent = () => require("../agents").main();
 const DIALOGS = [
   [/Claude ?in ?Chrome/i, "\x1b"],
   [/fullscreen ?renderer/i, "2\r"],
@@ -58,7 +58,7 @@ function serve() {
     s.stopping = false;
     s.startedAt = new Date().toISOString();
     s.dialogMark = s.buffer.length;
-    const args = [...(entry.fresh ? ["--session-id", entry.conversation] : ["--resume", entry.conversation]), "-n", entry.name, "--permission-mode", PERMISSION_MODE, ...require("./profiles").profileArgs(entry.conversation)];
+    const args = agent().hostedArgs({ conversation: entry.conversation, fresh: entry.fresh, name: entry.name, permissionMode: PERMISSION_MODE, profile: require("./profiles").profileArgs(entry.conversation) });
     if (entry.fresh) {
       const list = readConfig();
       const e = list.find((x) => x.conversation === entry.conversation);
@@ -66,7 +66,7 @@ function serve() {
       writeConfig(list);
       delete entry.fresh;
     }
-    const [exe, fullArgs] = platform.claude(args, CLAUDE);
+    const [exe, fullArgs] = agent().command(args, agent().cli());
     s.pty = pty.spawn(exe, fullArgs, { name: "xterm-256color", cols: s.cols, rows: s.rows, cwd: entry.cwd || WORKDIR, env: { MCP_TIMEOUT: "120000", ...require("./registry").cleanEnv(), TOWER_HOSTED: "1" } });
     log(`start ${entry.name} ${entry.conversation} pid ${s.pty.pid}`);
     s.pty.onData((d) => {
@@ -295,7 +295,7 @@ function tellBoard(conversation) {
 }
 
 function vsCodeHas(conversation) {
-  const dir = path.join(require("os").homedir(), ".claude", "sessions");
+  const dir = agent().sessionsDir();
   try {
     for (const f of fs.readdirSync(dir).filter((x) => /^\d+\.json$/.test(x))) {
       const j = JSON.parse(fs.readFileSync(path.join(dir, f), "utf8"));
@@ -313,7 +313,7 @@ function vsCodeHas(conversation) {
 
 function hostedPid(pid) {
   const out = platform.commandLine(pid);
-  return /\.local[\\/]bin[\\/]claude(\.exe)?\b/i.test(out) && /--resume/.test(out);
+  return agent().isHostedCommandLine(out);
 }
 
 function hostRequest(method, route, body) {

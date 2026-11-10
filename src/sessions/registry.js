@@ -6,12 +6,11 @@ const crypto = require("crypto");
 const { ROOT, ROUTES_FILE, SESSIONS_CLI, mutate } = require("../core/data");
 const config = require("../core/config");
 
-const HOME = os.homedir();
-const REGISTRY = path.join(HOME, ".claude", "sessions");
-const TRANSCRIPTS = path.join(HOME, ".claude", "projects");
+const agent = () => require("../agents").main();
+const REGISTRY = agent().sessionsDir();
+const TRANSCRIPTS = agent().transcriptsDir();
 const STOP_WORDS = new Set(["de", "del", "la", "el", "los", "las", "y", "a", "en", "the", "of", "and"]);
 const STARTUP_NOTICE = "Aviso del arranque: arranca el reporte. Eres la sesión de reporte registrada: ejecuta ahora .claude/commands/resumen-jira.md (regla de AGENTS.md).";
-const CLAUDE_VARIABLES = /^(CLAUDE_CODE_|CLAUDECODE|CLAUDE_PID|CLAUDE_ENV_FILE|CLAUDE_AGENT_SDK|CLAUDE_EFFORT|AI_AGENT|ELECTRON_RUN_AS_NODE)/;
 
 const titleKey = (s) =>
   String(s || "")
@@ -342,9 +341,9 @@ function envWithoutVsCode() {
 
 function cleanEnv() {
   const env = {};
-  for (const [k, v] of Object.entries(process.env)) if (!CLAUDE_VARIABLES.test(k)) env[k] = v;
+  for (const [k, v] of Object.entries(process.env)) if (!agent().ENV_VARIABLES.test(k)) env[k] = v;
   const token = sessionToken();
-  if (token) env.CLAUDE_CODE_OAUTH_TOKEN = token;
+  if (token) env[agent().TOKEN_VARIABLE] = token;
   return env;
 }
 
@@ -363,7 +362,7 @@ function openInVsCode(conversation) {
     host.ensureHost().then(() => host.hostRequest("POST", "/start", { conversation }).catch(() => {}));
     return;
   }
-  const url = conversation ? `vscode://anthropic.claude-code/open?session=${conversation}` : "vscode://anthropic.claude-code/open";
+  const url = agent().editorUrl(conversation);
   const env = envWithoutVsCode();
   const platform = require("../core/platform");
   const launch = () => platform.openUrl(url, env);
@@ -375,33 +374,12 @@ function openInVsCode(conversation) {
   }
 }
 
-function claudeBinary() {
-  const folder = path.join(HOME, ".vscode", "extensions");
-  let dirs = [];
-  try {
-    dirs = fs.readdirSync(folder).filter((d) => d.startsWith("anthropic.claude-code-"));
-  } catch (e) {
-    return null;
-  }
-  const version = (d) => (d.match(/\d+/g) || []).slice(0, 3).map(Number);
-  dirs.sort((a, b) => {
-    const [x, y] = [version(a), version(b)];
-    for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (y[i] || 0) - (x[i] || 0);
-    return 0;
-  });
-  for (const d of dirs) {
-    const exe = path.join(folder, d, "resources", "native-binary", `claude${require("../core/platform").EXE}`);
-    if (fs.existsSync(exe)) return exe;
-  }
-  return null;
-}
-
 function createConversation(name) {
   return new Promise((resolve) => {
     const id = crypto.randomUUID();
     const env = cleanEnv();
     env.CLAUDE_CODE_ENTRYPOINT = "claude-vscode";
-    const [exe, args] = require("../core/platform").claude(["-p", "--session-id", id, "--name", name, "--model", config.sessionModel, `Sesión «${name}» creada desde el tablero de Jira. Responde solo «ok».`], claudeBinary());
+    const [exe, args] = agent().command(agent().createArgs({ id, name, model: config.sessionModel, prompt: `Sesión «${name}» creada desde el tablero de Jira. Responde solo «ok».` }), agent().editorBinary());
     const child = cp.execFile(exe, args, { cwd: ROOT, env, timeout: 90000, windowsHide: true }, (err) => resolve(!err && transcriptOf(id) ? id : null));
     if (child.stdin) child.stdin.end();
   });
@@ -410,7 +388,7 @@ function createConversation(name) {
 function wakeSession(name, notice) {
   return new Promise((resolve) => {
     const prompt = `Usa la herramienta SendMessage (cárgala con ToolSearch si hace falta) con to «${name}» y message exactamente «${notice || STARTUP_NOTICE}». No hagas nada más y responde solo ok.`;
-    const [exe, args] = require("../core/platform").claude(["-p", prompt, "--no-session-persistence", "--model", "claude-haiku-4-5-20251001", "--allowedTools=SendMessage,ListAgents,ToolSearch"], claudeBinary());
+    const [exe, args] = agent().command(agent().wakeArgs(prompt), agent().editorBinary());
     const child = cp.execFile(exe, args, { cwd: ROOT, env: cleanEnv(), timeout: 120000, windowsHide: true }, (err, out) => resolve(!err && /ok/i.test(String(out))));
     if (child.stdin) child.stdin.end();
   });

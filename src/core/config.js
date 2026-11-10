@@ -123,6 +123,7 @@ function buildProject(p, index) {
   return {
     id: p.id,
     name: p.name || p.company || p.id,
+    agent: p.agent || "claude",
     root,
     company: p.company || p.name || "",
     envFile,

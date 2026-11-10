@@ -4,7 +4,7 @@ const os = require("os");
 const { DATA_DIR } = require("../core/data");
 
 const FILE = path.join(DATA_DIR, "quota.json");
-const CREDENTIALS = path.join(os.homedir(), ".claude", ".credentials.json");
+const CREDENTIALS = require("../agents/claude").credentialsFile();
 const USAGE_URL = "https://api.anthropic.com/api/oauth/usage";
 const WINDOWS = ["five_hour", "seven_day"];
 

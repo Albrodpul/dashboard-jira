@@ -73,12 +73,8 @@ function openFolderInEditor(folder, env) {
   else cp.spawn("open", ["-a", "Visual Studio Code", folder], { detached: true, stdio: "ignore", env }).unref();
 }
 
-const claudeCli = () => process.env.CLAUDE_BIN || path.join(os.homedir(), ".local", "bin", `claude${EXE}`);
-const claude = (args, fallback) => {
-  const bin = process.env.CLAUDE_BIN;
-  if (bin && /\.[cm]?js$/i.test(bin)) return [process.execPath, [bin, ...args]];
-  return [bin || fallback || claudeCli(), args];
-};
+const claudeCli = () => require("../agents/claude").cli();
+const claude = (args, fallback) => require("../agents/claude").command(args, fallback);
 const isShell = (name) => ["node", "bash", "sh", "zsh", "cmd", "powershell", "pwsh", "conhost", "timeout"].includes(name);
 
 module.exports = { IS_WIN, EXE, processes, commandLine, killTree, listeningPids, openUrl, openFolderInEditor, claudeCli, claude, isShell };
