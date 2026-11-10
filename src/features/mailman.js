@@ -17,6 +17,21 @@ const ENVIRONMENT_NAME = { develop: "develop", production: "producción", both: 
 const REVIEW_LINE = `Antes de dar una por hecha, pásala por el agente revisor y, si toca pantallas, pruébala: un texto o un caso acotado tú misma; lo demás, el agente probador, uno por sesión; siempre con un navegador abierto, sin scripts, y lo no visual por API o test (context/PLAYWRIGHT.md; context/JIRA.md, «Orden de trabajo», paso 4). Al acabar cada una avisa al tablero con «board.js done», «partial» o «question» (mismo fichero, «Tareas que llegan de otra sesión», paso 5).`;
 const CAUSE_LINE = "Al cerrarla, apunta la causa con board.js cause (context/JIRA.md, «Tarea devuelta tras la revisión»).";
 
+const REFERENCE = " (context/JIRA.md, «Tareas que llegan de otra sesión»)";
+const NEUTRAL_REVIEW = `Al acabar cada una avisa al tablero con «${CLI} done», «partial» o «question».`;
+
+function guide(t) {
+  const projects = require("../core/projects");
+  const p = config.project(projects.projectOf(t)) || config.mainProject;
+  const m = p.messages || {};
+  const legacy = p === config.mainProject && !p.messages;
+  return {
+    review: m.review || (legacy ? REVIEW_LINE : NEUTRAL_REVIEW),
+    cause: m.cause !== undefined ? m.cause : legacy ? CAUSE_LINE : "",
+    reference: m.reference !== undefined ? (m.reference ? ` (${m.reference})` : "") : legacy ? REFERENCE : "",
+  };
+}
+
 const manual = require("./manual-tasks");
 const log = (m) => appendLog(path.join(DATA_DIR, "mailman.log"), `${now()} ${m}\n`);
 const mark = (id) => `[envío ${id}]`;
@@ -30,9 +45,10 @@ function taskNote(t) {
 function taskLine(t) {
   const head = `- ${t.key} · ${t.title}`;
   const note = taskNote(t);
+  const causeLine = guide(t).cause;
   if (manual.isManual(t)) return `${head} · nueva, sin ticket de Jira${t.description ? `: ${t.description.slice(0, 3000)}` : ""}${note ? ` (${note})` : ""}`;
-  if (t.kind === "comment") return `${head} · comentario de ${t.noteBy || "alguien"} en Jira sobre esta tarea: ${t.note || note || "(sin texto)"}${t.changes && t.changes.length ? ` Cambios en Jira: ${t.changes.map((c) => c.text).join("; ")}.` : ""}; léelo y corrige lo que pida. ${CAUSE_LINE}`;
-  if (t.kind === "returned") return `${head} · devuelta${note ? ` (${note})` : ""}. ${CAUSE_LINE}`;
+  if (t.kind === "comment") return `${head} · comentario de ${t.noteBy || "alguien"} en Jira sobre esta tarea: ${t.note || note || "(sin texto)"}${t.changes && t.changes.length ? ` Cambios en Jira: ${t.changes.map((c) => c.text).join("; ")}.` : ""}; léelo y corrige lo que pida.${causeLine ? ` ${causeLine}` : ""}`;
+  if (t.kind === "returned") return `${head} · devuelta${note ? ` (${note})` : ""}.${causeLine ? ` ${causeLine}` : ""}`;
   if (t.kind === "resend") return `${head} · reenvío: ha cambiado en Jira desde el primer envío${note ? ` (${note})` : ""}; vuelve a leer el ticket y sus adjuntos antes de seguir.`;
   return `${head} · nueva${note ? ` (${note})` : ""}`;
 }
@@ -59,8 +75,9 @@ function composeTasks(d, tasks, id, attachments = {}) {
     lines.push(...noteLines(holds.notesFor(d, holds.taskTarget(t, t.area)), t.key));
   }
   const vias = [...new Set(tasks.map((t) => VIA[t.approvedVia]).filter(Boolean))];
-  lines.push(`${ME} ha aprobado este envío (${vias.join(" y ") || VIA.board}): cuenta como su orden de hacerlas (context/JIRA.md, «Tareas que llegan de otra sesión»).`);
-  lines.push(REVIEW_LINE);
+  const g = guide(tasks[0]);
+  lines.push(`${ME} ha aprobado este envío (${vias.join(" y ") || VIA.board}): cuenta como su orden de hacerlas${g.reference}.`);
+  lines.push(g.review);
   lines.push(replyLine(tasks.map((t) => t.key)));
   return lines.join("\n");
 }
@@ -75,7 +92,7 @@ function composeAnswers(d, tasks, id) {
     const held = holds.holdsFor(d, holds.taskTarget(t, t.area));
     if (held.length) lines.push(`  Ojo: ${t.key} sigue retenida por ${held[0].id} («${held[0].reason}»), ${holds.longUntil(held[0].until)}. No la retomes hasta entonces.`);
   }
-  lines.push(`Lo ha escrito ${ME} en el tablero: vale como si te lo hubiera contestado en tu sesión (context/JIRA.md, «Tareas que llegan de otra sesión»).`);
+  lines.push(`Lo ha escrito ${ME} en el tablero: vale como si te lo hubiera contestado en tu sesión${guide(tasks[0]).reference}.`);
   return lines.join("\n");
 }
 

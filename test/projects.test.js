@@ -86,3 +86,16 @@ test("a session registering a fixed role from another project's folder stays in 
   assert.equal(m.status, 0, m.stderr);
   assert.equal(JSON.parse(fs.readFileSync(path.join(box.data, "sessions.json"), "utf8")).reporter.session, "Main reporter");
 });
+
+test("a project without its own guide gets only the neutral lines, never another project's rules", () => {
+  const { composeTasks, composeAnswers } = require("../src/features/mailman");
+  const t = { key: "SIDE-1", title: "Cuadrar gastos", project: "side", source: "manual", kind: "new", approvedVia: "board" };
+  const text = composeTasks({ restrictions: [] }, [t], "E1");
+  assert.doesNotMatch(text, /context\/|revisor|probador|board\.js cause/);
+  assert.match(text, /cuenta como su orden de hacerlas\.\n/);
+  assert.match(text, /avisa al tablero con «.* done», «partial» o «question»/);
+  const answer = composeAnswers({ restrictions: [] }, [{ ...t, notice: { text: "?" }, answer: { text: "sí" } }], "E2");
+  assert.match(answer, /contestado en tu sesión\.$/);
+  const returned = composeTasks({ restrictions: [] }, [{ key: "CLI-1", title: "x", project: "client", kind: "returned", approvedVia: "rule" }], "E3");
+  assert.match(returned, /- CLI-1 · x · devuelta\.\n/);
+});

@@ -125,6 +125,7 @@ function buildProject(p, index) {
     name: p.name || p.company || p.id,
     agent: p.agent || "claude",
     taskPrefix: p.taskPrefix || null,
+    messages: p.messages || null,
     root,
     company: p.company || p.name || "",
     envFile,
