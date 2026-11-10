@@ -59,7 +59,7 @@ function tunnelPanel() {
     return h("div", { class: "proj-tunnel open" }, [
       h("div", { class: "proj-tunnel-text" }, [
         h("strong", { text: `Viendo los proyectos del ${who}` }),
-        h("span", { class: "meta", text: `Abre los enlaces en el navegador de este ordenador: van por un túnel al ${who}, con el login funcionando. Abierto ${when(t.since)}.` }),
+        h("span", { class: "meta", text: `Abre los enlaces en el navegador de este ordenador: van al ${who}, con el login funcionando.${(t.direct || []).length ? ` Directos por Tailscale: ${t.direct.join(", ")}.` : ""}${t.ports && t.ports.some((p) => !(t.direct || []).includes(p)) ? ` Por SSH: ${t.ports.filter((p) => !(t.direct || []).includes(p)).join(", ")}.` : ""} Abierto ${when(t.since)}.` }),
       ]),
       button("Cerrar túnel", { cls: "subtle", disabled: working, onClick: (b) => tunnelAct("close", b) }),
     ]);

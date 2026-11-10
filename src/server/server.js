@@ -134,7 +134,10 @@ function serve() {
   const server = http.createServer(handle);
   server.on("upgrade", proxyTerminal);
   host.ensureHost().catch(() => {});
-  server.listen(PORT, "127.0.0.1", () => console.log(`NutrIA en ${BASE_URL}`));
+  server.listen(PORT, "127.0.0.1", () => {
+    console.log(`NutrIA en ${BASE_URL}`);
+    setTimeout(() => require("../features/tunnel").guard(), 3000);
+  });
   const every = (fn, ms) => {
     const once = () => Promise.resolve().then(fn).catch(() => {});
     once();
