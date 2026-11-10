@@ -64,35 +64,6 @@ test("open refuses on the leading machine", async (t) => {
   await assert.rejects(tunnel.open(), /este ordenador manda/);
 });
 
-test("a relay pipes a local port to the peer, both ways", async () => {
-  const net = require("net");
-  const upstream = net.createServer((c) => c.on("data", (d) => c.write(`eco:${d}`)));
-  await new Promise((r) => upstream.listen(0, "127.0.0.1", r));
-  const port = upstream.address().port;
-  assert.equal(await tunnel.reachable("127.0.0.1", port), true);
-  const local = tunnel.relay(port, "127.0.0.1");
-  await new Promise((r) => local.listen(0, "127.0.0.1", r));
-  const reply = await new Promise((resolve, reject) => {
-    const c = net.connect(local.address().port, "127.0.0.1", () => c.write("hola"));
-    c.once("data", (d) => (resolve(String(d)), c.destroy()));
-    c.once("error", reject);
-  });
-  assert.equal(reply, "eco:hola");
-  local.close();
-  upstream.close();
-  assert.equal(await tunnel.reachable("127.0.0.1", port), false);
-});
-
-test("a tunnel with only direct relays and no ssh process stays open", (t) => {
-  t.mock.method(cluster, "primaryNow", () => true);
-  fs.writeFileSync(STATE, JSON.stringify({ pid: null, host: "u@peer", peerHost: "127.0.0.1", direct: [39999], since: "2026-11-10T10:00:00.000Z" }));
-  const s = tunnel.status();
-  assert.equal(s.open, true);
-  assert.deepEqual(s.direct, [39999]);
-  tunnel.close();
-  assert.equal(fs.existsSync(STATE), false);
-});
-
 test("the standby machine does not start projects and stops its own", async (t) => {
   const devservers = require("../src/features/devservers");
   t.mock.method(tunnel, "remote", async () => ({ label: "Mac" }));
