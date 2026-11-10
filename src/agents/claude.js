@@ -46,7 +46,27 @@ const isHostedCommandLine = (line) => /\.local[\\/]bin[\\/]claude(\.exe)?\b/i.te
 const editorUrl = (conversation) => (conversation ? `vscode://anthropic.claude-code/open?session=${conversation}` : "vscode://anthropic.claude-code/open");
 const transcriptFolder = (root) => root.replace(/\\/g, "/").replace(/^([A-Z]):/, (m, d) => `${d.toLowerCase()}:`).replace(/[^a-zA-Z0-9]/g, "-");
 
+function liveEntries() {
+  const dir = path.join(home(), "sessions");
+  let files;
+  try {
+    files = fs.readdirSync(dir).filter((f) => /^\d+\.json$/.test(f));
+  } catch (e) {
+    return null;
+  }
+  const out = [];
+  for (const f of files) {
+    try {
+      const j = JSON.parse(fs.readFileSync(path.join(dir, f), "utf8"));
+      if (j.kind !== "interactive" || !j.name || !j.sessionId) continue;
+      out.push({ name: j.name, conversation: j.sessionId, cwd: j.cwd, pid: j.pid, startedMs: Number(j.startedAt), status: j.status, background: j.status === "shell", statusSinceMs: j.statusUpdatedAt ? Number(j.statusUpdatedAt) : null });
+    } catch (e) {}
+  }
+  return out;
+}
+
 module.exports = {
+  liveEntries,
   id: "claude",
   name: "Claude Code",
   home,

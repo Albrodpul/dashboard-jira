@@ -7,7 +7,6 @@ const { ROOT, ROUTES_FILE, SESSIONS_CLI, mutate } = require("../core/data");
 const config = require("../core/config");
 
 const agent = () => require("../agents").main();
-const REGISTRY = agent().sessionsDir();
 const TRANSCRIPTS = agent().transcriptsDir();
 const STOP_WORDS = new Set(["de", "del", "la", "el", "los", "las", "y", "a", "en", "the", "of", "and"]);
 const STARTUP_NOTICE = "Aviso del arranque: arranca el reporte. Eres la sesión de reporte registrada: ejecuta ahora .claude/commands/resumen-jira.md (regla de AGENTS.md).";
@@ -159,31 +158,26 @@ const { projectOfPath } = require("../core/projects");
 const liveStatus = (status, subagents) => (subagents ? "busy" : status === "shell" ? "idle" : status || "");
 
 function liveSessions() {
-  let files;
-  try {
-    files = fs.readdirSync(REGISTRY).filter((f) => /^\d+\.json$/.test(f));
-  } catch (e) {
-    return null;
-  }
+  const entries = agent().liveEntries();
+  if (!entries) return null;
   const out = [];
-  for (const f of files) {
+  for (const e of entries) {
     try {
-      const j = JSON.parse(fs.readFileSync(path.join(REGISTRY, f), "utf8"));
-      const project = projectOfPath(j.cwd);
-      if (j.kind !== "interactive" || !j.name || !j.sessionId || !project || !processAlive(j.pid)) continue;
-      const subagents = runningSubagents(j.sessionId);
+      const project = projectOfPath(e.cwd);
+      if (!project || !processAlive(e.pid)) continue;
+      const subagents = runningSubagents(e.conversation);
       out.push({
-        name: j.name,
-        conversation: j.sessionId,
-        started: new Date(Number(j.startedAt)).toISOString(),
-        status: liveStatus(j.status, subagents),
+        name: e.name,
+        conversation: e.conversation,
+        started: new Date(e.startedMs).toISOString(),
+        status: liveStatus(e.status, subagents),
         subagents,
-        background: j.status === "shell",
+        background: e.background,
         project: project.id,
-        statusSince: j.statusUpdatedAt ? new Date(Number(j.statusUpdatedAt)).toISOString() : null,
-        title: conversationTitle(j.sessionId),
+        statusSince: e.statusSinceMs ? new Date(e.statusSinceMs).toISOString() : null,
+        title: conversationTitle(e.conversation),
       });
-    } catch (e) {}
+    } catch (x) {}
   }
   return out;
 }
