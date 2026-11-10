@@ -242,6 +242,7 @@ function viewSwitch(current) {
     try {
       localStorage.setItem("task-view", v);
     } catch (e) {}
+    if (v === "board" && state.tab === "ignored") return switchView("pending");
     render();
   };
   return h("div", { class: "view-switch", role: "group", "aria-label": "Vista de tareas" }, [
@@ -307,6 +308,7 @@ function paint() {
   }
   right.appendChild(quotaBlock());
   document.querySelector(".app").setAttribute("data-view", state.tab);
+  document.querySelector(".app").setAttribute("data-section", section);
   const board = !mobile && isTaskTab(state.tab) && state.tab !== "ignored" && taskView() === "board";
   const [title, sub] = board ? ["Tareas", "Todas las tareas por estado. Pulsa una para ver su tarjeta entera."] : VIEWS[state.tab] || VIEWS.pending;
   document.getElementById("view-title").textContent = title;
@@ -331,13 +333,13 @@ function paint() {
     return renderToday(root, errors);
   }
   if (state.tab === "more") return renderMore(root, waitingDeploys, errors);
-  const switchable = !mobile && isTaskTab(state.tab) && state.tab !== "ignored";
+  const switchable = !mobile && isTaskTab(state.tab);
   if (switchable || state.tab === "pending") {
     const bar = h("div", { class: "task-toolbar" });
     if (switchable) bar.appendChild(viewSwitch(board ? "board" : "list"));
     const chips = !mobile && root.querySelector(".status-chips");
     if (chips) bar.appendChild(chips);
-    if (state.tab === "pending" || board) returnedRule(bar);
+    if (state.tab === "pending" || switchable) returnedRule(bar);
     root.appendChild(bar);
   }
   if (!state.ok) return root.appendChild(empty("El tablero no responde.", "Arráncalo con: node board.js ensure"));
