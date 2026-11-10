@@ -78,9 +78,15 @@ function openLog(id) {
   }
 }
 
+const ownPids = () => [process.pid, require("./tunnel").pid()].filter(Boolean).map(String);
+const foreignPids = (port) => listeningPids(port).filter((p) => !ownPids().includes(String(p)));
+const leader = () => require("./tunnel").remote().catch(() => null);
+
 async function start(id) {
   const s = find(id);
   if (!s) throw new Error(`proyecto desconocido: ${id}`);
+  const lead = await leader();
+  if (lead) throw new Error(`este ordenador no manda: los proyectos corren en el ${lead.label}`);
   if (await portOpen(s.port)) return false;
   fs.mkdirSync(LOG_DIR, { recursive: true });
   const fd = openLog(id);
@@ -114,7 +120,7 @@ async function stop(id) {
       return true;
     }
   }
-  const pids = listeningPids(s.port);
+  const pids = foreignPids(s.port);
   pids.forEach(kill);
   killStarted(id);
   return pids.length > 0;
@@ -128,7 +134,7 @@ async function restart(id) {
 
 async function startAll(auto) {
   const started = [];
-  if (require("./tunnel").status().open) return started;
+  if (require("./tunnel").status().open || (await leader())) return started;
   for (const s of servers()) if (!(auto && s.autoStart === false) && (await start(s.id))) started.push(s.id);
   return started;
 }
@@ -144,8 +150,15 @@ function firstReportToday(d, day) {
   return at.some((x) => madridNow(new Date(x)).day === day);
 }
 
+async function standby() {
+  const stopped = [];
+  for (const s of [...servers()].reverse()) if (foreignPids(s.port).length && (await stop(s.id))) stopped.push(s.id);
+  return stopped;
+}
+
 async function schedule() {
   if (!servers().length) return;
+  if (await leader()) return standby();
   const t = madridNow();
   if (["Sat", "Sun"].includes(t.weekday)) return;
   const d = load();
@@ -161,4 +174,4 @@ async function schedule() {
   }
 }
 
-module.exports = { status, start, stop, restart, startAll, stopAll, schedule };
+module.exports = { status, start, stop, restart, startAll, stopAll, standby, schedule };

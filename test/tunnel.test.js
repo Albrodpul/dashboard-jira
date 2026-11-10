@@ -92,3 +92,11 @@ test("a tunnel with only direct relays and no ssh process stays open", (t) => {
   tunnel.close();
   assert.equal(fs.existsSync(STATE), false);
 });
+
+test("the standby machine does not start projects and stops its own", async (t) => {
+  const devservers = require("../src/features/devservers");
+  t.mock.method(tunnel, "remote", async () => ({ label: "Mac" }));
+  await assert.rejects(devservers.start("web"), /no manda: los proyectos corren en el Mac/);
+  assert.deepEqual(await devservers.startAll(true), []);
+  assert.deepEqual(await devservers.schedule(), []);
+});

@@ -122,6 +122,7 @@ async function open() {
   if (current()) return status();
   if (require("../cluster/cluster").primaryNow()) throw new Error("este ordenador manda: los proyectos se abren aquí directamente");
   const { host, label, peerHost } = await target();
+  await require("./devservers").standby().catch(() => {});
   const all = ports();
   const checks = await Promise.all(all.map((p) => reachable(peerHost, p)));
   const direct = all.filter((p, i) => checks[i]);
@@ -182,4 +183,9 @@ function guard() {
   if (t && require("../cluster/cluster").primaryNow()) close();
 }
 
-module.exports = { status, open, close, guard, remote, relay, reachable };
+const pid = () => {
+  const t = read();
+  return t && t.pid ? t.pid : null;
+};
+
+module.exports = { status, open, close, guard, remote, relay, reachable, pid };

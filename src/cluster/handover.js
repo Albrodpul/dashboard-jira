@@ -81,11 +81,8 @@ async function demote(reason) {
   save();
   log(`dejo de mandar: ${reason}`);
   await stopRoles();
-  const hours = require("../core/hours");
-  if (!hours.workHours()) {
-    letSleep();
-    await require("../features/devservers").stopAll().catch(() => {});
-  }
+  await require("../features/devservers").stopAll().catch(() => {});
+  if (!require("../core/hours").workHours()) letSleep();
 }
 
 let busy = false;
