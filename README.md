@@ -95,6 +95,8 @@ The file has a common part (`cluster`, `trustedHosts`, `voice`, `sessionModel`, 
 - `agent`: optional, the coding agent the project's sessions use. Only `claude` exists for now; its paths and commands live in `src/agents/claude.js`.
 - `taskPrefix`: optional, the key prefix for tasks created by hand (`New task` in Tasks, or `board.js task-new "<title>" [description] [--project id]`). Defaults to the id in capitals. Keep it the same on every machine.
 
+Projects other than the first are usually added from the board itself (Settings → Projects): their shared part travels between machines, while each machine keeps its own folder (`data/projects-local.json`) and credentials (`.env.<id>`, written by the panel and never shown). A project picker in the top bar filters the whole board.
+
 Sessions belong to the project whose `root` contains their folder. A task is never sent to a session of another project. The installer writes into each project only the commands it can use (`soy.md`; `resumen-jira.md` with Jira; `seguimiento.md` with follow-up), and a fixed role registered from another project's folder stays in that project. With more than one project, Tasks shows a project picker.
 
 A file in the old flat format (no `projects`) is upgraded in place on the next start, with the project id taken from `company`; the original is kept as `board.config.json.flat.bak`.
