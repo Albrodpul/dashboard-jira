@@ -122,13 +122,6 @@
 }
 
 .term-wrap { position: relative; }
-.term-copysheet { position: absolute; inset: 0; z-index: 5; display: flex; flex-direction: column; gap: 8px; padding: 12px; background: var(--surface); color: var(--ink); }
-.term-copyhead { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.term-copytabs { display: flex; gap: 4px; margin-right: auto; }
-.term-copytab { border: 1px solid var(--line); background: transparent; color: var(--ink-2); padding: 5px 12px; border-radius: 6px; font: inherit; font-size: 13px; cursor: pointer; }
-.term-copytab.on { border-color: var(--accent); color: var(--accent); font-weight: 600; }
-.term-copyhint { margin: 0; }
-.term-copytext { flex: 1; min-height: 0; resize: none; padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface-2); color: var(--ink); font: 13px/1.5 ui-monospace, Consolas, monospace; white-space: pre-wrap; }
 
 .term-inline { --tw-bg: #0e1519; --tw-bar: #131d22; --tw-line: #24343b; --tw-ink: #dfe7ea; --tw-ink-3: #8a9ca3; border-radius: 14px; box-shadow: 0 8px 28px rgba(8, 30, 38, 0.18); }
 .term-inline .term-head { padding: 10px 12px 10px 16px; min-height: 50px; }
