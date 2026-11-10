@@ -92,6 +92,11 @@ The file has a common part (`cluster`, `trustedHosts`, `voice`, `sessionModel`, 
 - `jira.projects`: the project keys to watch, e.g. `["WEB", "API"]`. A project without Jira leaves out `jira` and `statuses`; the first one still needs them.
 - `env`: optional. Credentials file, relative to the workspace. Defaults to `.env` for the first project and `.env.<id>` for the others, so one client's keys are never used for another.
 
+- `agent`: optional, the coding agent the project's sessions use. Only `claude` exists for now; its paths and commands live in `src/agents/claude.js`.
+- `taskPrefix`: optional, the key prefix for tasks created by hand (`New task` in Tasks, or `board.js task-new "<title>" [description] [--project id]`). Defaults to the id in capitals. Keep it the same on every machine.
+
+Sessions belong to the project whose `root` contains their folder. A task is never sent to a session of another project. The installer writes into each project only the commands it can use (`soy.md`; `resumen-jira.md` with Jira; `seguimiento.md` with follow-up), and a fixed role registered from another project's folder stays in that project. With more than one project, Tasks shows a project picker.
+
 A file in the old flat format (no `projects`) is upgraded in place on the next start, with the project id taken from `company`; the original is kept as `board.config.json.flat.bak`.
 
 ### 4. Let Jira fill in the ids
