@@ -4,9 +4,11 @@ const cluster = require("../cluster/cluster");
 const { DATA_DIR } = require("../core/data");
 
 const INDEX = "MEMORY.md";
-const memoryDir = () => path.join(cluster.projectDir(), "memory");
+const MAIN = { dir: () => path.join(cluster.projectDir(), "memory"), state: () => path.join(DATA_DIR, "memory-sync.json"), peer: "/api/cluster/memory" };
+let ctx = MAIN;
+const memoryDir = () => ctx.dir();
 const isNote = (name) => /^[\w.-]+\.md$/.test(name);
-const STATE = () => path.join(DATA_DIR, "memory-sync.json");
+const STATE = () => ctx.state();
 const TOMB_MS = 30 * 24 * 3600 * 1000;
 
 function readState() {
@@ -84,10 +86,50 @@ function mergeIndex(local, peer, gone = new Set()) {
   return base + extra.join("\n") + "\n";
 }
 
+function projectContext(p) {
+  const agent = require("../agents").agentFor(p);
+  return { dir: () => path.join(agent.transcriptsDir(), agent.transcriptFolder(p.root), "memory"), state: () => path.join(DATA_DIR, `memory-sync-${p.id}.json`), peer: `/api/cluster/memory/${p.id}` };
+}
+
+function withContext(c, fn) {
+  const before = ctx;
+  ctx = c;
+  try {
+    return fn();
+  } finally {
+    ctx = before;
+  }
+}
+
+function projectSnapshot(id) {
+  const config = require("../core/config");
+  const p = config.project(id);
+  if (!p || !p.root || p === config.mainProject) return null;
+  return withContext(projectContext(p), snapshot);
+}
+
 async function syncMemory() {
   if (!cluster.clusterEnabled()) return;
+  await syncOne(MAIN);
+  const config = require("../core/config");
+  for (const p of config.projects) if (p !== config.mainProject && p.root) await syncOne(projectContext(p));
+}
+
+async function syncOne(c) {
+  withContext(c, () => tombstones());
+  const peer = await cluster.peerGet(c.peer, 15000);
+  if (!peer || !peer.files) return;
+  const before = ctx;
+  ctx = c;
+  try {
+    applyPeer(peer);
+  } finally {
+    ctx = before;
+  }
+}
+
+function applyPeer(peer) {
   tombstones();
-  const peer = await cluster.peerGet("/api/cluster/memory", 15000);
   if (!peer || !peer.files) return;
   const dir = memoryDir();
   fs.mkdirSync(dir, { recursive: true });
@@ -131,4 +173,4 @@ async function syncMemory() {
   tombstones();
 }
 
-module.exports = { memoryFiles, snapshot, syncMemory, mergeIndex, dropFromIndex };
+module.exports = { memoryFiles, snapshot, projectSnapshot, syncMemory, mergeIndex, dropFromIndex };

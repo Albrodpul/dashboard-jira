@@ -66,10 +66,20 @@ function crossProject(record, area, routes) {
   return `${record.key || record.id || "esto"} es de ${name(from)} y la sesión ${area} es de ${name(to)}: entre proyectos no se envía nada.`;
 }
 
+function projectOfFolder(folder) {
+  if (!folder) return null;
+  const agents = require("../agents");
+  return config.projects.find((p) => p.root && agents.agentFor(p).transcriptFolder(p.root) === folder) || null;
+}
+
+function projectOfConversation(id) {
+  return projectOfFolder(require("../agents").main().folderOfConversation(id));
+}
+
 function roleRoute(routes, role, projectId) {
   if (!routes) return null;
   if (!projectId || projectId === mainId() || role === "board") return routes[role] || null;
   return (routes.projectRoles && routes.projectRoles[projectId] && routes.projectRoles[projectId][role]) || null;
 }
 
-module.exports = { roleRoute, mainId, projectOfPath, projectOfKey, projectOf, areaProject, crossProject };
+module.exports = { projectOfFolder, projectOfConversation, roleRoute, mainId, projectOfPath, projectOfKey, projectOf, areaProject, crossProject };

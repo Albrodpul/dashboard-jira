@@ -8,6 +8,8 @@ const { pullSnapshot, mergePeer } = require("./snapshot");
 const { keepAwake, letSleep } = require("./power");
 
 const TAKEOVER_MS = 60000;
+const BACK_PULL_MS = 3 * 60 * 1000;
+let lastBackPull = 0;
 const SNAPSHOT_MS = 60000;
 const ROLES = [
   ["reporter", "Reporte JIRA"],
@@ -133,6 +135,10 @@ async function tick() {
     if (peer.role !== "primary" && Date.now() - lastPull > SNAPSHOT_MS) {
       lastPull = Date.now();
       if (mergePeer(await peerGet("/api/cluster/snapshot", 30000))) st.lastFollowerMerge = now();
+    }
+    if (!st.pendingPull && peer.role !== "primary" && Date.now() - lastBackPull > BACK_PULL_MS) {
+      lastBackPull = Date.now();
+      await refreshFromPeer(require("./transcripts").recentSince(), { skipRunning: true });
     }
     if (st.pendingPull && peer.role !== "primary" && (await refreshFromPeer()) >= 0) {
       log("conversaciones del otro ordenador traídas tras el relevo");

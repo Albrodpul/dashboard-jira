@@ -67,7 +67,7 @@ function serve() {
       delete entry.fresh;
     }
     const [exe, fullArgs] = agent().command(args, agent().cli());
-    s.pty = pty.spawn(exe, fullArgs, { name: "xterm-256color", cols: s.cols, rows: s.rows, cwd: entry.cwd || WORKDIR, env: { MCP_TIMEOUT: "120000", ...require("./registry").cleanEnv(), TOWER_HOSTED: "1" } });
+    s.pty = pty.spawn(exe, fullArgs, { name: "xterm-256color", cols: s.cols, rows: s.rows, cwd: entry.cwd || conversationRoot(entry.conversation) || WORKDIR, env: { MCP_TIMEOUT: "120000", ...require("./registry").cleanEnv(), TOWER_HOSTED: "1" } });
     log(`start ${entry.name} ${entry.conversation} pid ${s.pty.pid}`);
     s.pty.onData((d) => {
       s.buffer += d;
@@ -356,6 +356,15 @@ function markOnDemand(conversation) {
   const e = list.find((x) => x.conversation === conversation);
   if (e) e.onDemand = true;
   writeConfig(list);
+}
+
+function conversationRoot(conversation) {
+  try {
+    const p = require("../core/projects").projectOfConversation(conversation);
+    return p && p.root && fs.existsSync(p.root) ? p.root : null;
+  } catch (e) {
+    return null;
+  }
 }
 
 function adopt(conversation, name) {

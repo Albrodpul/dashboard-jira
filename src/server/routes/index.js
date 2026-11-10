@@ -255,6 +255,11 @@ function handleGet(req, res, url) {
   if (url.startsWith("/api/permission/perm-")) return serveBody(res, "application/json", JSON.stringify(permissions.poll(url.slice("/api/permission/".length))));
   if (url === "/api/cluster/quota") return serveBody(res, "application/json", JSON.stringify(require("../../features/quota").readQuota()));
   if (url === "/api/cluster/memory") return serveBody(res, "application/json", JSON.stringify(require("../../features/memory-sync").snapshot()));
+  if (url.startsWith("/api/cluster/memory/")) {
+    const snap = require("../../features/memory-sync").projectSnapshot(decodeURIComponent(url.slice("/api/cluster/memory/".length)));
+    if (!snap) return res.writeHead(404).end();
+    return serveBody(res, "application/json", JSON.stringify(snap));
+  }
   if (url === "/api/projects-admin") return serveBody(res, "application/json", JSON.stringify(require("../../features/projects-admin").list()));
   if (url === "/api/cluster") return serveBody(res, "application/json", JSON.stringify(require("../../cluster/cluster").info()));
   if (url === "/api/cluster/snapshot") return serveBody(res, "application/json", JSON.stringify(require("../../cluster/cluster").snapshot()));

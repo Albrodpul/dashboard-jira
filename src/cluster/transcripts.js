@@ -53,15 +53,44 @@ function lastReply(conversation) {
   return parts.join("\n\n");
 }
 
+const RECENT_MS = 14 * 24 * 3600 * 1000;
+const UUID_FILE = /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.jsonl$/;
+
+function projectOfFile(f) {
+  const p = require("../core/projects").projectOfFolder(path.basename(path.dirname(f)));
+  return p ? p.id : config.mainProject.id;
+}
+
 function transcripts() {
-  const out = [];
+  const out = new Map();
+  const add = (conversation, name, f, hosted) => {
+    const st2 = fs.statSync(f);
+    out.set(conversation, { conversation, name, size: st2.size, mtime: st2.mtimeMs, tail: st2.size ? tailHash(f, st2.size) : "", project: projectOfFile(f), hosted });
+  };
   for (const e of require("../sessions/host").readConfig()) {
     const f = transcriptPath(e.conversation);
-    if (!f) continue;
-    const st2 = fs.statSync(f);
-    out.push({ conversation: e.conversation, name: e.name, size: st2.size, mtime: st2.mtimeMs });
+    if (f) add(e.conversation, e.name, f, true);
   }
-  return out;
+  const since = Date.now() - RECENT_MS;
+  for (const p of config.projects) {
+    if (!p.root) continue;
+    const dir = path.join(PROJECTS, agent().transcriptFolder(p.root));
+    let names = [];
+    try {
+      names = fs.readdirSync(dir);
+    } catch (e) {
+      continue;
+    }
+    for (const n of names) {
+      const m = UUID_FILE.exec(n);
+      if (!m || out.has(m[1])) continue;
+      const f = path.join(dir, n);
+      try {
+        if (fs.statSync(f).mtimeMs >= since) add(m[1], null, f, false);
+      } catch (e) {}
+    }
+  }
+  return [...out.values()];
 }
 
 const TAIL = 4096;
@@ -96,7 +125,13 @@ function serveTranscript(conversation, from) {
 
 const kept = new Map();
 
-async function pullTranscripts(onlyNewerThan) {
+function localFolderFor(t) {
+  const p = config.project(t.project || config.mainProject.id);
+  if (!p || !p.root) return null;
+  return path.join(PROJECTS, agent().transcriptFolder(p.root));
+}
+
+async function pullTranscripts(onlyNewerThan, skip = new Set()) {
   const list = await peerGet("/api/cluster/transcripts", 15000);
   if (!Array.isArray(list)) return { changed: [], failed: ["la lista"] };
   const host = require("../sessions/host");
@@ -104,14 +139,18 @@ async function pullTranscripts(onlyNewerThan) {
   const failed = [];
   for (const t of list) {
     if (onlyNewerThan && t.mtime < onlyNewerThan) continue;
+    if (skip.has(t.conversation)) continue;
+    const folder = localFolderFor(t);
+    if (!folder) continue;
     const local = transcriptPath(t.conversation);
     const size = local ? fs.statSync(local).size : -1;
     if (size === t.size || kept.get(t.conversation) === t.size) continue;
+    if (local && size > t.size && t.tail && t.size > 0 && tailHash(local, t.size) === t.tail) continue;
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 15 * 60000);
     try {
       const get = (from) => fetch(`${CLUSTER.peer}/api/cluster/transcript/${t.conversation}?from=${from}`, { signal: ctrl.signal, cache: "no-store" });
-      const file = local || path.join(projectDir(), `${t.conversation}.jsonl`);
+      const file = local || path.join(folder, `${t.conversation}.jsonl`);
       let r = size > 0 && size < t.size ? await get(size) : null;
       let append = !!(r && r.ok && r.headers.get("x-tail-hash") === tailHash(local, size));
       if (!append) r = await get(0);
@@ -125,15 +164,15 @@ async function pullTranscripts(onlyNewerThan) {
     } finally {
       clearTimeout(timer);
     }
-    host.adopt(t.conversation, t.name);
+    if (t.hosted !== false && t.name) host.adopt(t.conversation, t.name);
   }
-  if (failed.length) log(`no se pudieron traer: ${failed.join(", ")}`);
+  if (failed.length) log(`no se pudieron traer: ${failed.map((x) => x || "sin nombre").join(", ")}`);
   return { changed, failed };
 }
 
 function writeTranscripts(changed) {
-  fs.mkdirSync(projectDir(), { recursive: true });
   for (const c of changed) {
+    fs.mkdirSync(path.dirname(c.file), { recursive: true });
     if (c.append) {
       fs.appendFileSync(c.file, c.body);
       continue;
@@ -147,7 +186,7 @@ function writeTranscripts(changed) {
       }
       if (m.action === "merge") {
         body = m.body;
-        log(`${c.name}: siguió en los dos ordenadores; junto ${m.localOnly} líneas de aquí y ${m.peerOnly} del otro`);
+        log(`${c.name || c.conversation}: siguió en los dos ordenadores; junto ${m.localOnly} líneas de aquí y ${m.peerOnly} del otro`);
       }
       fs.copyFileSync(c.file, c.file + ".prev");
     }
@@ -161,8 +200,11 @@ async function runningConversations() {
   return new Set((list || []).filter((x) => x.running).map((x) => x.conversation));
 }
 
-async function refreshFromPeer(onlyNewerThan) {
-  const { changed, failed } = await pullTranscripts(onlyNewerThan);
+async function refreshFromPeer(onlyNewerThan, { skipRunning = false } = {}) {
+  const skip = skipRunning ? await runningConversations() : new Set();
+  const hosted = new Set(require("../sessions/host").readConfig().map((e) => e.conversation));
+  for (const s of require("../sessions/registry").liveSessions() || []) if (!hosted.has(s.conversation)) skip.add(s.conversation);
+  const { changed, failed } = await pullTranscripts(onlyNewerThan, skip);
   st.lastTranscripts = now();
   if (!changed.length) return failed.length ? -1 : 0;
   const host = require("../sessions/host");
@@ -175,4 +217,6 @@ async function refreshFromPeer(onlyNewerThan) {
   return failed.length ? -1 : changed.length;
 }
 
-module.exports = { projectDir, transcriptPath, lastReply, transcripts, serveTranscript, refreshFromPeer, runningConversations };
+const recentSince = () => Date.now() - RECENT_MS;
+
+module.exports = { recentSince, projectDir, transcriptPath, lastReply, transcripts, serveTranscript, refreshFromPeer, runningConversations };

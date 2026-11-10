@@ -46,6 +46,14 @@ const isHostedCommandLine = (line) => /\.local[\\/]bin[\\/]claude(\.exe)?\b/i.te
 const editorUrl = (conversation) => (conversation ? `vscode://anthropic.claude-code/open?session=${conversation}` : "vscode://anthropic.claude-code/open");
 const transcriptFolder = (root) => root.replace(/\\/g, "/").replace(/^([A-Z]):/, (m, d) => `${d.toLowerCase()}:`).replace(/[^a-zA-Z0-9]/g, "-");
 
+function folderOfConversation(id) {
+  const dir = path.join(home(), "projects");
+  try {
+    for (const name of fs.readdirSync(dir)) if (fs.existsSync(path.join(dir, name, `${id}.jsonl`))) return name;
+  } catch (e) {}
+  return null;
+}
+
 function liveEntries() {
   const dir = path.join(home(), "sessions");
   let files;
@@ -66,6 +74,7 @@ function liveEntries() {
 }
 
 module.exports = {
+  folderOfConversation,
   liveEntries,
   id: "claude",
   name: "Claude Code",
