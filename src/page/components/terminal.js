@@ -98,6 +98,7 @@ const ACTIVITY = { busy: ["busy", "Trabajando"], idle: ["on", "Esperando"] };
 function activityOf(conversation) {
   const live = ((state.sessions && state.sessions.list) || []).find((x) => x.conversation === conversation);
   if (!live) return ["", "Dormida"];
+  if (live.status === "idle" && live.background) return ["on", "Esperando · con proceso de fondo"];
   return ACTIVITY[live.status] || ["bad", live.status ? `Estado «${live.status}»` : "Abierta"];
 }
 

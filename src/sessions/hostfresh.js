@@ -34,7 +34,7 @@ async function refreshHostWhenQuiet() {
   const live = new Map(((s.sessions && s.sessions.list) || []).map((x) => [x.conversation, x]));
   const quiet = hosted.filter((h) => h.running).every((h) => {
     const l = live.get(h.conversation);
-    return !l || l.status === "idle";
+    return !l || (l.status === "idle" && !l.background);
   });
   const asking = ((s.permissions && s.permissions.pending) || []).length > 0;
   quietChecks = quiet && !asking ? quietChecks + 1 : 0;

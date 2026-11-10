@@ -27,7 +27,7 @@ async function sleepIdleSessions(now) {
   for (const h of hosted) {
     if (!h.running || keep.has(h.conversation)) continue;
     const l = live.get(h.conversation);
-    if (!l || l.status !== "idle" || !l.statusSince || Date.now() - new Date(l.statusSince).getTime() < (now ? 0 : IDLE_MS)) continue;
+    if (!l || l.status !== "idle" || l.background || !l.statusSince || Date.now() - new Date(l.statusSince).getTime() < (now ? 0 : IDLE_MS)) continue;
     await host.hostRequest("POST", "/stop", { conversation: h.conversation }).catch(() => {});
     host.markOnDemand(h.conversation);
     log(`duerme ${h.name}: parada desde ${l.statusSince}`);

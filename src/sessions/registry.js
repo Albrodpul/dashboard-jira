@@ -163,6 +163,8 @@ const insideRoot = (cwd) => {
   return dir === root || dir.startsWith(root + "/");
 };
 
+const liveStatus = (status, subagents) => (subagents ? "busy" : status === "shell" ? "idle" : status || "");
+
 function liveSessions() {
   let files;
   try {
@@ -180,8 +182,9 @@ function liveSessions() {
         name: j.name,
         conversation: j.sessionId,
         started: new Date(Number(j.startedAt)).toISOString(),
-        status: subagents || j.status === "shell" ? "busy" : j.status || "",
+        status: liveStatus(j.status, subagents),
         subagents,
+        background: j.status === "shell",
         statusSince: j.statusUpdatedAt ? new Date(Number(j.statusUpdatedAt)).toISOString() : null,
         title: conversationTitle(j.sessionId),
       });
@@ -418,6 +421,7 @@ function wakeSession(name, notice) {
 }
 
 module.exports = {
+  liveStatus,
   cleanEnv,
   sessionToken,
   STARTUP_NOTICE,

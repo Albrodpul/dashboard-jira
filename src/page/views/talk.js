@@ -68,6 +68,7 @@ const TALK_STATES = { busy: ["busy", "Trabajando"], idle: ["on", "Esperando"] };
 function talkActivity(conversation) {
   if (!conversation) return ["", "Sin registrar"];
   const live = ((state.sessions && state.sessions.list) || []).find((x) => x.conversation === conversation);
+  if (live && live.status === "idle" && live.background) return ["on", "Esperando · con proceso de fondo"];
   if (live) return TALK_STATES[live.status] || ["bad", live.status ? `Estado «${live.status}»` : "Abierta"];
   const hosted = (state.hosted || []).some((x) => x.conversation === conversation && !x.waitingForVsCode);
   return ["", hosted ? "Dormida" : "Fuera del tablero"];
