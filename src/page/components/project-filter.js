@@ -12,6 +12,10 @@ export function currentProject() {
   return workspaces().some((p) => p.id === v) ? v : "";
 }
 
+export const mixedProjects = () => workspaces().length > 1 && !currentProject();
+
+export const projectName = (id) => (workspaces().find((p) => p.id === id) || {}).name || id || "";
+
 const TAB_MODULE = { daily: "daily", sentry: "sentry", deploy: "deploy", projects: "devServers", "follow-up": "followUp", learning: "jira", context: "context" };
 
 export function hasModule(name) {

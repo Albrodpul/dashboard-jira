@@ -1,6 +1,6 @@
 import { livePanel } from "../components/terminal.js";
 import { state, h, button, toast, requestOrFail, render, refresh, empty, switchView } from "../lib/base.js";
-import { currentProject } from "../components/project-filter.js";
+import { currentProject, mixedProjects as mixed, projectName } from "../components/project-filter.js";
 
 let talkTo = "board";
 try {
@@ -46,15 +46,12 @@ function otherLiveSessions() {
 }
 
 const workspaceList = () => (state.jiraSetup && state.jiraSetup.workspaces) || [];
-const mixed = () => workspaceList().length > 1 && !currentProject();
 
 function projectOfTalk(conversation) {
   const area = state.areas.find((a) => a.conversation === conversation && a.project);
   const live = ((state.sessions && state.sessions.list) || []).find((s) => s.conversation === conversation && s.project);
   return (area && area.project) || (live && live.project) || (workspaceList()[0] || {}).id;
 }
-
-const projectName = (id) => (workspaceList().find((p) => p.id === id) || {}).name || id;
 
 function talkGroups(fixedShown, others) {
   const fixedRows = fixedShown.map((k) => [k, TALK_NAMES[k], (talkSession(k) || {}).conversation]);
@@ -99,7 +96,7 @@ function newTalkSession(b) {
     .then(() => render());
 }
 
-const TALK_STATES = { busy: ["busy", "Trabajando"], idle: ["on", "Esperando"] };
+const TALK_STATES = { busy: ["busy", "Trabajando"], idle: ["on", "Esperando"], waiting: ["bad", "Espera tu respuesta"] };
 
 function talkActivity(conversation) {
   if (!conversation) return ["", "Sin registrar"];

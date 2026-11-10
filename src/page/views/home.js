@@ -1,5 +1,5 @@
 import { state, h, when, minutesSince, switchView, empty, fixedAreaIds, button, post, toast } from "../lib/base.js";
-import { currentProject } from "../components/project-filter.js";
+import { currentProject, mixedProjects, projectName } from "../components/project-filter.js";
 
 
 const GROUPS = [
@@ -23,6 +23,7 @@ function blockReason(live, tasks) {
   if (partial) return { text: "A medias", task: partial, view: "waiting" };
   const silent = tasks.find((t) => t.status === "sent" && !t.manual && (!t.sentAt || minutesSince(t.sentAt) >= SILENT_MIN));
   if (silent) return { text: "Parada sin avisar de", task: silent, view: "sent" };
+  if (live.status === "waiting") return { text: "Espera tu respuesta en su sesión" };
   if (live.status && !["busy", "idle"].includes(live.status)) return { text: `Estado «${live.status}»` };
   return null;
 }
@@ -41,7 +42,7 @@ export function sessionSituation() {
     const live = liveOf(a.conversation, a.sessionName);
     if (!live) continue;
     const tasks = state.tasks.filter((t) => t.area === a.id && ["sent", "waiting", "partial"].includes(t.status));
-    const row = { id: a.id, name: a.unnamed ? a.vsCodeTitle || `${a.sessionName} (sin nombre)` : a.name, sessionName: a.sessionName, conversation: a.conversation, since: live.statusSince, subagents: live.subagents || 0, tasks };
+    const row = { id: a.id, name: a.unnamed ? a.vsCodeTitle || `${a.sessionName} (sin nombre)` : a.name, sessionName: a.sessionName, conversation: a.conversation, project: a.project || live.project, since: live.statusSince, subagents: live.subagents || 0, tasks };
     const asking = ((state.permissions && state.permissions.pending) || []).find((p) => p.conversation === a.conversation);
     if (asking) out.blocked.push({ ...row, reason: { text: `Espera tu permiso: ${asking.label}`, view: "waiting" } });
     else if (live.status === "busy") out.working.push(row);
@@ -107,7 +108,8 @@ function sessionCard(s, group) {
   if (s.subagents) kids.push(h("div", { class: "meta", text: s.subagents === 1 ? "Con un subagente en marcha" : `Con ${s.subagents} subagentes en marcha` }));
   const others = s.tasks.filter((t) => !s.reason || t !== s.reason.task);
   if (others.length) kids.push(h("div", { class: "meta", text: `Con ${others.map((t) => t.key).join(", ")}` }));
-  kids.push(h("div", { class: "home-footer" }, [h("span", { class: "meta", text: s.sessionName || "" }), vsCodeLink(s)]));
+  const where = mixedProjects() && s.project ? h("span", { class: "chip session-project", text: projectName(s.project) }) : null;
+  kids.push(h("div", { class: "home-footer" }, [h("span", { class: "home-footer-who" }, [where, h("span", { class: "meta", text: s.sessionName || "" })]), vsCodeLink(s)]));
   return h("article", { class: `card home-session ${group}` }, kids);
 }
 
