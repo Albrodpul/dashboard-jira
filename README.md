@@ -19,14 +19,16 @@ When several AI coding sessions work in parallel (one per product area), someone
 
 It also has:
 - **a session host**: the fixed sessions (reporter, orchestrator, follow-up, board) and the area sessions run as `claude` processes inside the board's own terminals (`node-pty`). They start by themselves at boot, wake up when work arrives, go to sleep after 30 idle minutes, and the reporter and orchestrator start a fresh conversation every day;
-- **Talk** (Hablar): the live terminal of each session, from the desktop or the phone. It has a session list showing who is working, waiting or asleep, a model and effort picker per session, voice notes transcribed locally with Whisper, and replies spoken with Piper;
+- **Talk** (Hablar): the live terminal of each session, from the desktop or the phone. It has a session list showing who is working, waiting or asleep, a model and effort picker per session, file attachments, voice notes transcribed locally with Whisper, and replies spoken with Piper. Attached files are saved in the chat's own project: `pruebas/hablar/<day>/` in the first project, `<project folder>/.tablero/hablar/<day>/` in the others (kept out of git through `.git/info/exclude`), and deleted after 7 days. When the project has no folder on that machine, the upload is refused rather than saved somewhere else;
 - **permissions**: a `PreToolUse` hook sends each permission request to the board. Read-only commands and edits inside the workspace are approved on their own, and the rest wait for you on the board;
 - **two machines** (optional): a PC and a Mac run the board together. One is in command (it hosts the sessions and talks to Jira) and the other mirrors it. See [Two machines](#two-machines);
-- **Projects**: start and stop the local dev servers (database, API, frontends) and see if they answer;
+- **several projects in one board**: your own and clients', with or without Jira, each with its folder, credentials, task prefix and optional modules. A picker in the top bar filters the whole board; with "Todos los proyectos", Home and Talk show which project each session belongs to (see [Projects and root](#3-projects-and-root-boardconfigjson));
+- **Servidores**: start and stop the local dev servers (database, API, frontends) and see if they answer;
 - one-click deploy orders, with the live state of GitHub Actions and AWS CodeDeploy;
 - Sentry errors sent to a session with one click;
 - push notifications;
-- a daily summary of yesterday's work, and an activity summary of beta and production split by person;
+- a **work schedule** (Ordenadores → Horario de trabajo, Monday to Friday): it sets when the fixed sessions start, when Jira is watched and follow-ups run, when the projects stop, and the time the daily is drafted (inside the workday; by default 90 minutes before it ends);
+- a daily summary of the day's work per project, and an activity summary of beta and production split by person;
 - a "Learning" tab that tracks how often work comes back from review;
 - the shared `context/` folder kept in sync through git.
 
@@ -84,20 +86,21 @@ The `.env` never leaves the workspace folder and is git-ignored.
 
 ### 3. Projects and root (`board.config.json`)
 
-The file has a common part (`cluster`, `trustedHosts`, `voice`, `sessionModel`, `sessionProfiles`) and a `projects` list. Each project is one workspace with its own folder, credentials and, optionally, Jira. For now everything runs on the first project; the others are only read. Set at least, in the first project:
+The file has a common part (`cluster`, `trustedHosts`, `voice`, `sessionModel`, `sessionProfiles`) and a `projects` list. Each project is one workspace with its own folder, credentials and, optionally, Jira. The first one is the main project: Jira watch, the report, follow-up, deploys and Sentry run on it. The others have manual tasks, their own sessions and, if turned on, their own daily and Ordenar contexto. Set at least, in the first project:
 
 - `id`: a short lowercase name, e.g. `acme`. Records are tagged with it, so keep it the same on every machine.
 - `company`: the company name, used in texts.
 - `root`: the folder you open in VS Code, where the Claude Code sessions live. The installer writes the slash commands into `<root>/.claude/commands/`.
 - `jira.projects`: the project keys to watch, e.g. `["WEB", "API"]`. A project without Jira leaves out `jira` and `statuses`; the first one still needs them.
 - `env`: optional. Credentials file, relative to the workspace. Defaults to `.env` for the first project and `.env.<id>` for the others, so one client's keys are never used for another.
-
 - `agent`: optional, the coding agent the project's sessions use. Only `claude` exists for now; its paths and commands live in `src/agents/claude.js`.
 - `taskPrefix`: optional, the key prefix for tasks created by hand (`New task` in Tasks, or `board.js task-new "<title>" [description] [--project id]`). Defaults to the id in capitals. Keep it the same on every machine.
+- `daily`, `contextTidy`: optional modules. On by default for the first project and off for the others.
+- `messages`: optional guide lines for the project's sessions (`review` before reporting done, `cause` when a task comes back, `reference` to the file with the project's rules). Without them, the sessions get neutral lines.
 
-Projects other than the first are usually added from the board itself (Settings → Projects): their shared part travels between machines, while each machine keeps its own folder (`data/projects-local.json`) and credentials (`.env.<id>`, written by the panel and never shown). A project picker in the top bar filters the whole board.
+Projects other than the first are usually added from the board itself (Settings → Projects): their shared part travels between machines, while each machine keeps its own folder (`data/projects-local.json`) and credentials (`.env.<id>`, written by the panel and never shown).
 
-Sessions belong to the project whose `root` contains their folder. A task is never sent to a session of another project. The installer writes into each project only the commands it can use (`soy.md`; `resumen-jira.md` with Jira; `seguimiento.md` with follow-up), and a fixed role registered from another project's folder stays in that project. With more than one project, Tasks shows a project picker.
+Sessions belong to the project whose `root` contains their folder. A task is never sent to a session of another project. The installer writes into each project only the commands it can use (`soy.md`; `resumen-jira.md` with Jira; `seguimiento.md` with follow-up), and a fixed role registered from another project's folder stays in that project. With more than one project, the top bar shows a project picker. The Tablero session is shared by every project.
 
 A file in the old flat format (no `projects`) is upgraded in place on the next start, with the project id taken from `company`; the original is kept as `board.config.json.flat.bak`.
 
