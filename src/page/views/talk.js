@@ -41,7 +41,8 @@ export function openTalk(conversation) {
 function otherLiveSessions() {
   const fixed = new Set(FIXED_TALK.map((k) => (talkSession(k) || {}).conversation).filter(Boolean));
   const live = new Map(((state.sessions && state.sessions.list) || []).map((s) => [s.conversation, s]));
-  return (state.hosted || []).filter((x) => !x.waitingForVsCode && !fixed.has(x.conversation) && live.has(x.conversation)).map((x) => ({ conversation: x.conversation, name: talkName(x.conversation), session: x.name }));
+  const own = shownFixed() === SHARED_TALK ? new Set(state.areas.filter((a) => a.conversation && !a.unnamed).map((a) => a.conversation)) : new Set();
+  return (state.hosted || []).filter((x) => !x.waitingForVsCode && !fixed.has(x.conversation) && (live.has(x.conversation) || own.has(x.conversation))).map((x) => ({ conversation: x.conversation, name: talkName(x.conversation), session: x.name }));
 }
 
 function talkName(conversation) {
@@ -119,7 +120,8 @@ function renderTalkMain(root, others) {
   const newButton = h("button", { type: "button", class: "btn chat-new", text: "+ Nueva", onclick: (e) => newTalkSession(e.currentTarget) });
   root.appendChild(h("div", { class: "chat-select-row" }, [select, newButton]));
   const other = others.find((o) => o.conversation === talkTo) || (/^[0-9a-f-]{36}$/.test(talkTo) ? { conversation: talkTo, name: "Sesión nueva" } : null);
-  const sleeping = other && !others.includes(other) && !justCreated.has(other.conversation);
+  const awake = other && ((state.sessions && state.sessions.list) || []).some((x) => x.conversation === other.conversation);
+  const sleeping = other && !awake && !justCreated.has(other.conversation) && (!others.includes(other) || shownFixed() === SHARED_TALK);
   if (sleeping) {
     const name = talkName(other.conversation);
     return sleepingTalk(root, other.conversation, name, `«${name}» está dormida.`);

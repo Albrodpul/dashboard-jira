@@ -369,7 +369,10 @@ function conversationRoot(conversation) {
 
 function adopt(conversation, name) {
   const list = readConfig();
-  if (!list.some((x) => x.conversation === conversation)) list.push({ conversation, name, at: new Date().toISOString(), onDemand: true });
+  const cwd = conversationRoot(conversation);
+  const e = list.find((x) => x.conversation === conversation);
+  if (!e) list.push({ conversation, name, at: new Date().toISOString(), onDemand: true, ...(cwd ? { cwd } : {}) });
+  else if (!e.cwd && cwd) e.cwd = cwd;
   writeConfig(list);
 }
 

@@ -108,6 +108,7 @@ function actions(a, fixed) {
   const conv = a.conversation;
   const hosted = conv && hostedOf(conv);
   const live = conv && liveOf(conv);
+  if (conv && !hosted && !live && !fixed) out.push(button("Al tablero", { title: "La lleva al tablero para poder hablarle y mandarle tareas desde aquí", onClick: (b) => hostAction("move", conv, a.sessionName || a.name, b, `«${a.name}» ya vive en el tablero.`) }));
   if (hosted) out.push(button("Hablar", { onClick: () => openTalk(conv) }));
   if (hosted && !live) out.push(button("Abrir", { cls: "subtle", onClick: (b) => hostAction("open", conv, a.sessionName || a.name, b, `Abriendo «${a.name}»…`) }));
   if (hosted && live && !fixed) out.push(button("Dormir", { cls: "subtle", title: "La cierra; se despierta sola cuando le llegue algo", onClick: (b) => hostAction("sleep", conv, a.sessionName || a.name, b, `«${a.name}» dormida.`) }));
