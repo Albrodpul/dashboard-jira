@@ -20,6 +20,7 @@ textarea.reply-box { font: inherit; color: var(--ink); background: var(--surface
 .task-toolbar .status-chips, .task-toolbar .rule { margin: 0; }
 .task-toolbar .view-switch { align-self: center; }
 .task-toolbar .new-task-toggle { margin-left: auto; }
+.task-toolbar .project-filter { width: auto; flex: none; max-width: 220px; font: inherit; font-size: 13px; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; }
 .new-task { margin: 0 0 14px; }
 .new-task input, .new-task select { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; width: 100%; box-sizing: border-box; }
 .new-task select { width: auto; align-self: flex-start; }

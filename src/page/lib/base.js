@@ -2,7 +2,7 @@ export const state = { tasks: [], areas: [], sessions: { list: [], syncedAt: nul
 export const choice = {};
 export const drafts = {};
 const setup = () => state.jiraSetup || { jiraUrl: "", projects: [], reviewer: { name: "el revisor" }, reviewStatus: "en revisión", deployProjects: [] };
-export const isManualKey = (key) => (state.tasks || []).some((t) => t.key === key && t.source === "manual");
+export const isManualKey = (key) => (state.allTasks || state.tasks || []).some((t) => t.key === key && t.source === "manual");
 export const ticketUrl = (key) => (isManualKey(key) ? "" : setup().jiraUrl + key);
 export const reviewer = () => setup().reviewer.name;
 export const reviewStatus = () => setup().reviewStatus;

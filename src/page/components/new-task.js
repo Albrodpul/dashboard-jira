@@ -1,4 +1,5 @@
 import { state, h, button, toast, requestOrFail, refresh, render } from "../lib/base.js";
+import { currentProject } from "./project-filter.js";
 
 const draft = { open: false, project: "", title: "", description: "" };
 
@@ -17,7 +18,7 @@ export function newTaskButton() {
 export function newTaskForm() {
   if (!draft.open) return null;
   const list = workspaces();
-  if (!draft.project && list.length) draft.project = list[0].id;
+  if (!draft.project && list.length) draft.project = currentProject() || list[0].id;
   const title = h("input", { type: "text", class: "new-task-title", placeholder: "Qué hay que hacer", value: draft.title, "aria-label": "Título de la tarea" });
   title.addEventListener("input", () => (draft.title = title.value));
   const description = h("textarea", { class: "reply-box", placeholder: "Detalles para la sesión (opcional)", "aria-label": "Detalles" });

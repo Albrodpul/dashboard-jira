@@ -16,6 +16,7 @@ import { renderFind, searchBox } from "./views/find.js";
 import { renderMachines } from "./views/machines.js";
 import { paintTicket } from "./components/ticket.js";
 import { newTaskButton, newTaskForm } from "./components/new-task.js";
+import { projectPicker, filterTasks } from "./components/project-filter.js";
 
 const TASK_TABS = [
   { id: "pending", label: "Pendientes" },
@@ -337,6 +338,11 @@ function paint() {
   const switchable = !mobile && isTaskTab(state.tab);
   if (switchable || state.tab === "pending") {
     const bar = h("div", { class: "task-toolbar" });
+    const picker = projectPicker(() => {
+      state.tasks = filterTasks(state.allTasks || state.tasks);
+      render();
+    });
+    if (picker) bar.appendChild(picker);
     if (switchable) bar.appendChild(viewSwitch(board ? "board" : "list"));
     const chips = !mobile && root.querySelector(".status-chips");
     if (chips) bar.appendChild(chips);
@@ -382,7 +388,8 @@ function showVia(via, stale) {
 function apply(d) {
   for (const k of FIELDS) state[k] = d[k];
   state.areas = [...d.areas].sort((a, b) => a.name.localeCompare(b.name, "es"));
-  state.tasks = d.tasks.map((v) => ({ ...v, id: v.key }));
+  state.allTasks = d.tasks.map((v) => ({ ...v, id: v.key }));
+  state.tasks = filterTasks(state.allTasks);
   state.sessions = d.sessions || { list: [], syncedAt: null };
   state.config = d.config || {};
   renderReport();
