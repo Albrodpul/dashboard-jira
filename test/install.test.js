@@ -23,5 +23,9 @@ test("the installer renders every command for the first project and only the one
   const list = (root) => fs.readdirSync(path.join(root, ".claude", "commands")).sort();
   assert.deepEqual(list(main), ["orquesta.md", "resumen-jira.md", "seguimiento.md", "soy.md", "tablero.md"]);
   assert.deepEqual(list(side), ["soy.md"]);
-  assert.doesNotMatch(fs.readFileSync(path.join(side, ".claude", "commands", "soy.md"), "utf8"), /\{\{[A-Z]+\}\}/);
+  const soy = fs.readFileSync(path.join(side, ".claude", "commands", "soy.md"), "utf8");
+  assert.doesNotMatch(soy, /\{\{[A-Z]+\}\}/);
+  assert.doesNotMatch(soy, /Jira-|épica|context\/JIRA/);
+  assert.match(soy, /no usa Jira/);
+  assert.match(fs.readFileSync(path.join(main, ".claude", "commands", "soy.md"), "utf8"), /context\/JIRA\.md/);
 });

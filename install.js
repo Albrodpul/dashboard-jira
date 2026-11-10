@@ -85,7 +85,8 @@ for (const p of config.projects) {
   const commandsOut = path.join(p.root, ".claude", "commands");
   fs.mkdirSync(commandsOut, { recursive: true });
   for (const f of fs.readdirSync(templates).filter((x) => x.endsWith(".md") && wanted(p, x))) {
-    const text = render(fs.readFileSync(path.join(templates, f), "utf8"));
+    const basic = path.join(REPO, "templates", "basic", f);
+    const text = render(fs.readFileSync(!p.jira && fs.existsSync(basic) ? basic : path.join(templates, f), "utf8"));
     const missing = text.match(/\{\{[A-Z]+\}\}/g);
     if (missing) console.log(`warning: ${f} has placeholders without a value: ${[...new Set(missing)].join(", ")}`);
     fs.writeFileSync(path.join(commandsOut, f), text);
