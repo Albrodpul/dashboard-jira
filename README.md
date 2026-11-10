@@ -188,6 +188,7 @@ The servers still listen only on `127.0.0.1`: each one is reached by the other t
 - **Command changes in two ways.** You can press "Que mande …" in Configurar → Ordenadores. Or, if the machine in command stops answering for a minute (switched off or asleep), the other takes command and keeps it when the first comes back. The one that wakes up yields, and its conversations are merged into the ones in command.
 - **At boot**, a machine takes command only if no machine is in command. If both are waiting, the label that sorts first takes it at once and the other after a minute, so they never both take it.
 - Both host names go in `data/board-hosts.txt` on both machines.
+- **The standby machine keeps its dev servers stopped**: it does not start them at boot or on schedule, refuses manual starts, and stops them when it hands over command. To use the projects from it, Servidores opens a compressed SSH tunnel (`ssh -C -L`) to the machine in command for every dev server with a `url`, so admin, frontends and API are `localhost` on both machines and logins work. Compression matters: a Nuxt dev page is tens of megabytes of uncompressed JS.
 
 ### Voice notes (optional)
 
