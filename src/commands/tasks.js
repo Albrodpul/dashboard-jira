@@ -47,7 +47,7 @@ const commands = {
           continue;
         }
         const { status: _s, approvedVia, decidedAt, sentAt, event, ...fields } = t;
-        const task = { ...fields, status: "pending", events: ((previous && previous.events) || []).concat(event ? [event] : []).slice(-20) };
+        const task = { ...fields, project: fields.project || (previous && previous.project) || require("../core/projects").projectOf(fields), status: "pending", events: ((previous && previous.events) || []).concat(event ? [event] : []).slice(-20) };
         d.tasks[t.key] = task;
         if (previous && previous.removed && d.deleted) delete d.deleted[t.key];
         if (comesBack) {

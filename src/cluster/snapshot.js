@@ -18,7 +18,7 @@ function snapshot() {
   } catch (e) {}
   const routes = require("../sessions/registry").loadRoutes();
   const areas = {};
-  for (const [id, a] of Object.entries(routes.areas || {})) areas[id] = { title: a.title, epics: a.epics || {} };
+  for (const [id, a] of Object.entries(routes.areas || {})) areas[id] = { title: a.title, epics: a.epics || {}, ...(a.project ? { project: a.project } : {}) };
   for (const [id, a] of Object.entries(routes.areas || {})) if (a.conversation) Object.assign(areas[id], { conversation: a.conversation, session: a.session || null });
   const roles = {};
   for (const role of ROUTE_ROLES) if (routes[role] && routes[role].conversation) roles[role] = { conversation: routes[role].conversation, session: routes[role].session || null, title: routes[role].title || null, since: routes[role].since || null, rotatedOn: routes[role].rotatedOn || null };
@@ -70,6 +70,7 @@ function applySnapshot(s) {
     r.areas = r.areas || {};
     for (const [id, a] of Object.entries(s.areas || {})) {
       const next = { ...(r.areas[id] || {}), title: a.title, epics: a.epics };
+      if (a.project) next.project = a.project;
       if (a.conversation) Object.assign(next, { conversation: a.conversation, session: a.session || next.session, ref: null });
       r.areas[id] = next;
     }

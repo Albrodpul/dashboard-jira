@@ -98,6 +98,8 @@ function holdError(what, holds) {
 }
 
 function checkTask(d, t, area, nowMs) {
+  const cross = require("../core/projects").crossProject(t, area);
+  if (cross) return cross;
   const holds = holdsFor(d, taskTarget(t, area), nowMs);
   return holds.length ? holdError(t.key, holds) : "";
 }

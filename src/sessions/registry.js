@@ -155,13 +155,7 @@ function runningSubagents(sessionId) {
   return n;
 }
 
-const normPath = (p) => String(p || "").replace(/\\/g, "/").replace(/\/+$/, "").toLowerCase();
-const insideRoot = (cwd) => {
-  if (!cwd) return true;
-  const root = normPath(ROOT);
-  const dir = normPath(cwd);
-  return dir === root || dir.startsWith(root + "/");
-};
+const { projectOfPath } = require("../core/projects");
 
 const liveStatus = (status, subagents) => (subagents ? "busy" : status === "shell" ? "idle" : status || "");
 
@@ -176,7 +170,8 @@ function liveSessions() {
   for (const f of files) {
     try {
       const j = JSON.parse(fs.readFileSync(path.join(REGISTRY, f), "utf8"));
-      if (j.kind !== "interactive" || !j.name || !j.sessionId || !insideRoot(j.cwd) || !processAlive(j.pid)) continue;
+      const project = projectOfPath(j.cwd);
+      if (j.kind !== "interactive" || !j.name || !j.sessionId || !project || !processAlive(j.pid)) continue;
       const subagents = runningSubagents(j.sessionId);
       out.push({
         name: j.name,
@@ -185,6 +180,7 @@ function liveSessions() {
         status: liveStatus(j.status, subagents),
         subagents,
         background: j.status === "shell",
+        project: project.id,
         statusSince: j.statusUpdatedAt ? new Date(Number(j.statusUpdatedAt)).toISOString() : null,
         title: conversationTitle(j.sessionId),
       });

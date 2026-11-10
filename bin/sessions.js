@@ -50,7 +50,8 @@ function fail(message) {
 
 function newArea(data, text) {
   const key = slug(text);
-  data.areas[key] = { title: text, epics: {}, session: null, ref: null, since: null };
+  const project = require("../src/core/projects").projectOfPath(process.cwd());
+  data.areas[key] = { title: text, epics: {}, session: null, ref: null, since: null, ...(project ? { project: project.id } : {}) };
   return key;
 }
 
