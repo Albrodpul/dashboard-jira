@@ -2,7 +2,7 @@
 .env
 .env.*
 !.env.example
-board.config.json
+board.config.json*
 tablero.config.json
 *.migrated
 
