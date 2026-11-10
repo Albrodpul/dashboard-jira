@@ -208,7 +208,7 @@ function statusChips(root, counts, board) {
     }
     switchView(id);
   };
-  for (const t of TASK_TABS) chips.appendChild(h("button", { type: "button", class: `${counts[t.id] ? "" : "zero"}${t.id === "waiting" && counts.waiting ? " alert" : ""}`, "aria-pressed": String(!board && state.tab === t.id), text: t.label + (counts[t.id] ? ` ${counts[t.id]}` : ""), onclick: open(t.id) }));
+  for (const t of TASK_TABS.filter((x) => !board || x.id === "ignored")) chips.appendChild(h("button", { type: "button", class: `${counts[t.id] ? "" : "zero"}${t.id === "waiting" && counts.waiting ? " alert" : ""}`, "aria-pressed": String(!board && state.tab === t.id), text: t.label + (counts[t.id] ? ` ${counts[t.id]}` : ""), onclick: open(t.id) }));
   root.appendChild(chips);
   const sel = chips.querySelector('[aria-pressed="true"]');
   if (sel && sel.scrollIntoView) sel.scrollIntoView({ block: "nearest", inline: "center" });
@@ -331,8 +331,15 @@ function paint() {
     return renderToday(root, errors);
   }
   if (state.tab === "more") return renderMore(root, waitingDeploys, errors);
-  if (!mobile && isTaskTab(state.tab) && state.tab !== "ignored") root.appendChild(viewSwitch(board ? "board" : "list"));
-  if (state.tab === "pending" || board) returnedRule(root);
+  const switchable = !mobile && isTaskTab(state.tab) && state.tab !== "ignored";
+  if (switchable || state.tab === "pending") {
+    const bar = h("div", { class: "task-toolbar" });
+    if (switchable) bar.appendChild(viewSwitch(board ? "board" : "list"));
+    const chips = !mobile && root.querySelector(".status-chips");
+    if (chips) bar.appendChild(chips);
+    if (state.tab === "pending" || board) returnedRule(bar);
+    root.appendChild(bar);
+  }
   if (!state.ok) return root.appendChild(empty("El tablero no responde.", "Arráncalo con: node board.js ensure"));
   if (board) return renderBoard(root);
   (NON_TASK_VIEWS[state.tab] || renderTasks)(root);

@@ -264,3 +264,18 @@ test("a restriction written with mutate gets a sync stamp and travels in the sna
   assert.equal(snap.docs.restrictions[0].id, id);
   assert.ok(snap.stamps.restrictions[id]);
 });
+
+test("a returned task whose card was deleted goes back to the session that did it", () => {
+  reset({}, { config: { autoReturned: true }, deleted: { "WEB-9": new Date().toISOString() } });
+  fs.writeFileSync(path.join(box.data, "task-history.jsonl"), JSON.stringify({ key: "WEB-9", status: "done", area: "cat", removedAt: new Date().toISOString() }) + "\n");
+  const r = cli("add", JSON.stringify([{ key: "WEB-9", title: "Tarea WEB-9", kind: "returned", epicKey: "WEB-1", event: "ev-9" }]));
+  assert.equal(r.code, 0, r.err);
+  const t = load().tasks["WEB-9"];
+  assert.equal(t.status, "approved");
+  assert.equal(t.area, "cat");
+  assert.equal(t.approvedVia, "rule");
+  assert.equal(load().deleted["WEB-9"], undefined);
+  const n = cli("add", JSON.stringify([{ key: "WEB-10", title: "Tarea WEB-10", kind: "new", epicKey: "WEB-1", event: "ev-10" }]));
+  assert.equal(n.code, 0, n.err);
+  assert.equal(load().tasks["WEB-10"].status, "pending");
+});

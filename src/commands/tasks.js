@@ -1,4 +1,4 @@
-const { STATUSES, IN_SESSION, HUMAN_APPROVALS, UUID, now, load, mutate, readStdin } = require("../core/data");
+const { STATUSES, IN_SESSION, HUMAN_APPROVALS, UUID, DATA_DIR, now, load, mutate, readStdin } = require("../core/data");
 const { titleKey, assignRefs, loadRoutes, openInVsCode } = require("../sessions/registry");
 const { syncJiraEpics, downloadAttachments } = require("../jira/client");
 const { sendPush } = require("../server/push");
@@ -7,6 +7,20 @@ const config = require("../core/config");
 const { state } = require("../server/state");
 const holds = require("../features/holds");
 const { cmd, a, b, rest, keyList, json, status, ME, MY_FIRST_NAME, fail } = require("./args");
+
+function removedCard(d, t) {
+  if (!["returned", "comment"].includes(t.kind) || !d.deleted || !d.deleted[t.key]) return null;
+  let found = null;
+  try {
+    const lines = require("fs").readFileSync(require("path").join(DATA_DIR, "task-history.jsonl"), "utf8").split("\n");
+    for (const line of lines) {
+      if (!line.includes(`"${t.key}"`)) continue;
+      const r = JSON.parse(line);
+      if (r.key === t.key && r.area) found = r;
+    }
+  } catch (e) {}
+  return found && { area: found.area, status: found.status === "partial" ? "done" : found.status, removed: true };
+}
 
 const NOTICE_OF = { done: "done", partial: "partial", question: "question", comment: "comment" };
 
@@ -21,7 +35,7 @@ const commands = {
       for (const raw of items) {
         const { evento, ...input } = raw;
         const t = { ...input, kind: TASK_KIND[input.kind] || input.kind, event: input.event || evento };
-        const previous = d.tasks[t.key];
+        const previous = d.tasks[t.key] || removedCard(d, t);
         const used = previous && t.event && (previous.events || []).includes(t.event);
         const comesBack = previous && !used && ["returned", "comment"].includes(t.kind) && ["sent", "ignored", "done"].includes(previous.status);
         if (previous && !comesBack) {
@@ -35,6 +49,7 @@ const commands = {
         const { status: _s, approvedVia, decidedAt, sentAt, event, ...fields } = t;
         const task = { ...fields, status: "pending", events: ((previous && previous.events) || []).concat(event ? [event] : []).slice(-20) };
         d.tasks[t.key] = task;
+        if (previous && previous.removed && d.deleted) delete d.deleted[t.key];
         if (comesBack) {
           task.proposedArea = fields.proposedArea || previous.area || previous.proposedArea || "";
           task.rounds = (previous.rounds || 0) + 1;
