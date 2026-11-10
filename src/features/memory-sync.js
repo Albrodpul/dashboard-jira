@@ -86,6 +86,7 @@ function mergeIndex(local, peer, gone = new Set()) {
 
 async function syncMemory() {
   if (!cluster.clusterEnabled()) return;
+  tombstones();
   const peer = await cluster.peerGet("/api/cluster/memory", 15000);
   if (!peer || !peer.files) return;
   const dir = memoryDir();
