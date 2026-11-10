@@ -12,6 +12,15 @@ export function currentProject() {
   return workspaces().some((p) => p.id === v) ? v : "";
 }
 
+const TAB_MODULE = { sentry: "sentry", deploy: "deploy", projects: "devServers", "follow-up": "followUp", learning: "jira", context: "context" };
+
+export function hasModule(name) {
+  const p = workspaces().find((x) => x.id === currentProject());
+  return !p || !p.modules || p.modules[name] !== false;
+}
+
+export const tabVisible = (id) => !TAB_MODULE[id] || hasModule(TAB_MODULE[id]);
+
 export const filterTasks = (list) => {
   const p = currentProject();
   return p ? list.filter((t) => t.project === p) : list;

@@ -204,6 +204,11 @@ module.exports = {
     reviewer: { name: main.jira.reviewer.name },
     reviewStatus: main.statuses.review,
     deployProjects: main.deployProjects,
-    workspaces: projects.map((p) => ({ id: p.id, name: p.name, jira: !!p.jira })),
+    workspaces: projects.map((p) => ({
+      id: p.id,
+      name: p.name,
+      jira: !!p.jira,
+      modules: { jira: !!p.jira, followUp: p.followUp.length > 0, sentry: !!(p.sentry && p.sentry.org), deploy: p.deployProjects.length > 0, devServers: p.devServers.length > 0, context: p === main && fs.existsSync(p.contextDomains) },
+    })),
   }),
 };

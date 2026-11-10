@@ -16,7 +16,7 @@ import { renderFind, searchBox } from "./views/find.js";
 import { renderMachines } from "./views/machines.js";
 import { paintTicket } from "./components/ticket.js";
 import { newTaskButton, newTaskForm } from "./components/new-task.js";
-import { projectPicker, filterTasks } from "./components/project-filter.js";
+import { projectPicker, filterTasks, tabVisible, hasModule } from "./components/project-filter.js";
 
 const TASK_TABS = [
   { id: "pending", label: "Pendientes" },
@@ -151,8 +151,10 @@ function paintTabs(counts, waitingDeploys) {
   }
   const HIGHLIGHT = ["pending", "deploy", "waiting"];
   for (const [group, list] of GROUPS) {
+    const shown = list.filter((t) => tabVisible(t.id));
+    if (!shown.length) continue;
     tabs.appendChild(h("div", { class: "tab-group", text: group }));
-    for (const t of list) {
+    for (const t of shown) {
       if (t.id === "tasks") {
         tabs.appendChild(tasksTab(counts));
         continue;
@@ -217,7 +219,7 @@ function statusChips(root, counts, board) {
 }
 
 function renderMore(root, waitingDeploys, errors) {
-  const options = GROUPS.flatMap(([, list]) => list).filter((t) => !["home", "tasks", "talk"].includes(t.id));
+  const options = GROUPS.flatMap(([, list]) => list).filter((t) => !["home", "tasks", "talk"].includes(t.id) && tabVisible(t.id));
   const menu = h(
     "div",
     { class: "more-menu" },
@@ -340,6 +342,7 @@ function paint() {
     const bar = h("div", { class: "task-toolbar" });
     const picker = projectPicker(() => {
       state.tasks = filterTasks(state.allTasks || state.tasks);
+      if (!tabVisible(state.tab)) return switchView("home");
       render();
     });
     if (picker) bar.appendChild(picker);
@@ -347,7 +350,7 @@ function paint() {
     const chips = !mobile && root.querySelector(".status-chips");
     if (chips) bar.appendChild(chips);
     bar.appendChild(newTaskButton());
-    if (state.tab === "pending" || switchable) returnedRule(bar);
+    if ((state.tab === "pending" || switchable) && hasModule("jira")) returnedRule(bar);
     root.appendChild(bar);
     const form = newTaskForm();
     if (form) root.appendChild(form);
