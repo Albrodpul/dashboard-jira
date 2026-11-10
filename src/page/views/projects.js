@@ -76,7 +76,7 @@ function row(s) {
   const working = busy.has(s.id);
   const actions = [];
   const tunneled = tunnel && tunnel.open;
-  if (s.url && s.state === "up" && (tunneled || !(tunnel && tunnel.remote))) actions.push(h("a", { class: "btn link", href: `${location.protocol}//${tunneled ? "localhost" : location.hostname}:${s.port}`, target: "_blank", rel: "noopener", text: "Abrir ↗" }));
+  if (s.url && s.state === "up" && (tunneled || !(tunnel && tunnel.remote))) actions.push(h("a", { class: "btn link", href: tunneled ? `http://localhost:${s.port}` : `${location.protocol}//${location.hostname}:${s.port}`, target: "_blank", rel: "noopener", text: "Abrir ↗" }));
   if (s.state === "down") actions.push(button("Arrancar", { cls: "primary", disabled: working, onClick: (b) => act("start", s.id, `Arrancando ${s.name}…`, b) }));
   else {
     actions.push(button("Reiniciar", { disabled: working, onClick: (b) => act("restart", s.id, `Reiniciando ${s.name}…`, b) }));
