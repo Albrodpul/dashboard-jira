@@ -371,13 +371,13 @@ function openInVsCode(conversation) {
   }
 }
 
-function createConversation(name) {
+function createConversation(name, cwd = ROOT) {
   return new Promise((resolve) => {
     const id = crypto.randomUUID();
     const env = cleanEnv();
     env.CLAUDE_CODE_ENTRYPOINT = "claude-vscode";
     const [exe, args] = agent().command(agent().createArgs({ id, name, model: config.sessionModel, prompt: `Sesión «${name}» creada desde el tablero de Jira. Responde solo «ok».` }), agent().editorBinary());
-    const child = cp.execFile(exe, args, { cwd: ROOT, env, timeout: 90000, windowsHide: true }, (err) => resolve(!err && transcriptOf(id) ? id : null));
+    const child = cp.execFile(exe, args, { cwd, env, timeout: 90000, windowsHide: true }, (err) => resolve(!err && transcriptOf(id) ? id : null));
     if (child.stdin) child.stdin.end();
   });
 }

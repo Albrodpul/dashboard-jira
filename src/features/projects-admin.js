@@ -42,7 +42,7 @@ function list() {
     root: p.root ? p.root.replace(/\\/g, "/") : null,
     rootExists: !!p.root && fs.existsSync(p.root),
     jira: p.jira ? p.jira.projects : null,
-    modules: { jira: !!p.jira, followUp: p.followUp.length > 0, sentry: !!(p.sentry && p.sentry.org), deploy: p.deployProjects.length > 0, devServers: p.devServers.length > 0 },
+    modules: { jira: !!p.jira, followUp: p.followUp.length > 0, sentry: !!(p.sentry && p.sentry.org), deploy: p.deployProjects.length > 0, devServers: p.devServers.length > 0, daily: !!p.daily, context: !!p.contextTidy },
     credentials: Object.fromEntries(SECRETS.map((k) => [k, !!p.secret(k)])),
     messages: p.messages || null,
     openTasks: openTasks(p.id),
@@ -83,7 +83,7 @@ function save(input) {
   }
   mutate((d) => {
     d.projectDefs = { ...(d.projectDefs || {}) };
-    d.projectDefs[id] = { id, name, taskPrefix, agent: "claude", ...(Object.keys(messages).length ? { messages } : {}), updatedAt: now() };
+    d.projectDefs[id] = { id, name, taskPrefix, agent: "claude", daily: !!input.daily, contextTidy: !!input.contextTidy, ...(Object.keys(messages).length ? { messages } : {}), updatedAt: now() };
   });
   if (input.root !== undefined) writeLocal(id, root || null);
   config.forgetProjects();

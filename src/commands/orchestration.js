@@ -192,8 +192,8 @@ const commands = {
 function contextTidy() {
   const text = rest(4).slice(0, 4000);
   const error = mutate((d) => {
-    const o = d.contextTidy;
-    if (!o || o.id !== a) return `no hay ninguna ordenación ${a || ""}`;
+    const o = [d.contextTidy, ...Object.values(d.contextTidies || {})].find((x) => x && x.id === a);
+    if (!o) return `no hay ninguna ordenación ${a || ""}`;
     if (cmd === "tidy-start") {
       if (o.status !== "approved" || o.approvedVia !== "board") return `esa ordenación no está aprobada por ${ME} en el tablero`;
       Object.assign(o, { status: "in-progress", startedAt: now() });

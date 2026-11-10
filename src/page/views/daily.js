@@ -1,4 +1,5 @@
 import { state, h, when, button, post, toast } from "../lib/base.js";
+import { currentProject } from "../components/project-filter.js";
 
 let asked = {};
 
@@ -53,14 +54,19 @@ function copyDaily(text) {
   return navigator.clipboard.writeText(plain).then(done);
 }
 
+function currentDaily() {
+  const p = currentProject();
+  return (p && state.dailies && state.dailies[p]) || state.daily || {};
+}
+
 const fmt = (day) => (day ? new Date(`${day}T12:00:00`).toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" }) : "");
 
 function dayCard({ title, day, entry, today }) {
-  const d = state.daily || {};
+  const d = currentDaily();
   const busy = asked[day] && (!entry || entry.at < asked[day]);
   const ask = () => {
     asked[day] = new Date().toISOString();
-    post("/api/daily", { today }, today ? "Redactando el de hoy…" : "Rehaciendo el resumen…");
+    post("/api/daily", { today, project: d.project }, today ? "Redactando el de hoy…" : "Rehaciendo el resumen…");
   };
   const actions = [];
   if (entry && entry.text) actions.push(button("Copiar", { onClick: () => copyDaily(entry.text) }));
@@ -90,7 +96,7 @@ function factsBlock(f, hasText) {
 }
 
 export function renderDaily(root) {
-  const d = state.daily || {};
+  const d = currentDaily();
   root.appendChild(
     h("div", { class: "daily-days" }, [
       dayCard({ title: "Último día laborable", day: d.prevDay, entry: d.prev, today: false }),

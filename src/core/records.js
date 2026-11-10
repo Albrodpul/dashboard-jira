@@ -8,6 +8,7 @@ const SPECS = {
   sentry: { type: "map" },
   sessionOverrides: { type: "map" },
   projectDefs: { type: "map" },
+  contextTidies: { type: "map" },
   deployments: { type: "list", id: "id", cap: 40 },
   messages: { type: "list", id: "id", cap: 60 },
   followUps: { type: "list", id: "at", cap: 120 },

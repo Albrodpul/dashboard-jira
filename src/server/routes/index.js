@@ -63,7 +63,7 @@ const POST_ROUTES = {
   "/api/epic": (res, input, send) => sessions.handleEpic(res, input, send),
   "/api/deploy": (res, input, send) => operations.handleDeploy(res, input, send),
   "/api/deploy-status/refresh": (res, input, send) => deployStatus.handleDeployStatusRefresh(res, send),
-  "/api/tidy": (res, input, send) => operations.handleTidy(res, send),
+  "/api/tidy": (res, input, send) => operations.handleTidy(res, send, input || {}),
   "/api/message": (res, input, send) => operations.handleMessage(res, input, send),
   "/api/followup-error": (res, input, send) => operations.handleFollowUpError(res, input, send),
   "/api/followup-request": (res, input, send) => operations.handleFollowUpRequest(res, input, send),
@@ -98,9 +98,9 @@ const POST_ROUTES = {
     }
     send(res, 200, { sent: n });
   },
-  "/api/daily": (res, { today }, send) => {
+  "/api/daily": (res, { today, project }, send) => {
     const daily = require("../../features/daily");
-    daily.dailyFor(today ? new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" }) : daily.lastWorkday()).catch(() => {});
+    daily.dailyFor(today ? new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" }) : daily.lastWorkday(), false, project ? String(project) : undefined).catch(() => {});
     send(res, 200, { ok: true });
   },
   "/api/cluster/yield": (res, input, send) => {

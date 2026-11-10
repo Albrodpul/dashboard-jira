@@ -1,4 +1,5 @@
 import { state, h, button, toast, requestOrFail, post, areaName, taskAreaSelect, refresh, empty, ticketUrl } from "../lib/base.js";
+import { currentProject, hasModule } from "../components/project-filter.js";
 import { openTalk } from "./talk.js";
 
 export function createSession(name, epic, btn) {
@@ -13,7 +14,7 @@ export function createSession(name, epic, btn) {
     btn.disabled = true;
     btn.textContent = "Creando…";
   }
-  return requestOrFail("/api/new-session", { title: clean, epicKey: epic ? epic.key : undefined, epicName: epic ? epic.name : undefined })
+  return requestOrFail("/api/new-session", { title: clean, epicKey: epic ? epic.key : undefined, epicName: epic ? epic.name : undefined, project: currentProject() || undefined })
     .then((d) => {
       created = d.area;
       toast(d.open ? `Sesión «${clean}» creada y en marcha.` : `Sesión «${clean}» creada, pero todavía no ha arrancado. Ábrela desde su fila.`);
@@ -33,7 +34,7 @@ export const hostedOf = (conversation) => (state.hosted || []).find((x) => x.con
 
 let epicQuery = "";
 const freeEpics = () => state.epics.filter((e) => !e.area).sort((a, b) => a.key.localeCompare(b.key, "es", { numeric: true }));
-const liveOf = (conversation) => ((state.sessions && state.sessions.list) || []).find((s) => s.conversation === conversation) || null;
+const liveOf = (conversation) => ((state.allSessions || state.sessions || {}).list || []).find((s) => s.conversation === conversation) || null;
 
 const EFFORT = { low: "bajo", medium: "medio", high: "alto", xhigh: "muy alto", max: "máximo" };
 
@@ -127,7 +128,7 @@ function actions(a, fixed) {
 
 function row(a) {
   const st = a.conversation ? statusOf(a.conversation) : { dot: "off", text: "Sin conversación" };
-  return h("div", { class: "srow" }, [h("span", { class: `dot ${st.dot}`, title: st.text }), nameInput(a), epicChips(a), actions(a, false)]);
+  return h("div", { class: "srow" }, [h("span", { class: `dot ${st.dot}`, title: st.text }), nameInput(a), hasModule("jira") ? epicChips(a) : h("span", {}), actions(a, false)]);
 }
 
 function fixedRow(name, role, conversation, note, profile) {
@@ -176,7 +177,8 @@ export function renderSessions(root) {
   nameBox.addEventListener("keydown", (e) => e.key === "Enter" && create.click());
   root.appendChild(h("div", { class: "s2-toolbar" }, [nameBox, create]));
 
-  const free = freeEpics();
+  const jira = hasModule("jira");
+  const free = jira ? freeEpics() : [];
   if (free.length) {
     const sec = h("section", { class: "s2-section warn" }, [head("Epics sin sesión", free.length, "Sus tareas llegan a Pendientes sin sesión propuesta.")]);
     const list = h("div", { class: "erows" });
@@ -190,12 +192,18 @@ export function renderSessions(root) {
   const areas = state.areas.filter((a) => !a.unnamed && !fixedIds.has(a.id) && a.conversation !== followUp);
   const rank = (a) => (liveOf(a.conversation) ? (statusOf(a.conversation).dot === "busy" ? 0 : 1) : 2);
   areas.sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name, "es"));
-  const sec = h("section", { class: "s2-section" }, [head("Sesiones", areas.length, `Reciben las tareas de sus epics · ${profileText("area")}`)]);
+  const sec = h("section", { class: "s2-section" }, [head("Sesiones", areas.length, `${jira ? "Reciben las tareas de sus epics" : "Reciben las tareas que les mandes desde el tablero"} · ${profileText("area")}`)]);
   sec.appendChild(areas.length ? h("div", { class: "srows" }, areas.map(row)) : empty("Sin sesiones.", "Crea una arriba."));
   root.appendChild(sec);
 
   const fixed = [];
   const area = (id) => state.areas.find((a) => a.id === id);
+  const mainId = ((state.jiraSetup && state.jiraSetup.workspaces) || [])[0];
+  if (currentProject() && mainId && currentProject() !== mainId.id) {
+    if (state.boardStatus) fixed.push(fixedRow("Tablero", "Mejoras del propio tablero, común a todos los proyectos", state.boardStatus.conversation, "", "board"));
+    root.appendChild(h("section", { class: "s2-section" }, [head("Fijas", fixed.length, "Las que hacen funcionar el tablero."), h("div", { class: "srows" }, fixed)]));
+    return;
+  }
   if (state.reporterRoute) fixed.push(fixedRow("Reporte de Jira", "Lee Jira y publica el reporte", state.reporterRoute.conversation, "", "reporter"));
   if (state.orchestrator) fixed.push(fixedRow("Orquestadora", "Habla contigo de tareas, aprobaciones y restricciones", state.orchestrator.conversation, "", "orchestrator"));
   if (state.boardStatus) fixed.push(fixedRow("Tablero", "Mejoras del propio tablero", state.boardStatus.conversation, "", "board"));
@@ -205,6 +213,7 @@ export function renderSessions(root) {
   if (err) fixed.push(fixedRow("Errores sentry", "Errores de Sentry y del seguimiento", err.conversation, "", "errors"));
   root.appendChild(h("section", { class: "s2-section" }, [head("Fijas", fixed.length, "Las que hacen funcionar el tablero."), h("div", { class: "srows" }, fixed)]));
 
+  if (!jira) return;
   const search = h("section", { class: "s2-section" }, [head("Buscar epics", null, null)]);
   epicSearch(search);
   root.appendChild(search);

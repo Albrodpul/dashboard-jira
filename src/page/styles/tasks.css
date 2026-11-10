@@ -23,7 +23,7 @@ textarea.reply-box { font: inherit; color: var(--ink); background: var(--surface
 .project-filter { width: auto; flex: none; max-width: 240px; font: inherit; font-size: 13px; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; }
 .new-task { margin: 0 0 14px; }
 .new-task input, .new-task select { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; width: 100%; box-sizing: border-box; }
-.new-task select { width: auto; align-self: flex-start; }
+.new-task select.new-task-project { width: auto; max-width: 260px; align-self: flex-start; }
 @media (min-width: 761px) {
   .app[data-section="tasks"] .main-head .sub { min-height: calc(2 * 1.45em); }
   .task-toolbar .rule { flex-basis: 100%; }
@@ -179,3 +179,5 @@ textarea.comment-box { font-family: inherit; }
 .ws-guide[open] > summary { margin-bottom: 8px; }
 .ws-guide .ws-field + .ws-field { margin-top: 10px; }
 .ws-form .ws-field + .ws-field, .ws-form .ws-field + details { margin-top: 2px; }
+.ws-checks { display: flex; flex-direction: column; gap: 6px; }
+.ws-checks .rule { margin: 0; align-items: flex-start; }

@@ -146,6 +146,10 @@ function composeStop(entries, id) {
 }
 
 function composeTidy(o, id) {
+  if (o.project) {
+    const p = config.project(o.project) || { name: o.project };
+    return `Aviso del tablero: ${ME} ha pulsado Ordenar contexto del proyecto ${p.name} (${o.id}) ${mark(id)}\nOrdena el contexto de este proyecto con sus propias reglas: su AGENTS.md y, si lo tiene, su comando o su guía para ordenarlo; nunca las de otro proyecto. Hazlo con un subagente (Agent con model opus y effort medium), no tú. Al empezar, «${CLI} tidy-start ${o.id}»; al acabar, «${CLI} tidy-end ${o.id} "<resumen de lo que ha cambiado>"».`;
+  }
   return `Aviso del tablero: ${ME} ha pulsado Ordenar contexto (${o.id}) ${mark(id)}\nRelee ahora la sección «Ordenar contexto» de ${config.commandsDir}/orquesta.md y síguela: la ordenación la hace un subagente (Agent con model opus y effort medium), no tú.`;
 }
 
@@ -196,6 +200,7 @@ function collect(d, nowMs = Date.now()) {
   jobs.push(...stops.values());
   const o = d.contextTidy;
   if (o && o.status === "approved" && o.approvedVia === "board" && !o.notifiedAt && due(o.delivery, nowMs)) jobs.push({ kind: "tidy", role: "orchestrator", ids: [o.id] });
+  for (const x of Object.values(d.contextTidies || {})) if (x && x.status === "approved" && x.approvedVia === "board" && !x.notifiedAt && due(x.delivery, nowMs)) jobs.push({ kind: "tidy", project: x.project, ids: [x.id] });
   return jobs;
 }
 
@@ -209,7 +214,7 @@ function itemsOf(d, job) {
     const wanted = new Set(job.ids);
     return holds.pendingStopNotices(d).filter((e) => wanted.has(`${e.task.key}|${e.restriction.id}`));
   }
-  if (job.kind === "tidy") return [d.contextTidy].filter((o) => o && job.ids.includes(o.id) && o.status === "approved" && !o.notifiedAt);
+  if (job.kind === "tidy") return [d.contextTidy, ...Object.values(d.contextTidies || {})].filter((o) => o && job.ids.includes(o.id) && o.status === "approved" && !o.notifiedAt);
   if (job.kind === "role") return [job.text];
   return [];
 }
@@ -237,7 +242,7 @@ function eachRecord(d, job, ids, fn) {
     const t = d.tasks[id.split("|")[0]];
     if (t) fn(t, id.split("|")[1]);
   }
-  if (job.kind === "tidy" && d.contextTidy && wanted.has(d.contextTidy.id)) fn(d.contextTidy);
+  if (job.kind === "tidy") for (const o of [d.contextTidy, ...Object.values(d.contextTidies || {})]) if (o && wanted.has(o.id)) fn(o);
 }
 
 function markDelivered(d, job, ids, id, at) {
@@ -322,6 +327,11 @@ function targetOf(s, job) {
   if (job.role === "reporter") {
     const r = s.reporterStatus;
     return r ? { name: "Reporte", conversation: r.conversation, sessionName: r.session, open: r.open, ref: null, repeatedName: false } : null;
+  }
+  if (job.kind === "tidy" && job.project) {
+    const mine = s.areas.filter((x) => x.project === job.project && !x.unnamed && (x.conversation || x.sessionName));
+    const a = mine.find((x) => x.open) || mine[0];
+    return a ? { name: a.name || a.id, conversation: a.conversation, sessionName: a.sessionName, open: a.open, ref: a.ref, repeatedName: a.repeatedName } : null;
   }
   if (job.role === "orchestrator") {
     const o = s.orchestrator;
@@ -463,7 +473,7 @@ const roleQueue = [];
 let recovered = false;
 let timer = null;
 
-const destKey = (job) => job.role || job.area;
+const destKey = (job) => job.role || job.area || (job.project ? `project:${job.project}` : "");
 
 async function tick() {
   const e = E();

@@ -46,12 +46,18 @@ function handleDeploy(res, { projects, environment, version, area, cancel }, sen
   send(res, 200, created);
 }
 
-function handleTidy(res, send) {
+function handleTidy(res, send, input = {}) {
+  const config = require("../../core/config");
+  const p = input.project ? config.project(String(input.project)) : config.mainProject;
+  if (!p) return send(res, 400, { error: "proyecto desconocido" });
+  if (!p.contextTidy) return send(res, 400, { error: `${p.name} no tiene Ordenar contexto` });
   const r = mutate((d) => {
-    const b = tidyBlockers(d);
+    const b = tidyBlockers(d, p.id);
     if (b.length) return { code: 409, error: "Todavía no: " + b.join(", ") + "." };
     const at = now();
-    d.contextTidy = { id: "tidy-" + stamp(at, 14), at, status: "approved", approvedVia: "board" };
+    const o = { id: "tidy-" + stamp(at, 14), at, status: "approved", approvedVia: "board" };
+    if (p === config.mainProject) d.contextTidy = o;
+    else d.contextTidies = { ...(d.contextTidies || {}), [p.id]: { ...o, id: `tidy-${p.id}-${stamp(at, 14)}`, project: p.id } };
     return { code: 200 };
   });
   if (r.code !== 200) return send(res, r.code, { error: r.error });

@@ -35,7 +35,10 @@ function projectOfPath(dir) {
 function projectOfKey(key) {
   const prefix = String(key || "").split("-")[0];
   const p = prefix && config.projects.find((x) => x.jira && x.jira.projects.includes(prefix));
-  return p ? p.id : null;
+  if (p) return p.id;
+  const manual = require("../features/manual-tasks");
+  const own = prefix && config.projects.find((x) => manual.prefixOf(x) === prefix);
+  return own ? own.id : null;
 }
 
 const projectOf = (record) => (record && (record.project || projectOfKey(record.key))) || mainId();

@@ -47,7 +47,7 @@ test("the projects format exposes the first project flat and every project by id
   assert.deepEqual(r.other, { jira: null, statuses: null, root: path.resolve("/tmp/cuentas") });
   assert.equal(r.missing, null);
   assert.deepEqual(r.page.map(({ id, name, jira }) => ({ id, name, jira })), [{ id: "acme", name: "Acme", jira: true }, { id: "cuentas", name: "Cuentas", jira: false }]);
-  assert.deepEqual(r.page[1].modules, { jira: false, followUp: false, sentry: false, deploy: false, devServers: false, context: false });
+  assert.deepEqual(r.page[1].modules, { jira: false, followUp: false, sentry: false, deploy: false, devServers: false, context: false, daily: false });
   assert.equal(r.page[0].modules.deploy, true);
 });
 

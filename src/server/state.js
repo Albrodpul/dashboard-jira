@@ -71,25 +71,41 @@ function deployerArea(r) {
   return Object.keys(r.areas).find((k) => /subir|desplieg|deploy/i.test(r.areas[k].title || "")) || null;
 }
 
-function tidyBlockers(d) {
+function tidyOf(d, projectId) {
+  const main = !projectId || projectId === config.mainProject.id;
+  return main ? d.contextTidy || null : (d.contextTidies || {})[projectId] || null;
+}
+
+function tidyBlockers(d, projectId) {
+  const projects = require("../core/projects");
+  const pid = projectId || config.mainProject.id;
   const labels = { pending: "en Pendientes", approved: "por enviar", sent: "en Enviadas", waiting: "esperándote", partial: "a medias" };
   const count = {};
   for (const t of Object.values(d.tasks)) {
-    if (!labels[t.status] || (t.status === "sent" && t.manual)) continue;
+    if (!labels[t.status] || (t.status === "sent" && t.manual) || projects.projectOf(t) !== pid) continue;
     count[t.status] = (count[t.status] || 0) + 1;
   }
   const out = Object.entries(count).map(([s, n]) => `${n} tarea${n === 1 ? "" : "s"} ${labels[s]}`);
-  if (d.contextTidy && ["approved", "in-progress"].includes(d.contextTidy.status)) out.push("ya hay una ordenación en marcha");
+  const o = tidyOf(d, pid);
+  if (o && ["approved", "in-progress"].includes(o.status)) out.push("ya hay una ordenación en marcha");
   return out;
 }
 
-function lastContextPass() {
+function lastContextPass(projectId) {
+  const p = config.project(projectId || config.mainProject.id) || config.mainProject;
   try {
-    const m = /Última pasada de `\/ordena-contexto`: (\d{4}-\d{2}-\d{2})/.exec(fs.readFileSync(path.join(ROOT, "AGENTS.md"), "utf8"));
-    return m ? m[1] : null;
-  } catch (e) {
-    return null;
-  }
+    const m = /Última pasada de `\/ordena-contexto`: (\d{4}-\d{2}-\d{2})/.exec(fs.readFileSync(path.join(p.root, "AGENTS.md"), "utf8"));
+    if (m) return m[1];
+  } catch (e) {}
+  if (p === config.mainProject) return null;
+  const o = tidyOf(load(), p.id);
+  return o && o.finishedAt ? o.finishedAt.slice(0, 10) : null;
+}
+
+function tidyStates(d) {
+  const out = {};
+  for (const p of config.projects) if (p !== config.mainProject && p.contextTidy && p.root) out[p.id] = { contextTidy: tidyOf(d, p.id), blockers: tidyBlockers(d, p.id), lastPass: lastContextPass(p.id) };
+  return out;
 }
 
 function followUpErrors(d) {
@@ -126,6 +142,7 @@ function state() {
     permissions: permissions.forPage(d),
     contextSync: d.contextSync || null,
     daily: require("../features/daily").dailyState(),
+    dailies: require("../features/daily").dailyStates(),
     sessionProfiles: require("../sessions/profiles").profiles(),
     cluster: require("../cluster/cluster").info(),
     hosted: require("../sessions/host").readConfig(),
@@ -141,6 +158,7 @@ function state() {
     messages: d.messages.slice(0, 30),
     tidyBlockers: tidyBlockers(d),
     lastContextPass: lastContextPass(),
+    tidies: tidyStates(d),
     refreshRequest: d.refreshRequest,
     deployments: d.deployments.slice(0, 12),
     restrictions: require("../features/holds").forPage(d),
@@ -198,6 +216,7 @@ module.exports = {
   state,
   tidyBlockers,
   lastContextPass,
+  tidyOf,
   deployerArea,
   followUpErrors,
   openIfClosed,

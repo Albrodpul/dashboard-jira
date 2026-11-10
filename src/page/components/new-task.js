@@ -18,15 +18,17 @@ export function newTaskButton() {
 export function newTaskForm() {
   if (!draft.open) return null;
   const list = workspaces();
-  if (!draft.project && list.length) draft.project = currentProject() || list[0].id;
+  const fixed = currentProject();
+  if (fixed) draft.project = fixed;
+  else if (!draft.project && list.length) draft.project = list[0].id;
   const title = h("input", { type: "text", class: "new-task-title", placeholder: "Qué hay que hacer", value: draft.title, "aria-label": "Título de la tarea" });
   title.addEventListener("input", () => (draft.title = title.value));
   const description = h("textarea", { class: "reply-box", placeholder: "Detalles para la sesión (opcional)", "aria-label": "Detalles" });
   description.value = draft.description;
   description.addEventListener("input", () => (draft.description = description.value));
   let pick = null;
-  if (list.length > 1) {
-    pick = h("select", { "aria-label": "Proyecto" }, list.map((p) => h("option", { value: p.id, text: p.name })));
+  if (list.length > 1 && !fixed) {
+    pick = h("select", { class: "new-task-project", "aria-label": "Proyecto" }, list.map((p) => h("option", { value: p.id, text: p.name })));
     pick.value = draft.project;
     pick.addEventListener("change", () => (draft.project = pick.value));
   }
@@ -48,5 +50,6 @@ export function newTaskForm() {
   setTimeout(() => {
     if (!document.activeElement || document.activeElement === document.body) title.focus();
   }, 0);
-  return h("div", { class: "card new-task" }, [h("strong", { text: "Nueva tarea, sin Jira" }), pick, title, description, h("div", { class: "actions" }, [create])]);
+  const where = fixed ? (list.find((p) => p.id === fixed) || {}).name : "";
+  return h("div", { class: "card new-task" }, [h("strong", { text: where ? `Nueva tarea en ${where}, sin Jira` : "Nueva tarea, sin Jira" }), pick, title, description, h("div", { class: "actions" }, [create])]);
 }

@@ -59,11 +59,13 @@ function handleSession(res, { name, ref, alias, area, title, areaId, conversatio
   send(res, 200);
 }
 
-function linkNew(res, { clean, epicKey, epicName, created }, send) {
+function linkNew(res, { clean, epicKey, epicName, created, project }, send) {
   const before = new Set((liveSessions() || []).map((s) => s.conversation));
+  const config = require("../../core/config");
+  const own = project && project !== config.mainProject ? project : null;
   if (created) {
     const host = require("../../sessions/host");
-    host.ensureHost().then(() => host.hostRequest("POST", "/start", { conversation: created, name: clean }).catch(() => {}));
+    host.ensureHost().then(() => host.hostRequest("POST", "/start", { conversation: created, name: clean, ...(own ? { cwd: own.root } : {}) }).catch(() => {}));
   } else openInVsCode(created);
   let attempts = 0;
   const timer = setInterval(() => {
@@ -74,7 +76,7 @@ function linkNew(res, { clean, epicKey, epicName, created }, send) {
     const area = changeRoutes((r) => {
       const k = areaKey(r, clean);
       const link = found ? { session: found.name, ref: null, since: now(), conversation: found.conversation } : created ? { conversation: created } : {};
-      r.areas[k] = Object.assign({ title: clean, epics: {} }, r.areas[k], link);
+      r.areas[k] = Object.assign({ title: clean, epics: {} }, r.areas[k], link, own ? { project: own.id } : {});
       r.areas[k].epics = r.areas[k].epics || {};
       if (epicKey) {
         for (const a of Object.values(r.areas)) if (a.epics) delete a.epics[epicKey];
@@ -86,10 +88,14 @@ function linkNew(res, { clean, epicKey, epicName, created }, send) {
   }, 2000);
 }
 
-function handleNewSession(res, { title, epicKey, epicName }, send) {
+function handleNewSession(res, { title, epicKey, epicName, project: projectId }, send) {
   const clean = String(title || "").trim().slice(0, 60);
   if (!clean) return send(res, 400, { error: "falta el nombre" });
-  createConversation(clean).then((created) => linkNew(res, { clean, epicKey, epicName, created }, send));
+  const config = require("../../core/config");
+  const project = projectId ? config.project(String(projectId)) : config.mainProject;
+  if (!project) return send(res, 400, { error: "proyecto desconocido" });
+  if (!project.root || !require("fs").existsSync(project.root)) return send(res, 400, { error: `${project.name} no tiene carpeta en este ordenador` });
+  createConversation(clean, project.root).then((created) => linkNew(res, { clean, epicKey, epicName, created, project }, send));
 }
 
 function handleEpic(res, { key, name, area }, send) {

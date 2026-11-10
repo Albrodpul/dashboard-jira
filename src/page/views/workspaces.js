@@ -1,6 +1,7 @@
 import { h, button, toast, requestOrFail, render, refresh, empty } from "../lib/base.js";
 
-const MODULES = { jira: "Jira y su reporte", followUp: "Seguimiento", sentry: "Sentry", deploy: "Despliegues", devServers: "Servidores locales" };
+const MODULES = { jira: "Jira y su reporte", followUp: "Seguimiento", sentry: "Sentry", deploy: "Despliegues", devServers: "Servidores locales", daily: "Daily", context: "Ordenar contexto" };
+const OPTIONAL = { daily: ["Daily", "Un resumen al final del día con las tareas y los commits de este proyecto."], contextTidy: ["Ordenar contexto", "Pasadas de orden sobre el contexto del proyecto, con sus propias reglas (su AGENTS.md)."] };
 const SECRETS = { JIRA_SITE: "Sitio de Jira", JIRA_EMAIL: "Correo de Jira", JIRA_TOKEN: "Token de Jira", SENTRY_TOKEN: "Token de Sentry" };
 const GUIDE = {
   review: ["Al dar una tarea por hecha", "Qué tiene que hacer la sesión antes de avisar «done». Sin texto: solo avisar al tablero."],
@@ -60,7 +61,7 @@ function form(draft) {
     onClick: async (b) => {
       b.disabled = true;
       try {
-        const body = { name: draft.name, taskPrefix: draft.taskPrefix, root: draft.root || "", messages: { review: draft.review, cause: draft.cause, reference: draft.reference } };
+        const body = { name: draft.name, taskPrefix: draft.taskPrefix, root: draft.root || "", daily: !!draft.daily, contextTidy: !!draft.contextTidy, messages: { review: draft.review, cause: draft.cause, reference: draft.reference } };
         if (!isNew) Object.assign(body, { id: draft.id, create: false });
         const r = await requestOrFail("/api/projects-admin/save", body);
         editing = null;
@@ -78,6 +79,12 @@ function form(draft) {
     field("Nombre", null, text(draft, "name", { placeholder: "Cuentas personales" })),
     field("Prefijo de las tareas", "De 2 a 10 letras. Las tareas que crees a mano se llamarán así: PREFIJO-1, PREFIJO-2…", text(draft, "taskPrefix", { placeholder: "CUENTAS" })),
     field("Carpeta en este ordenador", "Ruta completa. Cada ordenador guarda la suya; las sesiones abiertas dentro de ella son de este proyecto.", text(draft, "root", { placeholder: "/Users/…/proyecto" })),
+    h("div", { class: "ws-checks" }, Object.entries(OPTIONAL).map(([k, [label, hint]]) => {
+      const box = h("input", { type: "checkbox" });
+      box.checked = !!draft[k];
+      box.addEventListener("change", () => (draft[k] = box.checked));
+      return h("label", { class: "rule" }, [box, h("span", {}, [h("strong", { text: label }), ` · ${hint}`])]);
+    })),
     h("details", { class: "ws-guide" }, [
       h("summary", { text: "Guía para las sesiones (opcional)" }),
       ...Object.entries(GUIDE).map(([k, [label, hint]]) => field(label, hint, area(draft, k, ""))),
@@ -135,7 +142,7 @@ function card(p) {
   kids.push(credentials(p));
   kids.push(
     h("div", { class: "actions" }, [
-      button("Editar", { onClick: () => ((editing = { id: p.id, name: p.name, taskPrefix: p.taskPrefix, root: p.root || "", ...(p.messages || {}) }), render()) }),
+      button("Editar", { onClick: () => ((editing = { id: p.id, name: p.name, taskPrefix: p.taskPrefix, root: p.root || "", daily: p.modules.daily, contextTidy: p.modules.context, ...(p.messages || {}) }), render()) }),
       button("Borrar", {
         cls: "subtle",
         onClick: async (b) => {

@@ -12,7 +12,7 @@ export function currentProject() {
   return workspaces().some((p) => p.id === v) ? v : "";
 }
 
-const TAB_MODULE = { sentry: "sentry", deploy: "deploy", projects: "devServers", "follow-up": "followUp", learning: "jira", context: "context" };
+const TAB_MODULE = { daily: "daily", sentry: "sentry", deploy: "deploy", projects: "devServers", "follow-up": "followUp", learning: "jira", context: "context" };
 
 export function hasModule(name) {
   const p = workspaces().find((x) => x.id === currentProject());
