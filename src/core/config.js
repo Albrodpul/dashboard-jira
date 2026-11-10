@@ -6,19 +6,24 @@ const ENV_FILE = path.join(WORKSPACE, ".env");
 const CONFIG_FILE = path.join(WORKSPACE, "board.config.json");
 const LEGACY_CONFIG_FILE = path.join(WORKSPACE, "tablero.config.json");
 
-function loadEnv(file) {
+function parseEnv(file) {
+  const out = {};
   let text = "";
   try {
     text = fs.readFileSync(file, "utf8");
   } catch (e) {
-    return;
+    return out;
   }
   for (const line of text.split(/\r?\n/)) {
     const m = /^\s*([A-Z0-9_]+)\s*=\s*(.*?)\s*$/.exec(line);
     if (!m || line.trim().startsWith("#")) continue;
-    const value = m[2].replace(/^(["'])(.*)\1$/, "$2");
-    if (process.env[m[1]] === undefined) process.env[m[1]] = value;
+    out[m[1]] = m[2].replace(/^(["'])(.*)\1$/, "$2");
   }
+  return out;
+}
+
+function loadEnv(file) {
+  for (const [k, v] of Object.entries(parseEnv(file))) if (process.env[k] === undefined) process.env[k] = v;
 }
 
 function fromLegacyConfig(c) {
@@ -59,66 +64,143 @@ function readConfig() {
   }
 }
 
-loadEnv(ENV_FILE);
-const c = readConfig();
-const root = path.resolve(c.root || path.join(WORKSPACE, ".."));
-const projects = c.jira.projects;
+const COMMON_KEYS = ["cluster", "trustedHosts", "voice", "sessionModel", "sessionProfiles"];
+
+function normalize(c) {
+  if (Array.isArray(c.projects) && c.projects.length && typeof c.projects[0] === "object") {
+    const common = {};
+    for (const k of COMMON_KEYS) if (k in c) common[k] = c[k];
+    return { common, projects: c.projects };
+  }
+  const common = {};
+  const project = { id: slug(c.company) || "main", name: c.company || "" };
+  for (const [k, v] of Object.entries(c)) (COMMON_KEYS.includes(k) ? common : project)[k] = v;
+  return { common, projects: [project], flat: true };
+}
+
+const slug = (s) =>
+  String(s || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 40);
+
+function upgradeFlat(read) {
+  if (!read.flat) return read;
+  try {
+    fs.copyFileSync(CONFIG_FILE, `${CONFIG_FILE}.flat.bak`);
+    fs.writeFileSync(CONFIG_FILE, JSON.stringify({ ...read.common, projects: read.projects }, null, 2) + "\n");
+  } catch (e) {}
+  return read;
+}
+
 const escape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const alternatives = (xs) => xs.map(escape).join("|");
 const slashes = (p) => p.replace(/\\/g, "/");
 
-const deployTargets = (c.deployProjects || []).map((p) => (typeof p === "string" ? { id: p } : p));
-
-function credentials() {
-  const { JIRA_SITE, JIRA_EMAIL, JIRA_TOKEN } = process.env;
-  if (JIRA_SITE && JIRA_EMAIL && JIRA_TOKEN) return { site: JIRA_SITE, email: JIRA_EMAIL, token: JIRA_TOKEN };
-  throw new Error(`Missing JIRA_SITE, JIRA_EMAIL or JIRA_TOKEN in ${ENV_FILE} (copy .env.example).`);
+function buildProject(p, index) {
+  if (!p.id || !/^[a-z0-9][a-z0-9-]*$/.test(p.id)) throw new Error(`${CONFIG_FILE}: every project needs an id in lowercase letters, digits and dashes`);
+  const root = path.resolve(p.root || path.join(WORKSPACE, ".."));
+  const envFile = path.resolve(WORKSPACE, p.env || (index === 0 ? ".env" : `.env.${p.id}`));
+  let env = null;
+  const secret = (name) => {
+    if (!env) env = parseEnv(envFile);
+    if (env[name] !== undefined) return env[name];
+    return index === 0 ? process.env[name] : undefined;
+  };
+  const credentials = () => {
+    const site = secret("JIRA_SITE");
+    const email = secret("JIRA_EMAIL");
+    const token = secret("JIRA_TOKEN");
+    if (site && email && token) return { site, email, token };
+    throw new Error(`Missing JIRA_SITE, JIRA_EMAIL or JIRA_TOKEN in ${envFile} (copy .env.example).`);
+  };
+  const keys = p.jira ? p.jira.projects : [];
+  const deployTargets = (p.deployProjects || []).map((t) => (typeof t === "string" ? { id: t } : t));
+  const st = p.statuses;
+  return {
+    id: p.id,
+    name: p.name || p.company || p.id,
+    root,
+    company: p.company || p.name || "",
+    envFile,
+    secret,
+    credentials,
+    commandsDir: slashes(path.join(root, ".claude", "commands")),
+    jira: p.jira
+      ? {
+          projects: keys,
+          projectsJql: `project in (${keys.join(", ")})`,
+          keyRegex: new RegExp(`\\b(?:${alternatives(keys)})-\\d+\\b`),
+          keyRegexGlobal: () => new RegExp(`\\b(?:${alternatives(keys)})-\\d+\\b`, "g"),
+          me: p.jira.me,
+          reviewer: p.jira.reviewer,
+          transitions: p.jira.transitions || {},
+          defaultIssueType: p.jira.defaultIssueType || null,
+        }
+      : null,
+    statuses: st
+      ? {
+          review: st.review,
+          returned: st.returned,
+          reviewRegex: new RegExp(escape(st.review), "i"),
+          returnedRegex: new RegExp(`^(${alternatives(st.returned)})$`, "i"),
+          backFromReviewRegex: new RegExp(`^(${alternatives([...st.returned, ...st.inProgress])})$`, "i"),
+          closedRegex: new RegExp(`^(${alternatives(st.closed)})$`, "i"),
+          rejectLabel: st.rejectLabel,
+        }
+      : null,
+    followUp: p.followUp || [],
+    errorsArea: p.errorsArea || null,
+    sentry: p.sentry || null,
+    devServers: p.devServers || [],
+    deployProjects: deployTargets.map((t) => t.id),
+    deployTargets,
+    contextDomains: path.join(root, p.contextDomains || "context/dominios"),
+  };
 }
+
+const { common, projects: rawProjects } = upgradeFlat(normalize(readConfig()));
+const projects = rawProjects.map(buildProject);
+if (new Set(projects.map((p) => p.id)).size !== projects.length) throw new Error(`${CONFIG_FILE}: project ids must be unique`);
+const main = projects[0];
+if (!main.jira || !main.statuses) throw new Error(`${CONFIG_FILE}: the first project still needs jira and statuses`);
+if (path.resolve(main.envFile) === path.resolve(ENV_FILE)) loadEnv(ENV_FILE);
 
 module.exports = {
   workspace: WORKSPACE,
-  root,
-  company: c.company || "",
+  root: main.root,
+  company: main.company,
   cli: `node ${slashes(path.join(WORKSPACE, "board.js"))}`,
-  commandsDir: slashes(path.join(root, ".claude", "commands")),
-  credentials,
-  jira: {
-    projects,
-    projectsJql: `project in (${projects.join(", ")})`,
-    keyRegex: new RegExp(`\\b(?:${alternatives(projects)})-\\d+\\b`),
-    keyRegexGlobal: () => new RegExp(`\\b(?:${alternatives(projects)})-\\d+\\b`, "g"),
-    me: c.jira.me,
-    reviewer: c.jira.reviewer,
-    transitions: c.jira.transitions || {},
-    defaultIssueType: c.jira.defaultIssueType || null,
-  },
-  statuses: {
-    review: c.statuses.review,
-    returned: c.statuses.returned,
-    reviewRegex: new RegExp(escape(c.statuses.review), "i"),
-    returnedRegex: new RegExp(`^(${alternatives(c.statuses.returned)})$`, "i"),
-    backFromReviewRegex: new RegExp(`^(${alternatives([...c.statuses.returned, ...c.statuses.inProgress])})$`, "i"),
-    closedRegex: new RegExp(`^(${alternatives(c.statuses.closed)})$`, "i"),
-    rejectLabel: c.statuses.rejectLabel,
-  },
-  followUp: c.followUp || [],
-  errorsArea: c.errorsArea || null,
-  sentry: c.sentry || null,
-  devServers: c.devServers || [],
-  trustedHosts: c.trustedHosts || [],
-  cluster: c.cluster || null,
-  voice: c.voice || {},
-  deployProjects: deployTargets.map((t) => t.id),
-  deployTargets,
-  sessionModel: c.sessionModel || "claude-opus-5-5",
-  sessionProfiles: c.sessionProfiles || null,
-  contextDomains: path.join(root, c.contextDomains || "context/dominios"),
+  commandsDir: main.commandsDir,
+  credentials: main.credentials,
+  secret: main.secret,
+  jira: main.jira,
+  statuses: main.statuses,
+  followUp: main.followUp,
+  errorsArea: main.errorsArea,
+  sentry: main.sentry,
+  devServers: main.devServers,
+  trustedHosts: common.trustedHosts || [],
+  cluster: common.cluster || null,
+  voice: common.voice || {},
+  deployProjects: main.deployProjects,
+  deployTargets: main.deployTargets,
+  sessionModel: common.sessionModel || "claude-opus-5-5",
+  sessionProfiles: common.sessionProfiles || null,
+  contextDomains: main.contextDomains,
+  projects,
+  mainProject: main,
+  project: (id) => projects.find((p) => p.id === id) || null,
   forPage: () => ({
-    jiraUrl: `https://${process.env.JIRA_SITE || ""}/browse/`,
-    projects,
-    me: { name: c.jira.me.name },
-    reviewer: { name: c.jira.reviewer.name },
-    reviewStatus: c.statuses.review,
-    deployProjects: deployTargets.map((t) => t.id),
+    jiraUrl: `https://${main.secret("JIRA_SITE") || ""}/browse/`,
+    projects: main.jira.projects,
+    me: { name: main.jira.me.name },
+    reviewer: { name: main.jira.reviewer.name },
+    reviewStatus: main.statuses.review,
+    deployProjects: main.deployProjects,
+    workspaces: projects.map((p) => ({ id: p.id, name: p.name, jira: !!p.jira })),
   }),
 };

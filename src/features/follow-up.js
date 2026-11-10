@@ -19,7 +19,8 @@ const slug = (s) =>
 
 function readSettings() {
   try {
-    return JSON.parse(fs.readFileSync(CONFIG_FILE, "utf8")).followUp;
+    const c = JSON.parse(fs.readFileSync(CONFIG_FILE, "utf8"));
+    return Array.isArray(c.projects) ? (c.projects.find((p) => p.id === config.mainProject.id) || {}).followUp : c.followUp;
   } catch (e) {
     return config.followUp;
   }

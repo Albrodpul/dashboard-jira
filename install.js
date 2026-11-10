@@ -49,7 +49,8 @@ for (const [name, content] of Object.entries(launchers)) fs.writeFileSync(path.j
 console.log(`launchers in ${workspace}: ${Object.keys(launchers).join(", ")}`);
 
 process.env.TOWER_WORKSPACE = workspace;
-const exampleRoot = slashes(JSON.parse(fs.readFileSync(path.join(REPO, "board.config.example.json"), "utf8")).root);
+const example = JSON.parse(fs.readFileSync(path.join(REPO, "board.config.example.json"), "utf8"));
+const exampleRoot = slashes((Array.isArray(example.projects) ? example.projects[0] : example).root);
 let config;
 try {
   if (createdExample) throw new Error("The configuration was just created from the examples.");

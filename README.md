@@ -84,11 +84,15 @@ The `.env` never leaves the workspace folder and is git-ignored.
 
 ### 3. Projects and root (`board.config.json`)
 
-Set at least:
+The file has a common part (`cluster`, `trustedHosts`, `voice`, `sessionModel`, `sessionProfiles`) and a `projects` list. Each project is one workspace with its own folder, credentials and, optionally, Jira. For now everything runs on the first project; the others are only read. Set at least, in the first project:
 
+- `id`: a short lowercase name, e.g. `acme`. Records are tagged with it, so keep it the same on every machine.
 - `company`: the company name, used in texts.
 - `root`: the folder you open in VS Code, where the Claude Code sessions live. The installer writes the slash commands into `<root>/.claude/commands/`.
-- `jira.projects`: the project keys to watch, e.g. `["WEB", "API"]`.
+- `jira.projects`: the project keys to watch, e.g. `["WEB", "API"]`. A project without Jira leaves out `jira` and `statuses`; the first one still needs them.
+- `env`: optional. Credentials file, relative to the workspace. Defaults to `.env` for the first project and `.env.<id>` for the others, so one client's keys are never used for another.
+
+A file in the old flat format (no `projects`) is upgraded in place on the next start, with the project id taken from `company`; the original is kept as `board.config.json.flat.bak`.
 
 ### 4. Let Jira fill in the ids
 

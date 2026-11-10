@@ -8,7 +8,7 @@ const CACHE_MS = 60 * 1000;
 let cache = null;
 
 function token() {
-  if (process.env.SENTRY_TOKEN) return process.env.SENTRY_TOKEN;
+  if (config.secret("SENTRY_TOKEN")) return config.secret("SENTRY_TOKEN");
   try {
     const mcp = JSON.parse(fs.readFileSync(path.join(config.root, ".mcp.json"), "utf8"));
     const server = Object.values(mcp.mcpServers || {}).find((s) => (s.args || []).some((a) => String(a).includes("sentry")));
