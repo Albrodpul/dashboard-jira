@@ -1,3 +1,4 @@
+require("./helpers/env").sandbox();
 const test = require("node:test");
 const assert = require("node:assert");
 const { liveStatus } = require("../src/sessions/registry");
