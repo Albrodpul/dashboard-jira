@@ -18,6 +18,7 @@ const agent = () => require("../agents").main();
 const DIALOGS = [
   [/Claude ?in ?Chrome/i, "\x1b"],
   [/fullscreen ?renderer/i, "2\r"],
+  [/❯ ?No, ?exit/i, "\x1b[B\r"],
   [/trust ?this ?folder/i, "\r"],
   [/MCP ?servers ?found/i, "\r"],
 ];
