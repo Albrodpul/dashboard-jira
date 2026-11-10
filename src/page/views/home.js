@@ -1,4 +1,5 @@
 import { state, h, when, minutesSince, switchView, empty, fixedAreaIds, button, post, toast } from "../lib/base.js";
+import { currentProject } from "../components/project-filter.js";
 
 
 const GROUPS = [
@@ -10,8 +11,8 @@ const BOARD = ["working", "blocked", "free"];
 const DOTS = { working: "busy", blocked: "bad", free: "on" };
 const SILENT_MIN = 5;
 
-function liveOf(conversation, sessionName) {
-  const list = state.sessions.list || [];
+function liveOf(conversation, sessionName, everywhere) {
+  const list = (everywhere && state.allSessions ? state.allSessions.list : state.sessions.list) || [];
   return list.find((s) => (conversation ? s.conversation === conversation : s.name === sessionName)) || null;
 }
 
@@ -58,9 +59,12 @@ export function sessionSituation() {
     ["Despliegue", fixedArea(state.deployerArea)],
     ["Errores sentry", fixedArea(state.sentry && state.sentry.errorsArea)],
   ];
+  const picked = currentProject();
+  const mainId = ((state.jiraSetup && state.jiraSetup.workspaces) || [])[0];
+  const otherProject = picked && mainId && picked !== mainId.id;
   for (const [name, r] of roles) {
-    if (!r || !r.conversation) continue;
-    const live = liveOf(r.conversation, r.session);
+    if (!r || !r.conversation || (otherProject && name !== "Tablero")) continue;
+    const live = liveOf(r.conversation, r.session, true);
     out.system.push({ name, open: !!live, working: !!live && live.status === "busy", conversation: r.conversation, session: live ? live.name : r.session || name });
   }
   return out;

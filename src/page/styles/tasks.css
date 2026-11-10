@@ -20,7 +20,7 @@ textarea.reply-box { font: inherit; color: var(--ink); background: var(--surface
 .task-toolbar .status-chips, .task-toolbar .rule { margin: 0; }
 .task-toolbar .view-switch { align-self: center; }
 .task-toolbar .new-task-toggle { margin-left: auto; }
-.task-toolbar .project-filter { width: auto; flex: none; max-width: 220px; font: inherit; font-size: 13px; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; }
+.project-filter { width: auto; flex: none; max-width: 240px; font: inherit; font-size: 13px; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; }
 .new-task { margin: 0 0 14px; }
 .new-task input, .new-task select { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; width: 100%; box-sizing: border-box; }
 .new-task select { width: auto; align-self: flex-start; }
@@ -166,3 +166,16 @@ textarea.comment-box { font-family: inherit; }
 .chip.limit-note { color: var(--ink-2); background: var(--mute-soft); }
 .limit-chips { display: flex; gap: 6px; flex-wrap: wrap; }
 .delivery-error { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 13px; color: var(--danger); }
+.ws-top { margin: 0 0 14px; }
+.ws-head { display: flex; align-items: baseline; gap: 10px; }
+.ws-facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 14px; margin: 0; font-size: 13px; }
+.ws-facts dt { color: var(--ink-3); }
+.ws-facts dd { margin: 0; overflow-wrap: anywhere; }
+.ws-field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.ws-label { color: var(--ink-2); font-weight: 600; }
+.ws-field input { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; width: 100%; box-sizing: border-box; }
+.ws-guide { display: flex; flex-direction: column; gap: 10px; font-size: 13px; }
+.ws-guide > summary { cursor: pointer; color: var(--ink-2); }
+.ws-guide[open] > summary { margin-bottom: 8px; }
+.ws-guide .ws-field + .ws-field { margin-top: 10px; }
+.ws-form .ws-field + .ws-field, .ws-form .ws-field + details { margin-top: 2px; }

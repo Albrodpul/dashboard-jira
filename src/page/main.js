@@ -12,11 +12,12 @@ import { batteryBadge } from "./components/battery.js";
 import { renderLearning } from "./views/learning.js";
 import { renderSentry } from "./views/sentry.js";
 import { renderProjects } from "./views/projects.js";
+import { renderWorkspaces } from "./views/workspaces.js";
 import { renderFind, searchBox } from "./views/find.js";
 import { renderMachines } from "./views/machines.js";
 import { paintTicket } from "./components/ticket.js";
 import { newTaskButton, newTaskForm } from "./components/new-task.js";
-import { projectPicker, filterTasks, tabVisible, hasModule } from "./components/project-filter.js";
+import { projectPicker, applyProjectFilter, tabVisible, hasModule } from "./components/project-filter.js";
 
 const TASK_TABS = [
   { id: "pending", label: "Pendientes" },
@@ -46,7 +47,7 @@ const GROUPS = [
   [
     "Mi ordenador",
     [
-      { id: "projects", label: "Proyectos", hint: "Servidores de desarrollo en local" },
+      { id: "projects", label: "Servidores", hint: "Servidores de desarrollo en local" },
       { id: "machines", label: "Ordenadores", hint: "PC y Mac: quién manda" },
     ],
   ],
@@ -60,6 +61,7 @@ const GROUPS = [
   [
     "Ajustes",
     [
+      { id: "workspaces", label: "Proyectos", hint: "Alta y ajustes de cada proyecto" },
       { id: "sessions", label: "Sesiones", hint: "Quién lleva cada epic" },
       { id: "context", label: "Ordenar contexto", hint: "Repasar context/" },
     ],
@@ -82,7 +84,8 @@ const VIEWS = {
   today: ["Hoy", "Lo que necesita algo de ti ahora mismo y, debajo, el último reporte."],
   more: ["Más", "Errores, despliegues, tu ordenador, lo que hacen los demás y ajustes."],
   talk: ["Hablar", "Las sesiones del tablero en directo: las fijas y cualquier otra que esté abierta. Escríbeles o córtalas, o abre una nueva para hablar."],
-  projects: ["Proyectos", "Los servidores locales que usan las sesiones: MySQL, api, Assistant, admin y web."],
+  workspaces: ["Proyectos", "Cada proyecto que lleva el tablero: su carpeta en este ordenador, sus módulos y sus credenciales."],
+  projects: ["Servidores", "Los servidores locales que usan las sesiones: MySQL, api, Assistant, admin y web."],
   sentry: ["Errores", "Errores sin resolver de web, admin y api. Elige la sesión y pulsa Enviar: el tablero se lo pasa con el enlace y te cuenta aquí lo que ha encontrado."],
   context: ["Ordenar contexto", "La orquestadora repasa y ordena context/ y el índice de AGENTS.md. Solo se puede lanzar con todo limpio: sin tareas pendientes, por enviar ni en sesión."],
   "follow-up": ["Seguimiento", "Lo que hace cada uno según sus peticiones a la API, separado por persona: beta se resume sola cada hora y producción cada dos; cualquiera de los dos, también cuando lo pidas."],
@@ -97,6 +100,7 @@ const NON_TASK_VIEWS = {
   deploy: renderDeploy,
   sentry: renderSentry,
   projects: renderProjects,
+  workspaces: renderWorkspaces,
   "follow-up": renderFollowUp,
   context: renderContext,
   talk: renderTalk,
@@ -116,6 +120,7 @@ const NAV_ICONS = {
   deploy: '<path d="M12 19V5M5 12l7-7 7 7"/><path d="M5 21h14"/>',
   projects: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="m7 10 3 2-3 2M13 15h4"/>',
   machines: '<rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/>',
+  workspaces: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
   "follow-up": '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
   learning: '<path d="M22 10 12 5 2 10l10 5 10-5z"/><path d="M6 12v5c3 2 9 2 12 0v-5"/>',
   sessions: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18.5 20a6.5 6.5 0 0 0-3-5.5"/>',
@@ -262,6 +267,30 @@ function returnedRule(root) {
   root.appendChild(h("label", { class: "rule", for: "auto-returned" }, [rule, ` Enviar solas a su sesión las tareas devueltas o comentadas por ${reviewer()}`]));
 }
 
+function paintProjectPicker() {
+  const onChange = () => {
+    applyProjectFilter();
+    if (!tabVisible(state.tab)) return switchView("home");
+    render();
+  };
+  const top = document.getElementById("top-project");
+  if (top && !top.contains(document.activeElement)) {
+    top.textContent = "";
+    const pick = projectPicker(onChange);
+    if (pick) top.appendChild(pick);
+  }
+  const brand = document.querySelector(".nav > .brand");
+  if (brand && !brand.contains(document.activeElement)) {
+    const old = brand.querySelector(".mobile-project");
+    if (old) old.remove();
+    const pick = projectPicker(onChange);
+    if (pick) {
+      pick.classList.add("mobile-project");
+      brand.appendChild(pick);
+    }
+  }
+}
+
 let renderedTab = null;
 
 function render() {
@@ -311,6 +340,8 @@ function paint() {
     brand.appendChild(h("span", { class: "mobile-battery" }, [small, quotaBlock()]));
   }
   right.appendChild(quotaBlock());
+  paintProjectPicker();
+  document.querySelector(".app").setAttribute("data-jira", hasModule("jira") ? "on" : "off");
   document.querySelector(".app").setAttribute("data-view", state.tab);
   document.querySelector(".app").setAttribute("data-section", section);
   const board = !mobile && isTaskTab(state.tab) && state.tab !== "ignored" && taskView() === "board";
@@ -340,12 +371,6 @@ function paint() {
   const switchable = !mobile && isTaskTab(state.tab);
   if (switchable || state.tab === "pending") {
     const bar = h("div", { class: "task-toolbar" });
-    const picker = projectPicker(() => {
-      state.tasks = filterTasks(state.allTasks || state.tasks);
-      if (!tabVisible(state.tab)) return switchView("home");
-      render();
-    });
-    if (picker) bar.appendChild(picker);
     if (switchable) bar.appendChild(viewSwitch(board ? "board" : "list"));
     const chips = !mobile && root.querySelector(".status-chips");
     if (chips) bar.appendChild(chips);
@@ -390,10 +415,10 @@ function showVia(via, stale) {
 
 function apply(d) {
   for (const k of FIELDS) state[k] = d[k];
-  state.areas = [...d.areas].sort((a, b) => a.name.localeCompare(b.name, "es"));
+  state.allAreas = [...d.areas].sort((a, b) => a.name.localeCompare(b.name, "es"));
   state.allTasks = d.tasks.map((v) => ({ ...v, id: v.key }));
-  state.tasks = filterTasks(state.allTasks);
-  state.sessions = d.sessions || { list: [], syncedAt: null };
+  state.allSessions = d.sessions || { list: [], syncedAt: null };
+  applyProjectFilter();
   state.config = d.config || {};
   renderReport();
   updateStamp();

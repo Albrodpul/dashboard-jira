@@ -26,6 +26,15 @@ export const filterTasks = (list) => {
   return p ? list.filter((t) => t.project === p) : list;
 };
 
+export function applyProjectFilter() {
+  const p = currentProject();
+  const keep = (x) => !p || !x.project || x.project === p;
+  state.tasks = filterTasks(state.allTasks || state.tasks);
+  state.areas = (state.allAreas || state.areas).filter(keep);
+  const sessions = state.allSessions || state.sessions;
+  state.sessions = { ...sessions, list: (sessions.list || []).filter(keep) };
+}
+
 export function projectPicker(onChange) {
   const list = workspaces();
   if (list.length < 2) return null;
