@@ -241,7 +241,7 @@ function handleGet(req, res, url) {
   if (url === "/api/push/key") return serveBody(res, "application/json", JSON.stringify({ key: pushKeys().publicKey }));
   if (url.startsWith("/api/permission/perm-")) return serveBody(res, "application/json", JSON.stringify(permissions.poll(url.slice("/api/permission/".length))));
   if (url === "/api/cluster/quota") return serveBody(res, "application/json", JSON.stringify(require("../../features/quota").readQuota()));
-  if (url === "/api/cluster/memory") return serveBody(res, "application/json", JSON.stringify({ files: require("../../features/memory-sync").memoryFiles() }));
+  if (url === "/api/cluster/memory") return serveBody(res, "application/json", JSON.stringify(require("../../features/memory-sync").snapshot()));
   if (url === "/api/cluster") return serveBody(res, "application/json", JSON.stringify(require("../../cluster/cluster").info()));
   if (url === "/api/cluster/snapshot") return serveBody(res, "application/json", JSON.stringify(require("../../cluster/cluster").snapshot()));
   if (url === "/api/cluster/machines") {
