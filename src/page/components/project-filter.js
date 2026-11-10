@@ -29,10 +29,11 @@ export const filterTasks = (list) => {
 export function applyProjectFilter() {
   const p = currentProject();
   const keep = (x) => !p || !x.project || x.project === p;
+  const shared = state.boardStatus && state.boardStatus.conversation;
   state.tasks = filterTasks(state.allTasks || state.tasks);
   state.areas = (state.allAreas || state.areas).filter(keep);
   const sessions = state.allSessions || state.sessions;
-  state.sessions = { ...sessions, list: (sessions.list || []).filter(keep) };
+  state.sessions = { ...sessions, list: (sessions.list || []).filter((s) => keep(s) || (shared && s.conversation === shared)) };
 }
 
 export function projectPicker(onChange) {

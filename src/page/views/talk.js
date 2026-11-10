@@ -1,5 +1,6 @@
 import { livePanel } from "../components/terminal.js";
 import { state, h, button, toast, requestOrFail, render, refresh, empty, switchView } from "../lib/base.js";
+import { currentProject } from "../components/project-filter.js";
 
 let talkTo = "board";
 try {
@@ -25,6 +26,12 @@ const areaTalk = (id) => {
 };
 const talkSession = (to) => ({ reporter: state.reporterStatus, orchestrator: state.orchestrator, board: state.boardStatus, followUp: state.followUpStatus, deploy: areaTalk(state.deployerArea), errors: areaTalk(state.sentry && state.sentry.errorsArea) })[to] || null;
 const FIXED_TALK = ["board", "reporter", "orchestrator", "followUp", "deploy", "errors"];
+const SHARED_TALK = ["board"];
+function shownFixed() {
+  const picked = currentProject();
+  const main = ((state.jiraSetup && state.jiraSetup.workspaces) || [])[0];
+  return picked && main && picked !== main.id ? SHARED_TALK : FIXED_TALK;
+}
 
 export function openTalk(conversation) {
   setTalk(FIXED_TALK.find((k) => (talkSession(k) || {}).conversation === conversation) || conversation);
@@ -76,7 +83,8 @@ function talkActivity(conversation) {
 
 export function renderTalk(root) {
   const others = otherLiveSessions();
-  const entries = [...FIXED_TALK.map((k) => [k, TALK_NAMES[k], (talkSession(k) || {}).conversation]), ...others.map((o) => [o.conversation, o.name, o.conversation])];
+  const fixedShown = shownFixed();
+  const entries = [...fixedShown.map((k) => [k, TALK_NAMES[k], (talkSession(k) || {}).conversation]), ...others.map((o) => [o.conversation, o.name, o.conversation])];
   const list = h("nav", { class: "talk-list", "aria-label": "Qué sesión ver" });
   const group = (title, rows) => {
     if (!rows.length) return;
@@ -91,8 +99,8 @@ export function renderTalk(root) {
       );
     }
   };
-  group("Fijas", entries.slice(0, FIXED_TALK.length));
-  group("Abiertas", entries.slice(FIXED_TALK.length));
+  group("Fijas", entries.slice(0, fixedShown.length));
+  group("Abiertas", entries.slice(fixedShown.length));
   list.appendChild(h("button", { type: "button", class: "talk-new", title: "Abre una sesión nueva en el tablero para hablar con ella", text: "+ Sesión nueva", onclick: (e) => newTalkSession(e.currentTarget) }));
   const main = h("div", { class: "talk-main" });
   root.appendChild(h("div", { class: "talk-layout" }, [list, main]));
@@ -100,7 +108,7 @@ export function renderTalk(root) {
 }
 
 function renderTalkMain(root, others) {
-  const choices = [...FIXED_TALK.map((k) => [k, TALK_NAMES[k]]), ...others.map((o) => [o.conversation, o.name])];
+  const choices = [...shownFixed().map((k) => [k, TALK_NAMES[k]]), ...others.map((o) => [o.conversation, o.name])];
   if (/^[0-9a-f-]{36}$/.test(talkTo) && !choices.some(([k]) => k === talkTo)) choices.push([talkTo, "Sesión abierta"]);
   const select = h("select", { class: "chat-select", "aria-label": "Qué sesión ver" }, choices.map(([k, label]) => h("option", { value: k, text: label })));
   select.value = talkTo;
