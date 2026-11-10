@@ -17,6 +17,7 @@ const ENVIRONMENT_NAME = { develop: "develop", production: "producción", both: 
 const REVIEW_LINE = `Antes de dar una por hecha, pásala por el agente revisor y, si toca pantallas, pruébala: un texto o un caso acotado tú misma; lo demás, el agente probador, uno por sesión; siempre con un navegador abierto, sin scripts, y lo no visual por API o test (context/PLAYWRIGHT.md; context/JIRA.md, «Orden de trabajo», paso 4). Al acabar cada una avisa al tablero con «board.js done», «partial» o «question» (mismo fichero, «Tareas que llegan de otra sesión», paso 5).`;
 const CAUSE_LINE = "Al cerrarla, apunta la causa con board.js cause (context/JIRA.md, «Tarea devuelta tras la revisión»).";
 
+const manual = require("./manual-tasks");
 const log = (m) => appendLog(path.join(DATA_DIR, "mailman.log"), `${now()} ${m}\n`);
 const mark = (id) => `[envío ${id}]`;
 let counter = 0;
@@ -29,6 +30,7 @@ function taskNote(t) {
 function taskLine(t) {
   const head = `- ${t.key} · ${t.title}`;
   const note = taskNote(t);
+  if (manual.isManual(t)) return `${head} · nueva, sin ticket de Jira${t.description ? `: ${t.description.slice(0, 3000)}` : ""}${note ? ` (${note})` : ""}`;
   if (t.kind === "comment") return `${head} · comentario de ${t.noteBy || "alguien"} en Jira sobre esta tarea: ${t.note || note || "(sin texto)"}${t.changes && t.changes.length ? ` Cambios en Jira: ${t.changes.map((c) => c.text).join("; ")}.` : ""}; léelo y corrige lo que pida. ${CAUSE_LINE}`;
   if (t.kind === "returned") return `${head} · devuelta${note ? ` (${note})` : ""}. ${CAUSE_LINE}`;
   if (t.kind === "resend") return `${head} · reenvío: ha cambiado en Jira desde el primer envío${note ? ` (${note})` : ""}; vuelve a leer el ticket y sus adjuntos antes de seguir.`;
@@ -48,7 +50,9 @@ const replyLine = (ids) => `Contesta la recepción al tablero, no a otra sesión
 
 function composeTasks(d, tasks, id, attachments = {}) {
   const epic = [tasks[0].epicKey, tasks[0].epicName].filter(Boolean).join(" ");
-  const lines = [`Tablero: Tareas de Jira enrutadas por ${ME} desde el reporte: ${tasks.map((t) => t.key).join(", ")}${epic ? ` (${epic})` : ""} ${mark(id)}`];
+  const own = tasks.every(manual.isManual);
+  const lines = [own ? `Tablero: Tareas creadas por ${ME} en el tablero: ${tasks.map((t) => t.key).join(", ")} ${mark(id)}` : `Tablero: Tareas de Jira enrutadas por ${ME} desde el reporte: ${tasks.map((t) => t.key).join(", ")}${epic ? ` (${epic})` : ""} ${mark(id)}`];
+  if (tasks.some(manual.isManual)) lines.push(`Las que dicen «sin ticket de Jira» no existen en Jira: todo lo que hay está en este mensaje y en «${CLI} list». No las busques ni las muevas en Jira; al acabarlas basta con avisar al tablero.`);
   for (const t of tasks) {
     lines.push(taskLine(t));
     lines.push(...attachmentLines(t, attachments[t.key]));
@@ -356,6 +360,7 @@ async function runJob(job) {
   const attachments = {};
   if (job.kind === "tasks") {
     for (const t of items) {
+      if (manual.isManual(t)) continue;
       try {
         attachments[t.key] = await e.attachments(t.key);
       } catch (err) {

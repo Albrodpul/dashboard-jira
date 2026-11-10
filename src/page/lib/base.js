@@ -2,7 +2,8 @@ export const state = { tasks: [], areas: [], sessions: { list: [], syncedAt: nul
 export const choice = {};
 export const drafts = {};
 const setup = () => state.jiraSetup || { jiraUrl: "", projects: [], reviewer: { name: "el revisor" }, reviewStatus: "en revisión", deployProjects: [] };
-export const ticketUrl = (key) => setup().jiraUrl + key;
+export const isManualKey = (key) => (state.tasks || []).some((t) => t.key === key && t.source === "manual");
+export const ticketUrl = (key) => (isManualKey(key) ? "" : setup().jiraUrl + key);
 export const reviewer = () => setup().reviewer.name;
 export const reviewStatus = () => setup().reviewStatus;
 export const deployProjects = () => setup().deployProjects || [];
@@ -147,10 +148,10 @@ export const openTicket = (key) => ticketOpener && ticketOpener(key);
 export function ticketLink(key, cls = "ticket-link") {
   return h("a", {
     class: cls,
-    href: ticketUrl(key),
-    target: "_blank",
+    href: ticketUrl(key) || "#",
+    target: ticketUrl(key) ? "_blank" : null,
     rel: "noopener noreferrer",
-    title: "Ver el detalle en el tablero (Ctrl+clic: abrir en Jira)",
+    title: ticketUrl(key) ? "Ver el detalle en el tablero (Ctrl+clic: abrir en Jira)" : "Ver el detalle en el tablero (tarea sin Jira)",
     text: key,
     onclick: (e) => {
       if (!ticketOpener || e.ctrlKey || e.metaKey || e.shiftKey || e.button !== 0) return;

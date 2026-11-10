@@ -19,6 +19,10 @@ textarea.reply-box { font: inherit; color: var(--ink); background: var(--surface
 .task-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; margin: 0 0 14px; }
 .task-toolbar .status-chips, .task-toolbar .rule { margin: 0; }
 .task-toolbar .view-switch { align-self: center; }
+.task-toolbar .new-task-toggle { margin-left: auto; }
+.new-task { margin: 0 0 14px; }
+.new-task input, .new-task select { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; width: 100%; box-sizing: border-box; }
+.new-task select { width: auto; align-self: flex-start; }
 @media (min-width: 761px) {
   .app[data-section="tasks"] .main-head .sub { min-height: calc(2 * 1.45em); }
   .task-toolbar .rule { flex-basis: 100%; }

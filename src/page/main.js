@@ -15,6 +15,7 @@ import { renderProjects } from "./views/projects.js";
 import { renderFind, searchBox } from "./views/find.js";
 import { renderMachines } from "./views/machines.js";
 import { paintTicket } from "./components/ticket.js";
+import { newTaskButton, newTaskForm } from "./components/new-task.js";
 
 const TASK_TABS = [
   { id: "pending", label: "Pendientes" },
@@ -339,8 +340,11 @@ function paint() {
     if (switchable) bar.appendChild(viewSwitch(board ? "board" : "list"));
     const chips = !mobile && root.querySelector(".status-chips");
     if (chips) bar.appendChild(chips);
+    bar.appendChild(newTaskButton());
     if (state.tab === "pending" || switchable) returnedRule(bar);
     root.appendChild(bar);
+    const form = newTaskForm();
+    if (form) root.appendChild(form);
   }
   if (!state.ok) return root.appendChild(empty("El tablero no responde.", "Arráncalo con: node board.js ensure"));
   if (board) return renderBoard(root);

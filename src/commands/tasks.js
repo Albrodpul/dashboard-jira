@@ -71,6 +71,16 @@ const commands = {
     if (r.pending) sendPush("tasks", false, r.pending === 1 ? "Hay una tarea nueva en Pendientes" : `Hay ${r.pending} tareas nuevas en Pendientes`).then((n) => n && console.log(`aviso enviado a ${n} dispositivo(s)`));
   },
 
+  "task-new"() {
+    const argv = process.argv.slice(3);
+    const at = argv.indexOf("--project");
+    const project = at >= 0 ? argv[at + 1] : undefined;
+    const words = at >= 0 ? argv.filter((x, i) => i !== at && i !== at + 1) : argv;
+    const r = mutate((d) => require("../features/manual-tasks").createTask(d, { project, title: words[0], description: words.slice(1).join(" ") }));
+    if (r.error) fail(r.error);
+    console.log(`${r.key} creada en Pendientes`);
+  },
+
   list() {
     const wanted = a ? status(a) : null;
     if (wanted && !STATUSES.includes(wanted)) fail(`estado desconocido: ${a}`);

@@ -52,3 +52,14 @@ test("live sessions are kept when their folder is in any project, and carry it",
   const live = require("../src/sessions/registry").liveSessions();
   assert.deepEqual(live.map((s) => [s.name, s.project]).sort(), [["s1", "acme"], ["s2", "client"]]);
 });
+
+test("tasks made by hand get their own key, never a Jira one, and are refused without a title", () => {
+  const manual = require("../src/features/manual-tasks");
+  const d = { tasks: { "SIDE-2": {} }, deleted: { "SIDE-5": "x" } };
+  assert.equal(manual.prefixOf(require("../src/core/config").project("side")), "SIDE");
+  assert.equal(manual.createTask(d, { project: "side", title: "Cuadrar gastos", description: "de octubre" }).key, "SIDE-6");
+  assert.deepEqual({ ...d.tasks["SIDE-6"], at: null }, { key: "SIDE-6", title: "Cuadrar gastos", description: "de octubre", project: "side", source: "manual", kind: "new", status: "pending", at: null, events: [] });
+  assert.equal(manual.createTask(d, { project: "side", title: " " }).error, "falta el título");
+  assert.match(manual.createTask(d, { project: "nope", title: "x" }).error, /desconocido/);
+  assert.equal(manual.prefixOf({ id: "web" }), "WEBL");
+});

@@ -58,7 +58,7 @@ async function jiraAttachments(keys) {
 
 async function refreshAttachments() {
   const keys = Object.values(load().tasks)
-    .filter((t) => ["pending", "approved", "ignored"].includes(t.status))
+    .filter((t) => ["pending", "approved", "ignored"].includes(t.status) && t.source !== "manual")
     .sort((x, y) => String(y.at || "").localeCompare(String(x.at || "")))
     .map((t) => t.key)
     .filter((k) => /^[A-Z]+-\d+$/.test(k))

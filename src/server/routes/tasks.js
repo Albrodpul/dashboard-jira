@@ -286,9 +286,20 @@ function adfText(node) {
   return inner;
 }
 
+function handleNewTask(res, input, send) {
+  const r = mutate((d) => require("../../features/manual-tasks").createTask(d, input || {}));
+  if (r.error) return send(res, 400, { error: r.error });
+  send(res, 200, r);
+}
+
 function handleTicket(res, { key }, send) {
   const k = String(key || "").toUpperCase();
   if (!/^[A-Z]+-\d+$/.test(k)) return send(res, 400, { error: "clave no válida" });
+  const own = load().tasks[k];
+  if (require("../../features/manual-tasks").isManual(own)) {
+    const x = summarizeIssue({ key: k, fields: { summary: own.title, status: { name: "Sin Jira" }, labels: [] } }, load(), loadRoutes());
+    return send(res, 200, { ...x, manual: true, description: own.description || "" });
+  }
   jiraGet(`/issue/${k}?fields=summary,status,assignee,parent,created,updated,labels,issuetype,priority,reporter,description`)
     .then((i) => {
       const f = i.fields;
@@ -355,4 +366,4 @@ function handleRestriction(res, input, send) {
   send(res, 200, r);
 }
 
-module.exports = { handleRestriction, handleTask, handleBatch, handleDelete, archiveDone, handleAnswer, handleReviewed, handleReviewedAll, reviewJobState, handleComment, handleConfig, handleRefresh, handleSearch, handleTicket, handleImport };
+module.exports = { handleNewTask, handleRestriction, handleTask, handleBatch, handleDelete, archiveDone, handleAnswer, handleReviewed, handleReviewedAll, reviewJobState, handleComment, handleConfig, handleRefresh, handleSearch, handleTicket, handleImport };

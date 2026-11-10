@@ -306,3 +306,12 @@ test("a session in an unknown state (a dialog may be open) is not typed into and
   assert.equal(t.status, "approved");
   assert.ok(t.delivery.soft);
 });
+
+test("a task made by hand is sent without Jira wording", () => {
+  const { composeTasks } = require("../src/features/mailman");
+  const text = composeTasks({ restrictions: [] }, [{ key: "SIDE-1", title: "Cuadrar gastos", description: "de octubre", source: "manual", kind: "new", approvedVia: "board" }], "E1");
+  assert.match(text, /^Tablero: Tareas creadas por .* en el tablero: SIDE-1 \[envío E1\]/);
+  assert.match(text, /SIDE-1 · Cuadrar gastos · nueva, sin ticket de Jira: de octubre/);
+  assert.match(text, /No las busques ni las muevas en Jira/);
+  assert.doesNotMatch(text, /desde el reporte/);
+});

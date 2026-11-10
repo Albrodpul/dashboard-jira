@@ -94,11 +94,12 @@ export function paintTicket() {
   box.appendChild(
     h("div", { class: "drawer-head" }, [
       h("span", { class: "meta drawer-epic", text: epic || "Detalle de la tarea" }),
-      h("a", { class: "btn link drawer-jira", href: ticketUrl(state.ticket), target: "_blank", rel: "noopener noreferrer", text: "Abrir en Jira ↗" }),
+      ticketUrl(state.ticket) ? h("a", { class: "btn link drawer-jira", href: ticketUrl(state.ticket), target: "_blank", rel: "noopener noreferrer", text: "Abrir en Jira ↗" }) : h("span", { class: "meta drawer-jira", text: "Sin Jira" }),
       button("Cerrar", { cls: "subtle drawer-close", onClick: closeTicket }),
     ])
   );
   for (const k of t ? [card(t)] : jiraOnly(state.ticket)) box.appendChild(k);
+  if (t && t.source === "manual" && t.description) box.appendChild(h("div", { class: "ticket-desc", text: t.description }));
   document.body.classList.add("ticket-open");
   if (!fresh) box.scrollTop = keep;
 }

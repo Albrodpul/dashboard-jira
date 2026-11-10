@@ -34,6 +34,7 @@ const POST_ROUTES = {
     }
   },
   "/api/task": (res, input, send) => tasks.handleTask(res, input, send),
+  "/api/task/new": (res, input, send) => tasks.handleNewTask(res, input, send),
   "/api/batch": (res, input, send) => tasks.handleBatch(res, input, send),
   "/api/delete": (res, input, send) => tasks.handleDelete(res, input, send),
   "/api/answer": (res, input, send) => tasks.handleAnswer(res, input, send),
