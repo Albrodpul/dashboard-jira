@@ -124,3 +124,8 @@
 @media (max-width: 760px) {
   .row > button.btn { justify-self: start; min-width: 120px; }
 }
+
+.weekly-off { display: flex; flex-direction: column; gap: 6px; border-top: 1px solid var(--line); padding-top: 10px; }
+.check-row { display: flex; gap: 8px; align-items: flex-start; font-size: 14px; cursor: pointer; }
+.check-row input { margin-top: 3px; accent-color: var(--accent); }
+.weekly-off .meta { margin: 0; }

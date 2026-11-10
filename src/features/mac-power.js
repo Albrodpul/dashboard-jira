@@ -4,7 +4,7 @@ const cp = require("child_process");
 const { DATA_DIR, load, mutate } = require("../core/data");
 const { appendLog } = require("../core/logfile");
 
-const DEFAULT = { wake: "06:00", sleep: "21:00", days: "MTWRF" };
+const DEFAULT = { wake: "06:00", sleep: "21:00", days: "MTWRF", weeklyOff: true };
 const STATE_FILE = path.join(DATA_DIR, "mac-power.json");
 const isMac = process.platform === "darwin";
 
@@ -13,13 +13,13 @@ const log = (m) => appendLog(path.join(DATA_DIR, "mac-power.log"), `[${new Date(
 function schedule() {
   const s = (load().config || {}).macSchedule || {};
   const ok = (t) => typeof t === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(t);
-  return { wake: ok(s.wake) ? s.wake : DEFAULT.wake, sleep: ok(s.sleep) ? s.sleep : DEFAULT.sleep, days: DEFAULT.days };
+  return { wake: ok(s.wake) ? s.wake : DEFAULT.wake, sleep: ok(s.sleep) ? s.sleep : DEFAULT.sleep, days: DEFAULT.days, weeklyOff: typeof s.weeklyOff === "boolean" ? s.weeklyOff : DEFAULT.weeklyOff };
 }
 
-function setSchedule({ wake, sleep }) {
+function setSchedule({ wake, sleep, weeklyOff }) {
   mutate((d) => {
     d.config = d.config || {};
-    d.config.macSchedule = { ...schedule(), ...(wake ? { wake } : {}), ...(sleep ? { sleep } : {}) };
+    d.config.macSchedule = { ...schedule(), ...(wake ? { wake } : {}), ...(sleep ? { sleep } : {}), ...(typeof weeklyOff === "boolean" ? { weeklyOff } : {}) };
   });
   return schedule();
 }
@@ -95,11 +95,12 @@ function tick() {
   const s = schedule();
   const st = readState();
   const today = new Date().toLocaleDateString("en-CA", { timeZone: "Europe/Madrid" });
-  const key = `${s.wake}-${s.sleep}`;
+  const key = `${s.wake}-${s.sleep}-${s.weeklyOff ? "off" : "on"}`;
   if (st.repeat !== key && canSudo()) {
-    if (sudoPmset(["repeat", "wakeorpoweron", s.days, `${s.wake}:00`])) {
+    const args = ["repeat", "wakeorpoweron", s.days, `${s.wake}:00`, ...(s.weeklyOff ? ["shutdown", "F", `${s.sleep}:00`] : [])];
+    if (sudoPmset(args)) {
       st.repeat = key;
-      log(`despertar programado de lunes a viernes a las ${s.wake}`);
+      log(`despertar programado de lunes a viernes a las ${s.wake}${s.weeklyOff ? `; apagado los viernes a las ${s.sleep}` : ""}`);
     }
   }
   const primary = require("../cluster/cluster").isPrimary();
@@ -115,6 +116,10 @@ function tick() {
     writeState(st);
     require("../cluster/cluster").letSleep();
     if (sleepDisabled()) sudoPmset(["-a", "disablesleep", "0"]);
+    if (s.weeklyOff && clock.weekday === "Fri") {
+      log(`son las ${s.sleep} del viernes: se apaga hasta el lunes a las ${s.wake}`);
+      return;
+    }
     log(`son las ${s.sleep}: a dormir`);
     cp.execFile("/usr/bin/pmset", ["sleepnow"], () => {});
     return;
@@ -122,8 +127,20 @@ function tick() {
   writeState(st);
 }
 
+let autoLoginCache = null;
+function autoLogin() {
+  if (!isMac) return null;
+  if (autoLoginCache && Date.now() - autoLoginCache.t < 60000) return autoLoginCache.v;
+  let v = false;
+  try {
+    v = !!cp.execFileSync("/usr/bin/defaults", ["read", "/Library/Preferences/com.apple.loginwindow", "autoLoginUser"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], timeout: 5000 }).trim();
+  } catch (e) {}
+  autoLoginCache = { t: Date.now(), v };
+  return v;
+}
+
 function status() {
-  return { schedule: schedule(), allowed: isMac ? canSudo() : null, battery: battery() };
+  return { schedule: schedule(), allowed: isMac ? canSudo() : null, battery: battery(), autoLogin: autoLogin() };
 }
 
 module.exports = { battery, tick, schedule, setSchedule, inWindow, status };

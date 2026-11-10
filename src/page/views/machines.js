@@ -239,6 +239,30 @@ function workSchedule() {
   return h("section", { class: "card setting-card work-schedule" }, kids);
 }
 
+function weeklyOffRow(mp, s) {
+  const on = s.weeklyOff !== false;
+  const box = h("input", { type: "checkbox" });
+  box.checked = on;
+  box.addEventListener("change", () => {
+    box.disabled = true;
+    requestOrFail("/api/mac-power", { weeklyOff: box.checked })
+      .then(() => toast(box.checked ? `Se apagará los viernes a las ${s.sleep} y se encenderá el lunes a las ${s.wake}.` : "Ya no se apaga los viernes: el fin de semana se queda dormido."))
+      .finally(() => (box.disabled = false));
+  });
+  const kids = [
+    h("label", { class: "check-row" }, [box, h("span", { text: `Apagarlo el viernes a las ${s.sleep} y encenderlo el lunes a las ${s.wake}` })]),
+    h("p", { class: "meta", text: "Un reinicio a la semana limpia memoria y procesos atascados; apagado o dormido gasta lo mismo de batería." }),
+  ];
+  if (on && mp && mp.autoLogin === false)
+    kids.push(
+      h("div", { class: "setup-note warn" }, [
+        h("p", { text: "Falta activar el inicio de sesión automático: sin él, el lunes se encenderá pero se quedará en la pantalla de contraseña y no arrancará nada hasta que entres." }),
+        h("p", { class: "meta", text: "Ajustes del Sistema → Usuarios y grupos → «Iniciar sesión automáticamente como» → tu usuario." }),
+      ])
+    );
+  return h("div", { class: "weekly-off" }, kids);
+}
+
 function macSchedule() {
   const mp = (state.cluster && state.cluster.macPower) || null;
   const s = (mp && mp.schedule) || { wake: "06:00", sleep: "21:00" };
@@ -259,6 +283,7 @@ function macSchedule() {
     h("p", { class: "meta", text: "De lunes a viernes. Entre las dos horas no se duerme, ni con la tapa cerrada ni sin cargador; si baja del 10 % sin cargar, se deja dormir." }),
     h("div", { class: "schedule-row" }, [h("label", {}, [h("span", { text: "Se despierta" }), wake]), h("label", {}, [h("span", { text: "Se duerme" }), sleep])]),
     h("div", { class: "actions" }, [save]),
+    weeklyOffRow(mp, s),
   ];
   if (mp && mp.allowed === false)
     kids.push(
