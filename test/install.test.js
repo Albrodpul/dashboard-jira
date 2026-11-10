@@ -1,0 +1,27 @@
+require("./helpers/env").sandbox();
+const test = require("node:test");
+const assert = require("node:assert/strict");
+const fs = require("fs");
+const os = require("os");
+const path = require("path");
+const cp = require("child_process");
+
+test("the installer renders every command for the first project and only the ones that apply for the others", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "nutria-install-"));
+  const ws = path.join(dir, "ws");
+  const main = path.join(dir, "main");
+  const side = path.join(dir, "side");
+  for (const d of [ws, path.join(ws, "data"), main, side]) fs.mkdirSync(d, { recursive: true });
+  const jira = { projects: ["WEB"], me: { id: "me", name: "Me Person" }, reviewer: { id: "rev", name: "Rev Person", mentions: [] }, transitions: {} };
+  const statuses = { review: "IN REVIEW", returned: ["To Do"], inProgress: ["In Progress"], closed: ["Done"], rejectLabel: "rejected" };
+  fs.writeFileSync(path.join(ws, "board.config.json"), JSON.stringify({ projects: [{ id: "acme", company: "Acme", root: main, jira, statuses }, { id: "side", company: "Side", root: side }, { id: "gone", root: path.join(dir, "missing") }] }));
+  fs.writeFileSync(path.join(ws, ".env"), "JIRA_SITE=x\nJIRA_EMAIL=y\nJIRA_TOKEN=z\n");
+  const env = { ...process.env, TOWER_WORKSPACE: ws, TOWER_DATA: path.join(ws, "data") };
+  const r = cp.spawnSync(process.execPath, [path.join(__dirname, "..", "install.js"), ws], { encoding: "utf8", env });
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /skipped gone/);
+  const list = (root) => fs.readdirSync(path.join(root, ".claude", "commands")).sort();
+  assert.deepEqual(list(main), ["orquesta.md", "resumen-jira.md", "seguimiento.md", "soy.md", "tablero.md"]);
+  assert.deepEqual(list(side), ["soy.md"]);
+  assert.doesNotMatch(fs.readFileSync(path.join(side, ".claude", "commands", "soy.md"), "utf8"), /\{\{[A-Z]+\}\}/);
+});

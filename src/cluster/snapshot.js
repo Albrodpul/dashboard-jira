@@ -22,7 +22,9 @@ function snapshot() {
   for (const [id, a] of Object.entries(routes.areas || {})) if (a.conversation) Object.assign(areas[id], { conversation: a.conversation, session: a.session || null });
   const roles = {};
   for (const role of ROUTE_ROLES) if (routes[role] && routes[role].conversation) roles[role] = { conversation: routes[role].conversation, session: routes[role].session || null, title: routes[role].title || null, since: routes[role].since || null, rotatedOn: routes[role].rotatedOn || null };
-  return { at: now(), host: os.hostname(), docs, stamps: d[STAMPS_KEY] || {}, seen, areas, roles, deployer: routes.deployer || null };
+  const projectRoles = {};
+  for (const [pid, box] of Object.entries(routes.projectRoles || {})) for (const [role, v] of Object.entries(box || {})) if (v && v.conversation) (projectRoles[pid] = projectRoles[pid] || {})[role] = { conversation: v.conversation, session: v.session || null, title: v.title || null, since: v.since || null };
+  return { at: now(), host: os.hostname(), docs, stamps: d[STAMPS_KEY] || {}, seen, areas, roles, projectRoles, deployer: routes.deployer || null };
 }
 
 const MERGED_KEYS = ["tasks", "deleted"];
@@ -75,6 +77,11 @@ function applySnapshot(s) {
       r.areas[id] = next;
     }
     for (const [role, v] of Object.entries(s.roles || {})) r[role] = { ...(r[role] || {}), ...v, ref: null };
+    for (const [pid, box] of Object.entries(s.projectRoles || {})) {
+      r.projectRoles = r.projectRoles || {};
+      r.projectRoles[pid] = r.projectRoles[pid] || {};
+      for (const [role, v] of Object.entries(box || {})) r.projectRoles[pid][role] = { ...(r.projectRoles[pid][role] || {}), ...v, ref: null };
+    }
     if (s.deployer) r.deployer = s.deployer;
     return true;
   });

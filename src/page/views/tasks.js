@@ -83,7 +83,7 @@ function pendingActions(t) {
       return render();
     }
     askNewSession(`Nombre de la sesión nueva${t.epicKey ? ` para el epic ${t.epicKey} ${t.epicName || ""}` : ""}`, t.epicName || "", t.epicKey ? { key: t.epicKey, name: t.epicName || t.epicKey } : null, (area) => (choice[t.id] = area));
-  });
+  }, t.project);
   sel.appendChild(h("option", { value: "__new__", text: "+ Sesión nueva…" }));
   sel.setAttribute("aria-label", `Sesión de destino de ${t.key}`);
   const held = holdOf(t, current);
@@ -370,7 +370,7 @@ function batchControls(g) {
       return render();
     }
     askNewSession(`Nombre de la sesión nueva${g.key ? ` para el epic ${g.key} ${g.name}` : ""}`, g.key ? g.name : "", g.key ? { key: g.key, name: g.name } : null, (area) => g.items.forEach((t) => (choice[t.id] = area)));
-  });
+  }, g.items.every((t) => t.project === g.items[0].project) ? g.items[0].project : undefined);
   sel.appendChild(h("option", { value: "__new__", text: "+ Sesión nueva…" }));
   sel.setAttribute("aria-label", `Sesión para todas las tareas de ${g.name}`);
   const free = g.items.filter((t) => !holdOf(t, chosenSession(t)));

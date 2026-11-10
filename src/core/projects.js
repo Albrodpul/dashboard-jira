@@ -2,12 +2,27 @@ const fs = require("fs");
 const path = require("path");
 const config = require("./config");
 
-const norm = (p) => String(p || "").replace(/\\/g, "/").replace(/\/+$/, "").toLowerCase();
+function real(p) {
+  let head = p;
+  const tail = [];
+  for (let i = 0; i < 64; i++) {
+    try {
+      return path.join(fs.realpathSync.native(head), ...tail);
+    } catch (e) {
+      const up = path.dirname(head);
+      if (up === head) return p;
+      tail.unshift(path.basename(head));
+      head = up;
+    }
+  }
+  return p;
+}
+const norm = (p) => String(real(path.resolve(String(p || "")))).replace(/\\/g, "/").replace(/\/+$/, "").toLowerCase();
 const mainId = () => config.mainProject.id;
 
 function projectOfPath(dir) {
   if (!dir) return config.mainProject;
-  const d = norm(path.resolve(dir));
+  const d = norm(dir);
   let best = null;
   for (const p of config.projects) {
     const r = norm(p.root);
@@ -47,4 +62,10 @@ function crossProject(record, area, routes) {
   return `${record.key || record.id || "esto"} es de ${name(from)} y la sesión ${area} es de ${name(to)}: entre proyectos no se envía nada.`;
 }
 
-module.exports = { mainId, projectOfPath, projectOfKey, projectOf, areaProject, crossProject };
+function roleRoute(routes, role, projectId) {
+  if (!routes) return null;
+  if (!projectId || projectId === mainId() || role === "board") return routes[role] || null;
+  return (routes.projectRoles && routes.projectRoles[projectId] && routes.projectRoles[projectId][role]) || null;
+}
+
+module.exports = { roleRoute, mainId, projectOfPath, projectOfKey, projectOf, areaProject, crossProject };

@@ -288,7 +288,8 @@ function targets(d, r) {
   for (const s of open) count[s.name] = (count[s.name] || 0) + 1;
   const byConversation = new Map(open.filter((s) => s.conversation).map((s) => [s.conversation, s]));
   const openNames = new Set(open.map((s) => s.name));
-  const roles = [r.reporter, r.orchestrator, r.followUp, r.board].filter(Boolean);
+  const roles = [r.reporter, r.orchestrator, r.followUp, r.board, ...Object.values(r.projectRoles || {}).flatMap((box) => Object.values(box || {}))].filter(Boolean);
+  const { mainId } = require("../core/projects");
   const out = [];
   const usedConversations = new Set();
   const usedNames = new Set();
@@ -304,6 +305,7 @@ function targets(d, r) {
       open: a.conversation ? byConversation.has(a.conversation) : !!a.session && openNames.has(a.session),
       repeatedName: !!a.session && count[a.session] > 1,
       epics: a.epics || {},
+      project: a.project || mainId(),
     });
   }
   for (const s of open) {
@@ -319,6 +321,7 @@ function targets(d, r) {
       repeatedName: count[s.name] > 1,
       epics: {},
       unnamed: true,
+      project: s.project || mainId(),
       vsCodeTitle: s.title || null,
     });
   }

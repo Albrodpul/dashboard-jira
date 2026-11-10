@@ -115,7 +115,7 @@ function state() {
   return {
     allEpics,
     areas,
-    tasks: Object.values(d.tasks),
+    tasks: Object.values(d.tasks).map((t) => (t.project ? t : { ...t, project: require("../core/projects").projectOf(t) })),
     sessions: d.sessions,
     aliases: d.aliases,
     reporterRoute: r.reporter || null,

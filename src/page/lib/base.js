@@ -130,7 +130,7 @@ export const areaSelect = (id, current, emptyLabel, onChange) => areaSelectFrom(
 
 export const fixedAreaIds = () => new Set([state.deployerArea, state.sentry && state.sentry.errorsArea].filter(Boolean));
 
-export const taskAreaSelect = (id, current, emptyLabel, onChange) => areaSelectFrom(state.areas.filter((a) => !a.unnamed && !fixedAreaIds().has(a.id)), id, current, emptyLabel, onChange);
+export const taskAreaSelect = (id, current, emptyLabel, onChange, project) => areaSelectFrom(state.areas.filter((a) => !a.unnamed && !fixedAreaIds().has(a.id) && (!project || !a.project || a.project === project)), id, current, emptyLabel, onChange);
 
 export function switchView(tab, toTop) {
   state.tab = tab;

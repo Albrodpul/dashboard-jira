@@ -63,3 +63,26 @@ test("tasks made by hand get their own key, never a Jira one, and are refused wi
   assert.match(manual.createTask(d, { project: "nope", title: "x" }).error, /desconocido/);
   assert.equal(manual.prefixOf({ id: "web" }), "WEBL");
 });
+
+test("fixed sessions are per project, except the board session, which is shared", () => {
+  const routes = { reporter: { session: "main-rep" }, board: { session: "tablero" }, projectRoles: { client: { reporter: { session: "client-rep" } } } };
+  assert.equal(projects.roleRoute(routes, "reporter").session, "main-rep");
+  assert.equal(projects.roleRoute(routes, "reporter", "acme").session, "main-rep");
+  assert.equal(projects.roleRoute(routes, "reporter", "client").session, "client-rep");
+  assert.equal(projects.roleRoute(routes, "orchestrator", "client"), null);
+  assert.equal(projects.roleRoute(routes, "board", "client").session, "tablero");
+});
+
+test("a session registering a fixed role from another project's folder stays in that project", () => {
+  const cp = require("child_process");
+  const run = (cwd, ...args) => cp.spawnSync(process.execPath, [path.join(__dirname, "..", "bin", "sessions.js"), ...args], { cwd, encoding: "utf8", env: process.env });
+  const r = run(client, "iam", "reporter", "Client reporter", "abc123");
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /del proyecto Client/);
+  const routes = JSON.parse(fs.readFileSync(path.join(box.data, "sessions.json"), "utf8"));
+  assert.equal(routes.projectRoles.client.reporter.session, "Client reporter");
+  assert.equal(routes.reporter, undefined);
+  const m = run(main, "iam", "reporter", "Main reporter");
+  assert.equal(m.status, 0, m.stderr);
+  assert.equal(JSON.parse(fs.readFileSync(path.join(box.data, "sessions.json"), "utf8")).reporter.session, "Main reporter");
+});

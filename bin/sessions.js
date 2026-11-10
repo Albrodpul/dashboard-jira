@@ -60,7 +60,16 @@ if (cmd === "iam") {
   if (!areaText || !session) fail("Uso: node sessions.js iam <área|reporter|orchestrator|followup|board> <nombre-de-sesión> [ref]");
   const data = load();
   const role = ROLES[slug(areaText)];
-  if (role) {
+  const here = require("../src/core/projects").projectOfPath(process.cwd());
+  const own = role && role !== "board" && here && here.id !== require("../src/core/projects").mainId();
+  if (own) {
+    data.projectRoles = data.projectRoles || {};
+    const box = (data.projectRoles[here.id] = data.projectRoles[here.id] || {});
+    const previous = box[role] || {};
+    box[role] = { ...(ROLE_TITLE[role] ? { title: previous.title || ROLE_TITLE[role] } : {}), session, ref: ref || null, since: now(), conversation: previous.session === session ? previous.conversation || null : null };
+    save(data);
+    console.log(`Registrada como sesión de ${ROLE_LABEL[role]} del proyecto ${here.name}: ${withRef(session, ref)}`);
+  } else if (role) {
     const previous = data[role] || {};
     data[role] = { ...(previous.rotatedOn ? { rotatedOn: previous.rotatedOn, previous: previous.previous || null } : {}), ...(ROLE_TITLE[role] ? { title: previous.title || ROLE_TITLE[role] } : {}), session, ref: ref || null, since: now(), conversation: previous.session === session ? previous.conversation || null : null };
     save(data);
