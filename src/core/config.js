@@ -102,7 +102,7 @@ const slashes = (p) => p.replace(/\\/g, "/");
 
 function buildProject(p, index) {
   if (!p.id || !/^[a-z0-9][a-z0-9-]*$/.test(p.id)) throw new Error(`${CONFIG_FILE}: every project needs an id in lowercase letters, digits and dashes`);
-  const root = path.resolve(p.root || path.join(WORKSPACE, ".."));
+  const root = p.root ? path.resolve(p.root) : index === 0 ? path.resolve(WORKSPACE, "..") : null;
   const envFile = path.resolve(WORKSPACE, p.env || (index === 0 ? ".env" : `.env.${p.id}`));
   let env = null;
   const secret = (name) => {
@@ -131,7 +131,8 @@ function buildProject(p, index) {
     envFile,
     secret,
     credentials,
-    commandsDir: slashes(path.join(root, ".claude", "commands")),
+    commandsDir: root ? slashes(path.join(root, ".claude", "commands")) : null,
+    source: p.source || "file",
     jira: p.jira
       ? {
           projects: keys,
@@ -161,14 +162,43 @@ function buildProject(p, index) {
     devServers: p.devServers || [],
     deployProjects: deployTargets.map((t) => t.id),
     deployTargets,
-    contextDomains: path.join(root, p.contextDomains || "context/dominios"),
+    contextDomains: root ? path.join(root, p.contextDomains || "context/dominios") : null,
   };
 }
 
 const { common, projects: rawProjects } = upgradeFlat(normalize(readConfig()));
-const projects = rawProjects.map(buildProject);
-if (new Set(projects.map((p) => p.id)).size !== projects.length) throw new Error(`${CONFIG_FILE}: project ids must be unique`);
-const main = projects[0];
+const fileProjects = rawProjects.map(buildProject);
+if (new Set(fileProjects.map((p) => p.id)).size !== fileProjects.length) throw new Error(`${CONFIG_FILE}: project ids must be unique`);
+const main = fileProjects[0];
+
+const LOCAL_FILE = () => path.join(require("./data").DATA_DIR, "projects-local.json");
+function localProjects() {
+  try {
+    return JSON.parse(fs.readFileSync(LOCAL_FILE(), "utf8"));
+  } catch (e) {
+    return {};
+  }
+}
+
+let cache = { at: 0, list: null };
+function allProjects() {
+  if (cache.list && Date.now() - cache.at < 3000) return cache.list;
+  let defs = {};
+  try {
+    defs = require("./data").readKey("projectDefs") || {};
+  } catch (e) {}
+  const local = localProjects();
+  const extra = [];
+  for (const def of Object.values(defs)) {
+    if (!def || def.removed || !def.id || fileProjects.some((p) => p.id === def.id)) continue;
+    try {
+      extra.push(buildProject({ ...def, root: (local[def.id] && local[def.id].root) || null, source: "panel" }, fileProjects.length + extra.length));
+    } catch (e) {}
+  }
+  cache = { at: Date.now(), list: [...fileProjects, ...extra] };
+  return cache.list;
+}
+const forgetProjects = () => (cache = { at: 0, list: null });
 if (!main.jira || !main.statuses) throw new Error(`${CONFIG_FILE}: the first project still needs jira and statuses`);
 if (path.resolve(main.envFile) === path.resolve(ENV_FILE)) loadEnv(ENV_FILE);
 
@@ -194,9 +224,16 @@ module.exports = {
   sessionModel: common.sessionModel || "claude-opus-5-5",
   sessionProfiles: common.sessionProfiles || null,
   contextDomains: main.contextDomains,
-  projects,
+  get projects() {
+    return allProjects();
+  },
+  fileProjects,
+  forgetProjects,
+  localProjectsFile: LOCAL_FILE,
+  localProjects,
+  buildProject,
   mainProject: main,
-  project: (id) => projects.find((p) => p.id === id) || null,
+  project: (id) => allProjects().find((p) => p.id === id) || null,
   forPage: () => ({
     jiraUrl: `https://${main.secret("JIRA_SITE") || ""}/browse/`,
     projects: main.jira.projects,
@@ -204,11 +241,12 @@ module.exports = {
     reviewer: { name: main.jira.reviewer.name },
     reviewStatus: main.statuses.review,
     deployProjects: main.deployProjects,
-    workspaces: projects.map((p) => ({
+    workspaces: allProjects().map((p) => ({
       id: p.id,
       name: p.name,
       jira: !!p.jira,
       modules: { jira: !!p.jira, followUp: p.followUp.length > 0, sentry: !!(p.sentry && p.sentry.org), deploy: p.deployProjects.length > 0, devServers: p.devServers.length > 0, context: p === main && fs.existsSync(p.contextDomains) },
+      source: p.source,
     })),
   }),
 };

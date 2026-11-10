@@ -25,6 +25,7 @@ function projectOfPath(dir) {
   const d = norm(dir);
   let best = null;
   for (const p of config.projects) {
+    if (!p.root) continue;
     const r = norm(p.root);
     if ((d === r || d.startsWith(r + "/")) && (!best || r.length > norm(best.root).length)) best = p;
   }

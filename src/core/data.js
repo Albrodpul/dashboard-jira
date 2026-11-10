@@ -87,6 +87,11 @@ function load() {
   return read().d;
 }
 
+function readKey(key) {
+  const row = database().prepare("SELECT value FROM documents WHERE key = ?").get(key);
+  return row ? JSON.parse(row.value) : null;
+}
+
 function stampTasks(before, after) {
   if (!after || typeof after !== "object") return;
   const at = new Date().toISOString();
@@ -148,6 +153,7 @@ function readStdin() {
 }
 
 module.exports = {
+  readKey,
   WORKSPACE,
   ROOT,
   DATA_DIR,

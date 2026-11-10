@@ -35,6 +35,18 @@ const POST_ROUTES = {
   },
   "/api/task": (res, input, send) => tasks.handleTask(res, input, send),
   "/api/task/new": (res, input, send) => tasks.handleNewTask(res, input, send),
+  "/api/projects-admin/save": (res, input, send) => {
+    const r = require("../../features/projects-admin").save(input || {});
+    send(res, r.error ? 400 : 200, r);
+  },
+  "/api/projects-admin/remove": (res, { id }, send) => {
+    const r = require("../../features/projects-admin").remove(String(id || ""));
+    send(res, r.error ? 400 : 200, r);
+  },
+  "/api/projects-admin/credentials": (res, { id, values }, send) => {
+    const r = require("../../features/projects-admin").setCredentials(String(id || ""), values || {});
+    send(res, r.error ? 400 : 200, r);
+  },
   "/api/batch": (res, input, send) => tasks.handleBatch(res, input, send),
   "/api/delete": (res, input, send) => tasks.handleDelete(res, input, send),
   "/api/answer": (res, input, send) => tasks.handleAnswer(res, input, send),
@@ -243,6 +255,7 @@ function handleGet(req, res, url) {
   if (url.startsWith("/api/permission/perm-")) return serveBody(res, "application/json", JSON.stringify(permissions.poll(url.slice("/api/permission/".length))));
   if (url === "/api/cluster/quota") return serveBody(res, "application/json", JSON.stringify(require("../../features/quota").readQuota()));
   if (url === "/api/cluster/memory") return serveBody(res, "application/json", JSON.stringify(require("../../features/memory-sync").snapshot()));
+  if (url === "/api/projects-admin") return serveBody(res, "application/json", JSON.stringify(require("../../features/projects-admin").list()));
   if (url === "/api/cluster") return serveBody(res, "application/json", JSON.stringify(require("../../cluster/cluster").info()));
   if (url === "/api/cluster/snapshot") return serveBody(res, "application/json", JSON.stringify(require("../../cluster/cluster").snapshot()));
   if (url === "/api/cluster/machines") {

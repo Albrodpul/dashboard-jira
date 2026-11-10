@@ -6,7 +6,7 @@ const { st, save, log } = require("./role");
 const { peerGet } = require("./peer");
 
 const ROUTE_ROLES = ["reporter", "orchestrator", "followUp", "board"];
-const SYNC_KEYS = ["tasks", "aliases", "seenEpics", "reports", "refreshRequest", "jiraEpics", "deployments", "followUps", "messages", "lastReview", "config", "contextTidy", "deleted", "permissionRules", "sentry", "sessionOverrides", "restrictions", "deliveries"];
+const SYNC_KEYS = ["tasks", "aliases", "seenEpics", "reports", "refreshRequest", "jiraEpics", "deployments", "followUps", "messages", "lastReview", "config", "contextTidy", "deleted", "permissionRules", "sentry", "sessionOverrides", "restrictions", "deliveries", "projectDefs"];
 
 function snapshot() {
   const d = load();
