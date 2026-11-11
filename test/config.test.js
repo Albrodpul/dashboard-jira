@@ -23,10 +23,10 @@ function load(config, files = {}, expr = "c") {
 }
 
 test("the old flat format becomes one project named after the company, and the file is upgraded", () => {
-  const flat = { company: "Acme Corp", root: "/tmp/acme", jira, statuses, cluster: { label: "Mac" }, devServers: [{ id: "web" }] };
+  const flat = { company: "Ácme Corp", root: "/tmp/acme", jira, statuses, cluster: { label: "Mac" }, devServers: [{ id: "web" }] };
   const r = load(flat, {}, "{ ids: c.projects.map((p) => p.id), company: c.company, cluster: c.cluster, jql: c.jira.projectsJql, dev: c.devServers.length, file: JSON.parse(require('fs').readFileSync(process.env.TOWER_WORKSPACE + '/board.config.json', 'utf8')), backup: JSON.parse(require('fs').readFileSync(process.env.TOWER_WORKSPACE + '/board.config.json.flat.bak', 'utf8')) }");
   assert.deepEqual(r.ids, ["acme-corp"]);
-  assert.equal(r.company, "Acme Corp");
+  assert.equal(r.company, "Ácme Corp");
   assert.deepEqual(r.cluster, { label: "Mac" });
   assert.equal(r.jql, "project in (WEB)");
   assert.equal(r.dev, 1);
