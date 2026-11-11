@@ -181,3 +181,14 @@ textarea.comment-box { font-family: inherit; }
 .ws-form .ws-field + .ws-field, .ws-form .ws-field + details { margin-top: 2px; }
 .ws-checks { display: flex; flex-direction: column; gap: 6px; }
 .ws-checks .rule { margin: 0; align-items: flex-start; }
+.project-chip { flex: 0 0 auto; color: var(--ink-2); border: 1px solid var(--line); background: none; text-transform: none; letter-spacing: 0; font-weight: 500; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.board-card > .project-chip { align-self: flex-start; font-size: 11px; }
+.task-title { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.task-title > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.project-title { display: flex; align-items: baseline; gap: 8px; margin: 10px 0 -8px; font-size: 15px; font-weight: 600; }
+.project-title:first-of-type { margin-top: 0; }
+.project-title .n { font-size: 12px; font-weight: 500; color: var(--ink-3); }
+.board-epic-head .project-chip { font-size: 11px; }
+@media (max-width: 900px) {
+  .task-title > span:last-child { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+}

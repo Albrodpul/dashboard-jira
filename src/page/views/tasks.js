@@ -1,6 +1,7 @@
 import { renderPermissions } from "../components/permissions.js";
 import { state, choice, drafts, h, button, when, minutesSince, fmtDay, reviewer, reviewStatus, toast, request, requestOrFail, post, saveTask, whoSends, areaName, taskAreaSelect, areaSelect, render, refresh, switchView, empty, openTicket, limitsFor, holdOf, limitChips } from "../lib/base.js";
 import { createSession } from "./sessions.js";
+import { mixedProjects, projectName, projectChip, mainProject } from "../components/project-filter.js";
 
 const PENDING_CHIP = { returned: "Devuelta", comment: "Comentario", resend: "Ya enviada" };
 const STATUS_CHIP = { approved: "Por enviar", sent: "En curso", ignored: "Ignorada", waiting: "Te espera", partial: "A medias", done: "Hecha" };
@@ -262,6 +263,7 @@ export function card(t, bare) {
     : [
         h("div", { class: "top" }, [
           h("span", { class: "key", text: t.key }),
+          projectChip(t.project),
           h("span", { class: `chip ${pending ? t.kind : t.status}`, text: pending ? PENDING_CHIP[t.kind] || "Nueva" : t.manual ? "A mano" : STATUS_CHIP[t.status] }),
           t.jiraClosedAt ? h("span", { class: "chip sent", text: "Listo en Jira" }) : null,
           ...limitChips(t, pending ? chosenSession(t) : t.area),
@@ -320,7 +322,7 @@ function rowTag(t) {
   return null;
 }
 
-function taskRow(t, groupArea) {
+function taskRow(t, groupArea, underProject) {
   const open = isOpen(t);
   const toggle = () => {
     if (open) {
@@ -337,7 +339,7 @@ function taskRow(t, groupArea) {
   const area = groupArea !== undefined && own === groupArea ? "" : areaName(own);
   const head = h("button", { type: "button", class: "issue-head", "aria-expanded": String(open), onclick: toggle }, [
     h("span", { class: "key task-key", text: t.key }),
-    h("span", { class: "issue-msg task-title", text: t.title, title: t.title }),
+    h("span", { class: "issue-msg task-title" }, [underProject ? null : projectChip(t.project), h("span", { text: t.title, title: t.title })]),
     tag ? h("span", { class: `issue-tag ${tag[0]}`, text: tag[1], title: tag[2] }) : h("span", { class: "issue-tag none" }),
     h("span", { class: "task-area", text: area || "" }),
     h("span", { class: "issue-when", text: when(t.sentAt || t.decidedAt || t.at) }),
@@ -345,7 +347,7 @@ function taskRow(t, groupArea) {
   return h("div", { class: `issue-row${open ? " open" : ""}` }, [head, open ? h("div", { class: "issue-body" }, [card(t, true)]) : null]);
 }
 
-export const taskList = (items, groupArea) => h("div", { class: "issue-list task-list" }, items.map((t) => taskRow(t, groupArea)));
+export const taskList = (items, groupArea, underProject) => h("div", { class: "issue-list task-list" }, items.map((t) => taskRow(t, groupArea, underProject)));
 
 
 function backToPendingGroup(g) {
@@ -433,18 +435,27 @@ export function renderTasks(root) {
   if (["sent", "ignored", "done", "waiting"].includes(state.tab) && deletable.length) bar.push(...deleteBar(root, deletable));
   root.appendChild(h("div", { class: "issues-bar task-bar" }, bar.filter(Boolean)));
   const byEpic = new Map();
+  const projectOf = (t) => t.project || mainProject();
   for (const t of list) {
-    const k = t.epicKey || "no-epic";
-    if (!byEpic.has(k)) byEpic.set(k, { key: t.epicKey, name: t.epicName || "Sin epic", area: t.area || t.proposedArea, items: [] });
+    const k = `${projectOf(t)}|${t.epicKey || "no-epic"}`;
+    if (!byEpic.has(k)) byEpic.set(k, { project: projectOf(t), key: t.epicKey, name: t.epicName || "Sin epic", area: t.area || t.proposedArea, items: [] });
     byEpic.get(k).items.push(t);
   }
-  for (const g of byEpic.values()) {
-    g.items.sort((a, b) => hasChanges(b) - hasChanges(a) || String(b.at || "").localeCompare(String(a.at || "")));
-    const batch = state.tab === "pending" && g.items.length > 1;
-    const sendBack = (["sent", "done"].includes(state.tab) || (state.tab === "waiting" && g.items.every((t) => t.status === "partial"))) && g.items.some((t) => !t.manual);
-    const head = h("div", { class: "group-head" }, [g.key ? h("span", { class: "group-key", text: g.key }) : null, h("span", { class: "group-name", text: g.name }), batch ? batchControls(g) : sendBack ? backToPendingGroup(g) : areaLabel(g)]);
-    root.appendChild(h("section", { class: "list-section" }, [head, taskList(g.items, g.area)]));
+  const groups = [...byEpic.values()];
+  const projects = [...new Set(groups.map((g) => g.project))];
+  const titled = mixedProjects();
+  for (const project of projects) {
+    if (titled) root.appendChild(h("h3", { class: "project-title" }, [projectName(project), h("span", { class: "n", text: String(groups.filter((g) => g.project === project).reduce((n, g) => n + g.items.length, 0)) })]));
+    for (const g of groups.filter((x) => x.project === project)) renderEpicGroup(root, g);
   }
+}
+
+function renderEpicGroup(root, g) {
+  g.items.sort((a, b) => hasChanges(b) - hasChanges(a) || String(b.at || "").localeCompare(String(a.at || "")));
+  const batch = state.tab === "pending" && g.items.length > 1;
+  const sendBack = (["sent", "done"].includes(state.tab) || (state.tab === "waiting" && g.items.every((t) => t.status === "partial"))) && g.items.some((t) => !t.manual);
+  const head = h("div", { class: "group-head" }, [g.key ? h("span", { class: "group-key", text: g.key }) : null, h("span", { class: "group-name", text: g.name }), batch ? batchControls(g) : sendBack ? backToPendingGroup(g) : areaLabel(g)]);
+  root.appendChild(h("section", { class: "list-section" }, [head, taskList(g.items, g.area, true)]));
 }
 
 export function renderToday(root, errors) {
@@ -481,6 +492,7 @@ function boardCard(t) {
   const held = holdOf(t, t.area);
   const flag = held ? "Retenida" : t.status === "approved" && t.delivery && !t.delivery.soft ? "Sin entregar" : t.status === "partial" ? "A medias" : t.status === "waiting" ? "Te espera" : t.manual ? "A mano" : hasChanges(t) ? "Cambió en Jira" : "";
   return h("button", { type: "button", class: `board-card${state.ticket === t.id ? " open" : ""}`, onclick: () => openDrawer(t) }, [
+    projectChip(t.project),
     h("span", { class: "board-card-title", text: t.title }),
     h("span", { class: "board-card-foot" }, [h("span", { class: "key", text: t.key }), h("span", { class: "board-card-area", text: areaName(t.area || t.proposedArea) || "" }), flag ? h("span", { class: `board-tag${held ? " held" : ""}`, title: held ? held.chip.title : t.delivery && t.delivery.error, text: flag }) : null, h("span", { class: "time", text: when(t.sentAt || t.decidedAt || t.at) })]),
   ]);
@@ -489,13 +501,13 @@ function boardCard(t) {
 function pendingColumn(list) {
   const byEpic = new Map();
   for (const t of list) {
-    const k = t.epicKey || "no-epic";
-    if (!byEpic.has(k)) byEpic.set(k, { key: t.epicKey, name: t.epicName || "Sin epic", area: t.area || t.proposedArea, items: [] });
+    const k = `${t.project || mainProject()}|${t.epicKey || "no-epic"}`;
+    if (!byEpic.has(k)) byEpic.set(k, { project: t.project, key: t.epicKey, name: t.epicName || "Sin epic", area: t.area || t.proposedArea, items: [] });
     byEpic.get(k).items.push(t);
   }
   return [...byEpic.values()].map((g) =>
     h("div", { class: "board-epic" }, [
-      h("div", { class: "board-epic-head" }, [g.key ? h("span", { class: "group-key", text: g.key }) : null, h("span", { class: "board-epic-name", text: g.name }), batchControls(g)]),
+      h("div", { class: "board-epic-head" }, [projectChip(g.project), g.key ? h("span", { class: "group-key", text: g.key }) : null, h("span", { class: "board-epic-name", text: g.name }), batchControls(g)]),
       ...g.items.map(boardRow),
     ])
   );

@@ -16,6 +16,10 @@ export const mixedProjects = () => workspaces().length > 1 && !currentProject();
 
 export const projectName = (id) => (workspaces().find((p) => p.id === id) || {}).name || id || "";
 
+export const mainProject = () => (workspaces()[0] || {}).id || "";
+
+export const projectChip = (id) => (mixedProjects() ? h("span", { class: "chip project-chip", text: projectName(id || mainProject()) }) : null);
+
 const TAB_MODULE = { daily: "daily", sentry: "sentry", deploy: "deploy", projects: "devServers", "follow-up": "followUp", learning: "jira", context: "context" };
 
 export function hasModule(name) {
