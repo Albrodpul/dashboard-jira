@@ -2,7 +2,7 @@ const config = require("../core/config");
 
 const DEFAULTS = {
   reporter: { model: "sonnet", effort: "low", why: "lee Jira cada 5 minutos y resume lo que cambió" },
-  orchestrator: { model: "sonnet", effort: "low", why: "habla de tareas y restricciones; no reparte nada" },
+  orchestrator: { model: "opus", effort: "medium", why: "ordena el contexto y habla de tareas y restricciones" },
   followUp: { model: "sonnet", effort: "medium", why: "resume lo que hace cada uno en beta y en producción" },
   deploy: { model: "sonnet", effort: "medium", why: "sigue los pasos de despliegue con cuidado" },
   errors: { model: "opus", effort: "medium", why: "investiga errores de producción" },
