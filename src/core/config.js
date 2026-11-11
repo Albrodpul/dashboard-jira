@@ -190,6 +190,12 @@ function allProjects() {
     defs = require("./data").readKey("projectDefs") || {};
   } catch (e) {}
   const local = localProjects();
+  for (const p of fileProjects) {
+    if (!p.fileValues) p.fileValues = { name: p.name, taskPrefix: p.taskPrefix, messages: p.messages, daily: p.daily, contextTidy: p.contextTidy };
+    const def = defs[p.id];
+    const over = def && def.override && !def.removed ? Object.fromEntries(Object.keys(p.fileValues).filter((k) => def[k] !== undefined).map((k) => [k, def[k]])) : {};
+    Object.assign(p, p.fileValues, over);
+  }
   const extra = [];
   for (const def of Object.values(defs)) {
     if (!def || def.removed || !def.id || fileProjects.some((p) => p.id === def.id)) continue;

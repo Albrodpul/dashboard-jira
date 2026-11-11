@@ -14,6 +14,14 @@ let loading = false;
 let failed = "";
 let editing = null;
 let secrets = {};
+const openDetails = new Set();
+
+function keptDetails(key, kids) {
+  const d = h("details", { class: "ws-guide" }, kids);
+  if (openDetails.has(key)) d.open = true;
+  d.addEventListener("toggle", () => (d.open ? openDetails.add(key) : openDetails.delete(key)));
+  return d;
+}
 
 function load() {
   if (loading) return;
@@ -61,7 +69,7 @@ function form(draft) {
     onClick: async (b) => {
       b.disabled = true;
       try {
-        const body = { name: draft.name, taskPrefix: draft.taskPrefix, root: draft.root || "", daily: !!draft.daily, contextTidy: !!draft.contextTidy, messages: { review: draft.review, cause: draft.cause, reference: draft.reference } };
+        const body = { name: draft.name, taskPrefix: draft.taskPrefix, ...(draft.fromFile ? {} : { root: draft.root || "" }), daily: !!draft.daily, contextTidy: !!draft.contextTidy, messages: { review: draft.review, cause: draft.cause, reference: draft.reference } };
         if (!isNew) Object.assign(body, { id: draft.id, create: false });
         const r = await requestOrFail("/api/projects-admin/save", body);
         editing = null;
@@ -78,16 +86,18 @@ function form(draft) {
     h("h3", { text: isNew ? "Nuevo proyecto" : `Editar ${draft.name}` }),
     field("Nombre", null, text(draft, "name", { placeholder: "Cuentas personales" })),
     field("Prefijo de las tareas", "De 2 a 10 letras. Las tareas que crees a mano se llamarán así: PREFIJO-1, PREFIJO-2…", text(draft, "taskPrefix", { placeholder: "CUENTAS" })),
-    field("Carpeta en este ordenador", "Ruta completa. Cada ordenador guarda la suya; las sesiones abiertas dentro de ella son de este proyecto.", text(draft, "root", { placeholder: "/Users/…/proyecto" })),
+    draft.fromFile
+      ? field("Carpeta en este ordenador", "Se cambia en board.config.json de cada ordenador.", h("input", { type: "text", value: draft.root || "", disabled: true }))
+      : field("Carpeta en este ordenador", "Ruta completa. Cada ordenador guarda la suya; las sesiones abiertas dentro de ella son de este proyecto.", text(draft, "root", { placeholder: "/Users/…/proyecto" })),
     h("div", { class: "ws-checks" }, Object.entries(OPTIONAL).map(([k, [label, hint]]) => {
       const box = h("input", { type: "checkbox" });
       box.checked = !!draft[k];
       box.addEventListener("change", () => (draft[k] = box.checked));
       return h("label", { class: "rule" }, [box, h("span", {}, [h("strong", { text: label }), ` · ${hint}`])]);
     })),
-    h("details", { class: "ws-guide" }, [
+    keptDetails(`guide-${draft.id || "new"}`, [
       h("summary", { text: "Guía para las sesiones (opcional)" }),
-      ...Object.entries(GUIDE).map(([k, [label, hint]]) => field(label, hint, area(draft, k, ""))),
+      ...Object.entries(GUIDE).map(([k, [label, hint]]) => field(label, hint, area(draft, k, draft.fromFile ? "Sin texto: las frases de siempre" : ""))),
     ]),
     h("div", { class: "actions" }, [save, cancel]),
   ]);
@@ -116,7 +126,7 @@ function credentials(p) {
       }
     },
   });
-  return h("details", { class: "ws-guide" }, [h("summary", { text: "Credenciales de este ordenador" }), h("p", { class: "meta", text: "Se guardan solo aquí, en su propio fichero. Nunca se enseñan: solo si están puestas o faltan." }), ...inputs, h("div", { class: "actions" }, [save])]);
+  return keptDetails(`cred-${p.id}`, [h("summary", { text: "Credenciales de este ordenador" }), h("p", { class: "meta", text: "Se guardan solo aquí, en su propio fichero. Nunca se enseñan: solo si están puestas o faltan." }), ...inputs, h("div", { class: "actions" }, [save])]);
 }
 
 function card(p) {
@@ -130,21 +140,20 @@ function card(p) {
   ];
   if (p.jira) facts.splice(4, 0, ["Proyectos de Jira", p.jira.join(", ")]);
   const kids = [
-    h("div", { class: "ws-head" }, [h("h3", { text: p.name }), h("span", { class: "chip", text: p.main ? "Principal" : p.editable ? "Desde el panel" : "En board.config.json" })]),
+    h("div", { class: "ws-head" }, [h("h3", { text: p.name }), h("span", { class: "chip", text: p.main ? "Principal" : p.fromFile ? "En board.config.json" : "Desde el panel" })]),
     h("dl", { class: "ws-facts" }, facts.flatMap(([k, v]) => [h("dt", { text: k }), h("dd", { text: v })])),
   ];
   if (!p.root || !p.rootExists) kids.push(h("div", { class: "setup-note warn" }, [h("p", { text: p.root ? "Esa carpeta no existe en este ordenador: sus sesiones no se reconocerán aquí." : "Este ordenador no tiene carpeta para el proyecto: pon la suya en Editar." })]));
-  if (!p.editable) {
-    kids.push(h("p", { class: "meta", text: "Se configura en board.config.json de cada ordenador, con todos sus módulos." }));
-    return h("section", { class: "card setting-card" }, kids);
-  }
+  if (p.fromFile) kids.push(h("p", { class: "meta", text: "Sus módulos, credenciales y carpeta van en board.config.json de cada ordenador; el nombre, el prefijo, la daily, Ordenar contexto y la guía se editan aquí y valen para los dos." }));
   if (p.messages) kids.push(h("p", { class: "meta", text: "Tiene guía propia para las sesiones." }));
-  kids.push(credentials(p));
+  if (!p.main) kids.push(credentials(p));
   kids.push(
     h("div", { class: "actions" }, [
-      button("Editar", { onClick: () => ((editing = { id: p.id, name: p.name, taskPrefix: p.taskPrefix, root: p.root || "", daily: p.modules.daily, contextTidy: p.modules.context, ...(p.messages || {}) }), render()) }),
+      button("Editar", { onClick: () => ((editing = { id: p.id, fromFile: p.fromFile, name: p.name, taskPrefix: p.taskPrefix, root: p.root || "", daily: p.modules.daily, contextTidy: p.modules.context, ...(p.messages || {}) }), render()) }),
       button("Borrar", {
         cls: "subtle",
+        disabled: p.main,
+        title: p.main ? "Es el proyecto principal: la vigilancia de Jira, el reporte, el seguimiento, los despliegues y Sentry funcionan sobre él." : undefined,
         onClick: async (b) => {
           if (!window.confirm(`¿Borrar el proyecto «${p.name}» del tablero? Su carpeta y su repo no se tocan.`)) return;
           b.disabled = true;

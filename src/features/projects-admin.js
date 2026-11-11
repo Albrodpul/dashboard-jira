@@ -36,7 +36,8 @@ function list() {
     id: p.id,
     name: p.name,
     main: p === config.mainProject,
-    editable: p.source === "panel",
+    editable: true,
+    fromFile: p.source !== "panel",
     taskPrefix: require("./manual-tasks").prefixOf(p),
     agent: p.agent,
     root: p.root ? p.root.replace(/\\/g, "/") : null,
@@ -60,7 +61,7 @@ function save(input) {
   const id = input.id ? String(input.id) : slug(name);
   if (!ID.test(id)) return { error: "el id solo admite minúsculas, cifras y guiones" };
   const existing = config.project(id);
-  if (existing && existing.source !== "panel") return { error: `${existing.name} se configura en board.config.json, no aquí` };
+  const fromFile = !!existing && existing.source !== "panel";
   if (!existing && input.id && input.create === false) return { error: "ese proyecto no existe" };
   const taskPrefix = clean(input.taskPrefix, 10).toUpperCase() || id.toUpperCase().replace(/[^A-Z]/g, "").slice(0, 10);
   if (!PREFIX.test(taskPrefix)) return { error: "el prefijo de tareas son de 2 a 10 letras" };
@@ -69,7 +70,8 @@ function save(input) {
   const manual = require("./manual-tasks");
   const clash = config.projects.find((p) => p.id !== id && manual.prefixOf(p) === taskPrefix);
   if (clash) return { error: `${clash.name} ya usa el prefijo ${taskPrefix}` };
-  const root = clean(input.root, 400);
+  const root = fromFile ? "" : clean(input.root, 400);
+  if (fromFile && input.root !== undefined && clean(input.root, 400) && (!existing.root || !same(existing.root, clean(input.root, 400)))) return { error: `la carpeta de ${existing.name} se cambia en board.config.json de cada ordenador` };
   if (root) {
     if (!path.isAbsolute(root)) return { error: "la carpeta tiene que ser una ruta completa" };
     if (!fs.existsSync(root) || !fs.statSync(root).isDirectory()) return { error: "esa carpeta no existe en este ordenador" };
@@ -83,9 +85,11 @@ function save(input) {
   }
   mutate((d) => {
     d.projectDefs = { ...(d.projectDefs || {}) };
-    d.projectDefs[id] = { id, name, taskPrefix, agent: "claude", daily: !!input.daily, contextTidy: !!input.contextTidy, ...(Object.keys(messages).length ? { messages } : {}), updatedAt: now() };
+    d.projectDefs[id] = fromFile
+      ? { id, override: true, name, taskPrefix, daily: !!input.daily, contextTidy: !!input.contextTidy, messages: Object.keys(messages).length ? messages : existing.fileValues ? existing.fileValues.messages : null, updatedAt: now() }
+      : { id, name, taskPrefix, agent: "claude", daily: !!input.daily, contextTidy: !!input.contextTidy, ...(Object.keys(messages).length ? { messages } : {}), updatedAt: now() };
   });
-  if (input.root !== undefined) writeLocal(id, root || null);
+  if (!fromFile && input.root !== undefined) writeLocal(id, root || null);
   config.forgetProjects();
   const p = config.project(id);
   let commands = null;
@@ -96,7 +100,8 @@ function save(input) {
 function remove(id) {
   const p = config.project(id);
   if (!p) return { error: "ese proyecto no existe" };
-  if (p.source !== "panel") return { error: `${p.name} se configura en board.config.json, no aquí` };
+  if (p === config.mainProject) return { error: `${p.name} es el proyecto principal: la vigilancia de Jira, el reporte, el seguimiento, los despliegues y Sentry funcionan sobre él` };
+  if (p.source !== "panel") return { error: `${p.name} se quita de board.config.json de cada ordenador` };
   const n = openTasks(id);
   if (n) return { error: `${p.name} tiene ${n} tarea${n === 1 ? "" : "s"} abierta${n === 1 ? "" : "s"}: ciérralas o bórralas antes` };
   mutate((d) => {

@@ -25,17 +25,36 @@ test("a project created in the panel is shared, keeps its folder on this machine
   const row = admin.list().find((x) => x.id === "cuentas-personales");
   assert.equal(row.editable, true);
   assert.equal(row.rootExists, true);
-  assert.equal(admin.list()[0].editable, false);
+  assert.equal(admin.list()[0].fromFile, true);
 });
 
-test("the panel refuses bad or clashing projects and never edits the ones in board.config.json", () => {
+test("the panel refuses bad or clashing projects", () => {
   assert.match(admin.save({ name: "" }).error, /nombre/);
   assert.match(admin.save({ name: "Otra", taskPrefix: "CUENTAS" }).error, /ya usa el prefijo/);
   assert.match(admin.save({ name: "Otra", taskPrefix: "WEB" }).error, /proyecto de Jira/);
   assert.match(admin.save({ name: "Otra", root: folder }).error, /ya es de Cuentas personales/);
   assert.match(admin.save({ name: "Otra", root: path.join(box.dir, "nope") }).error, /no existe/);
   assert.match(admin.save({ name: "Otra", root: "relativa" }).error, /ruta completa/);
-  assert.match(admin.save({ id: config.mainProject.id, name: "X" }).error, /board\.config\.json/);
+  assert.match(admin.save({ id: config.mainProject.id, name: "X", root: path.join(box.dir, "otra") }).error, /board\.config\.json/);
+});
+
+test("the main project is edited in place, shared through projectDefs, and keeps its folder and modules", () => {
+  const main = config.mainProject;
+  const before = { root: main.root, jira: main.jira };
+  const r = admin.save({ id: main.id, create: false, name: "Renamed", taskPrefix: "REN", daily: false, contextTidy: true });
+  assert.equal(r.error, undefined, r.error);
+  assert.equal(load().projectDefs[main.id].override, true);
+  config.forgetProjects();
+  const p = config.project(main.id);
+  assert.equal(p, config.mainProject);
+  assert.equal(p.name, "Renamed");
+  assert.equal(p.taskPrefix, "REN");
+  assert.equal(p.daily, false);
+  assert.equal(p.root, before.root);
+  assert.equal(p.jira, before.jira);
+  mutate((d) => delete d.projectDefs[main.id]);
+  config.forgetProjects();
+  assert.equal(config.project(main.id).name, main.fileValues.name);
 });
 
 test("credentials are written to the project's own file and only their presence is reported", () => {
@@ -54,5 +73,5 @@ test("a project with open tasks cannot be removed; once closed it goes, on every
   assert.equal(admin.remove("cuentas-personales").error, undefined);
   assert.equal(load().projectDefs["cuentas-personales"].removed, true);
   assert.equal(config.project("cuentas-personales"), null);
-  assert.match(admin.remove(config.mainProject.id).error, /board\.config\.json/);
+  assert.match(admin.remove(config.mainProject.id).error, /principal/);
 });
