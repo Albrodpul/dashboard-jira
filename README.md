@@ -86,7 +86,7 @@ The `.env` never leaves the workspace folder and is git-ignored.
 
 ### 3. Projects and root (`board.config.json`)
 
-The file has a common part (`cluster`, `trustedHosts`, `voice`, `sessionModel`, `sessionProfiles`) and a `projects` list. Each project is one workspace with its own folder, credentials and, optionally, Jira. The first one is the main project: Jira watch, the report, follow-up, deploys and Sentry run on it. The others have manual tasks, their own sessions and, if turned on, their own daily and Ordenar contexto. Set at least, in the first project:
+The file has a common part (`cluster`, `trustedHosts`, `voice`, `sessionModel`, `sessionProfiles`, `dailyStyle`, `launchdLabels`) and a `projects` list. Each project is one workspace with its own folder, credentials and, optionally, Jira. The first one is the main project: Jira watch, the report, follow-up, deploys and Sentry run on it. The others have manual tasks, their own sessions and, if turned on, their own daily and Ordenar contexto. Set at least, in the first project:
 
 - `id`: a short lowercase name, e.g. `acme`. Records are tagged with it, so keep it the same on every machine.
 - `company`: the company name, used in texts.
@@ -133,9 +133,11 @@ Also set `statuses.rejectLabel`, the label reviewers add when they reject a tick
 - `errorsArea`: the id of the session that receives the possible errors found by the follow-up.
 - `contextDomains`: the folder, relative to `root`, where sessions keep what they learn (`context/domains`). The Learning tab reads its "History" sections.
 - `sessionModel`: the model for the sessions the board creates. `sessionProfiles` overrides the default model and effort per role (`reporter`, `orchestrator`, `followUp`, `deploy`, `errors`, `board`, `area`; defaults in `src/sessions/profiles.js`). They can also be changed per session from Talk.
-- `devServers`: what the Projects tab starts and stops. Each entry has `id`, `name`, `cwd` (relative to `root`), `command`, `args`, `port`, `url`, and optionally `shell` and `startSeconds`.
-- `sentry`: `org`, `projects`, `query` and `period` for the Errors tab. The token comes from `SENTRY_TOKEN` or from the Sentry MCP server in `<root>/.mcp.json`.
+- `devServers`: what the Projects tab starts and stops. Each entry has `id`, `name`, `cwd` (relative to `root`), `command`, `args`, `port`, `url`, and optionally `shell`, `startSeconds` and `role` (the line under its name, such as «API» or «Web pública»).
+- `sentry`: `org`, `projects`, `query` and `period` for the Errors tab, and optionally `labels`: per project slug, `name`, `short` (the row badge), `tone` (`web`, `panel`, `beta` or `prod`) and `production: true` to highlight its rows. The token comes from `SENTRY_TOKEN` or from the Sentry MCP server in `<root>/.mcp.json`.
 - `trustedHosts`: hosts that `ssh`/`scp`/`rsync` may reach without asking.
+- `dailyStyle`: a text file (relative to the workspace) with how the main project's daily is written: an example and the rules to imitate it. Without it, the daily uses the plain format of the other projects.
+- `launchdLabels`: extra launchd label prefixes sessions may `launchctl kickstart -k` without asking, besides the board's own `com.nutria.`.
 - `cluster`: the two-machine setup, see below.
 - `voice`: paths for Whisper and Piper, see below.
 
@@ -188,7 +190,7 @@ The servers still listen only on `127.0.0.1`: each one is reached by the other t
 - **Command changes in two ways.** You can press "Que mande …" in Configurar → Ordenadores. Or, if the machine in command stops answering for a minute (switched off or asleep), the other takes command and keeps it when the first comes back. The one that wakes up yields, and its conversations are merged into the ones in command.
 - **At boot**, a machine takes command only if no machine is in command. If both are waiting, the label that sorts first takes it at once and the other after a minute, so they never both take it.
 - Both host names go in `data/board-hosts.txt` on both machines.
-- **The standby machine keeps its dev servers stopped**: it does not start them at boot or on schedule, refuses manual starts, and stops them when it hands over command. To use the projects from it, Servidores opens a compressed SSH tunnel (`ssh -C -L`) to the machine in command for every dev server with a `url`, so admin, frontends and API are `localhost` on both machines and logins work. Compression matters: a Nuxt dev page is tens of megabytes of uncompressed JS.
+- **The standby machine keeps its dev servers stopped**: it does not start them at boot or on schedule, refuses manual starts, and stops them when it hands over command. To use the projects from it, Servidores opens a compressed SSH tunnel (`ssh -C -L`) to the machine in command for every dev server with a `url`, so admin panels, frontends and API are `localhost` on both machines and logins work. Compression matters: a Nuxt dev page is tens of megabytes of uncompressed JS.
 
 ### Voice notes (optional)
 
