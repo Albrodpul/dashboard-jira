@@ -79,11 +79,13 @@ function talkName(conversation) {
 }
 
 function newTalkSession(b) {
-  const name = window.prompt("Nombre de la sesión nueva", "");
+  const project = currentProject();
+  const where = mixed() ? ` (en ${projectName((workspaceList()[0] || {}).id)}; para otro proyecto, elígelo arriba)` : "";
+  const name = window.prompt(`Nombre de la sesión nueva${where}`, "");
   if (!name || !name.trim()) return;
   b.disabled = true;
   b.textContent = "Creando…";
-  requestOrFail("/api/new-session", { title: name.trim() })
+  requestOrFail("/api/new-session", { title: name.trim(), project: project || undefined })
     .then((d) => {
       if (d.conversation) {
         justCreated.add(d.conversation);
