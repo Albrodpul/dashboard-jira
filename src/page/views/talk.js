@@ -129,7 +129,7 @@ export function renderTalk(root) {
       list.appendChild(
         h("button", { type: "button", class: "talk-item", "aria-current": k === talkTo ? "true" : "false", onclick: () => { setTalk(k); render(); } }, [
           h("span", { class: `dot ${dot}`, "aria-hidden": "true" }),
-          h("span", { class: "talk-item-text" }, [h("span", { class: "talk-item-name" }, [label, FIXED_TALK.includes(k) ? pin() : null]), h("span", { class: "talk-item-state", text: what })]),
+          h("span", { class: "talk-item-text" }, [h("span", { class: "talk-item-name" }, [label, mixed() && FIXED_TALK.includes(k) ? pin() : null]), h("span", { class: "talk-item-state", text: what })]),
         ])
       );
     }
