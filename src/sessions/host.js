@@ -15,12 +15,19 @@ const WORKDIR = ROOT.replace(/\\/g, "/").replace(/^([A-Z]):/, (m, d) => `${d.toL
 const PERMISSION_MODE = "acceptEdits";
 const platform = require("../core/platform");
 const agent = () => require("../agents").main();
+const POINTER = "[❯>›]";
+const mcpChoice = (text) => {
+  if (new RegExp(`${POINTER} ?Continue ?without`, "i").test(text)) return "\x1b[A\x1b[A\r";
+  if (new RegExp(`${POINTER} ?Use ?this ?and ?all`, "i").test(text)) return "\x1b[A\r";
+  return "\r";
+};
 const DIALOGS = [
   [/Claude ?in ?Chrome/i, "\x1b"],
   [/fullscreen ?renderer/i, "2\r"],
-  [/❯ ?No, ?exit/i, "\x1b[B\r"],
+  [new RegExp(`${POINTER} ?No, ?exit`, "i"), "\x1b[B\r"],
   [/trust ?this ?folder/i, "\r"],
-  [/MCP ?servers ?found/i, "\r"],
+  [/Use ?this ?MCP ?server/i, mcpChoice],
+  [/MCP ?servers? ?found/i, "\r"],
 ];
 
 const readConfig = () => {
@@ -81,7 +88,8 @@ function serve() {
         for (const [re, keys] of DIALOGS) {
           if (re.test(fresh) && /Enter ?to ?confirm|Space ?to ?select/i.test(fresh)) {
             s.dialogMark = s.buffer.length;
-            setTimeout(() => s.pty && s.pty.write(keys), 300);
+            const typed = typeof keys === "function" ? keys(fresh) : keys;
+            setTimeout(() => s.pty && s.pty.write(typed), 300);
             log(`dialog ${re} in ${entry.name}`);
             break;
           }
@@ -383,4 +391,4 @@ function markWaiting(conversation, name) {
   writeConfig(list);
 }
 
-module.exports = { serve, hostRequest, ensureHost, hostedConversations, markWaiting, adopt, markOnDemand, vsCodeHas, HOST_PORT, readConfig };
+module.exports = { DIALOGS, serve, hostRequest, ensureHost, hostedConversations, markWaiting, adopt, markOnDemand, vsCodeHas, HOST_PORT, readConfig };
