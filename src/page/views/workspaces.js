@@ -1,4 +1,11 @@
-import { h, button, toast, requestOrFail, render, refresh, empty } from "../lib/base.js";
+import { state, h, button, toast, requestOrFail, render, refresh, empty } from "../lib/base.js";
+
+const base = () => (state.jiraSetup && state.jiraSetup.workspaceBase) || "";
+function relative(root) {
+  const b = base();
+  const r = String(root || "").replace(/\\/g, "/");
+  return b && r.toLowerCase().startsWith(b.toLowerCase() + "/") ? r.slice(b.length + 1) : r;
+}
 
 const MODULES = { jira: "Jira y su reporte", followUp: "Seguimiento", sentry: "Sentry", deploy: "Despliegues", devServers: "Servidores locales", daily: "Daily", context: "Ordenar contexto" };
 const OPTIONAL = { daily: ["Daily", "Un resumen al final del día con las tareas y los commits de este proyecto."], contextTidy: ["Ordenar contexto", "Pasadas de orden sobre el contexto del proyecto, con sus propias reglas (su AGENTS.md)."] };
@@ -88,7 +95,11 @@ function form(draft) {
     field("Prefijo de las tareas", "De 2 a 10 letras. Las tareas que crees a mano se llamarán así: PREFIJO-1, PREFIJO-2…", text(draft, "taskPrefix", { placeholder: "CUENTAS" })),
     draft.fromFile
       ? field("Carpeta en este ordenador", "Se cambia en board.config.json de cada ordenador.", h("input", { type: "text", value: draft.root || "", disabled: true }))
-      : field("Carpeta en este ordenador", "Ruta completa. Cada ordenador guarda la suya; las sesiones abiertas dentro de ella son de este proyecto.", text(draft, "root", { placeholder: "/Users/…/proyecto" })),
+      : field(
+          "Carpeta dentro de workspace",
+          `Va dentro de ${base() || "workspace"}; si no existe, se crea. Vacío: una carpeta con el nombre del proyecto. Las sesiones abiertas dentro de ella son de este proyecto.`,
+          h("div", { class: "ws-folder" }, [h("span", { class: "ws-folder-base", title: base(), text: `${base().split("/").pop() || "workspace"}/` }), text(draft, "root", { placeholder: "nombre-del-proyecto" })])
+        ),
     h("div", { class: "ws-checks" }, Object.entries(OPTIONAL).map(([k, [label, hint]]) => {
       const box = h("input", { type: "checkbox" });
       box.checked = !!draft[k];
@@ -149,7 +160,7 @@ function card(p) {
   if (!p.main) kids.push(credentials(p));
   kids.push(
     h("div", { class: "actions" }, [
-      button("Editar", { onClick: () => ((editing = { id: p.id, fromFile: p.fromFile, name: p.name, taskPrefix: p.taskPrefix, root: p.root || "", daily: p.modules.daily, contextTidy: p.modules.context, ...(p.messages || {}) }), render()) }),
+      button("Editar", { onClick: () => ((editing = { id: p.id, fromFile: p.fromFile, name: p.name, taskPrefix: p.taskPrefix, root: p.fromFile ? p.root || "" : relative(p.root), daily: p.modules.daily, contextTidy: p.modules.context, ...(p.messages || {}) }), render()) }),
       button("Borrar", {
         cls: "subtle",
         disabled: p.main,

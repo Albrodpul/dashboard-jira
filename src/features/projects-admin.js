@@ -70,14 +70,22 @@ function save(input) {
   const manual = require("./manual-tasks");
   const clash = config.projects.find((p) => p.id !== id && manual.prefixOf(p) === taskPrefix);
   if (clash) return { error: `${clash.name} ya usa el prefijo ${taskPrefix}` };
-  const root = fromFile ? "" : clean(input.root, 400);
-  if (fromFile && input.root !== undefined && clean(input.root, 400) && (!existing.root || !same(existing.root, clean(input.root, 400)))) return { error: `la carpeta de ${existing.name} se cambia en board.config.json de cada ordenador` };
-  if (root) {
-    if (!path.isAbsolute(root)) return { error: "la carpeta tiene que ser una ruta completa" };
-    if (!fs.existsSync(root) || !fs.statSync(root).isDirectory()) return { error: "esa carpeta no existe en este ordenador" };
+  const base = config.workspaceBase;
+  const typed = clean(input.root, 400);
+  if (fromFile && typed && (!existing.root || !same(existing.root, path.resolve(base || "", typed)))) return { error: `la carpeta de ${existing.name} se cambia en board.config.json de cada ordenador` };
+  let root = "";
+  let folder = null;
+  if (!fromFile && (typed || !existing)) {
+    if (!base) return { error: "no se sabe dónde está workspace en este ordenador" };
+    root = path.resolve(base, typed || id);
+    folder = path.relative(base, root);
+    if (!folder || folder.startsWith("..") || path.isAbsolute(folder)) return { error: `la carpeta tiene que estar dentro de ${base.replace(/\\/g, "/")}` };
+    folder = folder.replace(/\\/g, "/");
+    if (fs.existsSync(root) && !fs.statSync(root).isDirectory()) return { error: "ahí hay un fichero, no una carpeta" };
     const taken = config.projects.find((p) => p.id !== id && p.root && same(p.root, root));
     if (taken) return { error: `esa carpeta ya es de ${taken.name}` };
   }
+  if (!fromFile && !typed && existing) folder = (load().projectDefs || {})[id] ? load().projectDefs[id].folder || null : null;
   const messages = {};
   for (const k of ["review", "cause", "reference"]) {
     const v = input.messages ? clean(input.messages[k], 1500) : "";
@@ -87,9 +95,12 @@ function save(input) {
     d.projectDefs = { ...(d.projectDefs || {}) };
     d.projectDefs[id] = fromFile
       ? { id, override: true, name, taskPrefix, daily: !!input.daily, contextTidy: !!input.contextTidy, messages: Object.keys(messages).length ? messages : existing.fileValues ? existing.fileValues.messages : null, updatedAt: now() }
-      : { id, name, taskPrefix, agent: "claude", daily: !!input.daily, contextTidy: !!input.contextTidy, ...(Object.keys(messages).length ? { messages } : {}), updatedAt: now() };
+      : { id, name, taskPrefix, agent: "claude", daily: !!input.daily, contextTidy: !!input.contextTidy, ...(folder ? { folder } : {}), ...(Object.keys(messages).length ? { messages } : {}), updatedAt: now() };
   });
-  if (!fromFile && input.root !== undefined) writeLocal(id, root || null);
+  if (root) {
+    fs.mkdirSync(root, { recursive: true });
+    writeLocal(id, root);
+  }
   config.forgetProjects();
   const p = config.project(id);
   let commands = null;

@@ -172,6 +172,12 @@ const { common, projects: rawProjects } = upgradeFlat(normalize(readConfig()));
 const fileProjects = rawProjects.map(buildProject);
 if (new Set(fileProjects.map((p) => p.id)).size !== fileProjects.length) throw new Error(`${CONFIG_FILE}: project ids must be unique`);
 const main = fileProjects[0];
+const workspaceBase = main.root ? path.dirname(main.root) : null;
+const folderRoot = (folder) => {
+  if (!folder || !workspaceBase) return null;
+  const r = path.resolve(workspaceBase, folder);
+  return fs.existsSync(r) ? r : null;
+};
 
 const LOCAL_FILE = () => path.join(require("./data").DATA_DIR, "projects-local.json");
 function localProjects() {
@@ -200,7 +206,7 @@ function allProjects() {
   for (const def of Object.values(defs)) {
     if (!def || def.removed || !def.id || fileProjects.some((p) => p.id === def.id)) continue;
     try {
-      extra.push(buildProject({ ...def, root: (local[def.id] && local[def.id].root) || null, source: "panel" }, fileProjects.length + extra.length));
+      extra.push(buildProject({ ...def, root: (local[def.id] && local[def.id].root) || folderRoot(def.folder), source: "panel" }, fileProjects.length + extra.length));
     } catch (e) {}
   }
   cache = { at: Date.now(), list: [...fileProjects, ...extra] };
@@ -243,6 +249,7 @@ module.exports = {
   localProjects,
   buildProject,
   mainProject: main,
+  workspaceBase,
   project: (id) => allProjects().find((p) => p.id === id) || null,
   forPage: () => ({
     jiraUrl: `https://${main.secret("JIRA_SITE") || ""}/browse/`,
@@ -251,6 +258,7 @@ module.exports = {
     reviewer: { name: main.jira.reviewer.name },
     reviewStatus: main.statuses.review,
     deployProjects: main.deployProjects,
+    workspaceBase: workspaceBase ? slashes(workspaceBase) : null,
     workspaces: allProjects().map((p) => ({
       id: p.id,
       name: p.name,

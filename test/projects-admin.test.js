@@ -18,6 +18,7 @@ test("a project created in the panel is shared, keeps its folder on this machine
   const def = load().projectDefs["cuentas-personales"];
   assert.equal(def.taskPrefix, "CUENTAS");
   assert.equal(def.root, undefined);
+  assert.equal(def.folder, "cuentas");
   assert.equal(config.localProjects()["cuentas-personales"].root, path.resolve(folder));
   const p = config.project("cuentas-personales");
   assert.equal(p.source, "panel");
@@ -28,13 +29,27 @@ test("a project created in the panel is shared, keeps its folder on this machine
   assert.equal(admin.list()[0].fromFile, true);
 });
 
+test("a new project goes inside workspace, named after the project when no folder is given, and the folder is created", () => {
+  const r = admin.save({ name: "Mi App", taskPrefix: "APP" });
+  assert.equal(r.error, undefined, r.error);
+  const root = path.join(path.dirname(config.mainProject.root), "mi-app");
+  assert.equal(fs.existsSync(root), true);
+  assert.equal(config.localProjects()["mi-app"].root, root);
+  const nested = admin.save({ name: "Otra App", taskPrefix: "OTRA", root: "external/otra" });
+  assert.equal(nested.error, undefined, nested.error);
+  assert.equal(load().projectDefs["otra-app"].folder, "external/otra");
+  assert.equal(fs.existsSync(path.join(path.dirname(config.mainProject.root), "external", "otra")), true);
+  admin.remove("mi-app");
+  admin.remove("otra-app");
+});
+
 test("the panel refuses bad or clashing projects", () => {
   assert.match(admin.save({ name: "" }).error, /nombre/);
   assert.match(admin.save({ name: "Otra", taskPrefix: "CUENTAS" }).error, /ya usa el prefijo/);
   assert.match(admin.save({ name: "Otra", taskPrefix: "WEB" }).error, /proyecto de Jira/);
   assert.match(admin.save({ name: "Otra", root: folder }).error, /ya es de Cuentas personales/);
-  assert.match(admin.save({ name: "Otra", root: path.join(box.dir, "nope") }).error, /no existe/);
-  assert.match(admin.save({ name: "Otra", root: "relativa" }).error, /ruta completa/);
+  assert.match(admin.save({ name: "Otra", root: "/somewhere/else" }).error, /dentro de/);
+  assert.match(admin.save({ name: "Otra", root: "../fuera" }).error, /dentro de/);
   assert.match(admin.save({ id: config.mainProject.id, name: "X", root: path.join(box.dir, "otra") }).error, /board\.config\.json/);
 });
 
