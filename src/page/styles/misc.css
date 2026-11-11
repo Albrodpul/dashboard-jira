@@ -29,7 +29,7 @@
 .dev-card.is-commander .dev-icon { background: var(--accent-soft); color: var(--accent); }
 .dev-title { display: flex; flex-direction: column; min-width: 0; }
 .dev-title strong { font-size: 17px; font-weight: 600; }
-.dev-title .meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dev-title .meta { overflow-wrap: anywhere; }
 .dev-status { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--surface-2); color: var(--ink-2); }
 .dev-status .dot { width: 7px; height: 7px; }
 .dev-status.on { background: var(--ok-soft); color: var(--ok); }
@@ -46,12 +46,20 @@
 .dev-help summary { cursor: pointer; color: var(--ink-3); width: fit-content; }
 .dev-help p { margin: 6px 0 0; max-width: 760px; line-height: 1.5; }
 .settings-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; margin-top: 18px; align-items: start; }
+.dev-section { margin: 14px 0 -10px; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); }
+.dev-section:first-child { margin-top: 0; }
+.dev-section + .settings-grid { margin-top: 0; align-items: stretch; }
+@media (min-width: 900px) { .dev-section + .settings-grid { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); } }
+.schedule-row { gap: 10px; }
+.token-line { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; }
+.token-line > div { display: flex; flex-direction: column; gap: 4px; flex: 1 1 320px; min-width: 0; }
+.token-line .meta { margin: 0; }
 .setting-card { display: flex; flex-direction: column; gap: 10px; padding: 16px 18px; }
 .setting-card h3 { margin: 0; font-size: 15px; font-weight: 600; }
 .setting-card .meta, .setting-card .setup-note { margin: 0; }
-.schedule-row { display: flex; flex-wrap: wrap; gap: 12px; }
+.schedule-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; }
 .schedule-row label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--ink-3); }
-.schedule-row .time-input { font-size: 18px; font-variant-numeric: tabular-nums; padding: 6px 10px; }
+.schedule-row .time-input { font-size: 16px; font-variant-numeric: tabular-nums; padding: 6px 8px; }
 .token-exp { margin: 0; font-size: 14px; }
 
 .issues-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }

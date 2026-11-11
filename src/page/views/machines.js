@@ -64,21 +64,20 @@ function card(device) {
   const status = !device.online ? ["off", "Desconectado"] : !b ? ["warn", data.self && hostOf(data.self.peer) === device.dns ? "Su tablero no responde" : "Sin tablero"] : commander ? ["on", "Manda"] : ["idle", "En espera"];
   const head = h("div", { class: "dev-head" }, [
     deviceIcon(device.os),
-    h("div", { class: "dev-title" }, [h("strong", { text: (b && b.label) || device.name }), h("span", { class: "meta", text: `${device.name} · ${device.os}` })]),
+    h("div", { class: "dev-title" }, [h("strong", { text: (b && b.label) || device.name }), h("span", { class: "meta", text: [device.name, device.ip].filter(Boolean).join(" · ") })]),
     h("span", { class: `dev-status ${status[0]}` }, [h("span", { class: "dot" }), status[1]]),
   ]);
   const rows = [];
   const mp = state.cluster && state.cluster.macPower;
   if (isMac && mp && mp.battery) rows.push(row("Batería", h("span", { class: "dev-battery" }, [batteryIcon(mp.battery, 30), `${mp.battery.percent} % · ${batteryText(mp.battery).toLowerCase()}`])));
-  if (isMac && mp && mp.schedule) rows.push(row("Horario", `despierto de ${mp.schedule.wake} a ${mp.schedule.sleep}, de lunes a viernes`));
   if (!device.online && device.lastSeen) rows.push(row("Visto", when(device.lastSeen)));
   if (b && commander) rows.push(row("Manda desde", when(b.since)));
   if (b && !commander && device.online) rows.push(row("Copia", `datos ${b.lastSnapshot ? when(b.lastSnapshot) : "nunca"} · conversaciones ${b.lastTranscripts ? when(b.lastTranscripts) : "nunca"}`));
-  if (b && b.claudeToken) rows.push(row("Token", b.claudeToken.sessions ? `hasta el ${fmtDate(b.claudeToken.expires) || "?"}${b.claudeToken.vscode ? " · también VS Code" : " · VS Code aún con /login"}` : "no tiene; usa el /login"));
-  if (device.ip) rows.push(row("Tailscale", device.ip));
+  if (b && b.claudeToken && !b.claudeToken.sessions) rows.push(row("Token", "no tiene; cópialo desde «Token de Claude»"));
+  if (b && b.claudeToken && b.claudeToken.sessions && !b.claudeToken.vscode) rows.push(row("VS Code", "aún con /login"));
   const actions = [];
   if (b && device.online && !commander) actions.push(button(`Que mande el ${b.label}`, { cls: "primary", disabled: busy, onClick: () => window.confirm(`¿Pasar el mando al ${b.label}? El otro ordenador para sus sesiones y este las retoma.`) && act(b.label, "take", `Pasando el mando al ${b.label}…`) }));
-  return h("article", { class: `card dev-card${commander ? " is-commander" : ""}${device.online ? "" : " offline"}` }, [head, h("div", { class: "dev-rows" }, rows), actions.length ? h("div", { class: "actions" }, actions) : null]);
+  return h("article", { class: `card dev-card${commander ? " is-commander" : ""}${device.online ? "" : " offline"}` }, [head, rows.length ? h("div", { class: "dev-rows" }, rows) : null, actions.length ? h("div", { class: "actions" }, actions) : null]);
 }
 
 
@@ -121,7 +120,7 @@ function jobAction(body, label) {
 }
 
 function tokenRenew() {
-  const box = h("section", { class: "card setting-card token-renew" }, [h("h3", { text: "Token de Claude" })]);
+  const box = h("section", { class: "card setting-card token-renew" });
   const startButton = (label) =>
     button(label, {
       cls: "primary",
@@ -162,9 +161,15 @@ function tokenRenew() {
   if (job.state === "failed") box.appendChild(h("p", { class: "setup-note warn", text: `No se ha renovado: ${job.error || "error desconocido"}` }));
   if (job.state === "failed" && job.tail) box.appendChild(h("pre", { class: "token-tail", text: job.tail }));
   const exp = (mine && mine.expires) || (theirs && theirs.expires);
-  if (exp) box.appendChild(h("p", { class: "token-exp" }, [h("strong", { text: `Caduca el ${fmtDate(exp)}` }), h("span", { class: "meta", text: " · sesiones y VS Code, en los dos ordenadores" })]));
-  box.appendChild(h("p", { class: "meta", text: "Renuévalo si caduca, si te quitan el acceso o si todas las sesiones caen con «Failed to authenticate». Si tu navegador sigue dentro de claude.ai con la cuenta de empresa, lo autorizas tú solo." }));
-  box.appendChild(h("div", { class: "actions" }, [startButton("Renovar token de Claude")]));
+  box.appendChild(
+    h("div", { class: "token-line" }, [
+      h("div", {}, [
+        h("p", { class: "token-exp" }, [h("strong", { text: exp ? `Caduca el ${fmtDate(exp)}` : "Sin token" }), h("span", { class: "meta", text: " · sesiones y VS Code, en los dos ordenadores" })]),
+        h("p", { class: "meta", text: "Renuévalo si caduca o si todas las sesiones caen con «Failed to authenticate». Con claude.ai abierto en la cuenta de empresa, lo autorizas tú solo." }),
+      ]),
+      startButton("Renovar"),
+    ])
+  );
   return box;
 }
 
@@ -175,6 +180,7 @@ export function renderMachines(root) {
   }
   if (data.error) return root.appendChild(h("div", { class: "setup-note warn", text: data.error }));
   if (!data.devices) return root.appendChild(empty("No se pudo leer Tailscale en este ordenador.", ""));
+  root.appendChild(h("h3", { class: "dev-section", text: "Equipos" }));
   root.appendChild(h("div", { class: "dev-grid" }, data.devices.map(card)));
   root.appendChild(
     h("details", { class: "dev-help" }, [
@@ -182,7 +188,10 @@ export function renderMachines(root) {
       h("p", { text: "Solo cuando tú lo pasas con el botón, o si el que manda deja de responder (apagado o suspendido): entonces el otro lo toma al minuto y lo conserva cuando el primero vuelve. Al encender por la mañana, un ordenador solo coge el mando si no manda ninguno." }),
     ])
   );
-  root.appendChild(h("div", { class: "settings-grid" }, [workSchedule(), macSchedule(), tokenRenew()]));
+  root.appendChild(h("h3", { class: "dev-section", text: "Horarios" }));
+  root.appendChild(h("div", { class: "settings-grid" }, [workSchedule(), macSchedule()]));
+  root.appendChild(h("h3", { class: "dev-section", text: "Token de Claude" }));
+  root.appendChild(tokenRenew());
   if (!jobLoaded) pollJob();
 }
 
@@ -230,10 +239,9 @@ function workSchedule() {
     },
   });
   const kids = [
-    h("h3", { text: "Horario de trabajo" }),
-    h("p", { class: "meta", text: "De lunes a viernes. Al empezar arrancan las sesiones fijas y el reporte; durante la jornada se mira Jira cada minuto y salen los seguimientos; al acabar se paran los proyectos. La daily se redacta sola a su hora, dentro de la jornada. Fuera de este horario solo funciona con «Activarlo todo»." }),
-    h("div", { class: "schedule-row" }, [h("label", {}, [h("span", { text: "Empieza" }), start]), h("label", {}, [h("span", { text: "Acaba" }), end]), h("label", {}, [h("span", { text: "Daily" }), daily])]),
-    h("div", { class: "actions" }, [save]),
+    h("h3", { text: "Jornada" }),
+    h("p", { class: "meta", text: "De lunes a viernes. Dentro arrancan las sesiones fijas, se vigila Jira y salen los seguimientos; al acabar se paran los proyectos. Fuera, solo con «Activarlo todo»." }),
+    h("div", { class: "schedule-row" }, [h("label", {}, [h("span", { text: "Empieza" }), start]), h("label", {}, [h("span", { text: "Acaba" }), end]), h("label", {}, [h("span", { text: "Daily" }), daily]), save]),
   ];
   const mp = (state.cluster && state.cluster.macPower) || null;
   const toMin = (t) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3));
@@ -281,10 +289,9 @@ function macSchedule() {
     },
   });
   const kids = [
-    h("h3", { text: "Horario del Mac" }),
-    h("p", { class: "meta", text: "De lunes a viernes. Entre las dos horas no se duerme, ni con la tapa cerrada ni sin cargador; si baja del 10 % sin cargar, se deja dormir." }),
-    h("div", { class: "schedule-row" }, [h("label", {}, [h("span", { text: "Se despierta" }), wake]), h("label", {}, [h("span", { text: "Se duerme" }), sleep])]),
-    h("div", { class: "actions" }, [save]),
+    h("h3", { text: "Mac despierto" }),
+    h("p", { class: "meta", text: "De lunes a viernes. No se duerme ni con la tapa cerrada; solo si baja del 10 % sin cargador." }),
+    h("div", { class: "schedule-row" }, [h("label", {}, [h("span", { text: "Se despierta" }), wake]), h("label", {}, [h("span", { text: "Se duerme" }), sleep]), save]),
     weeklyOffRow(mp, s),
   ];
   if (mp && mp.allowed === false)
