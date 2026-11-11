@@ -66,7 +66,7 @@ function tunnelPanel() {
   return h("div", { class: "proj-tunnel" }, [
     h("div", { class: "proj-tunnel-text" }, [
       h("strong", { text: `Los proyectos corren en el ${who}` }),
-      h("span", { class: "meta", text: `Para usar admin y web desde este ordenador, login incluido, ábrelos por un túnel.${t.error ? ` Último error: ${t.error}` : ""}` }),
+      h("span", { class: "meta", text: `Para usar las webs del otro ordenador desde este, login incluido, ábrelos por un túnel.${t.error ? ` Último error: ${t.error}` : ""}` }),
     ]),
     button(working ? "Abriendo…" : `Ver proyectos del ${who}`, { cls: "primary", disabled: working, onClick: (b) => tunnelAct("open", b) }),
   ]);
