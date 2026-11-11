@@ -59,14 +59,18 @@ function talkGroups(fixedShown, others) {
   if (!mixed()) return [["Fijas", fixedRows], ["Abiertas", openRows]];
   const main = (workspaceList()[0] || {}).id;
   const groups = [["Común a todos", fixedRows.filter(([k]) => SHARED_TALK.includes(k))]];
-  const byProject = new Map(workspaceList().map((p) => [p.id, []]));
-  byProject.get(main).push(...fixedRows.filter(([k]) => !SHARED_TALK.includes(k)));
+  const byProject = new Map(workspaceList().map((p) => [p.id, { fixed: [], open: [] }]));
+  byProject.get(main).fixed.push(...fixedRows.filter(([k]) => !SHARED_TALK.includes(k)));
   for (const row of openRows) {
     const id = projectOfTalk(row[2]);
-    if (!byProject.has(id)) byProject.set(id, []);
-    byProject.get(id).push(row);
+    if (!byProject.has(id)) byProject.set(id, { fixed: [], open: [] });
+    byProject.get(id).open.push(row);
   }
-  for (const [id, rows] of byProject) groups.push([projectName(id), rows]);
+  for (const [id, { fixed, open }] of byProject) {
+    const name = projectName(id);
+    if (!fixed.length) groups.push([name, open]);
+    else groups.push([name, fixed, "Fijas"], [name, open, "Abiertas"]);
+  }
   return groups;
 }
 
@@ -113,9 +117,12 @@ export function renderTalk(root) {
   const others = otherLiveSessions();
   const fixedShown = shownFixed();
   const list = h("nav", { class: "talk-list", "aria-label": "Qué sesión ver" });
-  const group = (title, rows) => {
+  let lastTitle = null;
+  const group = (title, rows, sub) => {
     if (!rows.length) return;
-    list.appendChild(h("div", { class: "talk-list-title", text: title }));
+    if (title !== lastTitle) list.appendChild(h("div", { class: "talk-list-title", text: title }));
+    lastTitle = title;
+    if (sub) list.appendChild(h("div", { class: "talk-list-sub", text: sub }));
     for (const [k, label, conversation] of rows) {
       const [dot, what] = talkActivity(conversation);
       list.appendChild(
@@ -126,7 +133,7 @@ export function renderTalk(root) {
       );
     }
   };
-  for (const [title, rows] of talkGroups(fixedShown, others)) group(title, rows);
+  for (const [title, rows, sub] of talkGroups(fixedShown, others)) group(title, rows, sub);
   list.appendChild(h("button", { type: "button", class: "talk-new", title: "Abre una sesión nueva en el tablero para hablar con ella", text: "+ Sesión nueva", onclick: (e) => newTalkSession(e.currentTarget) }));
   const main = h("div", { class: "talk-main" });
   root.appendChild(h("div", { class: "talk-layout" }, [list, main]));
@@ -138,7 +145,7 @@ function renderTalkMain(root, others) {
   const choices = groups.flatMap(([, rows]) => rows);
   if (/^[0-9a-f-]{36}$/.test(talkTo) && !choices.some(([k]) => k === talkTo)) groups.push(["Otras", [[talkTo, "Sesión abierta"]]]);
   const option = ([k, label]) => h("option", { value: k, text: label });
-  const select = h("select", { class: "chat-select", "aria-label": "Qué sesión ver" }, mixed() ? groups.map(([title, rows]) => h("optgroup", { label: title }, rows.map(option))) : groups.flatMap(([, rows]) => rows).map(option));
+  const select = h("select", { class: "chat-select", "aria-label": "Qué sesión ver" }, mixed() ? groups.map(([title, rows, sub]) => h("optgroup", { label: sub ? `${title} · ${sub.toLowerCase()}` : title }, rows.map(option))) : groups.flatMap(([, rows]) => rows).map(option));
   select.value = talkTo;
   select.addEventListener("change", () => {
     setTalk(select.value);

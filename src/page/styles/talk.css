@@ -152,3 +152,4 @@
   body.term-open .app { grid-template-columns: var(--nav-w) minmax(0, 1fr); padding-right: var(--live-w); }
   body.term-open #report { display: none; }
 }
+.talk-list-sub { padding: 6px 10px 2px; font-size: 11.5px; color: var(--ink-3); }
