@@ -26,6 +26,11 @@ const areaTalk = (id) => {
 };
 const talkSession = (to) => ({ reporter: state.reporterStatus, orchestrator: state.orchestrator, board: state.boardStatus, followUp: state.followUpStatus, deploy: areaTalk(state.deployerArea), errors: areaTalk(state.sentry && state.sentry.errorsArea) })[to] || null;
 const FIXED_TALK = ["board", "reporter", "orchestrator", "followUp", "deploy", "errors"];
+const pin = () => {
+  const el = h("span", { class: "talk-pin", title: "Sesión fija del tablero", "aria-label": "fija" });
+  el.innerHTML = '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/></svg>';
+  return el;
+};
 const SHARED_TALK = ["board"];
 function shownFixed() {
   const picked = currentProject();
@@ -68,8 +73,7 @@ function talkGroups(fixedShown, others) {
   }
   for (const [id, { fixed, open }] of byProject) {
     const name = projectName(id);
-    if (!fixed.length) groups.push([name, open]);
-    else groups.push([name, fixed, "Fijas"], [name, open, "Abiertas"]);
+    groups.push([name, [...fixed, ...open]]);
   }
   return groups;
 }
@@ -117,23 +121,20 @@ export function renderTalk(root) {
   const others = otherLiveSessions();
   const fixedShown = shownFixed();
   const list = h("nav", { class: "talk-list", "aria-label": "Qué sesión ver" });
-  let lastTitle = null;
-  const group = (title, rows, sub) => {
+  const group = (title, rows) => {
     if (!rows.length) return;
-    if (title !== lastTitle) list.appendChild(h("div", { class: "talk-list-title", text: title }));
-    lastTitle = title;
-    if (sub) list.appendChild(h("div", { class: "talk-list-sub", text: sub }));
+    list.appendChild(h("div", { class: "talk-list-title", text: title }));
     for (const [k, label, conversation] of rows) {
       const [dot, what] = talkActivity(conversation);
       list.appendChild(
         h("button", { type: "button", class: "talk-item", "aria-current": k === talkTo ? "true" : "false", onclick: () => { setTalk(k); render(); } }, [
           h("span", { class: `dot ${dot}`, "aria-hidden": "true" }),
-          h("span", { class: "talk-item-text" }, [h("span", { class: "talk-item-name", text: label }), h("span", { class: "talk-item-state", text: what })]),
+          h("span", { class: "talk-item-text" }, [h("span", { class: "talk-item-name" }, [label, FIXED_TALK.includes(k) ? pin() : null]), h("span", { class: "talk-item-state", text: what })]),
         ])
       );
     }
   };
-  for (const [title, rows, sub] of talkGroups(fixedShown, others)) group(title, rows, sub);
+  for (const [title, rows] of talkGroups(fixedShown, others)) group(title, rows);
   list.appendChild(h("button", { type: "button", class: "talk-new", title: "Abre una sesión nueva en el tablero para hablar con ella", text: "+ Sesión nueva", onclick: (e) => newTalkSession(e.currentTarget) }));
   const main = h("div", { class: "talk-main" });
   root.appendChild(h("div", { class: "talk-layout" }, [list, main]));
@@ -145,7 +146,7 @@ function renderTalkMain(root, others) {
   const choices = groups.flatMap(([, rows]) => rows);
   if (/^[0-9a-f-]{36}$/.test(talkTo) && !choices.some(([k]) => k === talkTo)) groups.push(["Otras", [[talkTo, "Sesión abierta"]]]);
   const option = ([k, label]) => h("option", { value: k, text: label });
-  const select = h("select", { class: "chat-select", "aria-label": "Qué sesión ver" }, mixed() ? groups.map(([title, rows, sub]) => h("optgroup", { label: sub ? `${title} · ${sub.toLowerCase()}` : title }, rows.map(option))) : groups.flatMap(([, rows]) => rows).map(option));
+  const select = h("select", { class: "chat-select", "aria-label": "Qué sesión ver" }, mixed() ? groups.map(([title, rows]) => h("optgroup", { label: title }, rows.map(option))) : groups.flatMap(([, rows]) => rows).map(option));
   select.value = talkTo;
   select.addEventListener("change", () => {
     setTalk(select.value);
