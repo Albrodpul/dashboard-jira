@@ -32,9 +32,9 @@ const GROUPS = [
     "Mi día",
     [
       { id: "home", label: "Inicio", hint: "Qué pasa ahora" },
-      { id: "daily", label: "Daily", hint: "El resumen de ayer y lo de hoy" },
       { id: "tasks", label: "Tareas", hint: "Lo de Jira y lo que te espera" },
       { id: "talk", label: "Hablar", hint: "Escribir a una sesión" },
+      { id: "daily", label: "Daily", hint: "El resumen de ayer y lo de hoy" },
     ],
   ],
   [
@@ -45,7 +45,7 @@ const GROUPS = [
     ],
   ],
   [
-    "Mi ordenador",
+    "Entorno",
     [
       { id: "projects", label: "Servidores", hint: "Servidores de desarrollo en local" },
       { id: "machines", label: "Ordenadores", hint: "PC y Mac: quién manda" },

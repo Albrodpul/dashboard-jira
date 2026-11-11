@@ -498,17 +498,33 @@ function copyText(text) {
   (navigator.clipboard && window.isSecureContext ? navigator.clipboard.writeText(text) : Promise.reject()).then(() => toast("Copiado."), () => (fallback(), toast("Copiado.")));
 }
 
+let overlayFocus = null;
+
 export function closeTerminal() {
   if (!overlay) return;
   overlay.dispose();
   overlay = null;
   document.body.classList.remove("term-open");
+  if (overlayFocus && overlayFocus.isConnected) overlayFocus.focus({ preventScroll: true });
+  overlayFocus = null;
 }
 
 export function openTerminal(conversation, name) {
+  const back = overlay ? overlayFocus : document.activeElement;
   closeTerminal();
+  overlayFocus = back;
   overlay = createPanel(conversation, name, closeTerminal);
-  overlay.root.classList.add("term-overlay");
+  overlay.root.classList.add("term-inline", "term-overlay");
+  overlay.root.setAttribute("role", "dialog");
+  overlay.root.setAttribute("aria-label", `${name} en directo`);
   document.body.appendChild(overlay.root);
   document.body.classList.add("term-open");
+  requestAnimationFrame(() => {
+    const input = overlay && overlay.root.querySelector(".term-input");
+    if (input && window.matchMedia("(min-width: 761px)").matches) input.focus({ preventScroll: true });
+  });
 }
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && overlay && !e.defaultPrevented && !overlay.root.contains(document.activeElement)) closeTerminal();
+});

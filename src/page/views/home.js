@@ -73,7 +73,7 @@ export function sessionSituation() {
 
 const vsCodeLink = (s) => {
   if (!s.conversation) return null;
-  if ((state.hosted || []).some((x) => x.conversation === s.conversation && !x.waitingForVsCode)) return h("button", { class: "btn link", type: "button", text: "Ver en directo", onclick: () => import("./terminal.js").then((m) => m.openTerminal(s.conversation, s.name || s.sessionName)) });
+  if ((state.hosted || []).some((x) => x.conversation === s.conversation && !x.waitingForVsCode)) return h("button", { class: "btn link", type: "button", text: "Ver en directo", onclick: () => import("../components/terminal.js").then((m) => m.openTerminal(s.conversation, s.name || s.sessionName)) });
   return h("a", { class: "btn link", href: `vscode://anthropic.claude-code/open?session=${encodeURIComponent(s.conversation)}`, text: "Ir a su pestaña" });
 };
 
