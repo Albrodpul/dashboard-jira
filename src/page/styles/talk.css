@@ -128,7 +128,7 @@
 .term-inline .term-screen { padding: 12px 8px 10px 16px; }
 .term-inline .term-title .dot { box-shadow: 0 0 0 3px rgba(95, 196, 214, 0.12); }
 .term-inline .term-scroll button { background: #131d22; border-color: #24343b; color: #8a9ca3; }
-.term-inline.term-overlay { top: var(--top); right: 0; bottom: 0; width: min(640px, 100vw); height: auto; min-height: 0; margin: 0; border-radius: 0; border-top: 0; border-right: 0; border-bottom: 0; box-shadow: -8px 0 24px rgba(0, 0, 0, 0.12); }
+.term-inline.term-overlay { top: var(--top); right: 0; bottom: 0; width: var(--live-w, min(640px, 100vw)); height: auto; min-height: 0; margin: 0; border-radius: 0; border-top: 0; border-right: 0; border-bottom: 0; box-shadow: -8px 0 24px rgba(0, 0, 0, 0.12); }
 .term-overlay .term-head .btn, .term-overlay .term-head button { margin-left: 0; }
 .term-overlay .term-head > .btn:last-child { margin-left: auto; }
 @media (max-width: 760px) {
@@ -147,3 +147,8 @@
 .term-overlay .term-profiles.open .term-profile { width: 100%; min-height: 40px; font-size: 14px; }
 .term-overlay .term-head > .term-profile-wrap { margin-left: auto; }
 .term-overlay .term-head > .btn:last-child { margin-left: 0; flex: none; }
+@media (min-width: 761px) {
+  body { --live-w: clamp(420px, 44vw, 640px); }
+  body.term-open .app { grid-template-columns: var(--nav-w) minmax(0, 1fr); padding-right: var(--live-w); }
+  body.term-open #report { display: none; }
+}
