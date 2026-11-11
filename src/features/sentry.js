@@ -50,7 +50,7 @@ async function listIssues(force) {
   const issues = results.flatMap((r) => (r.status === "fulfilled" ? r.value : []));
   const errors = results.filter((r) => r.status === "rejected").map((r) => String(r.reason.message || r.reason));
   issues.sort((a, b) => new Date(b.lastSeen) - new Date(a.lastSeen));
-  const value = { available: true, projects: config.sentry.projects, issues, errors, at: now() };
+  const value = { available: true, projects: config.sentry.projects, labels: config.sentry.labels || {}, issues, errors, at: now() };
   cache = { at: Date.now(), value };
   return value;
 }

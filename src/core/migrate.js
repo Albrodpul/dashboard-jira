@@ -71,7 +71,7 @@ function migrateDocument(d) {
     y.approvedVia = tr(APPROVED_VIA, y.approvedVia);
     return clean(y);
   });
-  n.followUps = (d.ana || d.followUps || []).map((r) => {
+  n.followUps = (d.followUps || []).map((r) => {
     const y = rename(r, { persona: "person", errores: "errors" });
     if (y.errors) {
       y.errors = y.errors.map((e) => {
@@ -83,7 +83,7 @@ function migrateDocument(d) {
     }
     return clean(y);
   });
-  n.followUpRequest = d.anaPeticion ? clean(rename(d.anaPeticion, { atendida: "handled", atendidaAt: "handledAt", persona: "person", despertada: "wokenUp" })) : d.followUpRequest || null;
+  n.followUpRequest = d.followUpRequest || null;
   n.messages = (d.mensajes || d.messages || []).map((m) => {
     const y = rename(m, { para: "to", texto: "text", leido: "readAt", respuesta: "reply", respuestas: "replies", despertada: "wokenUp" });
     y.to = tr(MESSAGE_TO, y.to);
@@ -124,7 +124,7 @@ function migrateRoutes(r) {
   const role = (x) => (x ? clean(rename(x, { sesion: "session", desde: "since", conversacion: "conversation", titulo: "title" })) : undefined);
   const areas = {};
   for (const [id, a] of Object.entries(r.areas || {})) areas[id] = clean(rename(a, { titulo: "title", epicas: "epics", sesion: "session", desde: "since", conversacion: "conversation" }));
-  return clean({ reporter: role(r.reporte || r.reporter), orchestrator: role(r.orquestador || r.orchestrator), followUp: role(r.ana || r.followUp), deployer: r.despliegue || r.deployer, areas });
+  return clean({ reporter: role(r.reporte || r.reporter), orchestrator: role(r.orquestador || r.orchestrator), followUp: role(r.followUp), deployer: r.despliegue || r.deployer, areas });
 }
 
 const LEGACY_FILES = {
@@ -171,7 +171,7 @@ function migrateLearningTable(db) {
   const put = db.prepare("INSERT OR REPLACE INTO learning_tickets VALUES (?, ?, ?, ?)");
   for (const r of db.prepare("SELECT clave, epic, epic_nombre, eventos FROM aprendizaje_tickets").all()) {
     const e = JSON.parse(r.eventos);
-    put.run(r.clave, r.epic, r.epic_nombre, JSON.stringify({ deliveries: e.entregas || [], returns: e.devoluciones || [], reviewerComments: e.comentariosAna || [] }));
+    put.run(r.clave, r.epic, r.epic_nombre, JSON.stringify({ deliveries: e.entregas || [], returns: e.devoluciones || [], reviewerComments: [] }));
   }
   db.exec("DROP TABLE aprendizaje_tickets");
   db.exec("DROP TABLE IF EXISTS consumo");

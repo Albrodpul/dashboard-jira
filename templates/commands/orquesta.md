@@ -41,7 +41,7 @@ Si se invoca `/orquesta`, o si llega «Aviso del tablero: arranca la orquestador
 
 Son la forma de decir «esto no se envía hasta X» o «esto se envía, pero siempre con esta indicación». Las hace cumplir el código del tablero en todos los caminos (Hacer, chat, regla de devueltas, `sent`, la propia entrega), así que no dependen de que ninguna sesión se acuerde. Cuando {{ME}} pida algo así («no mandes nada del epic X hasta el lunes», «lo de la NFL que no se ejecute hasta el 9», «a Pagos dile siempre que no toque producción»), créala tú:
 
-- `node {{WORKSPACE}}/board.js hold add --epics WEB-1782 --until "9-11" --reason "Evento de la NFL"`
+- `node {{WORKSPACE}}/board.js hold add --epics WEB-12 --until "9-11" --reason "Evento del cliente"`
 - `--tasks CLAVE,CLAVE`, `--epics EPIC,EPIC` y `--areas sesión,sesión` se combinan; las de epic y de sesión valen también para las tareas que lleguen después.
 - `--mode hold` (por defecto) no deja aprobar ni enviar; `--mode note` deja enviar, pero el tablero añade `--reason` como «Indicación obligatoria» a cada mensaje de lo que cubre.
 - `--until`: `9-11`, `9-11 18:00`, `2026-11-09 18:00`, hora de Madrid. Una fecha sola es a las 00:00 de ese día («hasta el 9-11» deja de aplicarse al empezar el 9). Sin `--until`, dura hasta que se levante. Si la fecha que dice {{ME}} es ambigua (¿incluido ese día o no?), pregúntale antes de crearla.

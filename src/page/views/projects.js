@@ -35,8 +35,8 @@ function act(action, id, label, b) {
     });
 }
 
-const ROLE = { mysql: "Base de datos", mariadb: "Base de datos", "api": "API", assistant: "Asistente IA", admin: "Panel de administración", web: "Web pública" };
-const roleOf = (s) => ROLE[String(s.id).toLowerCase()] || ROLE[String(s.name).toLowerCase()] || "";
+const ROLE = { mysql: "Base de datos", mariadb: "Base de datos", postgres: "Base de datos", redis: "Caché" };
+const roleOf = (s) => s.role || ROLE[String(s.id).toLowerCase()] || ROLE[String(s.name).toLowerCase()] || "";
 
 function tunnelAct(action, b) {
   busy.add("tunnel");

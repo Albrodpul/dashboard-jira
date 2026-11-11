@@ -85,8 +85,8 @@ const VIEWS = {
   more: ["Más", "Errores, despliegues, tu ordenador, lo que hacen los demás y ajustes."],
   talk: ["Hablar", "Las sesiones del tablero en directo: las fijas y cualquier otra que esté abierta. Escríbeles o córtalas, o abre una nueva para hablar."],
   workspaces: ["Proyectos", "Cada proyecto que lleva el tablero: su carpeta en este ordenador, sus módulos y sus credenciales."],
-  projects: ["Servidores", "Los servidores locales que usan las sesiones: MySQL, api, Assistant, admin y web."],
-  sentry: ["Errores", "Errores sin resolver de web, admin y api. Elige la sesión y pulsa Enviar: el tablero se lo pasa con el enlace y te cuenta aquí lo que ha encontrado."],
+  projects: ["Servidores", "Los servidores locales que usan las sesiones: base de datos, API y webs de cada proyecto."],
+  sentry: ["Errores", "Errores sin resolver de los proyectos de Sentry. Elige la sesión y pulsa Enviar: el tablero se lo pasa con el enlace y te cuenta aquí lo que ha encontrado."],
   context: ["Ordenar contexto", "La orquestadora repasa y ordena context/ y el índice de AGENTS.md. Solo se puede lanzar con todo limpio: sin tareas pendientes, por enviar ni en sesión."],
   "follow-up": ["Seguimiento", "Lo que hace cada uno según sus peticiones a la API, separado por persona: beta se resume sola cada hora y producción cada dos; cualquiera de los dos, también cuando lo pidas."],
 };

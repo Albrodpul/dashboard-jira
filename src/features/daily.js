@@ -84,9 +84,17 @@ function tasksOf(day, p = config.mainProject) {
   return [...seen.values()].map((t) => `${t.kind === "returned" ? "Devuelta por el revisor" : "Nueva"}: ${t.title}${t.epicName ? ` (${t.epicName})` : ""}`);
 }
 
-const EXAMPLE = ``;
 
-function genericPrompt(p, day, tasks, commits) {
+function dailyStyle() {
+  if (!config.dailyStyle) return "";
+  try {
+    return fs.readFileSync(config.dailyStyle, "utf8").trim();
+  } catch (e) {
+    return "";
+  }
+}
+
+function genericPrompt(p, day, tasks, commits, errors = []) {
   return [
     `Escribe el mensaje que Alberto se manda a sí mismo para la daily del proyecto «${p.name}», sobre lo que hizo el ${day}. Devuelve solo el mensaje.`,
     "Empieza por «Cosas a comentar en la daily:». Frases llanas y coloquiales de España, en primera persona, sin guiones al principio, sin claves de tareas, sin nombres de ficheros, sin emojis ni negritas. Agrupa lo que sea lo mismo y cuenta lo que ahora hace el proyecto, no cómo está hecho por dentro. La longitud depende de lo que haya. No inventes nada que no salga de los datos.",
@@ -96,6 +104,7 @@ function genericPrompt(p, day, tasks, commits) {
     "",
     "Sus commits de ese día (en inglés y técnicos; cuéntalos como lo contaría él):",
     ...(commits.length ? commits : ["(ninguno)"]),
+    ...(errors.length ? ["", "Errores de Sentry o del seguimiento que mandó arreglar ese día:", ...errors] : []),
   ].join("\n");
 }
 
@@ -107,19 +116,10 @@ async function makeDaily(day, p = config.mainProject) {
     saveDaily(day, { day, text: "", empty: true, at: now() }, p);
     return;
   }
-  const prompt = !isMain(p) ? genericPrompt(p, day, tasks, commits) : [
+  const style = !isMain(p) ? "" : dailyStyle();
+  const prompt = !style ? genericPrompt(p, day, tasks, commits, errors) : [
     `Escribe el mensaje que Alberto se manda a sí mismo en Slack para la daily, sobre lo que hizo el ${day}. Devuelve solo el mensaje.`,
-    "Imita su forma de escribir y de ordenarlo. Este es uno escrito por él, el modelo a seguir:",
-    "",
-    EXAMPLE,
-    "",
-    "Cómo lo hace él:",
-    "- Empieza por «Cosas a comentar en la daily:». Frases llanas y coloquiales de España, sin guiones al principio, sin claves de Jira, sin nombres de ficheros, sin emojis ni negritas.",
-    "- Primero lo que ha estado revisando en primera persona («He estado revisando…», «También he estado revisando…»), incluidas las tareas que le han devuelto («Revisando algunas tareas que se han echao atrás: …»).",
-    "- Cuando hay mucho, lo agrupa por aplicación con «Web:» y «Admin:» (y «Back:» si toca), y ahí cuenta en impersonal lo que ahora hace el producto («Se han revisado…», «Se pueden añadir…», «Los servicios también tienen…»).",
-    "- Al final, si hubo arreglos de fallos, «Por el camino he arreglado algunos errores:» con una línea corta por cada uno, contados por lo que veía el usuario.",
-    "- Los cambios de textos son «copies». No menciona despliegues.",
-    "- La longitud depende de lo que haya: si fue poco, pocas líneas y sin secciones. No inventes nada que no salga de los datos y agrupa lo que sea lo mismo en back y front.",
+    style,
     "",
     "Tareas que mandó hacer ese día desde el tablero:",
     ...(tasks.length ? tasks : ["(ninguna)"]),

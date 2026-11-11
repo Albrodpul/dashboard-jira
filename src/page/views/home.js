@@ -82,7 +82,7 @@ const vsCodeLink = (s) => {
 export function homeAlerts(items) {
   const cs = state.contextSync;
   const rows = [];
-  if (cs && cs.state === "conflict") rows.push(h("div", { class: "token-banner high" }, [h("div", {}, [h("strong", { text: "El contexto compartido no se sincroniza" }), h("span", { text: "Hay un choque entre los dos ordenadores: hay que resolverlo a mano en myproject (git status)." })])]));
+  if (cs && cs.state === "conflict") rows.push(h("div", { class: "token-banner high" }, [h("div", {}, [h("strong", { text: "El contexto compartido no se sincroniza" }), h("span", { text: "Hay un choque entre los dos ordenadores: hay que resolverlo a mano en la carpeta del contexto (git status)." })])]));
   else if (cs && cs.state === "error") rows.push(h("div", { class: "token-banner high" }, [h("div", {}, [h("strong", { text: "El contexto compartido no se sincroniza" }), h("span", { text: String(cs.error || "").split(/\r?\n/)[0] })])]));
   rows.push(...items.filter(Boolean));
   return rows.length ? h("div", { class: "alerts" }, rows) : null;

@@ -40,7 +40,7 @@ async function status() {
   for (const s of servers()) {
     const up = await portOpen(s.port);
     const st = starting.get(s.id);
-    out.push({ id: s.id, name: s.name, port: s.port, url: s.url || null, autoStart: s.autoStart !== false, state: up ? "up" : st && Date.now() - st < (s.startSeconds || 90) * 1000 ? "starting" : "down" });
+    out.push({ id: s.id, name: s.name, role: s.role || "", port: s.port, url: s.url || null, autoStart: s.autoStart !== false, state: up ? "up" : st && Date.now() - st < (s.startSeconds || 90) * 1000 ? "starting" : "down" });
   }
   const d = load().devServers || {};
   return { servers: out, autoStartedOn: d.autoStartedOn || null, autoStoppedOn: d.autoStoppedOn || null, at: now() };

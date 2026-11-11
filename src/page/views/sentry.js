@@ -1,7 +1,7 @@
 import { state, h, button, when, toast, requestOrFail, render, refresh, empty, areaSelect, areaName } from "../lib/base.js";
 
-const PROJECT_NAMES = { web: "Web", admin: "Admin", "backend-beta": "API beta", "backend-production": "API producción" };
-const projectName = (p) => PROJECT_NAMES[p] || p;
+const labelOf = (p) => (data && data.labels && data.labels[p]) || {};
+const projectName = (p) => labelOf(p).name || p;
 const STALE_MS = 60 * 1000;
 
 let data = null;
@@ -79,7 +79,6 @@ ${status === "resolved" ? "Si vuelve a pasar, Sentry lo reabre solo." : "Sentry 
 }
 
 const open = new Set();
-const PROJECT_TONE = { web: "web", admin: "panel", "backend-beta": "beta", "backend-production": "prod" };
 
 function splitTitle(title) {
   const t = String(title || "");
@@ -89,7 +88,6 @@ function splitTitle(title) {
   return { kind, message: t.slice(i + 2) };
 }
 
-const SHORT = { web: "Web", admin: "Admin", "backend-beta": "API beta", "backend-production": "API prod" };
 
 function sendTag(s, seenAgain) {
   if (seenAgain) return h("span", { class: "issue-tag again", text: "Ha vuelto a pasar" });
@@ -110,7 +108,7 @@ function issueRow(issue) {
     render();
   };
   const head = h("button", { type: "button", class: "issue-head", "aria-expanded": String(isOpen), onclick: toggle }, [
-    h("span", { class: `issue-project ${PROJECT_TONE[issue.project] || ""}`, title: projectName(issue.project), text: SHORT[issue.project] || projectName(issue.project) }),
+    h("span", { class: `issue-project ${labelOf(issue.project).tone || ""}`, title: projectName(issue.project), text: labelOf(issue.project).short || projectName(issue.project) }),
     h("span", { class: "issue-text" }, [kind ? h("b", { text: kind }) : null, h("span", { class: "issue-msg", text: message, title: issue.title })]),
     sendTag(s, seenAgain),
     h("span", { class: "issue-count", title: `${issue.users} ${issue.users === 1 ? "usuario" : "usuarios"}`, text: `${issue.count}×` }),
@@ -141,7 +139,7 @@ function issueRow(issue) {
     body.push(h("div", { class: "actions issue-actions" }, actions));
     kids.push(h("div", { class: "issue-body" }, body));
   }
-  return h("div", { class: `issue-row${isOpen ? " open" : ""}${issue.project === "backend-production" ? " prod" : ""}` }, kids);
+  return h("div", { class: `issue-row${isOpen ? " open" : ""}${labelOf(issue.project).production ? " prod" : ""}` }, kids);
 }
 
 function filters(root, issues) {

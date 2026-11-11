@@ -27,6 +27,14 @@ const JIRA_READ = /^mcp__jira__(get|search|lookup|fetch|atlassianUserInfo)/;
 const JIRA_ON_TASK = /^mcp__jira__(editJiraIssue|transitionJiraIssue)$/;
 const ALWAYS_TOOLS = new Set("Read Grep Glob Agent Task Skill TaskStop TaskOutput SendMessage ListAgents ToolSearch WebSearch WebFetch AskUserQuestion ScheduleWakeup CronCreate CronDelete CronList PushNotification EnterWorktree ExitWorktree EnterPlanMode ExitPlanMode TodoWrite ReportFindings ListMcpResourcesTool ReadMcpResourceTool ReadMcpResourceDirTool LSP".split(" "));
 
+function launchctlAllowed(rest) {
+  if (/^launchctl\s+(list|print)\b/.test(rest)) return true;
+  const m = rest.match(/^launchctl\s+kickstart\s+-k\s+(\S+)$/);
+  if (!m) return false;
+  const label = m[1].split("/").pop();
+  return config.launchdLabels.some((p) => label.startsWith(p));
+}
+
 function segments(command) {
   const text = String(command).replace(/\\\r?\n/g, " ").replace(/<<-?\s*(['"]?)(\w+)\1([^\n]*)\n[\s\S]*?\n\s*\2\s*(?=\n|$)/g, "<<$2$3");
   const out = [];
@@ -163,7 +171,7 @@ function classifySegment(segment, cwd) {
   }
   if (cmd === "defaults" && /^defaults\s+(-currentHost\s+)?read\b/.test(rest)) return { kind: "allow" };
   if (cmd === "fdesetup" && /^fdesetup\s+(status|list|isactive)\b/.test(rest)) return { kind: "allow" };
-  if (cmd === "launchctl" && /^launchctl\s+(list|print|kickstart\s+-k\s+\S*com\.myproject\.)/.test(rest)) return { kind: "allow" };
+  if (cmd === "launchctl" && launchctlAllowed(rest)) return { kind: "allow" };
   if (cmd === "taskkill") return /\/IM\s+"?(node|claude)(\.exe)?"?\b/i.test(rest) ? { kind: "ask", key: "taskkill /IM", label: "taskkill por nombre (mata los procesos de todas las sesiones)" } : { kind: "allow" };
   if (cmd === "bash" || cmd === "sh") {
     const script = rest.split(/\s+/)[1] || "";
