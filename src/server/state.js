@@ -146,6 +146,7 @@ function state() {
     sessionProfiles: require("../sessions/profiles").profiles(),
     cluster: require("../cluster/cluster").info(),
     hosted: require("../sessions/host").readConfig(),
+    stuckDialogs: require("../features/stuck").list(),
     convProfiles: Object.fromEntries(require("../sessions/host").readConfig().map((e) => [e.conversation, require("../sessions/profiles").profileFor(e.conversation, d.sessionOverrides || {})])),
     sentry: { enabled: sentry.sentryAvailable(), errorsArea: ERRORS_AREA, sends: sentry.sentryIssues(d) },
     people: people(d),

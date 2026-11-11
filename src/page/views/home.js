@@ -79,6 +79,19 @@ const vsCodeLink = (s) => {
 
 
 
+export function stuckBanners() {
+  return (state.stuckDialogs || []).map((x) =>
+    h("div", { class: "token-banner high stuck-banner" }, [
+      h("div", {}, [
+        h("strong", { text: `«${x.name}» está parada en una pregunta al arrancar` }),
+        h("span", { text: "El tablero no sabe contestarla sola. Ábrela, elige la opción y sigue." }),
+        x.text ? h("pre", { class: "stuck-text", text: x.text }) : null,
+      ]),
+      h("button", { class: "btn primary", type: "button", text: "Ver en directo", onclick: () => import("../components/terminal.js").then((m) => m.openTerminal(x.conversation, x.name)) }),
+    ])
+  );
+}
+
 export function homeAlerts(items) {
   const cs = state.contextSync;
   const rows = [];

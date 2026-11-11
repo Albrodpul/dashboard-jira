@@ -203,6 +203,10 @@ const POST_ROUTES = {
     if (id) require("../push").sendPush("permission", true, `${input.name || "Una sesión"} pide permiso: ${String(input.question || "").slice(0, 80)}`).catch(() => {});
     send(res, 200);
   },
+  "/api/host/stuck": (res, input, send) => {
+    if (require("../../features/stuck").report(input || {})) require("../push").sendPush("permission", true, `${input.name || "Una sesión"} está parada en una pregunta al arrancar: ábrela para contestarla.`).catch(() => {});
+    send(res, 200);
+  },
   "/api/permission/rule-remove": (res, { key }, send) => send(res, permissions.removeRule(String(key)) ? 200 : 404),
   "/api/mac-power": (res, { wake, sleep, weeklyOff }, send) => {
     const ok = (t) => !t || /^([01]\d|2[0-3]):[0-5]\d$/.test(t);

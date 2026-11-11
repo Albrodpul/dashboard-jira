@@ -72,3 +72,4 @@
   }
 }
 .home-footer > .btn { flex: none; white-space: nowrap; }
+.stuck-text { margin: 6px 0 0; padding: 8px 10px; max-height: 180px; overflow: auto; border-radius: 6px; background: var(--surface); color: var(--ink-2); font-family: var(--mono); font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }

@@ -23,3 +23,18 @@ test("the trust dialog on macOS keeps working", () => {
   assert.equal(answer("Doyoutrustthisfolder?❯No,exitYes,ItrustthisfolderEntertoconfirm"), "\x1b[B\r");
   assert.equal(answer("Doyoutrustthisfolder?❯Yes,ItrustthisfolderNo,exitEntertoconfirm"), "\r");
 });
+
+test("the screen text of a stuck dialog keeps its words apart", () => {
+  const { readable } = require("../src/sessions/host");
+  const raw = "\x1b[1mNew\x1b[1CMCP\x1b[1Cserver\x1b[1Cfound\x1b[0m\r\n\x1b[2C❯\x1b[1CContinue\x1b[1Cwithout\r\n───────\r\nEnter\x1b[1Cto\x1b[1Cconfirm";
+  assert.equal(readable(raw), "New MCP server found\n❯ Continue without\nEnter to confirm");
+});
+
+test("the board keeps one notice per stuck session, tells only the first time and clears it", () => {
+  const stuck = require("../src/features/stuck");
+  assert.equal(stuck.report({ conversation: "c1", name: "Tablero", text: "pregunta" }), true);
+  assert.equal(stuck.report({ conversation: "c1", name: "Tablero", text: "pregunta" }), false);
+  assert.deepEqual(stuck.list().map((x) => x.name), ["Tablero"]);
+  stuck.report({ conversation: "c1", cleared: true });
+  assert.deepEqual(stuck.list(), []);
+});

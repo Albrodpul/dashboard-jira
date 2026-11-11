@@ -41,6 +41,38 @@ const writeConfig = (list) => fs.writeFileSync(CONFIG_FILE, JSON.stringify(list,
 const log = (m) => appendLog(LOG_FILE, `[${new Date().toISOString()}] ${m}\n`);
 const sizeFrame = (s) => `\u0000${JSON.stringify({ cols: s.cols, rows: s.rows })}`;
 const plain = (s) => s.replace(/\x1b\[[0-9;?]*[ -\/]*[@-~]/g, "").replace(/\x1b\][^\x07]*\x07/g, "");
+const readable = (s) =>
+  plain(s.replace(/\x1b\[(\d*)C/g, (m, n) => " ".repeat(Math.min(40, Number(n) || 1))).replace(/\x1b\[\d*;?\d*[HfABDEFG]/g, " "))
+    .replace(/[─━╌│╭╮╰╯▔▁]+/g, " ")
+    .replace(/[^\S\n]+/g, " ")
+    .replace(/\s*\n\s*/g, "\n")
+    .trim();
+const STUCK_MS = 15000;
+const UNANSWERED = /Enter ?to ?confirm|Esc ?to ?cancel/i;
+
+function stuckCheck(s) {
+  if (!s.pty || s.stuck) return;
+  const fresh = plain(s.buffer.slice(Math.min(s.dialogMark, s.buffer.length)));
+  if (!UNANSWERED.test(fresh) || PROMPT.test(fresh) || (s.lastInput && s.lastInput > s.stuckSince)) return;
+  const text = readable(s.buffer.slice(-3000)).split("\n").slice(-14).join("\n").slice(-900);
+  s.stuck = { at: new Date().toISOString() };
+  log(`stuck ${s.name}: ${JSON.stringify(text.slice(-200))}`);
+  postBoard("/api/host/stuck", { conversation: s.conversation, name: s.name, text });
+}
+
+function unstuck(s) {
+  clearTimeout(s.stuckTimer);
+  s.stuckTimer = null;
+  if (!s.stuck) return;
+  s.stuck = null;
+  postBoard("/api/host/stuck", { conversation: s.conversation, cleared: true });
+}
+
+function typeInto(s, data) {
+  s.lastInput = Date.now();
+  unstuck(s);
+  s.pty.write(data);
+}
 
 let HOST_HEAD = null;
 const HOST_STARTED = new Date().toISOString();
@@ -85,20 +117,30 @@ function serve() {
       s.promptTimer = setTimeout(() => checkPrompt(s), 900);
       if (Date.now() - new Date(s.startedAt).getTime() < 60000) {
         const fresh = plain(s.buffer.slice(Math.min(s.dialogMark, s.buffer.length)));
+        let answered = false;
         for (const [re, keys] of DIALOGS) {
           if (re.test(fresh) && /Enter ?to ?confirm|Space ?to ?select/i.test(fresh)) {
             s.dialogMark = s.buffer.length;
             const typed = typeof keys === "function" ? keys(fresh) : keys;
             setTimeout(() => s.pty && s.pty.write(typed), 300);
             log(`dialog ${re} in ${entry.name}`);
+            answered = true;
             break;
           }
+        }
+        if (!answered && !s.stuckTimer && !s.stuck && UNANSWERED.test(fresh) && !PROMPT.test(fresh)) {
+          s.stuckSince = Date.now();
+          s.stuckTimer = setTimeout(() => {
+            s.stuckTimer = null;
+            stuckCheck(s);
+          }, STUCK_MS);
         }
       }
     });
     s.pty.onExit(({ exitCode }) => {
       log(`exit ${entry.name} code ${exitCode}: ${JSON.stringify(plain(s.buffer.slice(-600)))}`);
       s.pty = null;
+      unstuck(s);
       s.exitedAt = new Date().toISOString();
       for (const ws of s.clients) if (ws.readyState === 1) ws.send(`\r\n\x1b[33m[La sesión se ha cerrado (código ${exitCode}).${s.stopping ? "" : " Se reabre sola en unos segundos."}]\x1b[0m\r\n`);
       const still = readConfig().find((x) => x.conversation === entry.conversation);
@@ -175,7 +217,7 @@ function serve() {
       if (req.method === "POST" && req.url === "/input") {
         const s = sessions.get(input.conversation);
         if (!s || !s.pty) return json(res, 409, { error: "la sesión no está en marcha" });
-        s.pty.write(String(input.data || ""));
+        typeInto(s, String(input.data || ""));
         return json(res, 200, { ok: true });
       }
       if (req.method === "POST" && req.url === "/quit") {
@@ -205,7 +247,7 @@ function serve() {
         } catch (e) {
           return;
         }
-        if (msg.type === "input" && s.pty) s.pty.write(String(msg.data));
+        if (msg.type === "input" && s.pty) typeInto(s, String(msg.data));
         if (msg.type === "resize" && s.pty && msg.cols > 20 && msg.rows > 5) {
           log(`resize ${s.name} ${s.cols}x${s.rows} -> ${msg.cols}x${msg.rows} by ${who}`);
           s.cols = Math.min(300, msg.cols | 0);
@@ -391,4 +433,4 @@ function markWaiting(conversation, name) {
   writeConfig(list);
 }
 
-module.exports = { DIALOGS, serve, hostRequest, ensureHost, hostedConversations, markWaiting, adopt, markOnDemand, vsCodeHas, HOST_PORT, readConfig };
+module.exports = { DIALOGS, readable, serve, hostRequest, ensureHost, hostedConversations, markWaiting, adopt, markOnDemand, vsCodeHas, HOST_PORT, readConfig };

@@ -6,7 +6,7 @@ import { renderTalk } from "./views/talk.js";
 import { renderContext } from "./views/context.js";
 import { renderFollowUp } from "./views/follow-up.js";
 import { renderReport, updateStamp, mountHeader, quotaBlock, tokenBanner, overtimeBanner } from "./components/report.js";
-import { renderHome, sessionStrip, shortcuts, homeAlerts } from "./views/home.js";
+import { renderHome, sessionStrip, shortcuts, homeAlerts, stuckBanners } from "./views/home.js";
 import { renderDaily } from "./views/daily.js";
 import { batteryBadge } from "./components/battery.js";
 import { renderLearning } from "./views/learning.js";
@@ -352,7 +352,7 @@ function paint() {
   const root = document.getElementById("groups");
   root.textContent = "";
   if (["home", "today"].includes(state.tab)) {
-    const alerts = homeAlerts([overtimeBanner(), tokenBanner(() => switchView("machines", true))]);
+    const alerts = homeAlerts([...stuckBanners(), overtimeBanner(), tokenBanner(() => switchView("machines", true))]);
     if (alerts) root.appendChild(alerts);
   }
   if (section === "tasks") {
@@ -385,7 +385,7 @@ function paint() {
   (NON_TASK_VIEWS[state.tab] || renderTasks)(root);
 }
 
-const FIELDS = ["cluster", "daily", "dailies", "tidies", "sessionProfiles", "sessions", "aliases", "reporterRoute", "reporterStatus", "boardStatus", "orchestrator", "epics", "allEpics", "reports", "lastReview", "config", "followUps", "sentry", "permissions", "hosted", "contextSync", "contextTidy", "messages", "tidyBlockers", "lastContextPass", "followUpStatus", "refreshRequest", "deployments", "deployerArea", "quota", "people", "jiraSetup", "voice", "speech", "deployStatus", "reviewJob", "convProfiles", "claudeTokenExpires", "workHours", "workSchedule", "restrictions", "mailman"];
+const FIELDS = ["cluster", "daily", "dailies", "tidies", "sessionProfiles", "sessions", "aliases", "reporterRoute", "reporterStatus", "boardStatus", "orchestrator", "epics", "allEpics", "reports", "lastReview", "config", "followUps", "sentry", "permissions", "hosted", "contextSync", "contextTidy", "messages", "tidyBlockers", "lastContextPass", "followUpStatus", "refreshRequest", "deployments", "deployerArea", "quota", "people", "jiraSetup", "voice", "speech", "deployStatus", "reviewJob", "convProfiles", "claudeTokenExpires", "workHours", "workSchedule", "restrictions", "mailman", "stuckDialogs"];
 const withoutReadTime = (d) => JSON.stringify(d, (k, v) => (k === "syncedAt" ? undefined : v));
 const editing = () => {
   const a = document.activeElement;
