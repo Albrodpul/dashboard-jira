@@ -391,6 +391,10 @@ const editing = () => {
   const a = document.activeElement;
   return !!a && ["INPUT", "SELECT", "TEXTAREA"].includes(a.tagName) && !!a.closest("#groups");
 };
+const liveFocus = () => {
+  const a = document.activeElement;
+  return a && a.tagName === "TEXTAREA" && a.closest(".term-inline") ? a : null;
+};
 let last = "";
 let deferred = null;
 
@@ -449,7 +453,7 @@ function reload(force) {
         state.sessions = d.sessions || state.sessions;
         return updateStamp();
       }
-      const talkBox = document.activeElement && document.activeElement.id === "talk-text" ? document.activeElement : null;
+      const talkBox = liveFocus();
       if (!force && editing() && !talkBox) {
         deferred = d;
         Object.assign(state, { reports: d.reports || [], lastReview: d.lastReview || null, refreshRequest: d.refreshRequest || null, sessions: d.sessions || state.sessions });
@@ -460,10 +464,9 @@ function reload(force) {
       deferred = null;
       const selection = talkBox ? [talkBox.selectionStart, talkBox.selectionEnd] : null;
       apply(d);
-      const box = selection && document.getElementById("talk-text");
-      if (box) {
-        box.focus({ preventScroll: true });
-        box.setSelectionRange(...selection);
+      if (talkBox && talkBox.isConnected && document.activeElement !== talkBox) {
+        talkBox.focus({ preventScroll: true });
+        if (selection[0] != null) talkBox.setSelectionRange(...selection);
       }
     })
     .catch(() => {
