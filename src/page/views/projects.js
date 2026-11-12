@@ -95,6 +95,26 @@ function row(s) {
   ]);
 }
 
+function autoToggle(id, label) {
+  const on = !!(data.autoProjects || {})[id];
+  const box = h("input", { type: "checkbox", disabled: busy.has(`auto-${id}`) });
+  box.checked = on;
+  box.addEventListener("change", () => {
+    busy.add(`auto-${id}`);
+    requestOrFail("/api/devservers", { action: "autoProject", project: id, on: box.checked })
+      .then(() => toast(box.checked ? `${projectName(id)} arrancará solo con el primer reporte del día.` : `${projectName(id)} ya no arranca solo.`))
+      .catch((e) => {
+        box.checked = on;
+        toast(`No se pudo: ${e.message}`);
+      })
+      .finally(() => {
+        busy.delete(`auto-${id}`);
+        load();
+      });
+  });
+  return h("label", { class: "proj-auto", title: "Con el primer reporte del día, de lunes a viernes" }, [box, h("span", { text: label })]);
+}
+
 export function renderProjects(root) {
   if (!data) {
     load();
@@ -107,7 +127,7 @@ export function renderProjects(root) {
   const panel = tunnelPanel();
   if (panel) root.appendChild(panel);
   const up = servers.filter((s) => s.state === "up").length;
-  const auto = data.autoStartedOn ? `Hoy arrancaron solos con el primer reporte (${data.autoStartedOn.split("-").reverse().slice(0, 2).join("/")}).` : "Arrancan solos con el primer reporte del día.";
+  const auto = data.autoStartedOn ? `Hoy arrancaron solos con el primer reporte (${data.autoStartedOn.split("-").reverse().slice(0, 2).join("/")}).` : "Los proyectos marcados arrancan solos con el primer reporte del día.";
   root.appendChild(
     h("div", { class: "proj-summary" }, [
       h("div", { class: "proj-count" }, [h("strong", { text: `${up} de ${servers.length}` }), h("span", { text: " funcionando" }), h("span", { class: "meta", text: ` · comprobado ${when(data.at)}` })]),
@@ -121,9 +141,12 @@ export function renderProjects(root) {
   if (mixedProjects() && groups.length > 1)
     for (const id of groups) {
       const mine = servers.filter((s) => s.project === id);
-      root.appendChild(h("h3", { class: "project-title" }, [projectName(id), h("span", { class: "n", text: String(mine.length) })]));
+      root.appendChild(h("div", { class: "proj-group-head" }, [h("h3", { class: "project-title" }, [projectName(id), h("span", { class: "n", text: String(mine.length) })]), autoToggle(id, "Arranca solo")]));
       root.appendChild(h("div", { class: "proj-list" }, mine.map(row)));
     }
-  else root.appendChild(h("div", { class: "proj-list" }, servers.map(row)));
+  else {
+    if (groups.length === 1) root.appendChild(h("div", { class: "proj-group-head single" }, [autoToggle(groups[0], `Arrancar ${projectName(groups[0])} solo con el primer reporte del día`)]));
+    root.appendChild(h("div", { class: "proj-list" }, servers.map(row)));
+  }
   root.appendChild(h("p", { class: "meta proj-note", text: `${auto} Se paran solos a las ${(state.workSchedule || {}).end || "18:30"} de lunes a viernes, salvo con el modo fuera de horario; si los arrancas después, siguen hasta el día siguiente.` }));
 }

@@ -107,6 +107,11 @@
 .proj-count strong { font-size: 18px; font-weight: 600; }
 .proj-bulk { display: flex; gap: 8px; }
 .proj-list { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); overflow: hidden; }
+.proj-group-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 10px 0 -6px; }
+.proj-group-head .project-title { margin: 0; }
+.proj-group-head.single { justify-content: flex-start; margin: 0 0 -6px; }
+.proj-auto { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-2); cursor: pointer; }
+.proj-auto input { accent-color: var(--accent); margin: 0; }
 .proj-row { display: grid; grid-template-columns: auto minmax(0, 1fr) 110px auto; align-items: center; gap: 14px; padding: 12px 16px; }
 .proj-row + .proj-row { border-top: 1px solid var(--line); }
 .proj-main { display: flex; flex-direction: column; gap: 1px; min-width: 0; }

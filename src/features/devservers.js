@@ -10,11 +10,23 @@ const STOP_WINDOW_MIN = 10;
 const madrid = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Madrid", weekday: "short", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false });
 const starting = new Map();
 
-const servers = (project) =>
+const servers = (project, anywhere) =>
   config.projects
-    .filter((p) => (!project || p.id === project) && p.root && fs.existsSync(p.root))
+    .filter((p) => (!project || p.id === project) && (anywhere || (p.root && fs.existsSync(p.root))))
     .flatMap((p) => (p.devServers || []).map((s) => ({ ...s, id: p === config.mainProject ? s.id : `${p.id}-${s.id}`, project: p.id, root: p.root })));
 const find = (id) => servers().find((s) => s.id === id);
+
+function autoProjects(d = load()) {
+  const set = (d.devServers || {}).autoProjects || {};
+  const ids = [...new Set(servers().map((s) => s.project))];
+  return Object.fromEntries(ids.map((id) => [id, set[id] !== undefined ? !!set[id] : id === config.mainProject.id]));
+}
+
+function setAutoProject(project, on) {
+  if (!servers(project).length) throw new Error(`ese proyecto no tiene servidores: ${project}`);
+  mutate((x) => (x.devServers = { ...(x.devServers || {}), autoProjects: { ...((x.devServers || {}).autoProjects || {}), [project]: !!on } }));
+  return autoProjects();
+}
 
 function madridNow(date = new Date()) {
   const p = Object.fromEntries(madrid.formatToParts(date).map((x) => [x.type, x.value]));
@@ -46,7 +58,7 @@ async function status() {
     out.push({ id: s.id, project: s.project, name: s.name, role: s.role || "", port: s.port, url: s.url || null, autoStart: s.autoStart !== false, state: up ? "up" : st && Date.now() - st < (s.startSeconds || 90) * 1000 ? "starting" : "down" });
   }
   const d = load().devServers || {};
-  return { servers: out, autoStartedOn: d.autoStartedOn || null, autoStoppedOn: d.autoStoppedOn || null, at: now() };
+  return { servers: out, autoProjects: autoProjects(), autoStartedOn: d.autoStartedOn || null, autoStoppedOn: d.autoStoppedOn || null, at: now() };
 }
 
 function spawnHidden(command, args, cwd, log) {
@@ -138,7 +150,8 @@ async function restart(id) {
 async function startAll(auto, project) {
   const started = [];
   if (require("./tunnel").status().open || (await leader())) return started;
-  for (const s of servers(project)) if (!(auto && s.autoStart === false) && (await start(s.id))) started.push(s.id);
+  const pick = auto ? autoProjects() : null;
+  for (const s of servers(project)) if (!(auto && (s.autoStart === false || !pick[s.project])) && (await start(s.id))) started.push(s.id);
   return started;
 }
 
@@ -177,4 +190,4 @@ async function schedule() {
   }
 }
 
-module.exports = { servers, status, start, stop, restart, startAll, stopAll, standby, schedule };
+module.exports = { servers, autoProjects, setAutoProject, status, start, stop, restart, startAll, stopAll, standby, schedule };

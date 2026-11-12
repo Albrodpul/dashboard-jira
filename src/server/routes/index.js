@@ -224,8 +224,8 @@ const POST_ROUTES = {
       .then((overtime) => send(res, 200, { overtime }))
       .catch((e) => send(res, 500, { error: String(e.message || e) }));
   },
-  "/api/devservers": (res, { action, id, project }, send) => {
-    const run = { start: () => devservers.start(id), stop: () => devservers.stop(id), restart: () => devservers.restart(id), startAll: () => devservers.startAll(false, project || null), stopAll: () => devservers.stopAll(project || null) }[action];
+  "/api/devservers": (res, { action, id, project, on }, send) => {
+    const run = { autoProject: async () => devservers.setAutoProject(project, on), start: () => devservers.start(id), stop: () => devservers.stop(id), restart: () => devservers.restart(id), startAll: () => devservers.startAll(false, project || null), stopAll: () => devservers.stopAll(project || null) }[action];
     if (!run) return send(res, 400, { error: "acción desconocida" });
     run()
       .then((r) => send(res, 200, { result: r }))

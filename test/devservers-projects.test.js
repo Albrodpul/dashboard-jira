@@ -10,7 +10,7 @@ const devservers = require("../src/features/devservers");
 test("dev servers come from every project, tagged with it, and a project's own run in its folder", async () => {
   const folder = path.join(path.dirname(config.mainProject.root), "otra");
   fs.mkdirSync(folder, { recursive: true });
-  mutate((d) => (d.projectDefs = { ...(d.projectDefs || {}), otra: { id: "otra", name: "Otra", taskPrefix: "OTRA", folder: "otra", devServers: [{ id: "web", name: "Web", port: 39998, command: "true" }] } }));
+  mutate((d) => (d.projectDefs = { ...(d.projectDefs || {}), otra: { id: "otra", name: "Otra", taskPrefix: "OTRA", folder: "otra", devServers: [{ id: "web", name: "Web", port: 39998, url: "http://localhost:39998", command: "true" }] } }));
   config.forgetProjects();
   const list = devservers.servers();
   const main = list.filter((s) => s.project === config.mainProject.id);
@@ -25,4 +25,20 @@ test("dev servers come from every project, tagged with it, and a project's own r
   fs.rmSync(folder, { recursive: true, force: true });
   config.forgetProjects();
   assert.equal(devservers.servers().some((s) => s.project === "otra"), false);
+  assert.ok(require("../src/features/tunnel").status().ports.includes(39998));
+});
+
+test("only the projects marked to auto-start come up on their own; the main one is marked by default", async () => {
+  const folder = path.join(path.dirname(config.mainProject.root), "dos");
+  fs.mkdirSync(folder, { recursive: true });
+  mutate((d) => (d.projectDefs = { ...(d.projectDefs || {}), dos: { id: "dos", name: "Dos", taskPrefix: "DOS", folder: "dos", devServers: [{ id: "web", name: "Web", port: 39997, command: "true" }] } }));
+  config.forgetProjects();
+  assert.deepEqual(devservers.autoProjects(), { [config.mainProject.id]: true, dos: false });
+  devservers.setAutoProject("dos", true);
+  devservers.setAutoProject(config.mainProject.id, false);
+  assert.deepEqual(devservers.autoProjects(), { [config.mainProject.id]: false, dos: true });
+  assert.equal((await devservers.status()).autoProjects.dos, true);
+  assert.throws(() => devservers.setAutoProject("nope", true), /no tiene servidores/);
+  fs.rmSync(folder, { recursive: true, force: true });
+  config.forgetProjects();
 });
