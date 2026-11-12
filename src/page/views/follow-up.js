@@ -22,7 +22,30 @@ function olderRow(x) {
     render();
   };
   const head = h("button", { type: "button", class: "issue-head", "aria-expanded": String(open), onclick: toggle }, [h("span", { class: "issue-when", text: when(x.at) }), h("span", { class: "issue-msg", text: headlineOf(x.text) }), h("span", { class: "issue-tag none" })]);
-  return h("div", { class: `issue-row${open ? " open" : ""}` }, [head, open ? h("div", { class: "issue-body" }, [followUpText(x.text)]) : null]);
+  return h("div", { class: `issue-row${open ? " open" : ""}` }, [head, open ? h("div", { class: "issue-body" }, [followUpText(x.text), summaryActions(x)]) : null]);
+}
+
+function summaryActions(r, latest) {
+  if (!String(r.text || "").trim().includes("\n")) return null;
+  const live = (r.errors || []).filter((x) => x.state !== "discarded");
+  const whole = live.find((x) => x.wholeSummary);
+  if (whole) return latest ? null : h("div", { class: "actions fu-latest-actions meta", text: `Enviado entero a la sesión de errores a las ${when(whole.at)}.` });
+  if (live.length) return null;
+  const sendAll = button("Enviar este resumen a la sesión de errores", {
+    cls: "subtle",
+    title: "Para cuando ves un fallo que la sesión no ha apuntado como posible error. Se manda el resumen entero.",
+    onClick: (b) => {
+      b.disabled = true;
+      requestOrFail("/api/followup-error", { at: r.at, action: "summary" })
+        .then(() => toast("Enviado: el tablero se lo pasa a la sesión de errores."))
+        .catch((x) => {
+          b.disabled = false;
+          toast(`No se pudo enviar: ${x.message}`);
+        })
+        .then(() => refresh(true));
+    },
+  });
+  return h("div", { class: "actions fu-latest-actions" }, [sendAll]);
 }
 
 function errorCard(e) {
@@ -231,24 +254,8 @@ export function renderFollowUp(root) {
     return directory(root, state.people || []);
   }
   const latest = h("section", { class: "card fu-latest" }, [h("div", { class: "fu-latest-head meta", text: `Resumen de las ${when(list[0].at)}${list[0].manual ? " (pedido a mano)" : ""}` }), followUpText(list[0].text)]);
-  const quiet = !list[0].text.trim().includes("\n");
-  if (!quiet && !(list[0].errors || []).some((x) => x.state !== "discarded")) {
-    const sendAll = button("Enviar este resumen a la sesión de errores", {
-      cls: "subtle",
-      title: "Para cuando ves un fallo que la sesión no ha apuntado como posible error. Se manda el resumen entero.",
-      onClick: (b) => {
-        b.disabled = true;
-        requestOrFail("/api/followup-error", { at: list[0].at, action: "summary" })
-          .then(() => toast("Enviado: el tablero se lo pasa a la sesión de errores."))
-          .catch((x) => {
-            b.disabled = false;
-            toast(`No se pudo enviar: ${x.message}`);
-          })
-          .then(() => refresh(true));
-      },
-    });
-    latest.appendChild(h("div", { class: "actions fu-latest-actions" }, [sendAll]));
-  }
+  const actions = summaryActions(list[0], true);
+  if (actions) latest.appendChild(actions);
   root.appendChild(latest);
   const errors = list.flatMap((r) => (r.errors || []).filter((x) => x.state === "proposed" || r === list[0]));
   if (errors.length) {
