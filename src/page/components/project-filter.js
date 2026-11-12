@@ -18,6 +18,16 @@ export const projectName = (id) => (workspaces().find((p) => p.id === id) || {})
 
 export const mainProject = () => (workspaces()[0] || {}).id || "";
 
+export const projectTitle = (id, n) => h("h3", { class: "project-title" }, [projectName(id || mainProject()), n == null ? null : h("span", { class: "n", text: String(n) })]);
+
+export const inProjectOrder = (ids) => {
+  const order = workspaces().map((p) => p.id);
+  const at = (id) => (order.includes(id) ? order.indexOf(id) : order.length);
+  return [...new Set(ids)].sort((a, b) => at(a) - at(b));
+};
+
+export const workspacesWith = (module) => workspaces().filter((p) => !p.modules || p.modules[module] !== false).map((p) => p.id);
+
 export const projectChip = (id) => (mixedProjects() ? h("span", { class: "chip project-chip", text: projectName(id || mainProject()) }) : null);
 
 const TAB_MODULE = { daily: "daily", sentry: "sentry", deploy: "deploy", projects: "devServers", "follow-up": "followUp", learning: "jira", context: "context" };

@@ -1,9 +1,17 @@
 import { state, h, button, when, post, renderMd } from "../lib/base.js";
-import { currentProject } from "../components/project-filter.js";
+import { currentProject, mixedProjects, mainProject, projectTitle, workspacesWith } from "../components/project-filter.js";
 
 export function renderContext(root) {
-  const pid = currentProject();
-  const own = pid && state.tidies && state.tidies[pid];
+  if (!mixedProjects()) return renderOne(root, currentProject());
+  for (const id of workspacesWith("context")) {
+    if (id !== mainProject() && !(state.tidies && state.tidies[id])) continue;
+    root.appendChild(projectTitle(id));
+    renderOne(root, id);
+  }
+}
+
+function renderOne(root, pid) {
+  const own = pid && pid !== mainProject() && state.tidies && state.tidies[pid];
   const o = own ? own.contextTidy : state.contextTidy;
   const blockers = (own ? own.blockers : state.tidyBlockers) || [];
   const lastPass = own ? own.lastPass : state.lastContextPass;

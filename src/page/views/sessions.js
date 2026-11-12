@@ -1,5 +1,5 @@
 import { state, h, button, toast, requestOrFail, post, areaName, taskAreaSelect, refresh, empty, ticketUrl } from "../lib/base.js";
-import { currentProject, hasModule } from "../components/project-filter.js";
+import { currentProject, hasModule, mixedProjects, mainProject, projectTitle, inProjectOrder, workspacesWith } from "../components/project-filter.js";
 import { openTalk } from "./talk.js";
 
 export function createSession(name, epic, btn) {
@@ -129,7 +129,7 @@ function actions(a, fixed) {
 
 function row(a) {
   const st = a.conversation ? statusOf(a.conversation) : { dot: "off", text: "Sin conversación" };
-  return h("div", { class: "srow" }, [h("span", { class: `dot ${st.dot}`, title: st.text }), nameInput(a), hasModule("jira") ? epicChips(a) : h("span", {}), actions(a, false)]);
+  return h("div", { class: "srow" }, [h("span", { class: `dot ${st.dot}`, title: st.text }), nameInput(a), hasModule("jira") && workspacesWith("jira").includes(a.project || mainProject()) ? epicChips(a) : h("span", {}), actions(a, false)]);
 }
 
 function fixedRow(name, role, conversation, note, profile) {
@@ -194,7 +194,14 @@ export function renderSessions(root) {
   const rank = (a) => (liveOf(a.conversation) ? (statusOf(a.conversation).dot === "busy" ? 0 : 1) : 2);
   areas.sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name, "es"));
   const sec = h("section", { class: "s2-section" }, [head("Sesiones", areas.length, `${jira ? "Reciben las tareas de sus epics" : "Reciben las tareas que les mandes desde el tablero"} · ${profileText("area")}`)]);
-  sec.appendChild(areas.length ? h("div", { class: "srows" }, areas.map(row)) : empty("Sin sesiones.", "Crea una arriba."));
+  if (!areas.length) sec.appendChild(empty("Sin sesiones.", "Crea una arriba."));
+  else if (mixedProjects())
+    for (const id of inProjectOrder(areas.map((a) => a.project || mainProject()))) {
+      const mine = areas.filter((a) => (a.project || mainProject()) === id);
+      sec.appendChild(projectTitle(id, mine.length));
+      sec.appendChild(h("div", { class: "srows" }, mine.map(row)));
+    }
+  else sec.appendChild(h("div", { class: "srows" }, areas.map(row)));
   root.appendChild(sec);
 
   const fixed = [];
@@ -207,12 +214,23 @@ export function renderSessions(root) {
   }
   if (state.reporterRoute) fixed.push(fixedRow("Reporte de Jira", "Lee Jira y publica el reporte", state.reporterRoute.conversation, "", "reporter"));
   if (state.orchestrator) fixed.push(fixedRow("Orquestadora", "Habla contigo de tareas, aprobaciones y restricciones", state.orchestrator.conversation, "", "orchestrator"));
-  if (state.boardStatus) fixed.push(fixedRow("Tablero", "Mejoras del propio tablero", state.boardStatus.conversation, "", "board"));
+  const board = state.boardStatus && fixedRow("Tablero", mixedProjects() ? "Mejoras del propio tablero, común a todos los proyectos" : "Mejoras del propio tablero", state.boardStatus.conversation, "", "board");
+  if (board && !mixedProjects()) fixed.push(board);
   if (state.followUpStatus) fixed.push(fixedRow("Seguimiento", "Lo que hace cada uno en beta y producción", state.followUpStatus.conversation, "", "followUp"));
   if (area(state.deployerArea)) fixed.push(fixedRow("Despliegue", "Despliegues de la pestaña Desplegar", area(state.deployerArea).conversation, "", "deploy"));
   const err = state.sentry && area(state.sentry.errorsArea);
   if (err) fixed.push(fixedRow("Errores sentry", "Errores de Sentry y del seguimiento", err.conversation, "", "errors"));
-  root.appendChild(h("section", { class: "s2-section" }, [head("Fijas", fixed.length, "Las que hacen funcionar el tablero."), h("div", { class: "srows" }, fixed)]));
+  if (mixedProjects())
+    root.appendChild(
+      h("section", { class: "s2-section" }, [
+        head("Fijas", fixed.length + (board ? 1 : 0), "Las que hacen funcionar el tablero."),
+        fixed.length ? projectTitle(mainProject(), fixed.length) : null,
+        fixed.length ? h("div", { class: "srows" }, fixed) : null,
+        board ? h("h3", { class: "project-title", text: "Todos los proyectos" }) : null,
+        board ? h("div", { class: "srows" }, [board]) : null,
+      ])
+    );
+  else root.appendChild(h("section", { class: "s2-section" }, [head("Fijas", fixed.length, "Las que hacen funcionar el tablero."), h("div", { class: "srows" }, fixed)]));
 
   if (!jira) return;
   const search = h("section", { class: "s2-section" }, [head("Buscar epics", null, null)]);

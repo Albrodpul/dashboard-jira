@@ -17,7 +17,7 @@ import { renderFind, searchBox } from "./views/find.js";
 import { renderMachines } from "./views/machines.js";
 import { paintTicket } from "./components/ticket.js";
 import { newTaskButton, newTaskForm } from "./components/new-task.js";
-import { projectPicker, applyProjectFilter, tabVisible, hasModule } from "./components/project-filter.js";
+import { projectPicker, applyProjectFilter, tabVisible, hasModule, mixedProjects, mainProject, projectTitle } from "./components/project-filter.js";
 
 const TASK_TABS = [
   { id: "pending", label: "Pendientes" },
@@ -90,18 +90,22 @@ const VIEWS = {
   context: ["Ordenar contexto", "La orquestadora repasa y ordena context/ y el índice de AGENTS.md. Solo se puede lanzar con todo limpio: sin tareas pendientes, por enviar ni en sesión."],
   "follow-up": ["Seguimiento", "Lo que hace cada uno según sus peticiones a la API, separado por persona: beta se resume sola cada hora y producción cada dos; cualquiera de los dos, también cuando lo pidas."],
 };
+const mainOnly = (paint) => (root) => {
+  if (mixedProjects()) root.appendChild(projectTitle(mainProject()));
+  return paint(root);
+};
 const NON_TASK_VIEWS = {
-  learning: renderLearning,
+  learning: mainOnly(renderLearning),
   home: renderHome,
   daily: renderDaily,
   sessions: renderSessions,
   find: renderFind,
   machines: renderMachines,
-  deploy: renderDeploy,
-  sentry: renderSentry,
+  deploy: mainOnly(renderDeploy),
+  sentry: mainOnly(renderSentry),
   projects: renderProjects,
   workspaces: renderWorkspaces,
-  "follow-up": renderFollowUp,
+  "follow-up": mainOnly(renderFollowUp),
   context: renderContext,
   talk: renderTalk,
 };

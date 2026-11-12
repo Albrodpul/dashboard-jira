@@ -1,5 +1,5 @@
 import { state, h, button, when, toast, requestOrFail, render, empty } from "../lib/base.js";
-import { currentProject, mixedProjects, projectName } from "../components/project-filter.js";
+import { currentProject, mixedProjects, projectName, inProjectOrder } from "../components/project-filter.js";
 
 const STATE_LABEL = { up: "Funcionando", starting: "Arrancando…", down: "Parado" };
 const DOT = { up: "on", starting: "busy", down: "off" };
@@ -137,8 +137,8 @@ export function renderProjects(root) {
       ]),
     ])
   );
-  const groups = [...new Set(servers.map((s) => s.project))];
-  if (mixedProjects() && groups.length > 1)
+  const groups = inProjectOrder(servers.map((s) => s.project));
+  if (mixedProjects())
     for (const id of groups) {
       const mine = servers.filter((s) => s.project === id);
       root.appendChild(h("div", { class: "proj-group-head" }, [h("h3", { class: "project-title" }, [projectName(id), h("span", { class: "n", text: String(mine.length) })]), autoToggle(id, "Arranca solo")]));
