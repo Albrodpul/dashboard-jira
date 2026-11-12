@@ -58,18 +58,24 @@ function projectOfTalk(conversation) {
   return (area && area.project) || (live && live.project) || (workspaceList()[0] || {}).id;
 }
 
+const keptOpen = () => new Set(state.areas.filter((a) => a.keepOpen && a.conversation).map((a) => a.conversation));
+
 function talkGroups(fixedShown, others) {
+  const kept = keptOpen();
   const fixedRows = fixedShown.map((k) => [k, TALK_NAMES[k], (talkSession(k) || {}).conversation]);
-  const openRows = others.map((o) => [o.conversation, o.name, o.conversation]);
-  if (!mixed()) return [["Fijas", fixedRows], ["Abiertas", openRows]];
+  const allRows = others.map((o) => [o.conversation, o.name, o.conversation]);
+  for (const c of kept) if (!allRows.some((r) => r[2] === c)) allRows.push([c, talkName(c), c]);
+  const keptRows = allRows.filter((r) => kept.has(r[2]));
+  const openRows = allRows.filter((r) => !kept.has(r[2]));
+  if (!mixed()) return [["Fijas", [...fixedRows, ...keptRows]], ["Abiertas", openRows]];
   const main = (workspaceList()[0] || {}).id;
   const groups = [["Común a todos", fixedRows.filter(([k]) => SHARED_TALK.includes(k))]];
   const byProject = new Map(workspaceList().map((p) => [p.id, { fixed: [], open: [] }]));
   byProject.get(main).fixed.push(...fixedRows.filter(([k]) => !SHARED_TALK.includes(k)));
-  for (const row of openRows) {
+  for (const row of [...keptRows, ...openRows]) {
     const id = projectOfTalk(row[2]);
     if (!byProject.has(id)) byProject.set(id, { fixed: [], open: [] });
-    byProject.get(id).open.push(row);
+    byProject.get(id)[kept.has(row[2]) ? "fixed" : "open"].push(row);
   }
   for (const [id, { fixed, open }] of byProject) {
     const name = projectName(id);
@@ -120,6 +126,7 @@ function talkActivity(conversation) {
 export function renderTalk(root) {
   const others = otherLiveSessions();
   const fixedShown = shownFixed();
+  const kept = keptOpen();
   const list = h("nav", { class: "talk-list", "aria-label": "Qué sesión ver" });
   const group = (title, rows) => {
     if (!rows.length) return;
@@ -129,7 +136,7 @@ export function renderTalk(root) {
       list.appendChild(
         h("button", { type: "button", class: "talk-item", "aria-current": k === talkTo ? "true" : "false", onclick: () => { setTalk(k); render(); } }, [
           h("span", { class: `dot ${dot}`, "aria-hidden": "true" }),
-          h("span", { class: "talk-item-text" }, [h("span", { class: "talk-item-name" }, [label, mixed() && FIXED_TALK.includes(k) ? pin() : null]), h("span", { class: "talk-item-state", text: what })]),
+          h("span", { class: "talk-item-text" }, [h("span", { class: "talk-item-name" }, [label, mixed() && (FIXED_TALK.includes(k) || kept.has(k)) ? pin() : null]), h("span", { class: "talk-item-state", text: what })]),
         ])
       );
     }
