@@ -2,13 +2,12 @@ const fs = require("fs");
 const path = require("path");
 const cp = require("child_process");
 const { ENTRY, database, load, mutate, now } = require("../core/data");
-const { ME, jiraGet } = require("./client");
+const { jiraGet } = require("./client");
+const sites = require("./sites");
 const config = require("../core/config");
 const { loadRoutes } = require("../sessions/registry");
 
 const DOMAINS_DIR = config.contextDomains;
-const REVIEW = config.statuses.reviewRegex;
-const BACK_FROM_REVIEW = config.statuses.backFromReviewRegex;
 const WEEKS = 16;
 const DAY = 86400000;
 
@@ -18,10 +17,13 @@ function table() {
   return db;
 }
 
-async function eventsOf(key) {
+// Deliveries, returns and reviewer comments of one ticket, read with its project's Jira, account and statuses.
+async function eventsOf(key, project) {
+  const ME = sites.me(project).id;
+  const { reviewRegex: REVIEW, backFromReviewRegex: BACK_FROM_REVIEW } = sites.statuses(project);
   const histories = [];
   for (let start = 0; ; ) {
-    const c = await jiraGet(`/issue/${key}/changelog?startAt=${start}&maxResults=100`);
+    const c = await jiraGet(`/issue/${key}/changelog?startAt=${start}&maxResults=100`, project);
     histories.push(...c.values);
     if (c.isLast !== false || !c.values.length) break;
     start += c.values.length;
@@ -41,8 +43,9 @@ async function eventsOf(key) {
       }
     }
   }
-  const comments = await jiraGet(`/issue/${key}/comment?maxResults=100`);
-  for (const c of comments.comments || []) if (c.author && c.author.accountId === config.jira.reviewer.id) ev.reviewerComments.push(c.created);
+  const comments = await jiraGet(`/issue/${key}/comment?maxResults=100`, project);
+  const reviewerId = sites.reviewer(project).id;
+  for (const c of comments.comments || []) if (reviewerId && c.author && c.author.accountId === reviewerId) ev.reviewerComments.push(c.created);
   return ev;
 }
 
@@ -50,20 +53,26 @@ async function readJira() {
   const db = table();
   const previous = load().learningRead;
   const days = previous ? Math.max(2, Math.ceil((Date.now() - new Date(previous.at).getTime()) / DAY) + 1) : 300;
-  const jql = encodeURIComponent(`${config.jira.projectsJql} AND assignee was "${ME}" AND updated >= -${days}d ORDER BY updated DESC`);
   const issues = [];
-  let token = "";
-  do {
-    const b = await jiraGet(`/search/jql?jql=${jql}&fields=parent&maxResults=100${token ? "&nextPageToken=" + encodeURIComponent(token) : ""}`);
-    issues.push(...b.issues);
-    token = b.isLast ? "" : b.nextPageToken || "";
-  } while (token);
-  const put = db.prepare("INSERT OR REPLACE INTO learning_tickets VALUES (?, ?, ?, ?)");
   let failures = 0;
+  for (const project of sites.jiraProjects()) {
+    const jql = encodeURIComponent(`${project.jira.projectsJql} AND assignee was "${sites.me(project).id}" AND updated >= -${days}d ORDER BY updated DESC`);
+    let token = "";
+    try {
+      do {
+        const b = await jiraGet(`/search/jql?jql=${jql}&fields=parent&maxResults=100${token ? "&nextPageToken=" + encodeURIComponent(token) : ""}`, project);
+        issues.push(...b.issues.map((i) => ({ ...i, project })));
+        token = b.isLast ? "" : b.nextPageToken || "";
+      } while (token);
+    } catch (e) {
+      failures++;
+    }
+  }
+  const put = db.prepare("INSERT OR REPLACE INTO learning_tickets VALUES (?, ?, ?, ?)");
   for (const i of issues) {
     const p = i.fields && i.fields.parent;
     try {
-      put.run(i.key, p ? p.key : null, p && p.fields ? p.fields.summary : null, JSON.stringify(await eventsOf(i.key)));
+      put.run(i.key, p ? p.key : null, p && p.fields ? p.fields.summary : null, JSON.stringify(await eventsOf(i.key, i.project)));
     } catch (e) {
       failures++;
     }
@@ -108,7 +117,7 @@ function domains() {
     const title = ((/^# (.+)$/m.exec(text) || [])[1] || f).trim();
     const history = text.split(/^## (?:Historial|History)\s*$/m)[1] || "";
     const dates = history.match(/20\d\d-\d\d-\d\d/g) || [];
-    const keys = [...new Set(history.match(config.jira.keyRegexGlobal()) || [])];
+    const keys = [...new Set(sites.jiraProjects().flatMap((p) => history.match(p.jira.keyRegexGlobal()) || []))];
     if (dates.length) out.push({ file: f, title, since: dates.sort()[0], keys });
   }
   return out;

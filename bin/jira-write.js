@@ -1,4 +1,4 @@
-// Writes to Jira with the API token from the workspace .env.
+// Writes to Jira with the API token of the ticket's project (.env for the first project, .env.<id> for the others).
 //
 //   node jira-write.js assign  KEY-1234                      assigns it to you (jira.me in board.config.json)
 //   node jira-write.js start   KEY-1234                      transitions.start
@@ -15,13 +15,13 @@
 // «||» separates paragraphs: a shell argument can't carry reliable line breaks.
 const fs = require('fs');
 
-const config = require('../src/core/config');
-const credentials = config.credentials();
-const auth = 'Basic ' + Buffer.from(`${credentials.email}:${credentials.token}`).toString('base64');
-const base = `https://${credentials.site}/rest/api/3`;
-const agile = `https://${credentials.site}/rest/agile/1.0`;
-const ME = config.jira.me.id;
-const TRANSITIONS = config.jira.transitions;
+const sites = require('../src/jira/sites');
+// The ticket (or, for create, the Jira project key) says which project's Jira and credentials to use.
+const project = sites.forKey(process.argv[3]);
+const { site, auth, base } = sites.auth(project);
+const agile = `https://${site}/rest/agile/1.0`;
+const ME = sites.me(project).id;
+const TRANSITIONS = project.jira.transitions || {};
 
 async function call(method, url, body) {
   const res = await fetch(base + url, {
@@ -123,7 +123,7 @@ async function create(project, file, options) {
     headers: { Authorization: auth, 'Content-Type': 'application/json', Accept: 'application/json' },
     body: JSON.stringify({ fields: {
       project: { key: project },
-      issuetype: { name: settings.type || config.jira.defaultIssueType || 'Historia' },
+      issuetype: { name: settings.type || project.jira.defaultIssueType || 'Historia' },
       summary: issue.summary,
       description: issue.description,
       priority: { name: settings.priority || 'Medium' },

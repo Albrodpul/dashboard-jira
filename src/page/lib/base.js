@@ -3,7 +3,13 @@ export const choice = {};
 export const drafts = {};
 const setup = () => state.jiraSetup || { jiraUrl: "", projects: [], reviewer: { name: "el revisor" }, reviewStatus: "en revisión", deployProjects: [] };
 export const isManualKey = (key) => (state.allTasks || state.tasks || []).some((t) => t.key === key && t.source === "manual");
-export const ticketUrl = (key) => (isManualKey(key) ? "" : setup().jiraUrl + key);
+// Each ticket links to its own Jira: the site whose project keys hold its prefix, else the main one.
+const siteUrl = (key) => {
+  const prefix = String(key).split("-")[0];
+  const site = (setup().jiraSites || []).find((s) => s.projects.includes(prefix));
+  return site ? site.url : setup().jiraUrl;
+};
+export const ticketUrl = (key) => (isManualKey(key) ? "" : siteUrl(key) + key);
 export const reviewer = () => setup().reviewer.name;
 export const reviewStatus = () => setup().reviewStatus;
 export const deployProjects = () => setup().deployProjects || [];

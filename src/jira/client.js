@@ -3,56 +3,88 @@ const path = require("path");
 const cp = require("child_process");
 const { ROOT, load, mutate } = require("../core/data");
 const config = require("../core/config");
+const sites = require("./sites");
 
 const ME = config.jira.me.id;
-const REVIEWER = config.jira.reviewer;
 const ATTACHMENTS_DIR = path.join(ROOT, ".attachments");
 
-function jiraAuth() {
-  const k = config.credentials();
-  return { base: `https://${k.site}/rest/api/3`, auth: "Basic " + Buffer.from(`${k.email}:${k.token}`).toString("base64") };
-}
+// `p` is the project (or its id) whose Jira is asked; without it, the main one.
+const jiraAuth = (p) => sites.auth(p);
 
-async function jiraGet(route) {
-  const { base, auth } = jiraAuth();
+async function jiraGet(route, p) {
+  const { base, auth } = jiraAuth(p);
   const r = await fetch(base + route, { headers: { Authorization: auth, Accept: "application/json" } });
   if (!r.ok) throw new Error("Jira " + r.status);
   return r.json();
 }
 
-async function jiraRequest(method, route, body) {
-  const { base, auth } = jiraAuth();
+async function jiraRequest(method, route, body, p) {
+  const { base, auth } = jiraAuth(p);
   const r = await fetch(base + route, { method, headers: { Authorization: auth, Accept: "application/json", "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined });
   if (!r.ok) throw new Error(`Jira respondió ${r.status}`);
   return r.status === 204 ? null : r.json();
 }
 
-async function syncJiraEpics() {
-  const jql = encodeURIComponent(`${config.jira.projectsJql} AND issuetype = Epic ORDER BY key`);
+async function epicsOf(p) {
+  const jql = encodeURIComponent(`${p.jira.projectsJql} AND issuetype = Epic ORDER BY key`);
   const all = [];
   let token = "";
   do {
-    const body = await jiraGet(`/search/jql?jql=${jql}&fields=summary,status&maxResults=100${token ? "&nextPageToken=" + encodeURIComponent(token) : ""}`);
+    const body = await jiraGet(`/search/jql?jql=${jql}&fields=summary,status&maxResults=100${token ? "&nextPageToken=" + encodeURIComponent(token) : ""}`, p);
     all.push(...body.issues);
     token = body.isLast ? "" : body.nextPageToken || "";
   } while (token);
+  return all.map((e) => ({ key: e.key, name: e.fields.summary, status: e.fields.status.name, project: p.id }));
+}
+
+// Epics of every Jira. A site that fails keeps the epics it had last time.
+async function syncJiraEpics() {
+  const list = sites.jiraProjects();
+  const results = await Promise.allSettled(list.map(epicsOf));
+  if (results.every((r) => r.status === "rejected")) throw results[0].reason;
+  const failed = new Set(list.filter((p, i) => results[i].status === "rejected").map((p) => p.id));
+  const fresh = results.flatMap((r) => (r.status === "fulfilled" ? r.value : []));
   return mutate((d) => {
-    d.jiraEpics = all.map((e) => ({ key: e.key, name: e.fields.summary, status: e.fields.status.name }));
+    const kept = (d.jiraEpics || []).filter((e) => failed.has(e.project || sites.forKey(e.key).id));
+    d.jiraEpics = [...fresh, ...kept];
     d.jiraEpicsAt = new Date().toISOString();
     return d.jiraEpics.length;
   });
 }
 
-async function jiraSearch(jql, max) {
-  const body = await jiraGet(`/search/jql?jql=${encodeURIComponent(jql)}&fields=summary,status,assignee,parent,created,labels&maxResults=${max}`);
+async function jiraSearch(jql, max, p) {
+  const body = await jiraGet(`/search/jql?jql=${encodeURIComponent(jql)}&fields=summary,status,assignee,parent,created,labels&maxResults=${max}`, p);
   return body.issues || [];
+}
+
+// The same search on every Jira, with `jqlOf(project)` building each one's JQL.
+async function jiraSearchAll(jqlOf, max) {
+  const results = await Promise.allSettled(sites.jiraProjects().map((p) => jiraSearch(jqlOf(p), max, p)));
+  if (results.every((r) => r.status === "rejected")) throw results[0].reason;
+  return results.flatMap((r) => (r.status === "fulfilled" ? r.value : []));
+}
+
+// Tickets by key, each group asked to its own Jira.
+async function jiraIssues(keys, max) {
+  const groups = sites.byProject(keys);
+  const results = await Promise.allSettled(groups.map(([p, list]) => jiraSearch(`key in (${list.join(",")})`, max, p)));
+  if (results.length && results.every((r) => r.status === "rejected")) throw results[0].reason;
+  return results.flatMap((r) => (r.status === "fulfilled" ? r.value : []));
 }
 
 async function jiraAttachments(keys) {
   const out = {};
-  if (!keys.length) return out;
-  const body = await jiraGet(`/search/jql?jql=${encodeURIComponent(`key in (${keys.join(",")})`)}&fields=attachment&maxResults=100`);
-  for (const i of body.issues || []) out[i.key] = (i.fields.attachment || []).map((a) => ({ id: a.id, name: a.filename, size: a.size, url: a.content }));
+  const groups = sites.byProject(keys);
+  for (const [p, list] of groups) {
+    let body;
+    try {
+      body = await jiraGet(`/search/jql?jql=${encodeURIComponent(`key in (${list.join(",")})`)}&fields=attachment&maxResults=100`, p);
+    } catch (e) {
+      if (groups.length === 1) throw e;
+      continue;
+    }
+    for (const i of body.issues || []) out[i.key] = (i.fields.attachment || []).map((a) => ({ id: a.id, name: a.filename, size: a.size, url: a.content }));
+  }
   return out;
 }
 
@@ -78,7 +110,7 @@ async function downloadAttachments(key) {
   if (!/^[A-Z]+-\d+$/.test(key)) throw new Error("clave no válida");
   const list = (await jiraAttachments([key]))[key] || [];
   if (!list.length) return { folder: null, files: [] };
-  const { auth } = jiraAuth();
+  const { auth } = jiraAuth(sites.forKey(key));
   const folder = path.join(ATTACHMENTS_DIR, key);
   fs.mkdirSync(folder, { recursive: true });
   const files = [];
@@ -113,6 +145,7 @@ async function downloadAttachments(key) {
 
 function summarizeIssue(i, d, routes) {
   const f = i.fields;
+  const p = sites.forKey(i.key);
   const epicKey = f.parent ? f.parent.key : null;
   const epicName = f.parent && f.parent.fields ? f.parent.fields.summary : null;
   const area = epicKey ? Object.keys(routes.areas).find((k) => routes.areas[k].epics && routes.areas[k].epics[epicKey]) || null : null;
@@ -121,19 +154,20 @@ function summarizeIssue(i, d, routes) {
     title: f.summary,
     status: f.status.name,
     assignee: f.assignee ? f.assignee.displayName : null,
-    available: !f.assignee || f.assignee.accountId === ME,
+    available: !f.assignee || f.assignee.accountId === sites.me(p).id,
     epicKey,
     epicName,
     area,
     created: f.created,
-    rejected: (f.labels || []).includes(config.statuses.rejectLabel),
+    rejected: (f.labels || []).includes(sites.statuses(p).rejectLabel),
     onBoard: !!d.tasks[i.key],
   };
 }
 
-const MENTION = new RegExp(`(${[...REVIEWER.mentions].sort((a, b) => b.length - a.length).map((m) => m.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})`);
-
-function adfFromText(text) {
+// `p`: the project whose reviewer gets mentioned (the ticket's own); without it, the main one.
+function adfFromText(text, p) {
+  const REVIEWER = sites.reviewer(p);
+  const MENTION = REVIEWER.mentions.length ? new RegExp(`(${[...REVIEWER.mentions].sort((a, b) => b.length - a.length).map((m) => m.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})`) : /(?!)/;
   const paragraph = (block) => {
     const content = [];
     block.split("\n").forEach((line, i) => {
@@ -149,4 +183,4 @@ function adfFromText(text) {
   return { type: "doc", version: 1, content: String(text).trim().split(/\n\s*\n/).map(paragraph) };
 }
 
-module.exports = { ME, jiraAuth, jiraGet, jiraRequest, syncJiraEpics, jiraSearch, refreshAttachments, downloadAttachments, summarizeIssue, adfFromText };
+module.exports = { ME, jiraAuth, jiraGet, jiraRequest, syncJiraEpics, jiraSearch, jiraSearchAll, jiraIssues, refreshAttachments, downloadAttachments, summarizeIssue, adfFromText };

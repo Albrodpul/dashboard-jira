@@ -1,6 +1,7 @@
 const { IN_SESSION, now, load, mutate } = require("../../core/data");
 const { loadRoutes, realArea, sessionsCli } = require("../../sessions/registry");
-const { ME, jiraGet, jiraSearch, jiraRequest, summarizeIssue, adfFromText } = require("../../jira/client");
+const { jiraGet, jiraSearch, jiraSearchAll, jiraIssues, jiraRequest, summarizeIssue, adfFromText } = require("../../jira/client");
+const sites = require("../../jira/sites");
 const config = require("../../core/config");
 const { state, openIfClosed, isPaused } = require("../state");
 const holds = require("../../features/holds");
@@ -165,10 +166,12 @@ function handleAnswer(res, { key, text }, send) {
 }
 
 async function reviewOne(key) {
-  const { transitions } = await jiraRequest("GET", `/issue/${encodeURIComponent(key)}/transitions`);
-  const tr = (transitions || []).find((x) => config.statuses.reviewRegex.test((x.to && x.to.name) || x.name || ""));
-  if (!tr) throw new Error(`en Jira no hay paso a ${config.statuses.review} desde el estado actual`);
-  await jiraRequest("POST", `/issue/${encodeURIComponent(key)}/transitions`, { transition: { id: tr.id } });
+  const p = sites.forKey(key);
+  const st = sites.statuses(p);
+  const { transitions } = await jiraRequest("GET", `/issue/${encodeURIComponent(key)}/transitions`, null, p);
+  const tr = (transitions || []).find((x) => st.reviewRegex.test((x.to && x.to.name) || x.name || ""));
+  if (!tr) throw new Error(`en Jira no hay paso a ${st.review} desde el estado actual`);
+  await jiraRequest("POST", `/issue/${encodeURIComponent(key)}/transitions`, { transition: { id: tr.id } }, p);
   mutate((d) => {
     if (d.tasks[key]) d.tasks[key].reviewedAt = now();
   });
@@ -216,14 +219,15 @@ function handleComment(res, { key, text }, send) {
   const t = load().tasks[key];
   if (!t || t.status !== "waiting" || !t.notice || t.notice.type !== "comment") return send(res, 409, { error: "esta tarea no tiene un comentario propuesto" });
   const changed = clean !== String(t.notice.text || "").trim();
-  jiraRequest("POST", `/issue/${encodeURIComponent(key)}/comment`, { body: adfFromText(clean) })
+  const p = sites.forKey(key);
+  jiraRequest("POST", `/issue/${encodeURIComponent(key)}/comment`, { body: adfFromText(clean, p) }, p)
     .then(() => {
       mutate((d) => {
         const x = d.tasks[key];
         if (!x) return;
         const at = now();
         x.publishedComment = { at, text: clean };
-        x.answer = { text: `${config.jira.me.name} ha publicado en Jira tu comentario${changed ? " con cambios" : " tal cual"}. Texto publicado: «${clean}». Sigue con la tarea cuando haya respuesta en Jira, o con lo que no dependa de ella.`, at, delivered: false };
+        x.answer = { text: `${sites.me(p).name} ha publicado en Jira tu comentario${changed ? " con cambios" : " tal cual"}. Texto publicado: «${clean}». Sigue con la tarea cuando haya respuesta en Jira, o con lo que no dependa de ella.`, at, delivered: false };
       });
       kickMailman();
       send(res, 200);
@@ -259,13 +263,17 @@ function handleRefresh(res, send) {
 
 function handleSearch(res, { q, onlyAvailable, skipReview }, send) {
   const text = String(q || "").replace(/["\\]/g, " ").trim().slice(0, 80);
-  let jql = `${config.jira.projectsJql} AND issuetype != Epic AND statusCategory != Done`;
-  if (/^[A-Za-z]+-\d+$/.test(text)) jql += ` AND key = "${text.toUpperCase()}"`;
-  else if (text) jql += ` AND summary ~ "${text}*"`;
-  if (onlyAvailable !== false) jql += ` AND (assignee is EMPTY OR assignee = "${ME}")`;
-  if (skipReview !== false) jql += ` AND status != "${config.statuses.review}"`;
-  jql += " ORDER BY created DESC";
-  jiraSearch(jql, 60)
+  const byKey = /^[A-Za-z]+-\d+$/.test(text) ? text.toUpperCase() : "";
+  const jqlOf = (p) => {
+    let jql = `${p.jira.projectsJql} AND issuetype != Epic AND statusCategory != Done`;
+    if (byKey) jql += ` AND key = "${byKey}"`;
+    else if (text) jql += ` AND summary ~ "${text}*"`;
+    if (onlyAvailable !== false) jql += ` AND (assignee is EMPTY OR assignee = "${sites.me(p).id}")`;
+    if (skipReview !== false) jql += ` AND status != "${sites.statuses(p).review}"`;
+    return jql + " ORDER BY created DESC";
+  };
+  const newestFirst = (all) => all.sort((a, b) => String(b.fields.created).localeCompare(String(a.fields.created))).slice(0, 60);
+  (byKey ? jiraSearch(jqlOf(sites.forKey(byKey)), 60, sites.forKey(byKey)) : jiraSearchAll(jqlOf, 60).then(newestFirst))
     .then((issues) => {
       const d = load();
       const routes = loadRoutes();
@@ -300,7 +308,7 @@ function handleTicket(res, { key }, send) {
     const x = summarizeIssue({ key: k, fields: { summary: own.title, status: { name: "Sin Jira" }, labels: [] } }, load(), loadRoutes());
     return send(res, 200, { ...x, manual: true, description: own.description || "" });
   }
-  jiraGet(`/issue/${k}?fields=summary,status,assignee,parent,created,updated,labels,issuetype,priority,reporter,description`)
+  jiraGet(`/issue/${k}?fields=summary,status,assignee,parent,created,updated,labels,issuetype,priority,reporter,description`, sites.forKey(k))
     .then((i) => {
       const f = i.fields;
       const x = summarizeIssue(i, load(), loadRoutes());
@@ -319,7 +327,7 @@ function handleTicket(res, { key }, send) {
 function handleImport(res, { keys }, send) {
   const list = (Array.isArray(keys) ? keys : []).map(String).filter((k) => /^[A-Z]+-\d+$/.test(k)).slice(0, 60);
   if (!list.length) return send(res, 400, { error: "faltan las tareas" });
-  jiraSearch(`key in (${list.join(",")})`, 60)
+  jiraIssues(list, 60)
     .then((issues) => {
       const routes = loadRoutes();
       const skipped = [];
@@ -343,7 +351,7 @@ function handleImport(res, { keys }, send) {
             epicKey: x.epicKey,
             epicName: x.epicName,
             assignee: x.assignee,
-            note: "Traída de Jira a mano. Estado en Jira: " + x.status + (x.rejected ? `, con etiqueta ${config.statuses.rejectLabel}.` : "."),
+            note: "Traída de Jira a mano. Estado en Jira: " + x.status + (x.rejected ? `, con etiqueta ${sites.statuses(sites.forKey(x.key)).rejectLabel}.` : "."),
             noteBy: "Tablero",
             at,
             proposedArea: x.area,

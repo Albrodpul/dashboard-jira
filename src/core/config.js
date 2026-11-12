@@ -253,6 +253,16 @@ module.exports = {
   project: (id) => allProjects().find((p) => p.id === id) || null,
   forPage: () => ({
     jiraUrl: `https://${main.secret("JIRA_SITE") || ""}/browse/`,
+    jiraSites: allProjects()
+      .filter((p) => p.jira)
+      .map((p) => {
+        let site = "";
+        try {
+          site = p.secret("JIRA_SITE") || "";
+        } catch (e) {}
+        return site ? { projects: p.jira.projects, url: `https://${site}/browse/` } : null;
+      })
+      .filter(Boolean),
     projects: main.jira.projects,
     me: { name: main.jira.me.name },
     reviewer: { name: main.jira.reviewer.name },

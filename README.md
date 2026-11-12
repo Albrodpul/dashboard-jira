@@ -102,6 +102,8 @@ Projects other than the first are usually added from the board itself (Settings 
 
 Sessions belong to the project whose `root` contains their folder. A task is never sent to a session of another project. The installer writes into each project only the commands it can use (`soy.md`; `resumen-jira.md` with Jira; `seguimiento.md` with follow-up), and a fixed role registered from another project's folder stays in that project. With more than one project, the top bar shows a project picker. The Tablero session is shared by every project.
 
+**Several Jira sites.** A project other than the first can have its own Jira, on the same site or on another company's. Give it `jira` (with its own `projects`, `me`, `reviewer`, `transitions`) and, if its states are named differently, its own `statuses`; without `statuses` it uses the first project's. Its site, e-mail and token go in its `.env.<id>`. The Jira keys must not repeat between projects: a ticket belongs to the project that lists its prefix. Then one reporter reads every site into one report and one set of cards, and each ticket is read, commented, moved and linked on its own site with its own account. A site that cannot be read is reported and skipped while the others go on; a project whose `.env.<id>` is missing on a machine is left out there.
+
 A file in the old flat format (no `projects`) is upgraded in place on the next start, with the project id taken from `company`; the original is kept as `board.config.json.flat.bak`.
 
 ### 4. Let Jira fill in the ids
@@ -114,6 +116,7 @@ node C:/work/acme/board/board.js jira-setup WEB-123 "Reviewer Name"
 
 - `WEB-123` is any ticket of yours that is in progress. It is used to list the transitions available from that state.
 - `"Reviewer Name"` is the person who reviews your work. Their account id is looked up by name.
+- `--project <id>` asks the Jira of another project (with its `.env.<id>`) instead of the first one's, e.g. `board.js jira-setup OPS-7 "Reviewer Name" --project beta`.
 
 The output gives you:
 

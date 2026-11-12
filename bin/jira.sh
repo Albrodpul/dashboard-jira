@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
 # Usage:
 #   jira.sh <issue-key>              — Fetch a single issue with its comments (e.g. WEB-123)
-#   jira.sh search "<JQL>"           — Run a JQL query (e.g. "project=WEB AND sprint in openSprints()")
+#   jira.sh search "<JQL>" [KEY]     — Run a JQL query (e.g. "project=WEB AND sprint in openSprints()");
+#                                      KEY (a Jira project key such as WEB, or a project id) picks whose Jira
 #
 # Works whether or not the jira MCP server is up: it talks to the REST API directly with the
 # API token, which is what the MCP entry cannot do (mcp-remote authenticates over OAuth and
 # ignores the ATLASSIAN_* variables next to it).
 #
-# Reads credentials from the workspace .env through src/core/config.js (TOWER_WORKSPACE says which workspace).
+# Reads the credentials of the ticket's project (.env for the first project, .env.<id> for the
+# others) through src/jira/sites.js (TOWER_WORKSPACE says which workspace).
 
 # Resolve repo root (Windows-safe)
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd -W 2>/dev/null || pwd)"
@@ -15,12 +17,17 @@ TMPDIR_W="$(cd "${TEMP:-/tmp}" && pwd -W 2>/dev/null || pwd)"
 TMPFILE="$TMPDIR_W/jira_tmp_$$.json"
 
 # Read credentials once
+if [ "$1" = "search" ]; then WHOSE="$3"; else WHOSE="$1"; fi
 eval "$(node -e "
-  const k = require(process.argv[1]).credentials();
+  const sites = require(process.argv[1]);
+  const config = require(process.argv[2]);
+  const whose = process.argv[3] || '';
+  const p = config.project(whose) || sites.forKey(whose);
+  const k = p.credentials();
   console.log('SITE=' + JSON.stringify(k.site));
   console.log('EMAIL=' + JSON.stringify(k.email));
   console.log('TOKEN=' + JSON.stringify(k.token));
-" "$REPO_ROOT/src/core/config.js")"
+" "$REPO_ROOT/src/jira/sites.js" "$REPO_ROOT/src/core/config.js" "$WHOSE")"
 
 BASE_URL="https://$SITE/rest/api/3"
 AUTH="$EMAIL:$TOKEN"

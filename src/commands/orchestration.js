@@ -167,15 +167,23 @@ const commands = {
   },
 
   "jira-setup"() {
-    const { jiraGet } = require("../jira/client");
-    const issue = a && /^[A-Z][A-Z0-9]+-\d+$/.test(a) ? a : null;
-    const reviewer = rest(issue ? 4 : 3);
+    const { jiraGet: get } = require("../jira/client");
+    // --project <id>: the project whose Jira (and .env.<id> credentials) is asked; the main one by default.
+    const args = process.argv.slice(3);
+    const at = args.indexOf("--project");
+    const projectId = at >= 0 ? args.splice(at, 2)[1] : null;
+    const project = projectId ? config.project(projectId) : config.mainProject;
+    if (!project) fail(`no hay ningún proyecto con id ${projectId}`);
+    if (!project.jira) fail(`el proyecto ${project.id} no tiene jira en board.config.json: ponle al menos jira.projects`);
+    const jiraGet = (route) => get(route, project);
+    const issue = args[0] && /^[A-Z][A-Z0-9]+-\d+$/.test(args[0]) ? args[0] : null;
+    const reviewer = args.slice(issue ? 1 : 0).join(" ").trim();
     (async () => {
       const me = await jiraGet("/myself");
-      const out = { me: { id: me.accountId, name: me.displayName } };
+      const out = { project: project.id, me: { id: me.accountId, name: me.displayName } };
       if (reviewer) out.reviewerCandidates = (await jiraGet(`/user/search?query=${encodeURIComponent(reviewer)}`)).filter((u) => u.accountType === "atlassian").map((u) => ({ id: u.accountId, name: u.displayName }));
       out.statuses = {};
-      for (const p of config.jira.projects) {
+      for (const p of project.jira.projects) {
         try {
           const types = await jiraGet(`/project/${encodeURIComponent(p)}/statuses`);
           out.statuses[p] = [...new Set(types.flatMap((t) => t.statuses.map((s) => s.name)))];

@@ -2,6 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const cp = require("child_process");
 const config = require("../src/core/config");
+const sites = require("../src/jira/sites");
 const { SEEN_FILE, TO_COUNT_FILE, ROUTES_FILE } = require("../src/core/data");
 
 function minutesSinceLastClose() {
@@ -33,19 +34,27 @@ const all = args.includes("--all") || args.includes("--todo");
 const checkOnly = args.includes("--check");
 const arg = args.find((x) => !x.startsWith("--")) || "auto";
 const minutes = ["close", "cierre"].includes(arg) ? minutesSinceLastClose() : arg === "auto" ? minutesSinceLastReport() : Number(arg);
-const credentials = config.credentials();
-const BASE = `https://${credentials.site}/rest/api/3`;
-const AUTH = "Basic " + Buffer.from(`${credentials.email}:${credentials.token}`).toString("base64");
-const ME = config.jira.me.id;
 const KEEP_FIELDS = new Set(["status", "assignee", "summary", "description", "labels", "Attachment", "Sprint"]);
-const RETURNED = {
-  test: (text) => {
-    const m = /status: .* -> (.*)$/.exec(text);
-    return !!m && config.statuses.returnedRegex.test(m[1].trim());
-  },
-};
-const CLOSED = config.statuses.closedRegex;
-const REJECTED = new RegExp(`\\b${config.statuses.rejectLabel}\\b`, "i");
+
+// One reading context per Jira site: its credentials, its account and its statuses.
+function siteContext(p) {
+  const { base, auth } = sites.auth(p);
+  const st = sites.statuses(p);
+  return {
+    project: p,
+    BASE: base,
+    AUTH: auth,
+    ME: sites.me(p).id,
+    RETURNED: {
+      test: (text) => {
+        const m = /status: .* -> (.*)$/.exec(text);
+        return !!m && st.returnedRegex.test(m[1].trim());
+      },
+    },
+    CLOSED: st.closedRegex,
+    REJECTED: new RegExp(`\\b${st.rejectLabel}\\b`, "i"),
+  };
+}
 
 function sprintText(from, to) {
   const list = (s) =>
@@ -74,8 +83,8 @@ const today = new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", day:
 const madrid = (iso) => (today.format(new Date(iso)) === today.format(new Date()) ? fmt : fmtDate).format(new Date(iso));
 const hhmm = (iso) => fmt.format(new Date(iso)).slice(0, 5);
 
-async function api(url) {
-  const r = await fetch(url, { headers: { Authorization: AUTH, Accept: "application/json" } });
+async function api(url, ctx) {
+  const r = await fetch(url, { headers: { Authorization: ctx.AUTH, Accept: "application/json" } });
   if (!r.ok) throw new Error(`${r.status} ${url}`);
   return r.json();
 }
@@ -104,18 +113,20 @@ function board(cmd, data) {
   }
 }
 
-(async () => {
-  const jql = `${config.jira.projectsJql} AND updated >= -${minutes}m`;
+// The events of one Jira site in the window, each tagged with its site context.
+async function readSite(ctx) {
+  const { BASE, ME, REJECTED } = ctx;
+  const jql = `${ctx.project.jira.projectsJql} AND updated >= -${minutes}m`;
   const issues = [];
   let token = "";
   do {
-    const s = await api(`${BASE}/search/jql?jql=${encodeURIComponent(jql)}&fields=summary&maxResults=100${token ? `&nextPageToken=${encodeURIComponent(token)}` : ""}`);
+    const s = await api(`${BASE}/search/jql?jql=${encodeURIComponent(jql)}&fields=summary&maxResults=100${token ? `&nextPageToken=${encodeURIComponent(token)}` : ""}`, ctx);
     issues.push(...s.issues);
     token = s.isLast ? "" : s.nextPageToken || "";
   } while (token);
   const out = [];
   for (const it of issues) {
-    const d = await api(`${BASE}/issue/${it.key}?fields=summary,comment,created,reporter,status,issuetype,assignee,parent&expand=changelog`);
+    const d = await api(`${BASE}/issue/${it.key}?fields=summary,comment,created,reporter,status,issuetype,assignee,parent&expand=changelog`, ctx);
     const f = d.fields;
     const isEpic = f.issuetype && f.issuetype.name === "Epic";
     const block = isEpic ? { key: it.key, name: f.summary } : f.parent ? { key: f.parent.key, name: (f.parent.fields && f.parent.fields.summary) || f.parent.key } : null;
@@ -148,8 +159,25 @@ function board(cmd, data) {
     const assignee = f.assignee ? f.assignee.displayName : "sin asignar";
     const assigneeId = f.assignee ? f.assignee.accountId : null;
     const status = (f.status && f.status.name) || "";
-    for (const e of events) out.push({ key: it.key, title: f.summary, block, assignee, assigneeId, status, ...e, id: `${it.key}|${e.t}|${["new", "epic"].includes(e.type) ? { new: "nuevo", epic: "epic" }[e.type] : e.text.slice(0, 120)}` });
+    for (const e of events) out.push({ key: it.key, title: f.summary, block, assignee, assigneeId, status, ...e, ctx, id: `${it.key}|${e.t}|${["new", "epic"].includes(e.type) ? { new: "nuevo", epic: "epic" }[e.type] : e.text.slice(0, 120)}` });
   }
+  return out;
+}
+
+(async () => {
+  // Every project with Jira and credentials on this machine. A site that fails is
+  // reported and skipped; only when every one fails does the whole read fail.
+  const out = [];
+  const failed = [];
+  for (const p of sites.jiraProjects()) {
+    try {
+      out.push(...(await readSite(siteContext(p))));
+    } catch (e) {
+      failed.push({ project: p, error: e.message });
+    }
+  }
+  if (failed.length && failed.length === sites.jiraProjects().length) throw new Error(failed.map((f) => `${f.project.name}: ${f.error}`).join("; "));
+  for (const f of failed) console.error(`AVISO: no se pudo leer el Jira de ${f.project.name} (${f.error}); el resto sí.`);
   out.sort((a, b) => new Date(a.t) - new Date(b.t));
 
   const seen = readJson(SEEN_FILE, { ids: {} }).ids || {};
@@ -183,6 +211,7 @@ function board(cmd, data) {
   for (const e of fresh) byTicket.set(e.key, (byTicket.get(e.key) || []).concat(e));
   for (const [, evs] of byTicket) {
     const e0 = evs[0];
+    const { ME, CLOSED, RETURNED } = e0.ctx;
     const availableOrMine = !e0.assigneeId || e0.assigneeId === ME;
     const created = evs.find((e) => e.type === "new");
     if (created && availableOrMine && !CLOSED.test(e0.status)) {

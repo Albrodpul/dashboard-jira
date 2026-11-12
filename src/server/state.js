@@ -127,7 +127,8 @@ function state() {
   for (const a of areas) for (const [key, name] of Object.entries(a.epics)) epics[key] = { key, name, seenAt: (epics[key] || {}).seenAt || null, area: a.id };
   const areaOfEpic = {};
   for (const a of areas) for (const k of Object.keys(a.epics)) areaOfEpic[k] = a.id;
-  const allEpics = d.jiraEpics.filter((e) => !config.statuses.closedRegex.test(e.status)).map((e) => ({ key: e.key, name: e.name, area: areaOfEpic[e.key] || null }));
+  const sites = require("../jira/sites");
+  const allEpics = d.jiraEpics.filter((e) => !sites.statuses(e.project || sites.forKey(e.key)).closedRegex.test(e.status)).map((e) => ({ key: e.key, name: e.name, area: areaOfEpic[e.key] || null }));
   return {
     allEpics,
     areas,

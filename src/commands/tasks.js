@@ -1,6 +1,7 @@
 const { STATUSES, IN_SESSION, HUMAN_APPROVALS, UUID, DATA_DIR, now, load, mutate, readStdin } = require("../core/data");
 const { titleKey, assignRefs, loadRoutes, openInVsCode } = require("../sessions/registry");
 const { syncJiraEpics, downloadAttachments } = require("../jira/client");
+const sites = require("../jira/sites");
 const { sendPush } = require("../server/push");
 const { TASK_KIND, CAUSE } = require("../core/migrate");
 const config = require("../core/config");
@@ -166,7 +167,7 @@ const commands = {
         }
         const since = IN_SESSION.includes(t.status) ? t.sentAt || t.at : t.at;
         const toStatus = /status: .* -> (.*)$/.exec(String(e.text));
-        if (toStatus && config.statuses.closedRegex.test(toStatus[1].trim())) t.jiraClosedAt = e.at;
+        if (toStatus && sites.statuses(sites.forKey(t.key)).closedRegex.test(toStatus[1].trim())) t.jiraClosedAt = e.at;
         if (!since || new Date(e.at).getTime() <= new Date(since).getTime()) continue;
         t.changes = t.changes || [];
         if (t.changes.some((c) => c.at === e.at && c.text === e.text)) continue;
