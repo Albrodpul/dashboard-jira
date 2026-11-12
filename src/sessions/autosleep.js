@@ -21,6 +21,7 @@ async function sleepIdleSessions(now) {
   };
   const keep = new Set([s.reporterRoute, s.followUpStatus, s.boardStatus].filter(Boolean).map((r) => r.conversation));
   for (const id of [s.deployerArea, config.errorsArea]) if (areaConversation(id)) keep.add(areaConversation(id));
+  for (const a of s.areas) if (a.keepOpen && a.conversation) keep.add(a.conversation);
   for (const t of s.tasks) if (PENDING.includes(t.status) && areaConversation(t.area)) keep.add(areaConversation(t.area));
   for (const p of (s.permissions && s.permissions.pending) || []) if (p.conversation) keep.add(p.conversation);
   const live = new Map(((s.sessions && s.sessions.list) || []).map((x) => [x.conversation, x]));

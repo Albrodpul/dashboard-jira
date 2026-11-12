@@ -3,8 +3,18 @@ const { titleKey, liveSessions, loadRoutes, changeRoutes, renameArea, sessionsCl
 
 const areaKey = (r, name) => Object.keys(r.areas).find((k) => titleKey(r.areas[k].title) === titleKey(name)) || titleKey(name) || "session-" + Date.now();
 
-function handleSession(res, { name, ref, alias, area, title, areaId, conversation, remove }, send) {
+function handleSession(res, { name, ref, alias, area, title, areaId, conversation, remove, keepOpen }, send) {
   if (!name || typeof name !== "string") return send(res, 400, { error: "falta la sesión" });
+  if (keepOpen !== undefined) {
+    const error = changeRoutes((r) => {
+      const x = r.areas[areaId];
+      if (!x) return "sesión desconocida";
+      if (keepOpen) x.keepOpen = true;
+      else delete x.keepOpen;
+      return "";
+    });
+    return error ? send(res, 400, { error }) : send(res, 200);
+  }
   if (remove) {
     const error = changeRoutes((r) => {
       const x = r.areas[areaId];

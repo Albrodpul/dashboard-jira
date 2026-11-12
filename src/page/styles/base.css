@@ -64,6 +64,7 @@ a.btn.link:hover { background: var(--surface-2); }
 .dot.busy { background: var(--new); box-shadow: none; }
 button.btn.subtle { border-color: transparent; background: transparent; color: var(--ink-3); }
 button.btn.subtle:hover { color: var(--danger); background: var(--danger-soft); }
+button.btn.pinned { border-color: transparent; background: var(--accent-soft); color: var(--accent); }
 @media (max-width: 760px) {
   html, body { height: auto; }
   body { font-size: 15px; }

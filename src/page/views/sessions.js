@@ -111,7 +111,18 @@ function actions(a, fixed) {
   if (conv && !hosted && !live && !fixed) out.push(button("Al tablero", { title: "La lleva al tablero para poder hablarle y mandarle tareas desde aquí", onClick: (b) => hostAction("move", conv, a.sessionName || a.name, b, `«${a.name}» ya vive en el tablero.`) }));
   if (hosted) out.push(button("Hablar", { onClick: () => openTalk(conv) }));
   if (hosted && !live) out.push(button("Abrir", { cls: "subtle", onClick: (b) => hostAction("open", conv, a.sessionName || a.name, b, `Abriendo «${a.name}»…`) }));
-  if (hosted && live && !fixed) out.push(button("Dormir", { cls: "subtle", title: "La cierra; se despierta sola cuando le llegue algo", onClick: (b) => hostAction("sleep", conv, a.sessionName || a.name, b, `«${a.name}» dormida.`) }));
+  if (conv && !fixed && a.id)
+    out.push(
+      button(a.keepOpen ? "Fijada" : "Fijar", {
+        cls: a.keepOpen ? "pinned" : "",
+        title: a.keepOpen ? "No se duerme sola aunque esté parada. Pulsa para que vuelva a dormirse sola." : "Que no se duerma sola aunque esté parada (por ejemplo, si tiene una revisión programada)",
+        onClick: (b) => {
+          b.disabled = true;
+          post("/api/session", { name: a.sessionName || a.name, areaId: a.id, keepOpen: !a.keepOpen }, a.keepOpen ? `«${a.name}» vuelve a dormirse sola.` : `«${a.name}» fijada: no se duerme sola.`);
+        },
+      })
+    );
+  if (hosted && live && !fixed && !a.keepOpen) out.push(button("Dormir", { cls: "subtle", title: "La cierra; se despierta sola cuando le llegue algo", onClick: (b) => hostAction("sleep", conv, a.sessionName || a.name, b, `«${a.name}» dormida.`) }));
   if (!fixed && !Object.keys(a.epics || {}).length)
     out.push(
       button("Quitar", {

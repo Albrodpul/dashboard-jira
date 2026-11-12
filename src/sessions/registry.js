@@ -306,6 +306,7 @@ function targets(d, r) {
       repeatedName: !!a.session && count[a.session] > 1,
       epics: a.epics || {},
       project: a.project || mainId(),
+      keepOpen: !!a.keepOpen,
     });
   }
   for (const s of open) {
