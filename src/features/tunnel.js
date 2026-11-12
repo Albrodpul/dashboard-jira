@@ -9,7 +9,7 @@ const { killTree } = require("../core/platform");
 const STATE = path.join(DATA_DIR, "tunnel.json");
 const LOG = path.join(DATA_DIR, "tunnel.log");
 
-const ports = () => (config.devServers || []).filter((s) => s.url && s.port).map((s) => s.port);
+const ports = () => require("./devservers").servers().filter((s) => s.url && s.port).map((s) => s.port);
 
 function read() {
   try {

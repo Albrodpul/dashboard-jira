@@ -10,7 +10,10 @@ const STOP_WINDOW_MIN = 10;
 const madrid = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Madrid", weekday: "short", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false });
 const starting = new Map();
 
-const servers = () => config.devServers || [];
+const servers = (project) =>
+  config.projects
+    .filter((p) => (!project || p.id === project) && p.root && fs.existsSync(p.root))
+    .flatMap((p) => (p.devServers || []).map((s) => ({ ...s, id: p === config.mainProject ? s.id : `${p.id}-${s.id}`, project: p.id, root: p.root })));
 const find = (id) => servers().find((s) => s.id === id);
 
 function madridNow(date = new Date()) {
@@ -40,7 +43,7 @@ async function status() {
   for (const s of servers()) {
     const up = await portOpen(s.port);
     const st = starting.get(s.id);
-    out.push({ id: s.id, name: s.name, role: s.role || "", port: s.port, url: s.url || null, autoStart: s.autoStart !== false, state: up ? "up" : st && Date.now() - st < (s.startSeconds || 90) * 1000 ? "starting" : "down" });
+    out.push({ id: s.id, project: s.project, name: s.name, role: s.role || "", port: s.port, url: s.url || null, autoStart: s.autoStart !== false, state: up ? "up" : st && Date.now() - st < (s.startSeconds || 90) * 1000 ? "starting" : "down" });
   }
   const d = load().devServers || {};
   return { servers: out, autoStartedOn: d.autoStartedOn || null, autoStoppedOn: d.autoStoppedOn || null, at: now() };
@@ -91,7 +94,7 @@ async function start(id) {
   fs.mkdirSync(LOG_DIR, { recursive: true });
   const fd = openLog(id);
   fs.writeSync(fd, `[${now()}] ${s.command} ${(s.args || []).join(" ")}\n`);
-  const cwd = path.resolve(config.root, s.cwd || ".");
+  const cwd = path.resolve(s.root, s.cwd || ".");
   const command = s.command.startsWith(".") ? path.resolve(cwd, s.command) : s.command;
   if (process.platform === "win32") {
     fs.closeSync(fd);
@@ -112,7 +115,7 @@ async function stop(id) {
   starting.delete(id);
   if (s.stop) {
     try {
-      cp.execFileSync(s.stop.command, s.stop.args || [], { cwd: path.resolve(config.root, s.cwd || "."), windowsHide: true, stdio: "ignore", timeout: 30000 });
+      cp.execFileSync(s.stop.command, s.stop.args || [], { cwd: path.resolve(s.root, s.cwd || "."), windowsHide: true, stdio: "ignore", timeout: 30000 });
     } catch (e) {}
     for (let i = 0; i < 20 && (await portOpen(s.port)); i++) await new Promise((r) => setTimeout(r, 500));
     if (!(await portOpen(s.port))) {
@@ -132,16 +135,16 @@ async function restart(id) {
   return start(id);
 }
 
-async function startAll(auto) {
+async function startAll(auto, project) {
   const started = [];
   if (require("./tunnel").status().open || (await leader())) return started;
-  for (const s of servers()) if (!(auto && s.autoStart === false) && (await start(s.id))) started.push(s.id);
+  for (const s of servers(project)) if (!(auto && s.autoStart === false) && (await start(s.id))) started.push(s.id);
   return started;
 }
 
-async function stopAll() {
+async function stopAll(project) {
   const stopped = [];
-  for (const s of [...servers()].reverse()) if (await stop(s.id)) stopped.push(s.id);
+  for (const s of [...servers(project)].reverse()) if (await stop(s.id)) stopped.push(s.id);
   return stopped;
 }
 
@@ -174,4 +177,4 @@ async function schedule() {
   }
 }
 
-module.exports = { status, start, stop, restart, startAll, stopAll, standby, schedule };
+module.exports = { servers, status, start, stop, restart, startAll, stopAll, standby, schedule };

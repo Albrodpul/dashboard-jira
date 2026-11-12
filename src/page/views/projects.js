@@ -1,4 +1,5 @@
 import { state, h, button, when, toast, requestOrFail, render, empty } from "../lib/base.js";
+import { currentProject, mixedProjects, projectName } from "../components/project-filter.js";
 
 const STATE_LABEL = { up: "Funcionando", starting: "Arrancando…", down: "Parado" };
 const DOT = { up: "on", starting: "busy", down: "off" };
@@ -26,7 +27,7 @@ function act(action, id, label, b) {
   const key = id || action;
   busy.add(key);
   if (b) b.disabled = true;
-  requestOrFail("/api/devservers", { action, id })
+  requestOrFail("/api/devservers", { action, id, project: currentProject() || undefined })
     .then(() => toast(label))
     .catch((e) => toast(`No se pudo: ${e.message}`))
     .finally(() => {
@@ -100,20 +101,29 @@ export function renderProjects(root) {
     return root.appendChild(empty("Mirando qué proyectos están en marcha…", ""));
   }
   if (data.error) root.appendChild(h("div", { class: "setup-note warn", text: data.error }));
-  if (!data.servers.length) return root.appendChild(empty("No hay proyectos configurados.", "Añádelos en devServers de board.config.json."));
+  const picked = currentProject();
+  const servers = data.servers.filter((s) => !picked || s.project === picked);
+  if (!servers.length) return root.appendChild(empty(picked ? `${projectName(picked)} no tiene servidores locales.` : "No hay servidores locales configurados.", "Se añaden en devServers de cada proyecto."));
   const panel = tunnelPanel();
   if (panel) root.appendChild(panel);
-  const up = data.servers.filter((s) => s.state === "up").length;
+  const up = servers.filter((s) => s.state === "up").length;
   const auto = data.autoStartedOn ? `Hoy arrancaron solos con el primer reporte (${data.autoStartedOn.split("-").reverse().slice(0, 2).join("/")}).` : "Arrancan solos con el primer reporte del día.";
   root.appendChild(
     h("div", { class: "proj-summary" }, [
-      h("div", { class: "proj-count" }, [h("strong", { text: `${up} de ${data.servers.length}` }), h("span", { text: " funcionando" }), h("span", { class: "meta", text: ` · comprobado ${when(data.at)}` })]),
+      h("div", { class: "proj-count" }, [h("strong", { text: `${up} de ${servers.length}` }), h("span", { text: " funcionando" }), h("span", { class: "meta", text: ` · comprobado ${when(data.at)}` })]),
       h("div", { class: "proj-bulk" }, [
-        button("Parar todos", { cls: "subtle", disabled: busy.has("stopAll") || !up, onClick: (b) => window.confirm("¿Parar todos los proyectos?") && act("stopAll", null, "Proyectos parados.", b) }),
-        button("Arrancar todos", { cls: "primary", disabled: busy.has("startAll") || up === data.servers.length, onClick: (b) => act("startAll", null, "Arrancando los que estaban parados…", b) }),
+        button("Parar todos", { cls: "subtle", disabled: busy.has("stopAll") || !up, onClick: (b) => window.confirm(picked ? `¿Parar todos los servidores de ${projectName(picked)}?` : "¿Parar todos los servidores?") && act("stopAll", null, "Proyectos parados.", b) }),
+        button("Arrancar todos", { cls: "primary", disabled: busy.has("startAll") || up === servers.length, onClick: (b) => act("startAll", null, "Arrancando los que estaban parados…", b) }),
       ]),
     ])
   );
-  root.appendChild(h("div", { class: "proj-list" }, data.servers.map(row)));
+  const groups = [...new Set(servers.map((s) => s.project))];
+  if (mixedProjects() && groups.length > 1)
+    for (const id of groups) {
+      const mine = servers.filter((s) => s.project === id);
+      root.appendChild(h("h3", { class: "project-title" }, [projectName(id), h("span", { class: "n", text: String(mine.length) })]));
+      root.appendChild(h("div", { class: "proj-list" }, mine.map(row)));
+    }
+  else root.appendChild(h("div", { class: "proj-list" }, servers.map(row)));
   root.appendChild(h("p", { class: "meta proj-note", text: `${auto} Se paran solos a las ${(state.workSchedule || {}).end || "18:30"} de lunes a viernes, salvo con el modo fuera de horario; si los arrancas después, siguen hasta el día siguiente.` }));
 }
