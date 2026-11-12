@@ -3,6 +3,7 @@ const config = require("../core/config");
 const { HUMAN_APPROVALS, DATA_DIR, UUID, now, load, mutate } = require("../core/data");
 const { appendLog } = require("../core/logfile");
 const holds = require("./holds");
+const reminders = require("./reminders");
 
 const ME = config.jira.me.name;
 const CLI = config.cli;
@@ -153,6 +154,11 @@ function composeTidy(o, id) {
   return `Aviso del tablero: ${ME} ha pulsado Ordenar contexto (${o.id}) ${mark(id)}\nRelee ahora la sección «Ordenar contexto» de ${config.commandsDir}/orquesta.md y síguela: la ordenación la hace un subagente (Agent con model opus y effort medium), no tú.`;
 }
 
+function composeReminder(r, id) {
+  const late = reminders.madrid().min - (Number(r.time.slice(0, 2)) * 60 + Number(r.time.slice(3)));
+  return `Aviso del tablero: aviso programado de las ${r.time} que ${ME} dejó a esta sesión (${r.id}, cada día${r.weekdays ? " de lunes a viernes" : ""} hasta el ${r.until.split("-").reverse().join("/")})${late > 15 ? `, entregado tarde porque el tablero no pudo antes` : ""} ${mark(id)}\n${r.text}`;
+}
+
 const composeRole = (text, id) => `${text} ${mark(id)}`;
 
 const approvedTask = (d, t) => !!t && t.status === "approved" && HUMAN_APPROVALS.includes(t.approvedVia);
@@ -201,6 +207,7 @@ function collect(d, nowMs = Date.now()) {
   const o = d.contextTidy;
   if (o && o.status === "approved" && o.approvedVia === "board" && !o.notifiedAt && due(o.delivery, nowMs)) jobs.push({ kind: "tidy", role: "orchestrator", ids: [o.id] });
   for (const x of Object.values(d.contextTidies || {})) if (x && x.status === "approved" && x.approvedVia === "board" && !x.notifiedAt && due(x.delivery, nowMs)) jobs.push({ kind: "tidy", project: x.project, ids: [x.id] });
+  for (const r of d.reminders || []) if (reminders.isDue(r, nowMs) && due(r.delivery, nowMs) && !holds.checkArea(d, r.id, r.area, nowMs)) jobs.push({ kind: "reminder", area: r.area, ids: [r.id] });
   return jobs;
 }
 
@@ -216,6 +223,7 @@ function itemsOf(d, job) {
   }
   if (job.kind === "tidy") return [d.contextTidy, ...Object.values(d.contextTidies || {})].filter((o) => o && job.ids.includes(o.id) && o.status === "approved" && !o.notifiedAt);
   if (job.kind === "role") return [job.text];
+  if (job.kind === "reminder") return (d.reminders || []).filter((r) => job.ids.includes(r.id) && reminders.isDue(r) && !holds.checkArea(d, r.id, r.area));
   return [];
 }
 
@@ -229,6 +237,7 @@ function compose(d, job, items, id, attachments) {
   if (job.kind === "sentry") return composeSentry(d, items, job.area, id);
   if (job.kind === "stop") return composeStop(items, id);
   if (job.kind === "tidy") return composeTidy(items[0], id);
+  if (job.kind === "reminder") return composeReminder(items[0], id);
   return composeRole(items[0], id);
 }
 
@@ -243,6 +252,7 @@ function eachRecord(d, job, ids, fn) {
     if (t) fn(t, id.split("|")[1]);
   }
   if (job.kind === "tidy") for (const o of [d.contextTidy, ...Object.values(d.contextTidies || {})]) if (o && wanted.has(o.id)) fn(o);
+  if (job.kind === "reminder") for (const r of d.reminders || []) wanted.has(r.id) && fn(r);
 }
 
 function markDelivered(d, job, ids, id, at) {
@@ -272,6 +282,9 @@ function markDelivered(d, job, ids, id, at) {
       delete x.stopDelivery;
     } else if (job.kind === "tidy") {
       Object.assign(x, { notifiedAt: at, deliveredBy: id });
+      delete x.delivery;
+    } else if (job.kind === "reminder") {
+      Object.assign(x, { lastDay: reminders.madrid(Date.parse(at)).day, lastSentAt: at, deliveredBy: id });
       delete x.delivery;
     }
     out.push(job.kind === "stop" ? `${x.key}|${extra}` : x.key || x.id || "");

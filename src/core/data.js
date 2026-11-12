@@ -41,6 +41,7 @@ const DEFAULTS = {
   messages: () => [],
   restrictions: () => [],
   deliveries: () => [],
+  reminders: () => [],
 };
 
 let db = null;

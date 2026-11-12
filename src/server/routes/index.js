@@ -59,6 +59,15 @@ const POST_ROUTES = {
   "/api/import": (res, input, send) => tasks.handleImport(res, input, send),
   "/api/ticket": (res, input, send) => tasks.handleTicket(res, input, send),
   "/api/session": (res, input, send) => sessions.handleSession(res, input, send),
+  "/api/reminder": (res, input, send) => {
+    const reminders = require("../../features/reminders");
+    if (input && input.remove) {
+      const error = reminders.remove(input.remove);
+      return error ? send(res, 400, { error }) : send(res, 200);
+    }
+    const r = reminders.add(input || {});
+    return r.error ? send(res, 400, { error: r.error }) : send(res, 200, r);
+  },
   "/api/new-session": (res, input, send) => sessions.handleNewSession(res, input, send),
   "/api/epic": (res, input, send) => sessions.handleEpic(res, input, send),
   "/api/deploy": (res, input, send) => operations.handleDeploy(res, input, send),

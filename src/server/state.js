@@ -160,6 +160,7 @@ function state() {
     tidyBlockers: tidyBlockers(d),
     lastContextPass: lastContextPass(),
     tidies: tidyStates(d),
+    reminders: require("../features/reminders").forPage(d),
     refreshRequest: d.refreshRequest,
     deployments: d.deployments.slice(0, 12),
     restrictions: require("../features/holds").forPage(d),

@@ -1,5 +1,5 @@
-import { state, h, button, toast, requestOrFail, post, areaName, taskAreaSelect, refresh, empty, ticketUrl } from "../lib/base.js";
-import { currentProject, hasModule, mixedProjects, mainProject, projectTitle, inProjectOrder, workspacesWith } from "../components/project-filter.js";
+import { state, h, button, when, toast, requestOrFail, post, areaName, taskAreaSelect, refresh, empty, ticketUrl } from "../lib/base.js";
+import { currentProject, hasModule, mixedProjects, mainProject, projectTitle, inProjectOrder, workspacesWith, projectName } from "../components/project-filter.js";
 import { openTalk } from "./talk.js";
 
 export function createSession(name, epic, btn) {
@@ -183,6 +183,73 @@ function epicSearch(root) {
   paint();
 }
 
+let formOpen = false;
+const areaLabel = (a) => (mixedProjects() ? `${a.name} · ${projectName(a.project || mainProject())}` : a.name);
+const shortDate = (d) => d.split("-").reverse().slice(0, 2).join("/");
+
+function reminderRow(r) {
+  const a = state.areas.find((x) => x.id === r.area);
+  const when2 = `Cada día${r.weekdays ? " de lunes a viernes" : ""} a las ${r.time}, del ${shortDate(r.from)} al ${shortDate(r.until)}`;
+  const last = r.delivery && r.delivery.error ? `No se pudo entregar: ${r.delivery.error}` : r.lastSentAt ? `Último enviado: ${when(r.lastSentAt)}` : "Todavía no se ha enviado";
+  const remove = button("Quitar", {
+    cls: "subtle",
+    onClick: (b) => {
+      if (!window.confirm("¿Quitar este aviso programado?")) return;
+      b.disabled = true;
+      post("/api/reminder", { remove: r.id }, "Aviso quitado.");
+    },
+  });
+  return h("div", { class: "rem-row" }, [
+    h("div", { class: "rem-main" }, [h("strong", { text: a ? areaLabel(a) : r.area }), h("span", { class: "meta", text: `${when2} · ${last}` }), h("details", { class: "rem-text" }, [h("summary", { text: "Texto" }), h("p", { text: r.text })])]),
+    remove,
+  ]);
+}
+
+function reminderForm() {
+  const areas = state.areas.filter((a) => a.conversation && !a.unnamed);
+  if (!areas.length) return null;
+  const sel = h("select", { "aria-label": "Sesión" }, areas.map((a) => h("option", { value: a.id, text: areaLabel(a) })));
+  const time = h("input", { type: "time", value: "08:30", "aria-label": "Hora" });
+  const until = h("input", { type: "date", "aria-label": "Último día" });
+  until.value = new Date(Date.now() + 6 * 86400000).toISOString().slice(0, 10);
+  const weekdays = h("input", { type: "checkbox" });
+  const text = h("textarea", { rows: "3", placeholder: "Qué tiene que hacer la sesión cada día", "aria-label": "Texto del aviso" });
+  const save = button("Programar", {
+    cls: "primary",
+    onClick: (b) => {
+      b.disabled = true;
+      requestOrFail("/api/reminder", { area: sel.value, time: time.value, until: until.value, weekdays: weekdays.checked, text: text.value })
+        .then(() => toast("Aviso programado."))
+        .catch((e) => toast(`No se pudo: ${e.message}`))
+        .finally(() => ((b.disabled = false), refresh(true)));
+    },
+  });
+  const box = h("details", { class: "rem-form" }, [
+    h("summary", { text: "Programar un aviso" }),
+    h("div", { class: "rem-fields" }, [
+      h("label", {}, [h("span", { text: "Sesión" }), sel]),
+      h("label", {}, [h("span", { text: "Hora" }), time]),
+      h("label", {}, [h("span", { text: "Hasta el" }), until]),
+      h("label", { class: "rem-check" }, [weekdays, h("span", { text: "Solo de lunes a viernes" })]),
+    ]),
+    text,
+    h("div", { class: "actions" }, [save]),
+  ]);
+  box.open = formOpen;
+  box.addEventListener("toggle", () => (formOpen = box.open));
+  return box;
+}
+
+function remindersSection(root) {
+  const visible = new Set(state.areas.map((a) => a.id));
+  const list = (state.reminders || []).filter((r) => visible.has(r.area));
+  const sec = h("section", { class: "s2-section" }, [head("Avisos programados", list.length, "El tablero se los manda a la sesión cada día a su hora, aunque se haya dormido o reiniciado.")]);
+  if (list.length) sec.appendChild(h("div", { class: "srows" }, list.map(reminderRow)));
+  const form = reminderForm();
+  if (form) sec.appendChild(form);
+  root.appendChild(sec);
+}
+
 export function renderSessions(root) {
   const nameBox = h("input", { type: "text", class: "find-input", maxlength: "60", placeholder: "Nombre de una sesión nueva", "aria-label": "Nombre de la sesión nueva" });
   const create = button("Crear sesión", { cls: "primary", onClick: (b) => nameBox.value.trim() && createSession(nameBox.value.trim(), null, b) });
@@ -214,6 +281,7 @@ export function renderSessions(root) {
     }
   else sec.appendChild(h("div", { class: "srows" }, areas.map(row)));
   root.appendChild(sec);
+  remindersSection(root);
 
   const fixed = [];
   const area = (id) => state.areas.find((a) => a.id === id);
