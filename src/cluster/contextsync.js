@@ -35,9 +35,25 @@ try {
   runningHead = cp.execFileSync("git", ["-C", REPO, "rev-parse", "HEAD"], { windowsHide: true }).toString().trim();
 } catch (e) {}
 
+function boardUpdate(patch) {
+  mutate((d) => {
+    d.boardUpdate = { ...(d.boardUpdate || {}), ...patch, at: now() };
+  });
+}
+
 async function updateBoard() {
-  await repoGit(["pull", "--ff-only", "-q"]);
+  const pull = await repoGit(["pull", "--ff-only", "-q"]);
+  if (!pull.ok) {
+    const first = !(load().boardUpdate || {}).error;
+    boardUpdate({ state: "error", error: pull.out.trim().slice(0, 300) || "no se pudo bajar el tablero de GitHub" });
+    if (first && !/Could not resolve host|unable to access|Network is unreachable|timed out/i.test(pull.out))
+      require("../server/push")
+        .sendPush("sessions", true, `El tablero de ${os.hostname()} no se puede poner al día solo: ${pull.out.trim().split("\n")[0].slice(0, 120)}`)
+        .catch(() => {});
+    return;
+  }
   const after = await repoGit(["rev-parse", "HEAD"]);
+  boardUpdate({ state: "ok", error: null, head: after.out.trim().slice(0, 7), lastOk: now() });
   if (!runningHead || !after.ok || runningHead === after.out.trim()) return;
   const changed = await repoGit(["diff", "--name-only", runningHead, after.out.trim()]);
   if (/package(-lock)?\.json/.test(changed.out)) await new Promise((r) => cp.execFile(process.platform === "win32" ? "npm.cmd" : "npm", ["ci", "--no-audit", "--no-fund"], { cwd: REPO, shell: process.platform === "win32", windowsHide: true, timeout: 300000 }, () => r()));
@@ -46,39 +62,54 @@ async function updateBoard() {
 }
 
 async function syncContext() {
-  if (running || !enabled()) return;
+  if (running) return;
   running = true;
   try {
-    const status = await git(["status", "--porcelain"]);
-    if (!status.ok) return record({ state: "error", error: status.out.slice(0, 300) });
-    if (status.out.trim()) {
-      await git(["add", "-A"]);
-      const commit = await git(["commit", "-q", "-m", `Contexto desde ${os.hostname()}`]);
-      if (!commit.ok && !/nothing to commit/.test(commit.out)) return record({ state: "error", error: commit.out.slice(0, 300) });
-    }
-    const pull = await git(["pull", "--rebase", "--autostash", "-q"]);
-    if (!pull.ok) {
-      const clash = /CONFLICT|could not apply|Resolve all conflicts|needs merge/i.test(pull.out);
-      await git(["rebase", "--abort"]);
-      if (!clash) return record({ state: "error", error: pull.out.trim().slice(0, 300) || "no se pudo hablar con GitHub (¿sin conexión al despertar?)" });
-      const already = (load().contextSync || {}).state === "conflict";
-      record({ state: "conflict", error: pull.out.slice(0, 500) });
-      if (!already)
-        require("../server/push")
-          .sendPush("sessions", true, "El contexto compartido tiene un choque entre los dos ordenadores: hay que resolverlo a mano")
-          .catch(() => {});
-      return;
-    }
-    const ahead = await git(["rev-list", "--count", "@{u}..HEAD"]);
-    if (ahead.ok && Number(ahead.out.trim()) > 0) {
-      const pushed = await git(["push", "-q"]);
-      if (!pushed.ok) return record({ state: "error", error: pushed.out.slice(0, 300) });
-    }
-    record({ state: "ok", error: null, lastOk: now() });
-    await updateBoard();
+    if (enabled()) await syncContextRepo();
   } finally {
-    running = false;
+    try {
+      await updateBoard();
+    } finally {
+      running = false;
+    }
   }
 }
 
-module.exports = { syncContext, contextSyncEnabled: enabled };
+async function syncContextRepo() {
+  const status = await git(["status", "--porcelain"]);
+  if (!status.ok) return record({ state: "error", error: status.out.slice(0, 300) });
+  if (status.out.trim()) {
+    await git(["add", "-A"]);
+    const commit = await git(["commit", "-q", "-m", `Contexto desde ${os.hostname()}`]);
+    if (!commit.ok && !/nothing to commit/.test(commit.out)) return record({ state: "error", error: commit.out.slice(0, 300) });
+  }
+  const pull = await git(["pull", "--rebase", "--autostash", "-q"]);
+  if (!pull.ok) {
+    const clash = /CONFLICT|could not apply|Resolve all conflicts|needs merge/i.test(pull.out);
+    await git(["rebase", "--abort"]);
+    if (!clash) return record({ state: "error", error: pull.out.trim().slice(0, 300) || "no se pudo hablar con GitHub (¿sin conexión al despertar?)" });
+    const already = (load().contextSync || {}).state === "conflict";
+    record({ state: "conflict", error: pull.out.slice(0, 500) });
+    if (!already)
+      require("../server/push")
+        .sendPush("sessions", true, "El contexto compartido tiene un choque entre los dos ordenadores: hay que resolverlo a mano")
+        .catch(() => {});
+    return;
+  }
+  const ahead = await git(["rev-list", "--count", "@{u}..HEAD"]);
+  if (ahead.ok && Number(ahead.out.trim()) > 0) {
+    const pushed = await git(["push", "-q"]);
+    if (!pushed.ok) return record({ state: "error", error: pushed.out.slice(0, 300) });
+  }
+  record({ state: "ok", error: null, lastOk: now() });
+}
+
+let lastBeat = Date.now();
+
+function wakeCheck() {
+  const gap = Date.now() - lastBeat;
+  lastBeat = Date.now();
+  if (gap > 3 * 60000) setTimeout(() => syncContext().catch(() => {}), 20000);
+}
+
+module.exports = { syncContext, wakeCheck, contextSyncEnabled: enabled };

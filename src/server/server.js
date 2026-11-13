@@ -150,6 +150,7 @@ function serve() {
   every(require("../features/tunnel").guard, 60 * 1000);
   every(() => require("../core/hours").overtime(), 60 * 1000);
   every(require("../cluster/contextsync").syncContext, 3 * 60 * 1000);
+  every(require("../cluster/contextsync").wakeCheck, 30 * 1000);
   every(require("../cluster/cluster").tick, 30 * 1000);
   every(require("../sessions/autosleep").sleepIdleSessions, 5 * 60 * 1000);
   every(require("../sessions/hostfresh").refreshHostWhenQuiet, 3 * 60 * 1000);
