@@ -45,14 +45,29 @@ async function startFollowUp(force) {
   if (e0.last && Date.now() - new Date(e0.last).getTime() < 70 * 60000) return log("el seguimiento está al día");
   const e = await openAndWait(() => state().followUpStatus, "la sesión de seguimiento");
   if (!e) return log("la sesión de seguimiento no se abre");
-  const ok = await wakeSession(e.session, FOLLOW_UP_NOTICE);
+  const ok = await noticeFollowUp(e);
+  if (ok === null) return log("aviso de arranque al seguimiento ya enviado hace nada: no lo repito");
   log(`aviso de arranque a la sesión de seguimiento (${e.session}): ${ok ? "enviado" : "falló"}`);
+}
+
+const NOTICE_GAP_MS = 15 * 60000;
+
+async function noticeFollowUp(e) {
+  const claimed = require("../core/data").mutate((d) => {
+    if (d.followUpNoticeAt && Date.now() - new Date(d.followUpNoticeAt).getTime() < NOTICE_GAP_MS) return false;
+    d.followUpNoticeAt = new Date().toISOString();
+    return true;
+  });
+  if (!claimed) return null;
+  const ok = await wakeSession(e.session, FOLLOW_UP_NOTICE);
+  if (!ok) require("../core/data").mutate((d) => (d.followUpNoticeAt = null));
+  return ok;
 }
 
 async function startReporter(force) {
   if (!(await new Promise((r) => ping(r)))) cp.spawn(process.execPath, [ENTRY, "serve"], { detached: true, stdio: "ignore", windowsHide: true }).unref();
   try {
-    if (Date.now() - fs.statSync(STARTUP_LOCK).mtimeMs < 10 * 60000) return;
+    if (Date.now() - fs.statSync(STARTUP_LOCK).mtimeMs < 10 * 60000) return false;
   } catch (e) {}
   fs.writeFileSync(STARTUP_LOCK, String(process.pid));
   const t = madridTime();
@@ -101,13 +116,15 @@ function launchStartup(child, force) {
     console.log(`Arranque del reporte lanzado en segundo plano (registro en ${STARTUP_LOG.replace(/\\/g, "/")}).`);
     return;
   }
+  let mine = true;
   startReporter(force)
+    .then((r) => (mine = r !== false))
     .catch((e) => log("error: " + (e.message || e)))
-    .then(() => startFollowUp(force))
+    .then(() => (mine ? startFollowUp(force) : log("otro arranque ya está en marcha: no aviso al seguimiento")))
     .catch((e) => log("error en el seguimiento: " + (e.message || e)))
     .then(() => {
       try {
-        fs.unlinkSync(STARTUP_LOCK);
+        if (mine) fs.unlinkSync(STARTUP_LOCK);
       } catch (e) {}
       process.exit(0);
     });
@@ -117,7 +134,7 @@ async function wakeFollowUp() {
   const e0 = state().followUpStatus;
   if (!e0) return;
   const e = await openAndWait(() => state().followUpStatus, "la sesión de seguimiento");
-  if (e) await wakeSession(e.session, FOLLOW_UP_NOTICE);
+  if (e && (await noticeFollowUp(e)) === null) log("la sesión de seguimiento se reabrió, pero el aviso de arranque ya salió hace nada: no lo repito");
 }
 
 async function setOvertime(on) {
@@ -137,4 +154,4 @@ async function setOvertime(on) {
   return value;
 }
 
-module.exports = { launchStartup, wakeFollowUp, setOvertime };
+module.exports = { launchStartup, wakeFollowUp, setOvertime, noticeFollowUp };
