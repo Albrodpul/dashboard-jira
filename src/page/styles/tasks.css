@@ -177,6 +177,9 @@ textarea.comment-box { font-family: inherit; }
 .ws-guide { display: flex; flex-direction: column; gap: 10px; font-size: 13px; }
 .ws-guide > summary { cursor: pointer; color: var(--ink-2); }
 .ws-guide[open] > summary { margin-bottom: 8px; }
+.ws-servers { display: flex; flex-direction: column; gap: 6px; }
+.ws-server { display: grid; grid-template-columns: minmax(0, 1.2fr) 90px minmax(0, 1.5fr) auto; gap: 6px; align-items: center; }
+@media (max-width: 560px) { .ws-server { grid-template-columns: minmax(0, 1fr) 90px; } }
 .ws-guide .ws-field + .ws-field { margin-top: 10px; }
 .ws-form .ws-field + .ws-field, .ws-form .ws-field + details { margin-top: 2px; }
 .ws-checks { display: flex; flex-direction: column; gap: 6px; }

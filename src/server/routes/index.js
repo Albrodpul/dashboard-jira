@@ -65,7 +65,7 @@ const POST_ROUTES = {
       const error = reminders.remove(input.remove);
       return error ? send(res, 400, { error }) : send(res, 200);
     }
-    const r = reminders.add(input || {});
+    const r = input && input.id ? reminders.update(String(input.id), input) : reminders.add(input || {});
     return r.error ? send(res, 400, { error: r.error }) : send(res, 200, r);
   },
   "/api/new-session": (res, input, send) => sessions.handleNewSession(res, input, send),

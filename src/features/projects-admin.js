@@ -46,6 +46,7 @@ function list() {
     modules: { jira: !!p.jira, followUp: p.followUp.length > 0, sentry: !!(p.sentry && p.sentry.org), deploy: p.deployProjects.length > 0, devServers: p.devServers.length > 0, daily: !!p.daily, context: !!p.contextTidy },
     credentials: Object.fromEntries(SECRETS.map((k) => [k, !!p.secret(k)])),
     messages: p.messages || null,
+    devServers: p.devServers.map((x) => ({ id: x.id, name: x.name, port: x.port, command: [x.command, ...(x.args || [])].join(" ") })),
     openTasks: openTasks(p.id),
   }));
 }
@@ -53,6 +54,27 @@ function list() {
 function clean(text, max) {
   const t = String(text || "").trim();
   return t ? t.slice(0, max) : "";
+}
+
+function devServersOf(input, id) {
+  if (!Array.isArray(input.devServers)) return { keep: true };
+  const out = [];
+  const taken = new Map(config.projects.filter((p) => p.id !== id).flatMap((p) => p.devServers.map((x) => [Number(x.port), p.name])));
+  for (const raw of input.devServers) {
+    const name = clean(raw && raw.name, 40);
+    const port = Number(raw && raw.port);
+    const words = clean(raw && raw.command, 200).split(/\s+/).filter(Boolean);
+    if (!name && !raw.port && !words.length) continue;
+    if (!name) return { error: "cada servidor necesita un nombre" };
+    if (!Number.isInteger(port) || port < 1024 || port > 65535) return { error: `el puerto de ${name} va de 1024 a 65535` };
+    if (taken.has(port)) return { error: `el puerto ${port} ya lo usa ${taken.get(port)}` };
+    if (out.some((x) => x.port === port)) return { error: `el puerto ${port} está repetido` };
+    if (!words.length) return { error: `falta el comando de ${name}, por ejemplo «npm run dev»` };
+    let sid = slug(name) || `web-${port}`;
+    while (out.some((x) => x.id === sid)) sid += "-2";
+    out.push({ id: sid, name, role: "Web", port, url: `http://localhost:${port}`, command: words[0], args: words.slice(1) });
+  }
+  return { list: out };
 }
 
 function save(input) {
@@ -86,6 +108,10 @@ function save(input) {
     if (taken) return { error: `esa carpeta ya es de ${taken.name}` };
   }
   if (!fromFile && !typed && existing) folder = (load().projectDefs || {})[id] ? load().projectDefs[id].folder || null : null;
+  const servers = devServersOf(input, id);
+  if (servers.error) return { error: servers.error };
+  if (fromFile && !servers.keep) return { error: `los servidores de ${existing.name} se cambian en board.config.json de cada ordenador` };
+  const keptServers = servers.keep ? ((load().projectDefs || {})[id] || {}).devServers : servers.list;
   const messages = {};
   for (const k of ["review", "cause", "reference"]) {
     const v = input.messages ? clean(input.messages[k], 1500) : "";
@@ -95,8 +121,13 @@ function save(input) {
     d.projectDefs = { ...(d.projectDefs || {}) };
     d.projectDefs[id] = fromFile
       ? { id, override: true, name, taskPrefix, daily: !!input.daily, contextTidy: !!input.contextTidy, messages: Object.keys(messages).length ? messages : existing.fileValues ? existing.fileValues.messages : null, updatedAt: now() }
-      : { id, name, taskPrefix, agent: "claude", daily: !!input.daily, contextTidy: !!input.contextTidy, ...(folder ? { folder } : {}), ...(Object.keys(messages).length ? { messages } : {}), updatedAt: now() };
+      : { id, name, taskPrefix, agent: "claude", daily: !!input.daily, contextTidy: !!input.contextTidy, ...(folder ? { folder } : {}), ...(Object.keys(messages).length ? { messages } : {}), ...(keptServers && keptServers.length ? { devServers: keptServers } : {}), updatedAt: now() };
   });
+  if (!servers.keep && existing) {
+    const gone = existing.devServers.filter((x) => !servers.list.some((y) => y.id === x.id && y.port === x.port && y.command === x.command && (y.args || []).join(" ") === (x.args || []).join(" ")));
+    const devservers = require("./devservers");
+    for (const x of gone) Promise.resolve(devservers.stop(existing === config.mainProject ? x.id : `${id}-${x.id}`)).catch(() => {});
+  }
   if (root) {
     fs.mkdirSync(root, { recursive: true });
     writeLocal(id, root);

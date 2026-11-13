@@ -154,4 +154,6 @@
 .rem-fields label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--ink-2); }
 .rem-fields select, .rem-fields input[type="time"], .rem-fields input[type="date"] { flex: none; height: 34px; min-height: 0; padding: 4px 8px; font: inherit; }
 .rem-fields label.rem-check { flex-direction: row; align-items: center; gap: 6px; }
+.rem-editing { display: flex; flex-direction: column; gap: 10px; margin: 0; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+.rem-row .actions { display: flex; gap: 6px; flex: none; }
 .rem-form textarea { width: 100%; box-sizing: border-box; font: inherit; }

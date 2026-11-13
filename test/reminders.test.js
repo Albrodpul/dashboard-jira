@@ -49,3 +49,16 @@ test("a reminder needs text, a valid time and a range that ends after it starts"
   assert.match(reminders.add({ area: "x", text: "a", time: "8", until: "2999-01-01" }).error, /HH:MM/);
   assert.match(reminders.add({ area: "x", text: "a", time: "08:00", from: "2026-11-20", until: "2026-11-19" }).error, /antes/);
 });
+
+test("a reminder can be edited in place: same id, new text, time and range, and a bad edit is refused", () => {
+  require("../src/sessions/registry").changeRoutes((r) => (r.areas.herrero = { title: "Herrero", epics: {}, conversation: CONV }));
+  const made = reminders.add({ area: "herrero", text: "Primero", time: "23:59", from: "2999-01-01", until: "2999-01-07" });
+  assert.equal(made.error, undefined);
+  const id = made.reminder.id;
+  const r = reminders.update(id, { area: "herrero", text: "Segundo", time: "07:00", until: "2999-01-10", weekdays: true });
+  assert.equal(r.error, undefined);
+  const saved = load().reminders.find((x) => x.id === id);
+  assert.deepEqual([saved.text, saved.time, saved.from, saved.until, saved.weekdays], ["Segundo", "07:00", "2999-01-01", "2999-01-10", true]);
+  assert.match(reminders.update(id, { area: "herrero", text: "", time: "07:00", until: "2999-01-10" }).error, /escribe/);
+  assert.match(reminders.update("rem-nope", { area: "herrero", text: "x", time: "07:00", until: "2999-01-10" }).error, /desconocido/);
+});

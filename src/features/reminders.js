@@ -20,21 +20,44 @@ function isDue(r, ms = Date.now()) {
   return t.min >= toMin(r.time);
 }
 
-function add({ area, text, time, from, until, weekdays }) {
+function checked({ area, text, time, from, until, weekdays }, keepFrom) {
   const clean = String(text || "").trim().slice(0, 4000);
   if (!clean) return { error: "escribe el aviso" };
   if (!TIME.test(String(time || ""))) return { error: "la hora va como HH:MM" };
   const today = madrid().day;
-  from = from || today;
+  from = from || keepFrom || today;
   if (!DATE.test(from) || !DATE.test(String(until || ""))) return { error: "las fechas van como AAAA-MM-DD" };
   if (until < from) return { error: "el último día va antes del primero" };
   const state = require("../server/state").state();
-  const a = state.areas.find((x) => x.id === area);
-  if (!a) return { error: "sesión desconocida" };
+  if (!state.areas.find((x) => x.id === area)) return { error: "sesión desconocida" };
+  return { fields: { area, text: clean, time, from, until, weekdays: !!weekdays } };
+}
+
+const pastToday = (r) => r.from <= madrid().day && madrid().min >= toMin(r.time);
+
+function add(input) {
+  const c = checked(input);
+  if (c.error) return c;
   const at = now();
-  const r = { id: "rem-" + at.replace(/\D/g, "").slice(0, 17), area, text: clean, time, from, until, weekdays: !!weekdays, createdAt: at };
-  if (from === today && madrid().min >= toMin(time)) r.lastDay = today;
+  const r = { id: "rem-" + at.replace(/\D/g, "").slice(0, 17), ...c.fields, createdAt: at };
+  if (r.from === madrid().day && pastToday(r)) r.lastDay = r.from;
   mutate((d) => d.reminders.push(r));
+  require("./mailman").kick();
+  return { reminder: r };
+}
+
+function update(id, input) {
+  const old = (load().reminders || []).find((x) => x.id === id);
+  if (!old) return { error: "aviso desconocido" };
+  const c = checked(input, old.from);
+  if (c.error) return c;
+  const r = mutate((d) => {
+    const x = d.reminders.find((y) => y.id === id);
+    Object.assign(x, c.fields, { updatedAt: now() });
+    if (x.lastDay !== madrid().day && pastToday(x) && (x.time !== old.time || x.from !== old.from)) x.lastDay = madrid().day;
+    delete x.delivery;
+    return { ...x };
+  });
   require("./mailman").kick();
   return { reminder: r };
 }
@@ -50,4 +73,4 @@ function remove(id) {
 
 const forPage = (d = load()) => (d.reminders || []).filter((r) => r.until >= madrid().day).map((r) => ({ ...r, delivery: r.delivery || null }));
 
-module.exports = { madrid, isDue, add, remove, forPage };
+module.exports = { madrid, isDue, add, update, remove, forPage };

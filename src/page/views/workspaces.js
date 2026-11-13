@@ -76,7 +76,7 @@ function form(draft) {
     onClick: async (b) => {
       b.disabled = true;
       try {
-        const body = { name: draft.name, taskPrefix: draft.taskPrefix, ...(draft.fromFile ? {} : { root: draft.root || "" }), daily: !!draft.daily, contextTidy: !!draft.contextTidy, messages: { review: draft.review, cause: draft.cause, reference: draft.reference } };
+        const body = { name: draft.name, taskPrefix: draft.taskPrefix, ...(draft.fromFile ? {} : { root: draft.root || "", devServers: draft.devServers || [] }), daily: !!draft.daily, contextTidy: !!draft.contextTidy, messages: { review: draft.review, cause: draft.cause, reference: draft.reference } };
         if (!isNew) Object.assign(body, { id: draft.id, create: false });
         const r = await requestOrFail("/api/projects-admin/save", body);
         editing = null;
@@ -106,11 +106,41 @@ function form(draft) {
       box.addEventListener("change", () => (draft[k] = box.checked));
       return h("label", { class: "rule" }, [box, h("span", {}, [h("strong", { text: label }), ` · ${hint}`])]);
     })),
+    draft.fromFile ? null : serversEditor(draft),
     keptDetails(`guide-${draft.id || "new"}`, [
       h("summary", { text: "Guía para las sesiones (opcional)" }),
       ...Object.entries(GUIDE).map(([k, [label, hint]]) => field(label, hint, area(draft, k, draft.fromFile ? "Sin texto: las frases de siempre" : ""))),
     ]),
     h("div", { class: "actions" }, [save, cancel]),
+  ]);
+}
+
+function serversEditor(draft) {
+  draft.devServers = draft.devServers || [];
+  const rows = h("div", { class: "ws-servers" });
+  const paint = () => {
+    rows.replaceChildren(
+      ...draft.devServers.map((x, i) => {
+        const input = (key, attrs) => {
+          const el = h("input", { type: key === "port" ? "number" : "text", value: x[key] == null ? "" : String(x[key]), ...attrs });
+          el.addEventListener("input", () => (x[key] = el.value));
+          return el;
+        };
+        return h("div", { class: "ws-server" }, [
+          input("name", { placeholder: "Nombre", "aria-label": "Nombre del servidor" }),
+          input("port", { placeholder: "Puerto", min: "1024", max: "65535", "aria-label": "Puerto" }),
+          input("command", { placeholder: "npm run dev", "aria-label": "Comando" }),
+          button("Quitar", { cls: "subtle", onClick: () => (draft.devServers.splice(i, 1), paint()) }),
+        ]);
+      })
+    );
+  };
+  paint();
+  return h("div", { class: "ws-field" }, [
+    h("span", { class: "ws-label", text: "Servidores locales" }),
+    h("span", { class: "meta", text: "Se arrancan desde la carpeta del proyecto y salen en Servidores. El puerto no puede repetirse con el de otro proyecto." }),
+    rows,
+    h("div", { class: "actions" }, [button("Añadir servidor", { onClick: () => (draft.devServers.push({ name: "", port: "", command: "npm run dev" }), paint()) })]),
   ]);
 }
 
@@ -147,6 +177,7 @@ function card(p) {
     ["Carpeta en este ordenador", p.root || "sin carpeta"],
     ["Agente", p.agent === "claude" ? "Claude Code" : p.agent],
     ["Módulos", active.length ? active.join(", ") : "ninguno"],
+    ["Servidores", p.devServers.length ? p.devServers.map((x) => `${x.name} (${x.port})`).join(", ") : "ninguno"],
     ["Tareas abiertas", String(p.openTasks)],
   ];
   if (p.jira) facts.splice(4, 0, ["Proyectos de Jira", p.jira.join(", ")]);
@@ -155,12 +186,12 @@ function card(p) {
     h("dl", { class: "ws-facts" }, facts.flatMap(([k, v]) => [h("dt", { text: k }), h("dd", { text: v })])),
   ];
   if (!p.root || !p.rootExists) kids.push(h("div", { class: "setup-note warn" }, [h("p", { text: p.root ? "Esa carpeta no existe en este ordenador: sus sesiones no se reconocerán aquí." : "Este ordenador no tiene carpeta para el proyecto: pon la suya en Editar." })]));
-  if (p.fromFile) kids.push(h("p", { class: "meta", text: "Sus módulos, credenciales y carpeta van en board.config.json de cada ordenador; el nombre, el prefijo, la daily, Ordenar contexto y la guía se editan aquí y valen para los dos." }));
+  if (p.fromFile) kids.push(h("p", { class: "meta", text: "Sus módulos, servidores, credenciales y carpeta van en board.config.json de cada ordenador; el nombre, el prefijo, la daily, Ordenar contexto y la guía se editan aquí y valen para los dos." }));
   if (p.messages) kids.push(h("p", { class: "meta", text: "Tiene guía propia para las sesiones." }));
   if (!p.main) kids.push(credentials(p));
   kids.push(
     h("div", { class: "actions" }, [
-      button("Editar", { onClick: () => ((editing = { id: p.id, fromFile: p.fromFile, name: p.name, taskPrefix: p.taskPrefix, root: p.fromFile ? p.root || "" : relative(p.root), daily: p.modules.daily, contextTidy: p.modules.context, ...(p.messages || {}) }), render()) }),
+      button("Editar", { onClick: () => ((editing = { id: p.id, fromFile: p.fromFile, name: p.name, taskPrefix: p.taskPrefix, root: p.fromFile ? p.root || "" : relative(p.root), daily: p.modules.daily, contextTidy: p.modules.context, devServers: p.devServers.map((x) => ({ ...x })), ...(p.messages || {}) }), render()) }),
       button("Borrar", {
         cls: "subtle",
         disabled: p.main,

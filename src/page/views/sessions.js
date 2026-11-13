@@ -1,4 +1,4 @@
-import { state, h, button, when, toast, requestOrFail, post, areaName, taskAreaSelect, refresh, empty, ticketUrl } from "../lib/base.js";
+import { state, h, button, when, toast, requestOrFail, post, areaName, taskAreaSelect, refresh, render, empty, ticketUrl } from "../lib/base.js";
 import { currentProject, hasModule, mixedProjects, mainProject, projectTitle, inProjectOrder, workspacesWith, projectName } from "../components/project-filter.js";
 import { openTalk } from "./talk.js";
 
@@ -184,6 +184,7 @@ function epicSearch(root) {
 }
 
 let formOpen = false;
+let editingReminder = null;
 const areaLabel = (a) => (mixedProjects() ? `${a.name} · ${projectName(a.project || mainProject())}` : a.name);
 const shortDate = (d) => d.split("-").reverse().slice(0, 2).join("/");
 
@@ -199,42 +200,52 @@ function reminderRow(r) {
       post("/api/reminder", { remove: r.id }, "Aviso quitado.");
     },
   });
+  if (editingReminder === r.id) return reminderForm(r);
+  const edit = button("Editar", { onClick: () => ((editingReminder = r.id), render()) });
   return h("div", { class: "rem-row" }, [
     h("div", { class: "rem-main" }, [h("strong", { text: a ? areaLabel(a) : r.area }), h("span", { class: "meta", text: `${when2} · ${last}` }), h("details", { class: "rem-text" }, [h("summary", { text: "Texto" }), h("p", { text: r.text })])]),
-    remove,
+    h("div", { class: "actions" }, [edit, remove]),
   ]);
 }
 
-function reminderForm() {
+function reminderForm(r) {
   const areas = state.areas.filter((a) => a.conversation && !a.unnamed);
   if (!areas.length) return null;
   const sel = h("select", { "aria-label": "Sesión" }, areas.map((a) => h("option", { value: a.id, text: areaLabel(a) })));
-  const time = h("input", { type: "time", value: "08:30", "aria-label": "Hora" });
+  const time = h("input", { type: "time", value: r ? r.time : "08:30", "aria-label": "Hora" });
+  const from = h("input", { type: "date", "aria-label": "Primer día" });
   const until = h("input", { type: "date", "aria-label": "Último día" });
-  until.value = new Date(Date.now() + 6 * 86400000).toISOString().slice(0, 10);
   const weekdays = h("input", { type: "checkbox" });
-  const text = h("textarea", { rows: "3", placeholder: "Qué tiene que hacer la sesión cada día", "aria-label": "Texto del aviso" });
-  const save = button("Programar", {
+  const text = h("textarea", { rows: r ? "8" : "3", placeholder: "Qué tiene que hacer la sesión cada día", "aria-label": "Texto del aviso" });
+  if (r) {
+    sel.value = r.area;
+    from.value = r.from;
+    until.value = r.until;
+    weekdays.checked = !!r.weekdays;
+    text.value = r.text;
+  } else until.value = new Date(Date.now() + 6 * 86400000).toISOString().slice(0, 10);
+  const save = button(r ? "Guardar" : "Programar", {
     cls: "primary",
     onClick: (b) => {
       b.disabled = true;
-      requestOrFail("/api/reminder", { area: sel.value, time: time.value, until: until.value, weekdays: weekdays.checked, text: text.value })
-        .then(() => toast("Aviso programado."))
+      requestOrFail("/api/reminder", { ...(r ? { id: r.id, from: from.value } : {}), area: sel.value, time: time.value, until: until.value, weekdays: weekdays.checked, text: text.value })
+        .then(() => {
+          toast(r ? "Aviso guardado." : "Aviso programado.");
+          editingReminder = null;
+        })
         .catch((e) => toast(`No se pudo: ${e.message}`))
         .finally(() => ((b.disabled = false), refresh(true)));
     },
   });
-  const box = h("details", { class: "rem-form" }, [
-    h("summary", { text: "Programar un aviso" }),
-    h("div", { class: "rem-fields" }, [
-      h("label", {}, [h("span", { text: "Sesión" }), sel]),
-      h("label", {}, [h("span", { text: "Hora" }), time]),
-      h("label", {}, [h("span", { text: "Hasta el" }), until]),
-      h("label", { class: "rem-check" }, [weekdays, h("span", { text: "Solo de lunes a viernes" })]),
-    ]),
-    text,
-    h("div", { class: "actions" }, [save]),
+  const fields = h("div", { class: "rem-fields" }, [
+    h("label", {}, [h("span", { text: "Sesión" }), sel]),
+    h("label", {}, [h("span", { text: "Hora" }), time]),
+    r ? h("label", {}, [h("span", { text: "Desde el" }), from]) : null,
+    h("label", {}, [h("span", { text: "Hasta el" }), until]),
+    h("label", { class: "rem-check" }, [weekdays, h("span", { text: "Solo de lunes a viernes" })]),
   ]);
+  if (r) return h("div", { class: "rem-form rem-editing" }, [fields, text, h("div", { class: "actions" }, [save, button("Cancelar", { cls: "subtle", onClick: () => ((editingReminder = null), render()) })])]);
+  const box = h("details", { class: "rem-form" }, [h("summary", { text: "Programar un aviso" }), fields, text, h("div", { class: "actions" }, [save])]);
   box.open = formOpen;
   box.addEventListener("toggle", () => (formOpen = box.open));
   return box;
