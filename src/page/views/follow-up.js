@@ -132,7 +132,7 @@ const GROUP_SECTIONS = /^(clientes?|cuentas? desconocidas?|bater[ií]as? de prue
 
 function statChips(rest) {
   const parts = String(rest || "").replace(/^\s*[·:—-]\s*/, "").split(/\s+·\s+/).map((x) => x.trim()).filter(Boolean);
-  return parts.map((p) => h("span", { class: `fu-stat${/^[1-9]\d*\s+errore?s?\b/i.test(p) ? " bad" : ""}`, text: p }));
+  return parts.map((p) => h("span", { class: `fu-stat${/^[1-9]\d*\s+errore?s?\b/i.test(p) ? " bad" : ""}${p.length > 40 ? " long" : ""}`, text: p.replace(/\*\*/g, "") }));
 }
 
 function followUpText(text) {

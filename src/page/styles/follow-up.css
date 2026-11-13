@@ -11,6 +11,7 @@
 .fu-block.group .fu-block-head h4 { color: var(--ink-2); font-weight: 600; }
 .fu-stat { font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .fu-stat + .fu-stat::before { content: "·"; margin-right: 8px; color: var(--line-strong, var(--ink-3)); }
+.fu-stat.long { white-space: normal; overflow-wrap: anywhere; min-width: 0; }
 .fu-stat.bad { color: var(--danger); font-weight: 600; }
 .fu-block.reading { margin-top: 8px; padding: 12px 14px; border: 0; border-radius: 8px; background: var(--surface-2); }
 .fu-block.reading h4 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-3); }
