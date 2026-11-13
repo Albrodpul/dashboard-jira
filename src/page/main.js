@@ -34,7 +34,7 @@ const GROUPS = [
       { id: "home", label: "Inicio", hint: "Qué pasa ahora" },
       { id: "tasks", label: "Tareas", hint: "Lo de Jira y lo que te espera" },
       { id: "talk", label: "Hablar", hint: "Escribir a una sesión" },
-      { id: "daily", label: "Daily", hint: "El resumen de ayer y lo de hoy" },
+      { id: "daily", label: "Daily", hint: "El resumen de ayer y el de hoy" },
     ],
   ],
   [
@@ -70,7 +70,7 @@ const GROUPS = [
 const VIEWS = {
   learning: ["Aprendizaje", "Si el contexto que van guardando las sesiones hace que vuelvan menos tareas de revisión."],
   home: ["Inicio", "Lo que te necesita y cómo van las sesiones."],
-  daily: ["Daily", "El resumen del último día laborable para copiar en Slack y lo que llevas hoy. Lo de hoy se va rellenando solo; redactarlo lo hace Claude cuando lo pides."],
+  daily: ["Daily", "El resumen del último día laborable y el de hoy, agrupado por área: qué se hizo, dónde y cómo. Se redacta solo a la hora de la daily."],
   pending: ["Pendientes", "Tareas nuevas o devueltas que puedes pasar a la sesión de su epic. Nada se envía hasta que pulsas Hacer."],
   approved: ["Por enviar", "Aprobadas con Hacer, mientras el tablero las escribe en su sesión. Si no puede, lo dice aquí."],
   sent: ["En curso", "Lo que ya está en su sesión, con lo que ha contestado."],

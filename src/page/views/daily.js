@@ -1,7 +1,5 @@
-import { state, h, when, button, post, toast } from "../lib/base.js";
+import { state, h, when, button, toast } from "../lib/base.js";
 import { currentProject } from "../components/project-filter.js";
-
-let asked = {};
 
 function dailyLines(text) {
   const raw = String(text).split("\n");
@@ -34,7 +32,12 @@ function dailyLines(text) {
 
 const toHtml = (list, esc) => `<ul>${list.map((i) => `<li>${esc(i.text)}${i.children.length ? toHtml(i.children, esc) : ""}</li>`).join("")}</ul>`;
 const toPlain = (list, depth) => list.flatMap((i) => [`${"    ".repeat(depth)}${depth ? "◦" : "•"} ${i.text}`, ...toPlain(i.children, depth + 1)]);
-const toNodes = (list) => h("ul", {}, list.map((i) => h("li", {}, [i.text, i.children.length ? toNodes(i.children) : null])));
+const LABEL = /^(Qué|Dónde|Cómo|Estado):\s*/;
+const labelled = (t) => {
+  const m = LABEL.exec(t);
+  return m ? [h("strong", { text: `${m[1]}: ` }), t.slice(m[0].length)] : [t];
+};
+const toNodes = (list) => h("ul", {}, list.map((i) => h("li", {}, [...(i.children.length ? [h("strong", { text: i.text })] : labelled(i.text)), i.children.length ? toNodes(i.children) : null])));
 
 function dailyBody(text) {
   const { title, items } = dailyLines(text);
@@ -62,37 +65,18 @@ function currentDaily() {
 const fmt = (day) => (day ? new Date(`${day}T12:00:00`).toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" }) : "");
 
 function dayCard({ title, day, entry, today }) {
-  const d = currentDaily();
-  const busy = asked[day] && (!entry || entry.at < asked[day]);
-  const ask = () => {
-    asked[day] = new Date().toISOString();
-    post("/api/daily", { today, project: d.project }, today ? "Redactando el de hoy…" : "Rehaciendo el resumen…");
-  };
-  const actions = [];
-  if (entry && entry.text) actions.push(button("Copiar", { onClick: () => copyDaily(entry.text) }));
-  const label = busy || (d.busy && asked[day]) ? "Redactando…" : today ? (entry && entry.text ? "Redactar de nuevo" : "Redactarlo") : "Rehacer";
-  actions.push(button(label, { cls: entry && entry.text ? "subtle" : today ? "primary" : "subtle", disabled: !!busy, title: "Lo escribe Claude: gasta un poco de cuota", onClick: ask }));
+  const actions = entry && entry.text ? [button("Copiar", { onClick: () => copyDaily(entry.text) })] : [];
   const kids = [h("div", { class: "daily-head" }, [h("div", {}, [h("h3", { text: title }), h("span", { class: "meta", text: fmt(day) })]), h("div", { class: "actions" }, actions)])];
   if (entry && entry.text) {
     kids.push(dailyBody(entry.text));
     kids.push(h("p", { class: "meta daily-at", text: `Redactado a las ${when(entry.at)}` }));
-  } else if (entry && entry.empty) kids.push(h("p", { class: "daily-text", text: "Ese día no hay movimiento en Jira, commits ni despliegues tuyos." }));
-  else kids.push(h("p", { class: "daily-text meta", text: today ? `Se redacta solo a las ${draftAt()}. Lo que hagas después, pulsa «Redactar de nuevo».` : `Se redacta solo a las ${draftAt()} de ese día; si no se pudo, a la mañana siguiente.` }));
-  if (today) kids.push(factsBlock(d.facts, !!(entry && entry.text)));
+  } else if (entry && entry.empty) kids.push(h("p", { class: "daily-text", text: "Ese día no hay tareas mandadas, commits ni errores arreglados." }));
+  else kids.push(h("p", { class: "daily-text meta", text: today ? `Se redacta solo a las ${draftAt()}.` : `Se redacta solo a las ${draftAt()} de ese día; si no se pudo, a la mañana siguiente.` }));
   return h("section", { class: `card daily-day${today ? " today" : ""}` }, kids);
 }
 
 function draftAt() {
-  const end = (state.workSchedule || {}).end || "18:30";
-  const m = Number(end.slice(0, 2)) * 60 + Number(end.slice(3)) - 90;
-  return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
-}
-
-function factsBlock(f, hasText) {
-  const groups = f ? [["Tareas mandadas", f.tasks], ["Commits", f.commits], ["Errores mandados a arreglar", f.errors]].filter(([, l]) => l.length) : [];
-  const head = h("div", { class: "facts-head" }, [h("strong", { text: "Lo que llevas hoy" }), h("span", { class: "meta", text: f ? `se actualiza solo, sin gastar cuota · ${when(f.at)}` : "" })]);
-  if (!groups.length) return h("div", { class: "facts" }, [head, h("p", { class: "meta", text: "Todavía nada: ni tareas mandadas, ni commits, ni errores." })]);
-  return h("div", { class: "facts" }, [head, ...groups.map(([t, l]) => h("div", { class: "facts-group" }, [h("span", { class: "facts-title", text: `${t} (${l.length})` }), h("ul", {}, l.map((x) => h("li", { text: x })))]))]);
+  return (state.workSchedule || {}).daily || "17:00";
 }
 
 export function renderDaily(root) {

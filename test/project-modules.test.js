@@ -31,8 +31,8 @@ test("a project's daily only counts its own tasks and is stored apart", async ()
     d.tasks["SIDE-1"] = { key: "SIDE-1", title: "Libro de gastos", project: "side", source: "manual", status: "sent", sentAt: at };
     d.tasks["WEB-1"] = { key: "WEB-1", title: "Web", status: "sent", sentAt: at };
   });
-  const facts = daily.dailyState("side").facts;
-  assert.equal(facts.errors.length, 0);
+  assert.deepEqual(daily.tasksOf(day, config.project("side")), ["Nueva: Libro de gastos"]);
+  assert.deepEqual(daily.errorsOf(day, config.project("side")), []);
   mutate((d) => (d.tasks["SIDE-1"].sentAt = "2000-01-01T10:00:00.000Z"));
   await daily.dailyFor(day, false, "side");
   assert.equal(load().projectDailies.side[day].empty, true);

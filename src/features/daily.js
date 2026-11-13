@@ -35,13 +35,22 @@ function repos(p) {
 
 function commitsOf(day, p = config.mainProject) {
   const out = [];
+  const seen = new Set();
   for (const [name, dir] of repos(p)) {
     const email = git(dir, ["config", "user.email"]);
     if (!email) continue;
-    const log = git(dir, ["log", "--all", "--no-merges", `--author=${email}`, `--since=${day} 00:00`, "--date=short", "--format=%ad|%s"]);
-    for (const line of log.split("\n").filter((l) => l.startsWith(`${day}|`))) out.push(`${name}: ${line.slice(day.length + 1)}`);
+    const log = git(dir, ["log", "--all", "--no-merges", `--author=${email}`, `--since=${day} 00:00`, "--date=short", "--name-only", "--format=@@%ad|%s"]);
+    for (const chunk of log.split("@@").filter(Boolean)) {
+      const [head, ...files] = chunk.split("\n").map((l) => l.trim()).filter(Boolean);
+      if (!head.startsWith(`${day}|`)) continue;
+      const subject = head.slice(day.length + 1);
+      if (seen.has(name + subject)) continue;
+      seen.add(name + subject);
+      const dirs = [...new Set(files.filter((f) => !/(^|\/)(lang|locales|i18n)\/|\.lock$|lock\.json$/.test(f)).map((f) => f.split("/").slice(0, 3).join("/")))].slice(0, 8);
+      out.push(`${name}: ${subject}${dirs.length ? ` [toca: ${dirs.join(", ")}]` : ""}`);
+    }
   }
-  return [...new Set(out)];
+  return out;
 }
 
 function errorsOf(day, p = config.mainProject) {
@@ -81,30 +90,39 @@ function tasksOf(day, p = config.mainProject) {
     }
   } catch (e) {}
   for (const t of Object.values(d.tasks || {})) if (on(t.sentAt) && projects.projectOf(t) === p.id) seen.set(t.key, t);
-  return [...seen.values()].map((t) => `${t.kind === "returned" ? "Devuelta por el revisor" : "Nueva"}: ${t.title}${t.epicName ? ` (${t.epicName})` : ""}`);
+  const areas = (require("../sessions/registry").loadRoutes().areas) || {};
+  const areaName = (id) => (areas[id] && areas[id].title) || id;
+  return [...seen.values()].map((t) => `${t.kind === "returned" ? "Devuelta por el revisor" : "Nueva"}: ${t.title}${t.epicName ? ` (épica: ${t.epicName})` : ""}${t.area ? ` [sesión: ${areaName(t.area)}]` : ""}${t.status === "partial" ? " [a medias]" : ""}`);
 }
 
 
-function dailyStyle() {
-  if (!config.dailyStyle) return "";
-  try {
-    return fs.readFileSync(config.dailyStyle, "utf8").trim();
-  } catch (e) {
-    return "";
-  }
-}
-
-function genericPrompt(p, day, tasks, commits, errors = []) {
+function dailyPrompt(p, day, tasks, commits, errors) {
+  const date = new Date(`${day}T12:00:00`).toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" });
   return [
-    `Escribe el mensaje que Alberto se manda a sí mismo para la daily del proyecto «${p.name}», sobre lo que hizo el ${day}. Devuelve solo el mensaje.`,
-    "Empieza por «Cosas a comentar en la daily:». Frases llanas y coloquiales de España, en primera persona, sin guiones al principio, sin claves de tareas, sin nombres de ficheros, sin emojis ni negritas. Agrupa lo que sea lo mismo y cuenta lo que ahora hace el proyecto, no cómo está hecho por dentro. La longitud depende de lo que haya. No inventes nada que no salga de los datos.",
+    `Redacta el resumen de la daily del proyecto «${p.name}» con lo que se hizo el ${date}. Devuelve solo el resumen, en texto plano: sin markdown, sin #, sin asteriscos, sin guiones ni viñetas.`,
+    "El objetivo es que se entienda de un vistazo qué se hizo, dónde y cómo, sin mezclar áreas.",
     "",
-    "Tareas que mandó hacer ese día desde el tablero:",
+    "Formato exacto:",
+    `Primera línea: «Resumen del ${date}». Después una línea en blanco.`,
+    "Luego un bloque por área del producto (por ejemplo «Login y verificación del teléfono», «Wallet de entradas», «Pagos de reservas»), separados por una línea en blanco. Cada bloque es:",
+    "<Nombre del área>:",
+    "Qué: lo que cambia para quien usa el producto, en una o dos frases; si son varias cosas, sepáralas con punto y coma.",
+    "Dónde: las aplicaciones (Web, Backoffice, Back, Donatella, App) y la pantalla o el flujo cuando se sepa.",
+    "Cómo: en una frase, la solución técnica a grandes rasgos, sin nombres de ficheros ni de funciones. Si los datos no lo dicen, omite esta línea.",
+    "Estado: solo si quedó a medias o la devolvió el revisor.",
+    "Lo de front y back que sea la misma funcionalidad va en el mismo bloque, y un área nunca aparece en dos bloques. Ordena los bloques de más a menos trabajo.",
+    "Al final, si los hay, un bloque «Errores arreglados:» con una línea por error que diga qué le pasaba al usuario y dónde, y un bloque «Otras tareas:» con una línea por cada tarea mandada que no encaje en ningún bloque (investigaciones, configuración, revisiones).",
+    "",
+    "Estilo: español de España, neutro e impersonal, frases cortas y claras, sin claves de Jira, sin nombres de ficheros ni emojis. Los cambios de textos son «copies». No inventes nada que no salga de los datos.",
+    "",
+    "Tareas mandadas ese día desde el tablero (la sesión indica el área en la que se trabajó):",
     ...(tasks.length ? tasks : ["(ninguna)"]),
     "",
-    "Sus commits de ese día (en inglés y técnicos; cuéntalos como lo contaría él):",
+    "Commits de ese día por repositorio (en inglés y técnicos; entre corchetes, las carpetas que tocan, para saber dónde):",
     ...(commits.length ? commits : ["(ninguno)"]),
-    ...(errors.length ? ["", "Errores de Sentry o del seguimiento que mandó arreglar ese día:", ...errors] : []),
+    "",
+    "Errores de Sentry o del seguimiento que se mandaron arreglar ese día:",
+    ...(errors.length ? errors : ["(ninguno)"]),
   ].join("\n");
 }
 
@@ -116,20 +134,7 @@ async function makeDaily(day, p = config.mainProject) {
     saveDaily(day, { day, text: "", empty: true, at: now() }, p);
     return;
   }
-  const style = !isMain(p) ? "" : dailyStyle();
-  const prompt = !style ? genericPrompt(p, day, tasks, commits, errors) : [
-    `Escribe el mensaje que Alberto se manda a sí mismo en Slack para la daily, sobre lo que hizo el ${day}. Devuelve solo el mensaje.`,
-    style,
-    "",
-    "Tareas que mandó hacer ese día desde el tablero:",
-    ...(tasks.length ? tasks : ["(ninguna)"]),
-    "",
-    "Sus commits de ese día por proyecto (en inglés y técnicos; cuéntalos como lo contaría él):",
-    ...(commits.length ? commits : ["(ninguno)"]),
-    "",
-    "Errores de Sentry o del seguimiento que mandó arreglar ese día:",
-    ...(errors.length ? errors : ["(ninguno)"]),
-  ].join("\n");
+  const prompt = dailyPrompt(p, day, tasks, commits, errors);
   const text = await write(prompt);
   if (text) saveDaily(day, { day, text, at: now() }, p);
 }
@@ -156,22 +161,6 @@ function saveDaily(day, entry, p = config.mainProject) {
 }
 
 const today = () => dayOf(new Date());
-const factsCache = new Map();
-
-function todayFacts(p) {
-  const day = today();
-  const c = factsCache.get(p.id);
-  if (c && c.day === day && Date.now() - c.t < 5 * 60000) return c.facts;
-  let facts;
-  try {
-    facts = { day, tasks: tasksOf(day, p), commits: commitsOf(day, p), errors: errorsOf(day, p), at: now() };
-  } catch (e) {
-    facts = { day, tasks: [], commits: [], errors: [], at: now() };
-  }
-  factsCache.set(p.id, { day, t: Date.now(), facts });
-  return facts;
-}
-
 function entriesOf(d, p) {
   if (!isMain(p)) return { ...((d.projectDailies || {})[p.id] || {}) };
   const all = { ...(d.dailies || {}) };
@@ -183,7 +172,7 @@ function dailyState(projectId) {
   const p = projectFor(projectId);
   const all = entriesOf(load(), p);
   const prev = lastWorkday();
-  return { project: p.id, prevDay: prev, prev: all[prev] || null, today: today(), todayText: all[today()] || null, facts: todayFacts(p), busy: running.has(p.id) };
+  return { project: p.id, prevDay: prev, prev: all[prev] || null, today: today(), todayText: all[today()] || null, busy: running.has(p.id) };
 }
 
 function dailyStates() {
@@ -220,4 +209,4 @@ async function dailyIfMissing() {
   }
 }
 
-module.exports = { dailyFor, dailyIfMissing, lastWorkday, dailyState, dailyStates };
+module.exports = { dailyFor, dailyIfMissing, lastWorkday, dailyState, dailyStates, tasksOf, errorsOf };

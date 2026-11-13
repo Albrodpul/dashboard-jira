@@ -107,11 +107,6 @@ const POST_ROUTES = {
     }
     send(res, 200, { sent: n });
   },
-  "/api/daily": (res, { today, project }, send) => {
-    const daily = require("../../features/daily");
-    daily.dailyFor(today ? new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" }) : daily.lastWorkday(), false, project ? String(project) : undefined).catch(() => {});
-    send(res, 200, { ok: true });
-  },
   "/api/cluster/yield": (res, input, send) => {
     cluster
       .handleYield(input)
