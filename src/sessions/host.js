@@ -318,7 +318,7 @@ function postBoard(route, body) {
 }
 
 function checkPrompt(s) {
-  const text = plain(s.buffer.slice(-6000));
+  const text = readable(s.buffer.slice(-6000));
   const m = PROMPT.exec(text.slice(-2500));
   const asking = m && /1\.\s*Yes/i.test(text.slice(-2500));
   if (asking) {
