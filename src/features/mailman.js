@@ -346,6 +346,10 @@ function targetOf(s, job) {
     const a = mine.find((x) => x.open) || mine[0];
     return a ? { name: a.name || a.id, conversation: a.conversation, sessionName: a.sessionName, open: a.open, ref: a.ref, repeatedName: a.repeatedName } : null;
   }
+  if (job.role === "board") {
+    const b = s.boardStatus;
+    return b ? { name: b.title || "Tablero", conversation: b.conversation, sessionName: b.session, open: b.open, ref: null, repeatedName: false } : null;
+  }
   if (job.role === "orchestrator") {
     const o = s.orchestrator;
     return o ? { name: o.title || "Orquestadora", conversation: o.conversation, sessionName: o.session, open: o.open, ref: o.ref, repeatedName: false } : null;
