@@ -378,17 +378,53 @@ function createConversation(name, cwd = ROOT) {
     const env = cleanEnv();
     env.CLAUDE_CODE_ENTRYPOINT = "claude-vscode";
     const [exe, args] = agent().command(agent().createArgs({ id, name, model: config.sessionModel, prompt: `Sesión «${name}» creada desde el tablero de Jira. Responde solo «ok».` }), agent().editorBinary());
-    const child = cp.execFile(exe, args, { cwd, env, timeout: 90000, windowsHide: true }, (err) => resolve(!err && transcriptOf(id) ? id : null));
-    if (child.stdin) child.stdin.end();
+    runBounded(exe, args, { cwd, env }, 90000).then((r) => resolve(r.ok && transcriptOf(id) ? id : null));
   });
 }
 
 function wakeSession(name, notice) {
+  const prompt = `Usa la herramienta SendMessage (cárgala con ToolSearch si hace falta) con to «${name}» y message exactamente «${notice || STARTUP_NOTICE}». No hagas nada más y responde solo ok.`;
+  const [exe, args] = agent().command(agent().wakeArgs(prompt), agent().editorBinary());
+  return runBounded(exe, args, { cwd: ROOT, env: cleanEnv() }, 120000).then((r) => r.ok && /ok/i.test(r.out));
+}
+
+function runBounded(exe, args, opts, ms) {
   return new Promise((resolve) => {
-    const prompt = `Usa la herramienta SendMessage (cárgala con ToolSearch si hace falta) con to «${name}» y message exactamente «${notice || STARTUP_NOTICE}». No hagas nada más y responde solo ok.`;
-    const [exe, args] = agent().command(agent().wakeArgs(prompt), agent().editorBinary());
-    const child = cp.execFile(exe, args, { cwd: ROOT, env: cleanEnv(), timeout: 120000, windowsHide: true }, (err, out) => resolve(!err && /ok/i.test(String(out))));
-    if (child.stdin) child.stdin.end();
+    const posix = process.platform !== "win32";
+    let out = "";
+    let settled = false;
+    let child = null;
+    let timer = null;
+    const finish = (ok) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve({ ok, out });
+    };
+    const kill = () => {
+      if (!child || !child.pid) return;
+      try {
+        if (posix) process.kill(-child.pid, "SIGKILL");
+        else cp.execFile("taskkill", ["/pid", String(child.pid), "/t", "/f"], { windowsHide: true }, () => {});
+      } catch (e) {
+        try {
+          child.kill("SIGKILL");
+        } catch (e2) {}
+      }
+    };
+    try {
+      child = cp.spawn(exe, args, { ...opts, detached: posix, windowsHide: true, stdio: ["ignore", "pipe", "ignore"] });
+    } catch (e) {
+      return finish(false);
+    }
+    timer = setTimeout(() => {
+      kill();
+      finish(false);
+    }, ms);
+    child.stdout.on("data", (b) => (out += b));
+    child.stdout.on("error", () => {});
+    child.on("error", () => finish(false));
+    child.on("exit", (code) => setTimeout(() => finish(code === 0), 300));
   });
 }
 
@@ -413,4 +449,5 @@ module.exports = {
   openInVsCode,
   createConversation,
   wakeSession,
+  runBounded,
 };
