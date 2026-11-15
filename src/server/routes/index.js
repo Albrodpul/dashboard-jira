@@ -133,7 +133,7 @@ const POST_ROUTES = {
     const { wakeSession, STARTUP_NOTICE } = require("../../sessions/registry");
     if (is("orchestrator") && s.orchestrator) return mailman.notifyRole("orchestrator", require("../state").ORCHESTRATOR_NOTICE);
     if (is("reporter") && s.reporterStatus) return wakeSession(s.reporterStatus.session, STARTUP_NOTICE).catch(() => {});
-    if (is("board") && s.boardStatus) return wakeSession(s.boardStatus.session, "Aviso del tablero: arranca la sesión del tablero. Eres la sesión del tablero registrada: ejecuta ahora .claude/commands/tablero.md (regla de AGENTS.md).").catch(() => {});
+    if (is("board") && s.boardStatus) return require("../startup").noticeBoard(s.boardStatus.session, true).catch(() => {});
     if (is("followUp")) return require("../startup").wakeFollowUp().catch(() => {});
   },
   "/api/session-profile": (res, { conversation, name, model, effort }, send) => {

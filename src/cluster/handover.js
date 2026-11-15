@@ -70,7 +70,7 @@ async function promote(reason, manual) {
   require("../features/tunnel").guard();
   await startRoles();
   const board = require("../sessions/registry").loadRoutes().board;
-  if (board && board.session) require("../sessions/registry").wakeSession(board.session, "Aviso del tablero: arranca la sesión del tablero. Eres la sesión del tablero registrada: ejecuta ahora .claude/commands/tablero.md (regla de AGENTS.md).").catch(() => {});
+  if (board && board.session) require("../server/startup").noticeBoard(board.session, false).catch(() => {});
   const overtime = !!require("../core/hours").overtime();
   require("../server/startup").launchStartup(false, overtime);
   if (overtime) require("../features/devservers").startAll(true).catch(() => {});

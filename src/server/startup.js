@@ -64,6 +64,25 @@ async function noticeFollowUp(e) {
   return ok;
 }
 
+const BOARD_NOTICE = "Aviso del tablero: arranca la sesión del tablero. Eres la sesión del tablero registrada: ejecuta ahora .claude/commands/tablero.md (regla de AGENTS.md).";
+
+const localDay = (iso) => new Date(iso).toLocaleDateString("sv-SE");
+
+async function noticeBoard(session, respawn, wake = wakeSession) {
+  if (!session) return null;
+  const claimed = require("../core/data").mutate((d) => {
+    const last = d.boardNoticeAt;
+    if (last && Date.now() - new Date(last).getTime() < NOTICE_GAP_MS) return false;
+    if (respawn && last && localDay(last) === localDay(Date.now())) return false;
+    d.boardNoticeAt = new Date().toISOString();
+    return true;
+  });
+  if (!claimed) return null;
+  const ok = await wake(session, BOARD_NOTICE);
+  if (!ok) require("../core/data").mutate((d) => (d.boardNoticeAt = null));
+  return ok;
+}
+
 async function startReporter(force) {
   if (!(await new Promise((r) => ping(r)))) cp.spawn(process.execPath, [ENTRY, "serve"], { detached: true, stdio: "ignore", windowsHide: true }).unref();
   try {
@@ -154,4 +173,4 @@ async function setOvertime(on) {
   return value;
 }
 
-module.exports = { launchStartup, wakeFollowUp, setOvertime, noticeFollowUp };
+module.exports = { launchStartup, wakeFollowUp, setOvertime, noticeFollowUp, noticeBoard };
