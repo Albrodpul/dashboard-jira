@@ -150,7 +150,7 @@ function state() {
     stuckDialogs: require("../features/stuck").list(),
     watchdog: require("../features/watchdog").forPage(d),
     convProfiles: Object.fromEntries(require("../sessions/host").readConfig().map((e) => [e.conversation, require("../sessions/profiles").profileFor(e.conversation, d.sessionOverrides || {})])),
-    sentry: { enabled: sentry.sentryAvailable(), errorsArea: ERRORS_AREA, sends: sentry.sentryIssues(d) },
+    sentry: { enabled: sentry.sentryAvailable(), errorsArea: ERRORS_AREA, errorsAreas: sentry.errorsAreas(), sends: sentry.sentryIssues(d) },
     people: people(d),
     followUpStatus: followUpStatus(d, r),
     epics: Object.values(epics),

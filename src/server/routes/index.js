@@ -47,6 +47,12 @@ const POST_ROUTES = {
     const r = require("../../features/projects-admin").setCredentials(String(id || ""), values || {});
     send(res, r.error ? 400 : 200, r);
   },
+  "/api/projects-admin/connect-jira": (res, { id, sample, reviewer }, send) => {
+    require("../../features/projects-admin")
+      .connectJira(String(id || ""), { sample, reviewer })
+      .then((r) => send(res, r.error ? 400 : 200, r))
+      .catch((e) => send(res, 500, { error: String(e.message || e) }));
+  },
   "/api/batch": (res, input, send) => tasks.handleBatch(res, input, send),
   "/api/delete": (res, input, send) => tasks.handleDelete(res, input, send),
   "/api/answer": (res, input, send) => tasks.handleAnswer(res, input, send),
@@ -243,9 +249,9 @@ const POST_ROUTES = {
       .then((t) => send(res, 200, t))
       .catch((e) => send(res, 500, { error: String(e.message || e) }));
   },
-  "/api/sentry/status": (res, { issueId, id, status }, send) => {
+  "/api/sentry/status": (res, { issueId, id, status, owner }, send) => {
     sentry
-      .setStatus(issueId, String(id || ""), status)
+      .setStatus(issueId, String(id || ""), status, owner ? String(owner) : null)
       .then(() => send(res, 200))
       .catch((e) => send(res, 502, { error: String(e.message || e) }));
   },

@@ -7,7 +7,7 @@ const config = require("../core/config");
 const NO_REVIEWER = { id: null, name: "", mentions: [] };
 
 function usable(p) {
-  if (!p || !p.jira) return false;
+  if (!p || !p.jira || !(p.jira.me && p.jira.me.id)) return false;
   try {
     p.credentials();
     return true;

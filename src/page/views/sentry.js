@@ -1,4 +1,5 @@
 import { state, h, button, when, toast, requestOrFail, render, refresh, empty, areaSelect, areaName } from "../lib/base.js";
+import { currentProject } from "../components/project-filter.js";
 
 const labelOf = (p) => (data && data.labels && data.labels[p]) || {};
 const projectName = (p) => labelOf(p).name || p;
@@ -66,7 +67,7 @@ function closeIssue(issue, status, b) {
 
 ${status === "resolved" ? "Si vuelve a pasar, Sentry lo reabre solo." : "Sentry deja de avisar de él."}`)) return;
   b.disabled = true;
-  requestOrFail("/api/sentry/status", { issueId: issue.issueId, id: issue.id, status })
+  requestOrFail("/api/sentry/status", { issueId: issue.issueId, id: issue.id, status, owner: issue.owner })
     .then(() => {
       data.issues = data.issues.filter((x) => x.id !== issue.id);
       toast(`${issue.id} marcado como ${STATUS_LABEL[status]} en Sentry.`);
@@ -79,6 +80,8 @@ ${status === "resolved" ? "Si vuelve a pasar, Sentry lo reabre solo." : "Sentry 
 }
 
 const open = new Set();
+const defaultArea = (issue) => (state.sentry && ((state.sentry.errorsAreas || {})[issue.owner] || state.sentry.errorsArea)) || "";
+const manyOwners = () => Object.keys((data && data.owners) || {}).length > 1;
 
 function splitTitle(title) {
   const t = String(title || "");
@@ -109,7 +112,7 @@ function issueRow(issue) {
   };
   const head = h("button", { type: "button", class: "issue-head", "aria-expanded": String(isOpen), onclick: toggle }, [
     h("span", { class: `issue-project ${labelOf(issue.project).tone || ""}`, title: projectName(issue.project), text: labelOf(issue.project).short || projectName(issue.project) }),
-    h("span", { class: "issue-text" }, [kind ? h("b", { text: kind }) : null, h("span", { class: "issue-msg", text: message, title: issue.title })]),
+    h("span", { class: "issue-text" }, [manyOwners() && !currentProject() && issue.owner ? h("span", { class: "meta", text: `${data.owners[issue.owner] || issue.owner} · ` }) : null, kind ? h("b", { text: kind }) : null, h("span", { class: "issue-msg", text: message, title: issue.title })]),
     sendTag(s, seenAgain),
     h("span", { class: "issue-count", title: `${issue.users} ${issue.users === 1 ? "usuario" : "usuarios"}`, text: `${issue.count}×` }),
     h("span", { class: "issue-when", text: when(issue.lastSeen) }),
@@ -123,7 +126,7 @@ function issueRow(issue) {
     if (status) body.push(status);
     const actions = [];
     if (!pendingSend) {
-      const current = chosen[issue.id] || (s && s.area) || (state.sentry && state.sentry.errorsArea) || "";
+      const current = chosen[issue.id] || (s && s.area) || defaultArea(issue);
       const sel = areaSelect(`sentry-${issue.id}`, current, "Elige sesión…", (v) => (chosen[issue.id] = v));
       sel.setAttribute("aria-label", `Sesión a la que mandar ${issue.id}`);
       actions.push(sel, button(s ? "Volver a enviar" : "Enviar", { cls: "primary", onClick: (b) => sendIssue(issue, chosen[issue.id] || current, b) }));
@@ -164,11 +167,12 @@ function filters(root, issues) {
 }
 
 export function renderSentry(root) {
-  if (state.sentry && !state.sentry.enabled) return root.appendChild(empty("Sentry no está configurado.", "Falta «sentry» (org y proyectos) en board.config.json, o el token: SENTRY_TOKEN en .env o el servidor de Sentry en .mcp.json."));
+  if (state.sentry && !state.sentry.enabled) return root.appendChild(empty("Sentry no está configurado.", "Actívalo en Ajustes → Proyectos → Editar (organización y proyectos) y pon su token en las credenciales del proyecto. El principal lo lleva en board.config.json y su token en .env o en .mcp.json."));
   if (!data || Date.now() - loadedAt > STALE_MS) load(false);
   if (!data) return root.appendChild(empty("Leyendo Sentry…", "Errores sin resolver de los últimos 14 días."));
   for (const e of data.errors || []) root.appendChild(h("div", { class: "setup-note warn", text: e }));
-  const issues = data.issues || [];
+  const scope = currentProject();
+  const issues = (data.issues || []).filter((i) => !scope || !i.owner || i.owner === scope);
   const bar = h("div", { class: "issues-bar" });
   filters(bar, issues);
   bar.appendChild(h("div", { class: "issues-read" }, [h("span", { class: "meta", text: loading ? "Actualizando…" : `Leído a las ${when(data.at)}` }), button("Actualizar", { cls: "subtle", disabled: loading, onClick: () => load(true) })]));

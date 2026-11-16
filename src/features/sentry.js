@@ -7,10 +7,9 @@ const API = "https://sentry.io/api/0";
 const CACHE_MS = 60 * 1000;
 let cache = null;
 
-function token() {
-  if (config.secret("SENTRY_TOKEN")) return config.secret("SENTRY_TOKEN");
+function mcpToken(root) {
   try {
-    const mcp = JSON.parse(fs.readFileSync(path.join(config.root, ".mcp.json"), "utf8"));
+    const mcp = JSON.parse(fs.readFileSync(path.join(root, ".mcp.json"), "utf8"));
     const server = Object.values(mcp.mcpServers || {}).find((s) => (s.args || []).some((a) => String(a).includes("sentry")));
     const args = (server && server.args) || [];
     const i = args.findIndex((a) => String(a).startsWith("--access-token"));
@@ -21,18 +20,30 @@ function token() {
   }
 }
 
-const sentryAvailable = () => !!(config.sentry && config.sentry.org && (config.sentry.projects || []).length && token());
+function tokenOf(p) {
+  let t = null;
+  try {
+    t = p.secret("SENTRY_TOKEN");
+  } catch (e) {}
+  return t || (p === config.mainProject && p.root ? mcpToken(p.root) : null);
+}
 
-async function projectIssues(slug, auth) {
-  const q = new URLSearchParams({ query: config.sentry.query || "is:unresolved level:error", statsPeriod: config.sentry.period || "14d", sort: "date", limit: "25" });
-  const r = await fetch(`${API}/projects/${config.sentry.org}/${slug}/issues/?${q}`, { headers: { authorization: `Bearer ${auth}` } });
-  if (!r.ok) throw new Error(`Sentry respondió ${r.status} para ${slug}`);
+const sources = () => config.projects.filter((p) => p.sentry && p.sentry.org && (p.sentry.projects || []).length && tokenOf(p));
+const sentryAvailable = () => sources().length > 0;
+const ownerOf = (id) => config.project(id) || config.mainProject;
+const errorsAreas = () => Object.fromEntries(config.projects.filter((p) => p.errorsArea).map((p) => [p.id, p.errorsArea]));
+
+async function projectIssues(p, slug, auth) {
+  const q = new URLSearchParams({ query: p.sentry.query || "is:unresolved level:error", statsPeriod: p.sentry.period || "14d", sort: "date", limit: "25" });
+  const r = await fetch(`${API}/projects/${p.sentry.org}/${slug}/issues/?${q}`, { headers: { authorization: `Bearer ${auth}` } });
+  if (!r.ok) throw new Error(`Sentry respondió ${r.status} para ${slug}${config.projects.length > 1 ? ` (${p.name})` : ""}`);
   return (await r.json()).map((x) => ({
     id: x.shortId,
     issueId: x.id,
     title: x.title,
     culprit: x.culprit || "",
     project: slug,
+    owner: p.id,
     level: x.level,
     count: Number(x.count) || 0,
     users: x.userCount || 0,
@@ -43,23 +54,27 @@ async function projectIssues(slug, auth) {
 }
 
 async function listIssues(force) {
-  if (!sentryAvailable()) return { available: false, issues: [] };
+  const from = sources();
+  if (!from.length) return { available: false, issues: [] };
   if (!force && cache && Date.now() - cache.at < CACHE_MS) return cache.value;
-  const auth = token();
-  const results = await Promise.allSettled(config.sentry.projects.map((p) => projectIssues(p, auth)));
+  const jobs = from.flatMap((p) => p.sentry.projects.map((slug) => ({ p, slug, auth: tokenOf(p) })));
+  const results = await Promise.allSettled(jobs.map((j) => projectIssues(j.p, j.slug, j.auth)));
   const issues = results.flatMap((r) => (r.status === "fulfilled" ? r.value : []));
   const errors = results.filter((r) => r.status === "rejected").map((r) => String(r.reason.message || r.reason));
   issues.sort((a, b) => new Date(b.lastSeen) - new Date(a.lastSeen));
-  const value = { available: true, projects: config.sentry.projects, labels: config.sentry.labels || {}, issues, errors, at: now() };
+  const labels = Object.assign({}, ...from.map((p) => p.sentry.labels || {}));
+  const value = { available: true, projects: [...new Set(jobs.map((j) => j.slug))], labels, owners: Object.fromEntries(from.map((p) => [p.id, p.name])), issues, errors, at: now() };
   cache = { at: Date.now(), value };
   return value;
 }
 
 const STATUSES = ["resolved", "ignored"];
 
-async function setStatus(issueId, id, status) {
+async function setStatus(issueId, id, status, owner) {
   if (!STATUSES.includes(status) || !/^\d+$/.test(String(issueId))) throw new Error("estado o error no válido");
-  const r = await fetch(`${API}/organizations/${config.sentry.org}/issues/${issueId}/`, { method: "PUT", headers: { authorization: `Bearer ${token()}`, "content-type": "application/json" }, body: JSON.stringify({ status }) });
+  const p = ownerOf(owner);
+  if (!p.sentry || !p.sentry.org) throw new Error(`${p.name} no tiene Sentry`);
+  const r = await fetch(`${API}/organizations/${p.sentry.org}/issues/${issueId}/`, { method: "PUT", headers: { authorization: `Bearer ${tokenOf(p)}`, "content-type": "application/json" }, body: JSON.stringify({ status }) });
   if (!r.ok) throw new Error(`Sentry respondió ${r.status}`);
   if (cache) cache.value.issues = cache.value.issues.filter((x) => String(x.issueId) !== String(issueId));
   mutate((d) => {
@@ -79,7 +94,7 @@ function sendIssues(list, area) {
     for (const x of list) {
       const prev = d.sentry[x.id];
       if (prev && prev.state === "approved") continue;
-      d.sentry[x.id] = { id: x.id, title: String(x.title || "").slice(0, 300), culprit: String(x.culprit || "").slice(0, 300), project: x.project, url: x.url, count: x.count, users: x.users, lastSeen: x.lastSeen, area, state: "approved", approvedVia: "board", at: now(), rounds: ((prev && prev.rounds) || 0) + 1 };
+      d.sentry[x.id] = { id: x.id, title: String(x.title || "").slice(0, 300), culprit: String(x.culprit || "").slice(0, 300), project: x.project, ...(x.owner ? { owner: String(x.owner) } : {}), url: x.url, count: x.count, users: x.users, lastSeen: x.lastSeen, area, state: "approved", approvedVia: "board", at: now(), rounds: ((prev && prev.rounds) || 0) + 1 };
       n++;
     }
     const limit = Date.now() - 30 * 24 * 3600 * 1000;
@@ -129,4 +144,4 @@ function discard(id) {
   });
 }
 
-module.exports = { sentryAvailable, listIssues, sentryIssues, sendIssues, markSent, saveResult, discard, setStatus };
+module.exports = { errorsAreas, sources, sentryAvailable, listIssues, sentryIssues, sendIssues, markSent, saveResult, discard, setStatus };

@@ -1,4 +1,4 @@
-import { state, h, button, toast, requestOrFail, render, refresh, empty } from "../lib/base.js";
+import { state, h, button, toast, requestOrFail, render, refresh, empty, areaSelectFrom } from "../lib/base.js";
 
 const base = () => (state.jiraSetup && state.jiraSetup.workspaceBase) || "";
 function relative(root) {
@@ -76,7 +76,13 @@ function form(draft) {
     onClick: async (b) => {
       b.disabled = true;
       try {
-        const body = { name: draft.name, taskPrefix: draft.taskPrefix, ...(draft.fromFile ? {} : { root: draft.root || "", devServers: draft.devServers || [] }), daily: !!draft.daily, contextTidy: !!draft.contextTidy, messages: { review: draft.review, cause: draft.cause, reference: draft.reference } };
+        const integrations = draft.fromFile
+          ? {}
+          : {
+              jira: draft.jiraOn ? { projects: draft.jiraProjects || "" } : null,
+              sentry: draft.sentryOn ? { org: draft.sentryOrg || "", projects: draft.sentryProjects || "", errorsArea: draft.errorsArea || "" } : null,
+            };
+        const body = { name: draft.name, taskPrefix: draft.taskPrefix, ...(draft.fromFile ? {} : { root: draft.root || "", devServers: draft.devServers || [] }), ...integrations, daily: !!draft.daily, contextTidy: !!draft.contextTidy, messages: { review: draft.review, cause: draft.cause, reference: draft.reference } };
         if (!isNew) Object.assign(body, { id: draft.id, create: false });
         const r = await requestOrFail("/api/projects-admin/save", body);
         editing = null;
@@ -106,12 +112,56 @@ function form(draft) {
       box.addEventListener("change", () => (draft[k] = box.checked));
       return h("label", { class: "rule" }, [box, h("span", {}, [h("strong", { text: label }), ` · ${hint}`])]);
     })),
+    draft.fromFile ? null : integration(draft, "jiraOn", "Jira", "Las tareas de sus proyectos de Jira entran en el reporte y se mueven y comentan en su propio Jira. Después de guardar, pon sus credenciales y pulsa «Conectar con Jira».", () => [
+          field("Proyectos de Jira", "Sus claves, separadas por comas: OPS, WEB. Ninguna puede estar en otro proyecto del tablero.", text(draft, "jiraProjects", { placeholder: "OPS" })),
+        ]),
+    draft.fromFile ? null : integration(draft, "sentryOn", "Sentry", "Sus errores salen en Errores, junto a los de los demás proyectos. El token va en las credenciales del proyecto.", () => [
+          field("Organización", "Como aparece en la dirección de Sentry: sentry.io/organizations/<organización>.", text(draft, "sentryOrg", { placeholder: "mi-empresa" })),
+          field("Proyectos de Sentry", "Separados por comas.", text(draft, "sentryProjects", { placeholder: "web, api" })),
+          field("Sesión que recibe sus errores", "La que sale elegida al mandar un error. Se puede cambiar en cada uno.", areaSelectFrom(state.areas.filter((a) => !a.unnamed && (!draft.id || a.project === draft.id)), `errors-${draft.id || "new"}`, draft.errorsArea || "", "Ninguna", (v) => (draft.errorsArea = v))),
+        ]),
     draft.fromFile ? null : serversEditor(draft),
     keptDetails(`guide-${draft.id || "new"}`, [
       h("summary", { text: "Guía para las sesiones (opcional)" }),
       ...Object.entries(GUIDE).map(([k, [label, hint]]) => field(label, hint, area(draft, k, draft.fromFile ? "Sin texto: las frases de siempre" : ""))),
     ]),
     h("div", { class: "actions" }, [save, cancel]),
+  ]);
+}
+
+function integration(draft, key, label, hint, body) {
+  const box = h("input", { type: "checkbox" });
+  box.checked = !!draft[key];
+  const inner = h("div", { class: "ws-integration-body" });
+  const paint = () => inner.replaceChildren(...(draft[key] ? body() : []));
+  box.addEventListener("change", () => ((draft[key] = box.checked), paint()));
+  paint();
+  return h("div", { class: "ws-checks ws-integration" }, [h("label", { class: "rule" }, [box, h("span", {}, [h("strong", { text: label }), ` · ${hint}`])]), inner]);
+}
+
+function jiraConnect(p) {
+  const j = p.jiraConfig;
+  const draft = (secrets[`jira-${p.id}`] = secrets[`jira-${p.id}`] || { reviewer: j.reviewer || "" });
+  const status = j.connected ? `Conectado como ${j.me}${j.reviewer ? `; revisa ${j.reviewer}` : ""}. Pasos de estado: ${j.transitions.length ? j.transitions.map((t) => ({ start: "En curso", todo: "Por hacer", block: "Bloqueada" })[t] || t).join(", ") : "ninguno"}.` : "Sin conectar: el reporte no lo lee hasta que pulses «Conectar con Jira».";
+  const go = button("Conectar con Jira", {
+    onClick: async (b) => {
+      b.disabled = true;
+      try {
+        const r = await requestOrFail("/api/projects-admin/connect-jira", { id: p.id, sample: draft.sample || "", reviewer: draft.reviewer || "" });
+        toast(`Conectado como ${r.me}.${r.notes && r.notes.length ? ` Ojo: ${r.notes.join("; ")}.` : ""}`);
+        reload();
+      } catch (e) {
+        toast(`No se pudo conectar: ${e.message}`);
+        b.disabled = false;
+      }
+    },
+  });
+  return keptDetails(`jira-${p.id}`, [
+    h("summary", { text: "Conexión con Jira" }),
+    h("p", { class: "meta", text: status }),
+    field("Un ticket tuyo", "Cualquiera de sus proyectos. De él se sacan los pasos a «En curso» y «Por hacer». Mejor uno que esté en «Por hacer».", text(draft, "sample", { placeholder: `${j.projects[0]}-1` })),
+    field("Quién revisa tu trabajo", "Su nombre en ese Jira. Vacío: nadie.", text(draft, "reviewer", { placeholder: "Nombre Apellido" })),
+    h("div", { class: "actions" }, [go]),
   ]);
 }
 
@@ -181,17 +231,19 @@ function card(p) {
     ["Tareas abiertas", String(p.openTasks)],
   ];
   if (p.jira) facts.splice(4, 0, ["Proyectos de Jira", p.jira.join(", ")]);
+  if (p.sentryConfig) facts.splice(4, 0, ["Sentry", `${p.sentryConfig.org}: ${p.sentryConfig.projects.join(", ")}`]);
   const kids = [
     h("div", { class: "ws-head" }, [h("h3", { text: p.name }), h("span", { class: "chip", text: p.main ? "Principal" : p.fromFile ? "En board.config.json" : "Desde el panel" })]),
     h("dl", { class: "ws-facts" }, facts.flatMap(([k, v]) => [h("dt", { text: k }), h("dd", { text: v })])),
   ];
   if (!p.root || !p.rootExists) kids.push(h("div", { class: "setup-note warn" }, [h("p", { text: p.root ? "Esa carpeta no existe en este ordenador: sus sesiones no se reconocerán aquí." : "Este ordenador no tiene carpeta para el proyecto: pon la suya en Editar." })]));
-  if (p.fromFile) kids.push(h("p", { class: "meta", text: "Sus módulos, servidores, credenciales y carpeta van en board.config.json de cada ordenador; el nombre, el prefijo, la daily, Ordenar contexto y la guía se editan aquí y valen para los dos." }));
+  if (p.fromFile) kids.push(h("p", { class: "meta", text: "Su Jira, su Sentry, sus servidores, sus credenciales y su carpeta van en board.config.json y el .env de cada ordenador; el nombre, el prefijo, la daily, Ordenar contexto y la guía se editan aquí y valen para los dos." }));
   if (p.messages) kids.push(h("p", { class: "meta", text: "Tiene guía propia para las sesiones." }));
   if (!p.main) kids.push(credentials(p));
+  if (!p.fromFile && p.jiraConfig) kids.push(jiraConnect(p));
   kids.push(
     h("div", { class: "actions" }, [
-      button("Editar", { onClick: () => ((editing = { id: p.id, fromFile: p.fromFile, name: p.name, taskPrefix: p.taskPrefix, root: p.fromFile ? p.root || "" : relative(p.root), daily: p.modules.daily, contextTidy: p.modules.context, devServers: p.devServers.map((x) => ({ ...x })), ...(p.messages || {}) }), render()) }),
+      button("Editar", { onClick: () => ((editing = { id: p.id, fromFile: p.fromFile, name: p.name, taskPrefix: p.taskPrefix, root: p.fromFile ? p.root || "" : relative(p.root), daily: p.modules.daily, contextTidy: p.modules.context, devServers: p.devServers.map((x) => ({ ...x })), jiraOn: !!p.jiraConfig, jiraProjects: p.jiraConfig ? p.jiraConfig.projects.join(", ") : "", sentryOn: !!p.sentryConfig, sentryOrg: p.sentryConfig ? p.sentryConfig.org : "", sentryProjects: p.sentryConfig ? p.sentryConfig.projects.join(", ") : "", errorsArea: p.sentryConfig ? p.sentryConfig.errorsArea : "", ...(p.messages || {}) }), render()) }),
       button("Borrar", {
         cls: "subtle",
         disabled: p.main,

@@ -104,6 +104,8 @@ Sessions belong to the project whose `root` contains their folder. A task is nev
 
 **Several Jira sites.** A project other than the first can have its own Jira, on the same site or on another company's. Give it `jira` (with its own `projects`, `me`, `reviewer`, `transitions`) and, if its states are named differently, its own `statuses`; without `statuses` it uses the first project's. Its site, e-mail and token go in its `.env.<id>`. The Jira keys must not repeat between projects: a ticket belongs to the project that lists its prefix. Then one reporter reads every site into one report and one set of cards, and each ticket is read, commented, moved and linked on its own site with its own account. A site that cannot be read is reported and skipped while the others go on; a project whose `.env.<id>` is missing on a machine is left out there.
 
+A project added from the panel turns Jira and Sentry on in Settings → Projects → Edit: its Jira keys, or its Sentry organisation, projects and the session that receives its errors. Its tokens go in that card's credentials (written to `.env.<id>`), and «Connect to Jira» reads its account, the reviewer and the transition ids from one of its tickets, as `jira-setup` does. Until it is connected the reporter leaves it out. The Errors tab lists every project's Sentry issues and closes each in its own organisation.
+
 A file in the old flat format (no `projects`) is upgraded in place on the next start, with the project id taken from `company`; the original is kept as `board.config.json.flat.bak`.
 
 ### 4. Let Jira fill in the ids

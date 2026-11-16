@@ -6,17 +6,19 @@ const REPO = path.join(__dirname, "..", "..");
 const slashes = (p) => String(p).replace(/\\/g, "/");
 
 function valuesFor(p) {
+  const me = (p.jira && p.jira.me && p.jira.me.name) || config.jira.me.name;
+  const st = p.statuses || (p.jira ? config.statuses : null);
   return {
     ROOT: slashes(p.root),
     WORKSPACE: slashes(config.workspace),
     REPO: slashes(REPO),
-    ME: config.jira.me.name,
-    REVIEWER: p.jira ? p.jira.reviewer.name : config.jira.me.name,
+    ME: me,
+    REVIEWER: (p.jira && p.jira.reviewer && p.jira.reviewer.name) || me,
     COMPANY: p.company,
     PROJECTS: p.jira ? p.jira.projects.join("/") : "",
     JQLPROJECTS: p.jira ? p.jira.projectsJql : "",
-    REJECTLABEL: p.statuses ? p.statuses.rejectLabel : "",
-    RETURNED: p.statuses ? p.statuses.returned.join("»/«") : "",
+    REJECTLABEL: st ? st.rejectLabel : "",
+    RETURNED: st ? st.returned.join("»/«") : "",
   };
 }
 
