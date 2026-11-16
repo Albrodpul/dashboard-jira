@@ -207,7 +207,9 @@ function collect(d, nowMs = Date.now()) {
   const o = d.contextTidy;
   if (o && o.status === "approved" && o.approvedVia === "board" && !o.notifiedAt && due(o.delivery, nowMs)) jobs.push({ kind: "tidy", role: "orchestrator", ids: [o.id] });
   for (const x of Object.values(d.contextTidies || {})) if (x && x.status === "approved" && x.approvedVia === "board" && !x.notifiedAt && due(x.delivery, nowMs)) jobs.push({ kind: "tidy", project: x.project, ids: [x.id] });
-  for (const r of d.reminders || []) if (reminders.isDue(r, nowMs) && due(r.delivery, nowMs) && !holds.checkArea(d, r.id, r.area, nowMs)) jobs.push({ kind: "reminder", area: r.area, ids: [r.id] });
+  const today = reminders.madrid(nowMs).day;
+  const todays = (x) => (x && x.at && reminders.madrid(Date.parse(x.at)).day === today ? x : null);
+  for (const r of d.reminders || []) if (reminders.isDue(r, nowMs) && due(todays(r.delivery), nowMs) && !holds.checkArea(d, r.id, r.area, nowMs)) jobs.push({ kind: "reminder", area: r.area, ids: [r.id] });
   return jobs;
 }
 
@@ -299,7 +301,9 @@ function markFailed(d, job, ids, error, nowIso, soft) {
     if (!x || touched.has(x)) return;
     touched.add(x);
     const field = job.kind === "stop" ? "stopDelivery" : "delivery";
-    const before = (x[field] && x[field].attempts) || 0;
+    const prev = x[field];
+    const stale = job.kind === "reminder" && prev && prev.at && reminders.madrid(Date.parse(prev.at)).day !== reminders.madrid(Date.parse(nowIso)).day;
+    const before = (!stale && prev && prev.attempts) || 0;
     x[field] = soft ? { error, at: nowIso, attempts: before, soft: true } : { error, at: nowIso, attempts: before + 1 };
     attempts = Math.max(attempts, x[field].attempts);
   });

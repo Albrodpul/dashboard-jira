@@ -62,3 +62,10 @@ test("a reminder can be edited in place: same id, new text, time and range, and 
   assert.match(reminders.update(id, { area: "herrero", text: "", time: "07:00", until: "2999-01-10" }).error, /escribe/);
   assert.match(reminders.update("rem-nope", { area: "herrero", text: "x", time: "07:00", until: "2999-01-10" }).error, /desconocido/);
 });
+
+test("a reminder that ran out of attempts one day is tried again the next day", () => {
+  const failed = { ...base, lastDay: "2026-11-13", delivery: { error: "no", at: "2026-11-14T10:06:10.905Z", attempts: 3 } };
+  mutate((d) => ((d.reminders = [failed]), (d.deliveries = []), (d.restrictions = [])));
+  assert.equal(mailman.collect(load(), at("2026-11-14T12:00:00Z")).length, 0);
+  assert.equal(mailman.collect(load(), at("2026-11-16T07:30:00Z")).length, 1);
+});
