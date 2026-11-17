@@ -14,8 +14,7 @@ Esta sesión mira qué ha hecho **todo el mundo** a partir de las peticiones a l
 Si se ha invocado este comando (`/seguimiento`), o si te llega de otra sesión «Aviso del arranque: arranca el seguimiento» (o el antiguo «…arranca el resumen de {{REVIEWER}}»), pasa al abrir VS Code:
 
 1. Comprueba que eres tú: en `board.js followup-status`, `session` tiene que ser tu nombre de `ListAgents`. Si no coincide, no hagas nada y díselo a {{ME}} en una línea.
-2. `CronList`. Borra con `CronDelete` cualquier cron de «Seguimiento de …» o de «Resumen de {{REVIEWER}}» que quede: ya no se usan. Los resúmenes programados los dispara el propio tablero a su hora (ver «A su hora»), así que esta sesión no crea crons. Por qué: los crons vivían dentro de la sesión, se perdían al reiniciarla y había que rehacerlos y borrarlos al pausar; el tablero sigue la hora aunque la sesión se reinicie y no avisa en pausa.
-3. Haz ahora «Cada resumen» de beta.
+2. Haz ahora «Cada resumen» de beta.
 
 ## A su hora
 

@@ -14,10 +14,11 @@ const HOUR = 3600 * 1000;
 
 require("../src/features/mailman")._test.setEnv({ primary: () => false });
 fs.writeFileSync(path.join(box.workspace, "sessions.js"), "");
-fs.writeFileSync(path.join(box.data, "sessions.json"), JSON.stringify({ areas: { pay: { title: "Pagos", epics: { "WEB-1": "Checkout" } }, cat: { title: "Catálogo", epics: {} }, errors: { title: "Errores", epics: {} }, deploy: { title: "Subir", epics: {} } } }));
+const ORCHESTRATOR = "99999999-2222-4333-8444-555555555555";
+fs.writeFileSync(path.join(box.data, "sessions.json"), JSON.stringify({ orchestrator: { conversation: ORCHESTRATOR }, areas: { pay: { title: "Pagos", epics: { "WEB-1": "Checkout" } }, cat: { title: "Catálogo", epics: {} }, errors: { title: "Errores", epics: {} }, deploy: { title: "Subir", epics: {} } } }));
 
 function cli(...args) {
-  const env = { ...process.env };
+  const env = { ...process.env, CLAUDE_CODE_SESSION_ID: ORCHESTRATOR };
   for (const k of ["JIRA_SITE", "JIRA_EMAIL", "JIRA_TOKEN", "SENTRY_TOKEN"]) delete env[k];
   const r = cp.spawnSync(process.execPath, [CLI, ...args], { encoding: "utf8", env, timeout: 30000 });
   return { code: r.status, out: r.stdout, err: r.stderr };

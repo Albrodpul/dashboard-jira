@@ -1,8 +1,10 @@
 const path = require("path");
 const os = require("os");
 const config = require("../core/config");
-const { load, mutate, now } = require("../core/data");
-const { loadRoutes } = require("./registry");
+const load = (...a) => require("../core/data").load(...a);
+const mutate = (...a) => require("../core/data").mutate(...a);
+const now = () => require("../core/data").now();
+const loadRoutes = () => require("./registry").loadRoutes();
 
 const ORDER_HOURS = 6;
 const WAIT_MINUTES = 55;
@@ -24,7 +26,12 @@ const PROTECTED_WORDS = new Set("aws sam eb terraform kubectl".split(" "));
 const REMOTE_CHANGE = /\b(rm|rmdir|mv|cp|tee|truncate|chmod|chown|ln|sudo|systemctl\s+(restart|stop|start|reload|enable|disable)|service\s+\S+\s+(restart|stop|start|reload)|kill|pkill|killall|reboot|shutdown|apt|apt-get|yum|dnf|pip|npm\s+(i|install|ci|update)|composer\s+(install|update|require)|git\s+(pull|reset|checkout|clean|stash|commit|push|merge)|php\s+artisan\s+(migrate|db:|queue:restart|cache:clear|config:cache|optimize|down|up|scout:(import|flush|sync|delete))|sed\s+-i|crontab|supervisorctl\s+(restart|stop|start|update))\b|(^|[^0-9&2])>{1,2}\s*[^&\s]/;
 
 const JIRA_READ = /^mcp__jira__(get|search|lookup|fetch|atlassianUserInfo)/;
-const JIRA_ON_TASK = /^mcp__jira__(editJiraIssue|transitionJiraIssue)$/;
+const ATLASSIAN_WRITE = /^mcp__.+__(addOrEditJiraIssueComment|addCommentToJiraIssue|transitionJiraIssue|createJiraIssue|editJiraIssue|executeWrite|executeDestructive|createConfluence\w*|updateConfluence\w*|(create|update|edit|delete|add|remove|transition|move|assign|set|link|upload|publish)\w*(Jira|Confluence)\w*)$/;
+const JIRA_WRITE_FREE = new Set(["start", "todo", "block", "assign", "sprint"]);
+const ATLASSIAN_REST = /https?:\/\/[\w.-]*(atlassian\.net|atlassian\.com|jira\.com)\b/i;
+const HTTP_WRITE = /\s(-X\s*|--request[= ])["']?(POST|PUT|PATCH|DELETE)\b|\s(-d|--data[\w-]*|--json|-F|--form|-T|--upload-file)(\s|=)|-Method\s+["']?(Post|Put|Patch|Delete)\b/i;
+const SESSION_ID_SPOOF = /(^|[\s;&|(])(export\s+|env\s+|set\s+|\$env:)?CLAUDE_CODE_SESSION_ID\s*=/i;
+const DEV_LOGIN_GREP = /^\s*grep\s+(?:(?:-E|-m\s?1|--max-count=1|-Em1|-m1E)\s+)*(['"]?)\^DEV_LOGIN_CODE=\1\s+(['"]?)((?:[\w.~\/-]*\/)?super-app\/\.env)\2\s*$/;
 const ALWAYS_TOOLS = new Set("Read Grep Glob Agent Task Skill TaskStop TaskOutput SendMessage ListAgents ToolSearch WebSearch WebFetch AskUserQuestion ScheduleWakeup CronCreate CronDelete CronList PushNotification EnterWorktree ExitWorktree EnterPlanMode ExitPlanMode TodoWrite ReportFindings ListMcpResourcesTool ReadMcpResourceTool ReadMcpResourceDirTool LSP".split(" "));
 
 function launchctlAllowed(rest) {
@@ -158,17 +165,16 @@ function classifySegment(segment, cwd) {
     if (remote && (cmd !== "mysql" || DB_WRITE.test(sqlOf(rest, cwd, WHOLE.text)))) return { kind: "protected", key: "bd remota escritura", label: `${cmd} con escritura contra ${host || "el puerto " + port}` };
     return { kind: "allow" };
   }
-  if (cmd === "node" && /^node\s+\S*jira-write/.test(rest)) {
-    const m = /jira-write(?:\.js)?\s+([\w-]+)\s+([A-Z][A-Z0-9]+-\d+)/.exec(rest);
-    if (/jira-write(?:\.js)?\s+assign\s/.test(rest)) return { kind: "allow" };
-    if (!/\b(comment|mention)\b/.test(rest)) return { kind: "allow" };
-    return { kind: "protected", key: "jira-write", label: m ? `comentar en ${m[2]} en Jira` : "escribir en Jira" };
+  if (cmd === "node" && /^node\s+["']?\S*jira-write(\.js)?["']?(\s|$)/.test(rest)) {
+    const m = /jira-write(?:\.js)?["']?\s+["']?([\w-]+)["']?(?:\s+["']?([A-Z][A-Z0-9]*(?:-\d+)?)\b)?/.exec(rest);
+    const action = m ? m[1] : "";
+    const target = m && m[2] ? ` ${m[2]}` : "";
+    if (JIRA_WRITE_FREE.has(action)) return { kind: "allow" };
+    const label = /comment|mention/.test(action) ? `comentar en${target} en Jira` : action === "create" ? `crear una tarea en Jira${target ? ` (${m[2]})` : ""}` : action === "assign" ? `asignar${target} en Jira` : action === "sprint" ? `mover${target} al sprint en Jira` : `escribir en Jira (${action || "sin acción"}${target})`;
+    return { kind: "protected", key: "jira-write", label };
   }
-  if (cmd === "curl" || cmd === "wget") {
-    const url = (/(https?:\/\/[^\s"']+)/.exec(rest) || [])[1] || "";
-    if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\//i.test(url + "/")) return { kind: "allow" };
-    return { kind: "allow" };
-  }
+  if ((cmd === "curl" || cmd === "wget") && ATLASSIAN_REST.test(rest) && HTTP_WRITE.test(" " + rest)) return { kind: "protected", key: "jira-rest", label: "escribir en Jira por la API" };
+  if (cmd === "curl" || cmd === "wget") return { kind: "allow" };
   if (cmd === "defaults" && /^defaults\s+(-currentHost\s+)?read\b/.test(rest)) return { kind: "allow" };
   if (cmd === "fdesetup" && /^fdesetup\s+(status|list|isactive)\b/.test(rest)) return { kind: "allow" };
   if (cmd === "launchctl" && launchctlAllowed(rest)) return { kind: "allow" };
@@ -188,10 +194,7 @@ function classifySegment(segment, cwd) {
     const inner = m ? m[2] || m[3] || m[4] || "" : "";
     return inner ? classifyCommand(inner, cwd) : { kind: "allow" };
   }
-  if (/^(invoke-restmethod|invoke-webrequest|irm|iwr)$/.test(cmd)) {
-    const url = (/(https?:\/\/[^\s"']+)/.exec(rest) || [])[1] || "";
-    return { kind: "allow" };
-  }
+  if (/^(invoke-restmethod|invoke-webrequest|irm|iwr)$/.test(cmd)) return ATLASSIAN_REST.test(rest) && HTTP_WRITE.test(" " + rest) ? { kind: "protected", key: "jira-rest", label: "escribir en Jira por la API" } : { kind: "allow" };
   if (/^(get|select|where|foreach|sort|measure|format|out|write|test|join|split|resolve|convertfrom|convertto|new|copy|move|remove|rename|set|add|group|compare|import|export|clear|expand|compress)-[a-z]+$/.test(cmd) && !/^(set-executionpolicy|new-service|remove-service)$/.test(cmd)) return { kind: "allow" };
   if (raw.startsWith("./") || raw.startsWith("../") || /^[a-z]:[\\/]/i.test(raw) || raw.startsWith("/")) {
     const target = path.resolve(cwd || config.root, raw);
@@ -209,6 +212,8 @@ function expandVars(command) {
 }
 
 function classifyCommand(command, cwd) {
+  if (DEV_LOGIN_GREP.test(String(command))) return { kind: "allow" };
+  if (SESSION_ID_SPOOF.test(String(command))) return { kind: "protected", key: "suplantar sesión", label: "hacerse pasar por otra sesión (CLAUDE_CODE_SESSION_ID)" };
   command = expandVars(command);
   WHOLE.text = command;
   const parts = [];
@@ -227,9 +232,31 @@ function classifyCommand(command, cwd) {
   return parts.find((p) => p.kind === "protected") || parts.find((p) => p.kind === "ask") || { kind: "allow" };
 }
 
+function devLoginGrep(input) {
+  const keys = Object.keys(input).filter((k) => input[k] !== undefined && input[k] !== null && input[k] !== false);
+  if (keys.some((k) => !["pattern", "path", "output_mode", "-n", "head_limit"].includes(k))) return false;
+  if (input.output_mode && !["content", "files_with_matches", "count"].includes(input.output_mode)) return false;
+  return input.pattern === "^DEV_LOGIN_CODE=" && /^(?:[\w.~:\\/-]*[\\/])?super-app[\\/]\.env$/.test(String(input.path || ""));
+}
+
+function atlassianWrite(tool, input) {
+  const op = tool.replace(/^mcp__.+__/, "");
+  const key = input.issueIdOrKey || input.issueKey || "";
+  const on = key ? ` ${key}` : "";
+  let label = "escribir en Jira";
+  if (/Comment/i.test(op)) label = `comentar en${on} en Jira`;
+  else if (/^transition/.test(op)) label = `cambiar de estado${on} en Jira${input.transition && input.transition.id ? ` (transición ${input.transition.id})` : ""}`;
+  else if (/^create\w*Jira/.test(op)) label = "crear una tarea en Jira";
+  else if (/^edit\w*Jira/.test(op)) label = `editar${on} en Jira`;
+  else if (/Confluence/.test(op)) label = "escribir en Confluence";
+  else if (/^execute(Write|Destructive)$/.test(op)) label = `${op === "executeDestructive" ? "borrar o cambiar sin vuelta atrás" : "escribir"} en Atlassian (${String(input.name || "operación sin nombre").slice(0, 80)})`;
+  return { kind: "protected", key: `atlassian ${op}`, label };
+}
+
 function classify(tool, input, cwd) {
   input = input || {};
   if (tool === "Bash" || tool === "PowerShell" || tool === "Monitor") return input.command ? classifyCommand(input.command, cwd) : { kind: "allow" };
+  if (tool === "Grep" && devLoginGrep(input)) return { kind: "allow" };
   if (["Read", "Grep", "Glob"].includes(tool)) {
     const p = input.file_path || input.path || "";
     return p && SECRET_FILE.test(norm(p)) ? { kind: "ask", key: `${tool} secreto`, label: `leer ${path.basename(p)} (puede tener secretos)` } : { kind: "allow" };
@@ -240,8 +267,8 @@ function classify(tool, input, cwd) {
     return { kind: "allow" };
   }
   if (ALWAYS_TOOLS.has(tool)) return { kind: "allow" };
+  if (ATLASSIAN_WRITE.test(tool)) return atlassianWrite(tool, input);
   if (JIRA_READ.test(tool) || /^mcp__playwright__/.test(tool) || /^mcp__sentry__(?!update_issue)/.test(tool) || tool === "mcp__claude-vscode__getDiagnostics") return { kind: "allow" };
-  if (/^mcp__jira__(addCommentToJiraIssue|createConfluence\w*Comment)$/.test(tool)) return { kind: "protected", key: tool, label: "comentar en Jira" };
   if (/^mcp__jira__/.test(tool)) return { kind: "allow" };
   if (tool === "mcp__sentry__update_issue") return { kind: "protected", key: tool, label: "cambiar un error en Sentry" };
   if (/^Artifact/.test(tool) && /^(read|list|open|get|query|quickstart)$/.test(String(input.action || ""))) return { kind: "allow" };
@@ -269,10 +296,6 @@ function hasOrder(c, area, d) {
   if (!area) return false;
   const recent = (iso) => iso && Date.now() - new Date(iso).getTime() < ORDER_HOURS * 3600000;
   if (c.git) return d.deployments.some((x) => x.area === area.id && ["approved", "sent"].includes(x.status) && recent(x.sentAt || x.at));
-  if (c.jiraKey) {
-    const t = d.tasks[String(c.jiraKey).toUpperCase()];
-    return !!t && t.area === area.id && ["sent", "waiting", "partial", "done"].includes(t.status);
-  }
   return false;
 }
 
@@ -370,4 +393,4 @@ function forPage(d) {
   return { pending: (d.permissions || []).filter((p) => p.status === "pending"), recent: (d.permissions || []).filter((p) => p.status !== "pending").slice(0, 8), rules: d.permissionRules || [] };
 }
 
-module.exports = { nativePrompt, segments, classify, check, poll, decide, removeRule, forPage, expire };
+module.exports = { areaOf, nativePrompt, segments, classify, check, poll, decide, removeRule, forPage, expire };

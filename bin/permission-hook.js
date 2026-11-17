@@ -36,6 +36,27 @@ function decide(decision, reason) {
   process.exit(0);
 }
 
+function localVerdict(event) {
+  try {
+    return require("../src/sessions/permissions").classify(event.tool_name, event.tool_input, event.cwd);
+  } catch (e) {
+    return null;
+  }
+}
+
+function withoutBoard(event) {
+  const c = localVerdict(event);
+  if (!c) {
+    trace(event, "sin-tablero sin-filtro");
+    return process.exit(0);
+  }
+  if (c.kind === "allow") {
+    trace(event, "sin-tablero");
+    return process.exit(0);
+  }
+  return decide("ask", `El tablero no responde y esto lo protege el filtro: ${c.label || event.tool_name}. Decide tú aquí.`);
+}
+
 async function main() {
   let input = "";
   for await (const chunk of process.stdin) input += chunk;
@@ -50,8 +71,7 @@ async function main() {
   try {
     r = await call("POST", "/api/permission/check", { session_id: event.session_id, tool_name: event.tool_name, tool_input: event.tool_input, cwd: event.cwd });
   } catch (e) {
-    trace(event, "sin-tablero");
-    return process.exit(0);
+    return withoutBoard(event);
   }
   if (r.decision === "allow") return decide("allow", "Permitido por el filtro del tablero");
   if (r.decision !== "wait") return process.exit(0);

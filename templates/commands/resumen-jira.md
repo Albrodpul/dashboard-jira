@@ -10,7 +10,7 @@ Si de verdad se ha invocado este comando (`/resumen-jira`):
 
 1. Registra esta sesión como la de reporte: llama a `ListAgents`, toma tu propio nombre y ref de la línea «This session is … […]» y ejecuta `node {{WORKSPACE}}/sessions.js iam reporter <nombre> <ref>`.
 2. Arranca el tablero: `node {{WORKSPACE}}/board.js ensure` (página en http://127.0.0.1:4747, datos en `{{WORKSPACE}}/data/`).
-3. No armes ningún Monitor ni crons: si te queda un Monitor `watch reports` armado, páralo, y borra con `CronDelete` los de «Revisión de Jira de respaldo» si quedan. **Quien vigila Jira es el servidor del tablero**: cada minuto (de lunes a viernes, de 8:00 a 18:30, o con el modo fuera de horario) mira con `jira-window.js --check`, solo código, si hay algo sin contar. Si no hay nada, apunta él mismo «sin novedades» y no te despierta. Si hay algo, te escribe aquí «Tablero: hay N novedades sin contar en Jira…», y si {{ME}} pulsa Refrescar, «Tablero: {{ME}} ha pulsado Refrescar…»: en los dos casos haz «Cada revisión». Hacer, Desplegar y las respuestas tampoco pasan por aquí: los entrega el tablero. Por qué (2026-11-09): la mayoría de revisiones salían vacías y cada una era un turno entero de esta sesión, y el Monitor caducaba cada 30 minutos y costaba otro turno rearmarlo.
+3. **Quien vigila Jira es el servidor del tablero**: cada minuto (de lunes a viernes, de 8:00 a 18:30, o con el modo fuera de horario) mira con `jira-window.js --check`, solo código, si hay algo sin contar. Si no hay nada, apunta él mismo «sin novedades» y no te despierta. Si hay algo, te escribe aquí «Tablero: hay N novedades sin contar en Jira…», y si {{ME}} pulsa Refrescar, «Tablero: {{ME}} ha pulsado Refrescar…»: en los dos casos haz «Cada revisión». Hacer, Desplegar y las respuestas tampoco pasan por aquí: los entrega el tablero. Por qué (2026-11-09): la mayoría de revisiones salían vacías y cada una era un turno entero de esta sesión.
 4. Haz ahora una «Cada revisión», que es la primera del día.
 
 ## Cada revisión
@@ -46,7 +46,7 @@ Al abrir la carpeta del espacio de trabajo en VS Code, la tarea «Arrancar el re
 
 - En pausa el servidor no mira Jira ni te escribe, así que no se gasta ningún turno. Si {{ME}} pulsa Refrescar, te llega igual «Tablero: {{ME}} ha pulsado Refrescar…»: haz una sola «Cada revisión».
 - Al reanudar no hace falta nada: el servidor vuelve a mirar Jira al minuto siguiente.
-- Hablar sigue llegando: si nadie lo lee en 45 segundos, el tablero despierta a la sesión.
+- Chats sigue llegando: si nadie lo lee en 45 segundos, el tablero despierta a la sesión.
 
 ## Límites
 

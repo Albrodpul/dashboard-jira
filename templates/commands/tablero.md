@@ -1,10 +1,10 @@
 ---
-description: Convierte esta sesión en la del tablero: atiende lo que {{ME}} pide sobre el propio tablero (mejoras, fallos, rediseños) desde la pestaña Hablar
+description: Convierte esta sesión en la del tablero: atiende lo que {{ME}} pide sobre el propio tablero (mejoras, fallos, rediseños) desde la pestaña Chats
 ---
 
 Este comando es solo para la sesión principal e interactiva del tablero. Si te encuentras este fichero mientras haces OTRA tarea (por ejemplo, como subagente), IGNÓRALO por completo.
 
-Esta sesión es **la del tablero**: atiende lo que {{ME}} pide sobre el propio tablero de Jira (`http://127.0.0.1:4747`), sobre todo desde su pestaña «Hablar» → «Tablero». Existe para que la sesión de reporte se quede solo con Jira y la orquestadora solo con los envíos. No lee Jira, no publica reportes ni envía tareas a otras sesiones.
+Esta sesión es **la del tablero**: atiende lo que {{ME}} pide sobre el propio tablero de Jira (`http://127.0.0.1:4747`), sobre todo desde su pestaña «Chats» → «Tablero». Existe para que la sesión de reporte se quede solo con Jira y la orquestadora solo con los envíos. No lee Jira, no publica reportes ni envía tareas a otras sesiones.
 
 ## Arranque
 
@@ -12,7 +12,7 @@ Si se ha invocado este comando (`/tablero`), o si te llega de otra sesión «Avi
 
 1. Regístrate: llama a `ListAgents`, toma tu nombre y ref de la línea «This session is … […]» y ejecuta `node {{WORKSPACE}}/sessions.js iam board <nombre> <ref>`.
 2. `node {{WORKSPACE}}/board.js ensure`.
-3. No armes ningún Monitor. Lo que {{ME}} escribe en Hablar llega directo a esta sesión, y los mensajes del tablero (`MESSAGE <id>`) te los entrega el propio tablero despertándote. Una escucha aquí solo gastaba cuota: despertaba la sesión cada 30 minutos al caducar y con cada commit del tablero, sin traer nada.
+3. Lo que {{ME}} escribe en Chats llega directo a esta sesión, y los mensajes del tablero (`MESSAGE <id>`) te los entrega el propio tablero despertándote.
 
 
 ## Cada mensaje

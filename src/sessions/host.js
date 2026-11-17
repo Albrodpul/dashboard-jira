@@ -271,6 +271,7 @@ function serve() {
     log(`host listening on ${HOST_PORT}`);
     for (const e of readConfig()) if (!e.waitingForVsCode && !e.onDemand) spawn(e, true);
   });
+  require("../features/board-alive").start({ log });
 
   setInterval(() => {
     if (!require("../cluster/cluster").primaryNow()) {

@@ -199,6 +199,13 @@ const commands = {
 
 function contextTidy() {
   const text = rest(4).slice(0, 4000);
+  const caller = require("./caller");
+  const who = caller.whoCalls();
+  if (!caller.hasRole(who, ["orchestrator"])) {
+    const d = load();
+    const o = Object.values(d.contextTidies || {}).find((x) => x && x.id === a && x.project);
+    if (!o || !who || !who.area || who.area.project !== o.project) caller.refuse(cmd, ["orchestrator"], who, "o, si es la ordenación de otro proyecto, una sesión de ese proyecto");
+  }
   const error = mutate((d) => {
     const o = [d.contextTidy, ...Object.values(d.contextTidies || {})].find((x) => x && x.id === a);
     if (!o) return `no hay ninguna ordenación ${a || ""}`;

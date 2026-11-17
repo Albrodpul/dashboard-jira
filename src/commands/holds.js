@@ -46,6 +46,7 @@ function describe(r) {
 module.exports = {
   hold() {
     const [sub, ...args] = process.argv.slice(3);
+    if (sub === "add" || sub === "release") require("./caller").onlyFrom(`hold ${sub}`, ["orchestrator"]);
     if (sub === "add") {
       const input = parse(args);
       const r = mutate((d) => holds.addRestriction(d, { ...input, createdBy: "chat" }, { areas: Object.keys(loadRoutes().areas) }));

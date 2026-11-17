@@ -64,7 +64,7 @@ function readConfig() {
   }
 }
 
-const COMMON_KEYS = ["cluster", "trustedHosts", "voice", "sessionModel", "sessionProfiles", "launchdLabels", "dailyStyle"];
+const COMMON_KEYS = ["cluster", "trustedHosts", "voice", "sessionModel", "sessionProfiles", "launchdLabels", "dailyStyle", "boardAliveMinutes"];
 
 function normalize(c) {
   if (Array.isArray(c.projects) && c.projects.length && typeof c.projects[0] === "object") {
@@ -238,6 +238,7 @@ module.exports = {
   sessionModel: common.sessionModel || "claude-opus-5-5",
   sessionProfiles: common.sessionProfiles || null,
   launchdLabels: ["com.nutria.", ...(common.launchdLabels || [])],
+  boardAliveMinutes: Number(common.boardAliveMinutes) > 0 ? Number(common.boardAliveMinutes) : 5,
   dailyStyle: common.dailyStyle ? path.resolve(WORKSPACE, common.dailyStyle) : null,
   contextDomains: main.contextDomains,
   get projects() {

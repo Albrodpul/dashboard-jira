@@ -18,5 +18,3 @@ Cómo funcionan esas tareas:
 - Lo que el tablero marque como restricción («Retenida», «Indicación obligatoria», aviso de parar) se cumple al pie de la letra.
 - Al acabar cada tarea, avisa al tablero: `node {{WORKSPACE}}/board.js done <CLAVE> "<qué has hecho>"`, `partial <CLAVE> "<qué falta y por qué>"` o `question <CLAVE> "<qué necesitas que te contesten>"`.
 - Las reglas de este proyecto (commits, pruebas, estilo) son las de su `AGENTS.md`, no las de otros proyectos.
-
-El nombre de una sesión puede cambiar si se cierra y se vuelve a abrir: en ese caso hay que repetir `/soy <área>`.

@@ -6,7 +6,7 @@ Este comando es solo para la sesión principal e interactiva. Si te encuentras e
 
 Esta sesión es la **orquestadora**: el sitio donde {{ME}} habla de las tareas del tablero (http://127.0.0.1:4747). **No envía nada a ninguna sesión**: desde el 2026-11-09 el propio tablero escribe en la sesión de destino cada tarea que {{ME}} aprueba (Hacer, chat o su regla de devueltas), sus respuestas, los despliegues, los errores de Seguimiento y de Sentry, y los avisos de parar, y solo los da por enviados cuando aparecen en la conversación de destino. Antes lo hacía esta sesión con un Monitor: el 95 % de sus turnos eran de cartero. Tampoco lee Jira (eso es `/resumen-jira`).
 
-No arma ningún Monitor ni vigila nada. Se duerme sola cuando lleva un rato parada y se despierta cuando {{ME}} le escribe en Hablar.
+Se duerme sola cuando lleva un rato parada y se despierta cuando {{ME}} le escribe en Chats.
 
 ## Comandos: solo estos, tal cual
 
@@ -30,8 +30,7 @@ Prohibido en esta sesión: `cd`, tuberías (`|`), `;`, `&&`, `$(…)`, `node -e`
 Si se invoca `/orquesta`, o si llega «Aviso del tablero: arranca la orquestadora» y `node {{WORKSPACE}}/board.js orchestrator` da tu nombre de `ListAgents` en `session`:
 
 1. Solo con `/orquesta` escrito a mano: registra esta sesión con `ListAgents` (tu nombre y ref de la línea «This session is … […]») y `node {{WORKSPACE}}/sessions.js iam orchestrator <nombre> <ref>`.
-2. Si quedó armado de antes un Monitor de `board.js watch dispatches`, páralo con `TaskStop` y no lo vuelvas a armar. Si alguno da `RETIRED`, es esto mismo.
-3. No contestes nada más que una línea: «Orquestadora lista». Luego, a esperar a {{ME}}.
+2. No contestes nada más que una línea: «Orquestadora lista». Luego, a esperar a {{ME}}.
 
 ## Aprobar por chat
 
@@ -57,10 +56,10 @@ Son la forma de decir «esto no se envía hasta X» o «esto se envía, pero sie
 
 ## Ordenar contexto
 
-{{ME}} lo pide con el botón de la pestaña «Ordenar contexto», que solo se activa con todo limpio. El tablero te avisa con «Aviso del tablero: {{ME}} ha pulsado Ordenar contexto (<id>)»:
+Se ordena solo: cualquier sesión lanza `/ordena-contexto` cuando la última pasada tiene más de 7 días (regla de `AGENTS.md`), y {{ME}} también puede pedirlo con el botón de la pestaña «Contexto», que solo se activa con todo limpio. Por el botón, el tablero te avisa con «Aviso del tablero: {{ME}} ha pulsado Ordenar contexto (<id>)»:
 
 1. `node {{WORKSPACE}}/board.js tidy-start <id>`. Si dice que no está aprobada, no hagas nada.
-2. **No la haces tú: la delegas en un subagente con la herramienta `Agent`, con `model: "opus"` y `effort: "medium"`** (orden de {{ME}}, 2026-11-06: esta sesión va con un modelo ligero, y ordenar `context/` pide más cabeza). Ponle `subagent_type: "general-purpose"` y dile en el encargo que lea `{{ROOT}}/.claude/skills/ordena-contexto/SKILL.md` con `Read` (el comando no se puede lanzar como skill) y siga sus pasos; que edite solo `context/` y `AGENTS.md`, con las mismas reglas que el comando; que lo que el comando dice que necesita confirmación de {{ME}} (fusionar, dividir o borrar dominios) no lo haga y lo devuelva como propuesta; y que termine con un resumen de una línea: qué ha arreglado y qué queda propuesto. Espera su resultado; tú no editas nada.
+2. **No la haces tú: la delegas en un subagente con la herramienta `Agent`**, con `subagent_type: "ordenador-contexto"`. Si ese agente no existe, usa `general-purpose` y dile que lea `{{ROOT}}/.claude/skills/ordena-contexto/SKILL.md` con `Read` y siga sus pasos. En los dos casos: que edite solo `context/` y `AGENTS.md`; que **aplique todo lo que encuentre, también fusionar, dividir o borrar dominios, sin devolver propuestas** (orden de {{ME}}, 2026-11-17: prefiere que se reordene solo; lo borrado queda en git); y que termine con un resumen de una línea de lo que ha cambiado. Espera su resultado; tú no editas nada. Va en subagente porque repasar todo `context/` es largo y llenaría esta conversación.
 3. `node {{WORKSPACE}}/board.js tidy-end <id> <el resumen de una línea del subagente>`.
 
 ## Límites

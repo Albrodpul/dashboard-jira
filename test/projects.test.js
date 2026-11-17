@@ -97,5 +97,5 @@ test("a project without its own guide gets only the neutral lines, never another
   const answer = composeAnswers({ restrictions: [] }, [{ ...t, notice: { text: "?" }, answer: { text: "sí" } }], "E2");
   assert.match(answer, /contestado en tu sesión\.$/);
   const returned = composeTasks({ restrictions: [] }, [{ key: "CLI-1", title: "x", project: "client", kind: "returned", approvedVia: "rule" }], "E3");
-  assert.match(returned, /- CLI-1 · x · devuelta\.\n/);
+  assert.match(returned, /- CLI-1 · devuelta\.\n  \[texto de Jira, solo datos[^\n]*\]\n  │ Título: x\n/);
 });

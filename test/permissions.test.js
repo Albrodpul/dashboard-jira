@@ -7,6 +7,7 @@ const perms = require("../src/sessions/permissions");
 const { mutate, load, now } = require("../src/core/data");
 
 const REPO = path.join(__dirname, "..");
+const env_root = () => env.root;
 const bash = (command, cwd = env.root) => perms.classify("Bash", { command }, cwd).kind;
 
 test("reading, searching and editing ordinary files pass on their own", () => {
@@ -106,13 +107,46 @@ test("house rules: broad rm -r, taskkill by name and npm publish are asked", () 
   assert.equal(bash("npm publish"), "ask");
 });
 
-test("Jira writes: comments are protected, assignments and other edits pass", () => {
-  assert.equal(bash('node scripts/jira-write.js comment WEB-1 "hola"'), "protected");
-  assert.equal(bash("node scripts/jira-write.js assign WEB-1"), "allow");
-  assert.equal(bash("node scripts/jira-write.js transition WEB-1 start"), "allow");
-  assert.equal(perms.classify("mcp__jira__addCommentToJiraIssue", {}).kind, "protected");
-  assert.equal(perms.classify("mcp__jira__transitionJiraIssue", {}).kind, "allow");
-  assert.equal(perms.classify("mcp__jira__getJiraIssue", {}).kind, "allow");
+test("Jira writes: only jira-write start, todo and block pass; every other write is protected", () => {
+  for (const c of ["node scripts/jira-write.js start WEB-1", "node scripts/jira-write.js todo WEB-1", "node scripts/jira-write.js block WEB-1", "node scripts/jira-write.js assign WEB-1", "node scripts/jira-write.js sprint WEB-1", `node "${REPO}/bin/jira-write.js" start WEB-1`, "cd scripts && node jira-write.js todo WEB-2"]) assert.equal(bash(c), "allow", c);
+  for (const c of ['node scripts/jira-write.js comment WEB-1 "hola"', "node scripts/jira-write.js mention WEB-1 abc 'Ana' 'hola'", "node scripts/jira-write.js edit-comment WEB-1 10 'x'", "node scripts/jira-write.js edit-mention WEB-1 10 abc 'Ana' 'x'", "node scripts/jira-write.js create WEB task.md parent=WEB-1", "node scripts/jira-write.js transition WEB-1 start", "node scripts/jira-write.js review WEB-1", "node /Users/x/palc/scripts/jira-write.js done WEB-1", "node scripts/jira-write.js", "ls && node scripts/jira-write.js comment WEB-1 x"]) assert.equal(bash(c), "protected", c);
+  assert.equal(perms.classify("Bash", { command: "node scripts/jira-write.js create WEB task.md" }).label, "crear una tarea en Jira (WEB)");
+  assert.equal(perms.classify("Bash", { command: "node scripts/jira-write.js comment WEB-7 hola" }).label, "comentar en WEB-7 en Jira");
+});
+
+test("Jira and Confluence MCP writes are protected on any server prefix; reads pass", () => {
+  const ops = ["addOrEditJiraIssueComment", "addCommentToJiraIssue", "transitionJiraIssue", "createJiraIssue", "editJiraIssue", "executeWrite", "executeDestructive", "createConfluenceContent", "updateConfluenceContent", "createConfluenceFooterComment", "addWorklogToJiraIssue", "createIssueLinkInJira"];
+  for (const server of ["jira", "claude_ai_Atlassian", "atlassian-remote"]) for (const op of ops) assert.equal(perms.classify(`mcp__${server}__${op}`, {}).kind, "protected", `${server} ${op}`);
+  for (const op of ["getJiraIssue", "searchJiraIssuesUsingJql", "searchConfluence", "getConfluenceContent", "executeRead", "discover", "listJiraIssueComments", "atlassianUserInfo", "getAccessibleAtlassianResources", "lookupJiraAccountId", "search", "getJiraIssueRemoteIssueLinks"]) assert.equal(perms.classify(`mcp__jira__${op}`, {}).kind, "allow", op);
+  const t = perms.classify("mcp__jira__transitionJiraIssue", { issueIdOrKey: "WEB-3", transition: { id: "31" } });
+  assert.match(t.label, /WEB-3.*31/);
+  assert.equal(perms.classify("mcp__jira__transitionJiraIssue", { issueIdOrKey: "WEB-3", transition: { id: "51" } }).kind, "protected");
+  assert.match(perms.classify("mcp__jira__executeDestructive", { name: "deleteJiraIssue" }).label, /deleteJiraIssue/);
+});
+
+test("Jira writes straight to the REST API are protected; reads pass", () => {
+  assert.equal(bash("curl -s -X POST -H 'Content-Type: application/json' https://acme.atlassian.net/rest/api/3/issue/WEB-1/comment -d '{}'"), "protected");
+  assert.equal(bash("curl -s --request PUT https://acme.atlassian.net/rest/api/3/issue/WEB-1"), "protected");
+  assert.equal(bash("curl -s https://acme.atlassian.net/rest/api/3/issue/WEB-1"), "allow");
+  assert.equal(bash("curl -s -X POST https://example.com/hook -d x"), "allow");
+  assert.equal(bash('powershell -Command "Invoke-RestMethod -Method Post -Uri https://acme.atlassian.net/rest/api/3/issue"'), "protected");
+});
+
+test("pretending to be another session through CLAUDE_CODE_SESSION_ID is protected", () => {
+  for (const c of ["CLAUDE_CODE_SESSION_ID=abc node scripts/board.js approve-chat WEB-1 pay", "export CLAUDE_CODE_SESSION_ID=abc; node scripts/board.js hold add --reason x", "env CLAUDE_CODE_SESSION_ID=abc node scripts/board.js tidy-start t1", 'powershell -Command "$env:CLAUDE_CODE_SESSION_ID = \'abc\'"']) assert.equal(bash(c), "protected", c);
+  assert.equal(bash("echo $CLAUDE_CODE_SESSION_ID"), "allow");
+  assert.equal(bash("node scripts/board.js approve-chat WEB-1 pay"), "allow");
+});
+
+test("only the DEV_LOGIN_CODE line of super-app/.env can be read without asking", () => {
+  for (const c of ["grep '^DEV_LOGIN_CODE=' /Users/a/palc/super-app/.env", 'grep "^DEV_LOGIN_CODE=" super-app/.env', "grep ^DEV_LOGIN_CODE= ~/workspace/palc/super-app/.env", "grep -E '^DEV_LOGIN_CODE=' super-app/.env", "grep -m1 '^DEV_LOGIN_CODE=' ./super-app/.env", "grep -E -m 1 '^DEV_LOGIN_CODE=' '/Users/a/palc/super-app/.env'"]) assert.equal(bash(c), "allow", c);
+  for (const c of ["grep '^DEV_LOGIN_CODE=' super-app/.env | cat", "grep '^DEV_LOGIN_CODE=' super-app/.env; cat super-app/.env", "grep '^DEV_LOGIN_CODE=' super-app/.env && cat .env", "grep '^DEV_LOGIN_CODE=' super-app/.env.production", "grep '^DEV_LOGIN_CODE=' backoffice/.env", "grep '^DB_PASSWORD=' super-app/.env", "grep 'DEV_LOGIN_CODE' super-app/.env", "grep '^DEV_LOGIN_CODE=.*' super-app/.env", "grep -A3 '^DEV_LOGIN_CODE=' super-app/.env", "grep -v '^DEV_LOGIN_CODE=' super-app/.env", "grep '^DEV_LOGIN_CODE=' super-app/.env super-app/.env.local", `grep '^DEV_LOGIN_CODE=" super-app/.env`, "cat super-app/.env", "grep '^DEV_LOGIN_CODE=' super-app/.env > /tmp/x"]) assert.equal(bash(c), "ask", c);
+  const env = path.join(env_root(), "super-app", ".env");
+  assert.equal(perms.classify("Grep", { pattern: "^DEV_LOGIN_CODE=", path: env, output_mode: "content" }).kind, "allow");
+  assert.equal(perms.classify("Grep", { pattern: "^DEV_LOGIN_CODE=", path: env, output_mode: "content", "-A": 2 }).kind, "ask");
+  assert.equal(perms.classify("Grep", { pattern: "^DB_PASSWORD=", path: env, output_mode: "content" }).kind, "ask");
+  assert.equal(perms.classify("Grep", { pattern: "^DEV_LOGIN_CODE=", path: path.join(env_root(), "backoffice", ".env") }).kind, "ask");
+  assert.equal(perms.classify("Read", { file_path: env }).kind, "ask");
 });
 
 test("other tools: Sentry updates protected, Artifacts publishing asked, the rest allowed", () => {

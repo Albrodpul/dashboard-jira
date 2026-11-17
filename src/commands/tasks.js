@@ -23,6 +23,28 @@ function removedCard(d, t) {
   return found && { area: found.area, status: found.status === "partial" ? "done" : found.status, removed: true };
 }
 
+function leftovers(t) {
+  const fs = require("fs");
+  const path = require("path");
+  const p = config.project(require("../core/projects").projectOf(t));
+  const roots = [...new Set([p && p.root, config.root].filter(Boolean).map((r) => path.resolve(r)))];
+  return roots.flatMap((r) => ["pruebas", ".attachments"].map((dir) => path.join(r, dir, t.key))).filter((f) => fs.existsSync(f));
+}
+
+function needsCause(d, t) {
+  if (t.kind !== "returned") return false;
+  const since = Date.parse(t.returnedAt || t.at || "") || 0;
+  return !(d.causes || []).some((c) => c.key === t.key && (Date.parse(c.at) || 0) >= since);
+}
+
+function doneRefusal(d, t, again) {
+  const out = [];
+  const left = leftovers(t);
+  if (left.length) out.push(`${t.key}: no se da por hecha porque quedan restos de la prueba en ${left.map((f) => f.replace(/\\/g, "/")).join(", ")}. Bórralos (lo de pruebas/${t.key}/ y .attachments/${t.key}/ se borra al cerrar la tarea) y vuelve a lanzar ${again}.`);
+  if (needsCause(d, t)) out.push(`${t.key}: no se da por hecha porque volvió de la revisión (devuelta) y no tiene apuntada la causa. Apúntala primero con «board.js cause ${t.key} written|new <dónde estaba escrito, o qué se ha apuntado ahora>» y vuelve a lanzar ${again}.`);
+  return out;
+}
+
 const NOTICE_OF = { done: "done", partial: "partial", question: "question", comment: "comment" };
 
 const commands = {
@@ -51,6 +73,7 @@ const commands = {
         const task = { ...fields, project: fields.project || (previous && previous.project) || require("../core/projects").projectOf(fields), status: "pending", events: ((previous && previous.events) || []).concat(event ? [event] : []).slice(-20) };
         d.tasks[t.key] = task;
         if (previous && previous.removed && d.deleted) delete d.deleted[t.key];
+        if (task.kind === "returned") task.returnedAt = now();
         if (comesBack) {
           task.proposedArea = fields.proposedArea || previous.area || previous.proposedArea || "";
           task.rounds = (previous.rounds || 0) + 1;
@@ -110,6 +133,7 @@ const commands = {
   },
 
   "approve-chat"() {
+    require("./caller").onlyFrom("approve-chat", ["orchestrator", "reporter"]);
     const area = b;
     const error = mutate((d) => {
       const t = d.tasks[a];
@@ -257,6 +281,7 @@ function sessionNotice() {
       const t = d.tasks[k];
       if (!t) out.push(`${k} no tiene tarjeta en el tablero: cuéntaselo a ${ME} en tu propia sesión`);
       else if (!IN_SESSION.includes(t.status) || t.manual) out.push(`${k} no está en ninguna sesión según el tablero (estado: ${t.status}${t.manual ? ", resuelta a mano" : ""})`);
+      else if (cmd === "done" && doneRefusal(d, t, `«board.js done ${k} …»`).length) out.push(doneRefusal(d, t, `«board.js done ${k} …»`).join("\n"));
       else {
         const at = now();
         t.status = newStatus;
