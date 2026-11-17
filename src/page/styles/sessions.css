@@ -27,7 +27,7 @@
 .srow-actions { display: flex; gap: 6px; justify-content: flex-end; }
 .srow-actions .btn { padding: 4px 10px; font-size: 13px; }
 .srow-note { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.erow { display: grid; grid-template-columns: 92px minmax(0, 1fr) 220px auto; gap: 10px; align-items: center; padding: 6px 12px; background: var(--surface); border-top: 1px solid var(--line); }
+.erow { display: grid; grid-template-columns: 92px minmax(160px, 1fr) 200px auto; gap: 10px; align-items: center; padding: 6px 12px; background: var(--surface); border-top: 1px solid var(--line); }
 .erow select { padding: 4px 8px; }
 @media (max-width: 760px) {
   .srow, .srow.fixed { grid-template-columns: 12px minmax(0, 1fr); }
@@ -37,3 +37,44 @@
   .erow select, .erow .btn { grid-column: 1 / -1; }
 }
 .srow-epics select.srow-add { flex: none; width: 30px; min-width: 0; height: 24px; padding: 0; text-align: center; text-align-last: center; appearance: none; -webkit-appearance: none; background-image: none; }
+.fcards { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 8px; }
+.fcard { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; min-width: 0; }
+.fcard-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.fcard-head strong { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13.5px; }
+.fcard .srow-actions { justify-content: flex-start; margin-top: 4px; }
+.fcard.waiting { border-color: var(--danger); }
+.fcard.waiting .meta { color: var(--danger); font-weight: 600; }
+.dot.wait { background: var(--danger); }
+.s2-free { border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.s2-free > summary { cursor: pointer; padding: 10px 12px; list-style-position: inside; }
+.s2-free.warn > summary strong { color: var(--back); }
+.s2-free[open] > summary { border-bottom: 1px solid var(--line); }
+.s2-free > .erows { border: 0; border-radius: 0; }
+.s2-free-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; padding: 10px 12px; background: var(--accent-soft); }
+.s2-free-search { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--line); }
+details.phase > summary { cursor: pointer; list-style-position: inside; }
+details.phase > summary .group-head { display: inline-flex; }
+.phase.waiting .group-name { color: var(--danger); }
+.srow { grid-template-columns: 12px minmax(0, 1fr) auto auto; }
+.srow-main { display: flex; flex-direction: column; gap: 0; min-width: 0; }
+.srow-facts { padding-left: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.srow > .srow-epics { grid-column: 2 / -1; padding-bottom: 2px; }
+.srow-epic-toggle { font: inherit; font-size: 12.5px; color: var(--ink-2); background: transparent; border: 1px solid var(--line); border-radius: 999px; padding: 2px 10px; cursor: pointer; white-space: nowrap; display: inline-flex; gap: 6px; align-items: center; }
+.srow-epic-toggle:hover { background: var(--surface-2); }
+.srow-epic-toggle .ps-chev { font-size: 10px; color: var(--ink-3); }
+.srow-more { position: relative; }
+.srow-more > summary { list-style: none; padding: 4px 10px; font-size: 15px; line-height: 1.2; }
+.srow-more > summary::-webkit-details-marker { display: none; }
+.srow-more-menu { position: absolute; right: 0; top: calc(100% + 4px); z-index: 20; display: flex; flex-direction: column; gap: 2px; min-width: 170px; padding: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12); }
+.srow-more-menu .btn { text-align: left; border: 0; width: 100%; }
+.fcard .srow-more-menu { left: 0; right: auto; }
+.srows { overflow: visible; }
+.srows > .srow:first-child { border-top-left-radius: 8px; border-top-right-radius: 8px; }
+.srows > .srow:last-child { border-bottom-left-radius: 8px; border-bottom-right-radius: 8px; }
+@media (max-width: 760px) {
+  .srow { grid-template-columns: 12px minmax(0, 1fr) auto; }
+  .srow > .srow-epic-toggle { grid-column: 2; justify-self: start; }
+  .srow > .srow-actions { grid-column: 3; grid-row: 1; }
+  .srow-facts { white-space: normal; }
+  .fcards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

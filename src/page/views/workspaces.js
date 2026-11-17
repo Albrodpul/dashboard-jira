@@ -1,4 +1,5 @@
 import { state, h, button, toast, requestOrFail, render, refresh, empty, areaSelectFrom } from "../lib/base.js";
+import { remindersSection } from "./sessions.js";
 
 const base = () => (state.jiraSetup && state.jiraSetup.workspaceBase) || "";
 function relative(root) {
@@ -274,4 +275,5 @@ export function renderWorkspaces(root) {
   root.appendChild(h("div", { class: "actions ws-top" }, [button("Nuevo proyecto", { cls: "primary", onClick: () => ((editing = { name: "", taskPrefix: "", root: "" }), render()) })]));
   if (editing && !editing.id) root.appendChild(form(editing));
   for (const p of list) root.appendChild(editing && editing.id === p.id ? form(editing) : card(p));
+  remindersSection(root);
 }

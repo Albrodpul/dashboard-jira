@@ -45,13 +45,6 @@ function profileText(role) {
   return `${model.charAt(0).toUpperCase()}${model.slice(1)} · esfuerzo ${EFFORT[p.effort] || p.effort}`;
 }
 
-function statusOf(conversation) {
-  const live = liveOf(conversation);
-  if (!live) return { dot: "off", text: "Dormida" };
-  if (live.status === "busy") return { dot: "busy", text: "Trabajando" };
-  return { dot: "on", text: "Abierta" };
-}
-
 function hostAction(action, conversation, name, b, okText) {
   if (b) b.disabled = true;
   return requestOrFail("/api/host/action", { action, conversation, name })
@@ -103,57 +96,164 @@ function epicChips(a) {
   return h("div", { class: "srow-epics" }, chips);
 }
 
+function moreMenu(items) {
+  const list = items.filter(Boolean);
+  if (!list.length) return null;
+  const d = h("details", { class: "srow-more" }, [h("summary", { class: "btn subtle", title: "Más acciones", "aria-label": "Más acciones", text: "⋯" }), h("div", { class: "srow-more-menu" }, list)]);
+  d.addEventListener("toggle", () => {
+    if (!d.open) return;
+    const close = (e) => {
+      if (d.contains(e.target)) return;
+      d.open = false;
+      document.removeEventListener("click", close, true);
+    };
+    document.addEventListener("click", close, true);
+  });
+  return d;
+}
+
 function actions(a, fixed) {
-  const out = [];
+  const main = [];
+  const more = [];
   const conv = a.conversation;
   const hosted = conv && hostedOf(conv);
   const live = conv && liveOf(conv);
-  if (conv && !hosted && !live && !fixed) out.push(button("Al tablero", { title: "La lleva al tablero para poder hablarle y mandarle tareas desde aquí", onClick: (b) => hostAction("move", conv, a.sessionName || a.name, b, `«${a.name}» ya vive en el tablero.`) }));
-  if (hosted) out.push(button("Hablar", { onClick: () => openTalk(conv) }));
-  if (hosted && !live) out.push(button("Abrir", { cls: "subtle", onClick: (b) => hostAction("open", conv, a.sessionName || a.name, b, `Abriendo «${a.name}»…`) }));
+  const name = a.sessionName || a.name;
+  if (conv && !hosted && !live && !fixed) main.push(button("Al tablero", { title: "La lleva al tablero para poder hablarle y mandarle tareas desde aquí", onClick: (b) => hostAction("move", conv, name, b, `«${a.name}» ya vive en el tablero.`) }));
+  if (hosted) main.push(button("Hablar", { onClick: () => openTalk(conv) }));
+  if (hosted && !live) more.push(button("Abrir", { cls: "subtle", onClick: (b) => hostAction("open", conv, name, b, `Abriendo «${a.name}»…`) }));
   if (conv && !fixed && a.id)
-    out.push(
-      button(a.keepOpen ? "Fijada" : "Fijar", {
-        cls: a.keepOpen ? "pinned" : "",
-        title: a.keepOpen ? "No se duerme sola aunque esté parada. Pulsa para que vuelva a dormirse sola." : "Que no se duerma sola aunque esté parada (por ejemplo, si tiene una revisión programada)",
+    more.push(
+      button(a.keepOpen ? "Quitar fijada" : "Fijar", {
+        cls: "subtle",
+        title: a.keepOpen ? "Vuelve a dormirse sola cuando esté parada" : "Que no se duerma sola aunque esté parada (por ejemplo, si tiene una revisión programada)",
         onClick: (b) => {
           b.disabled = true;
-          post("/api/session", { name: a.sessionName || a.name, areaId: a.id, keepOpen: !a.keepOpen }, a.keepOpen ? `«${a.name}» vuelve a dormirse sola.` : `«${a.name}» fijada: no se duerme sola.`);
+          post("/api/session", { name, areaId: a.id, keepOpen: !a.keepOpen }, a.keepOpen ? `«${a.name}» vuelve a dormirse sola.` : `«${a.name}» fijada: no se duerme sola.`);
         },
       })
     );
-  if (hosted && live && !fixed && !a.keepOpen) out.push(button("Dormir", { cls: "subtle", title: "La cierra; se despierta sola cuando le llegue algo", onClick: (b) => hostAction("sleep", conv, a.sessionName || a.name, b, `«${a.name}» dormida.`) }));
+  if (hosted && live && !fixed && !a.keepOpen) more.push(button("Dormir", { cls: "subtle", title: "La cierra; se despierta sola cuando le llegue algo", onClick: (b) => hostAction("sleep", conv, name, b, `«${a.name}» dormida.`) }));
   if (!fixed && !Object.keys(a.epics || {}).length)
-    out.push(
-      button("Quitar", {
+    more.push(
+      button("Quitar del tablero", {
         cls: "subtle",
         title: "La quita del tablero; su conversación no se borra",
         onClick: (b) => {
           if (!window.confirm(`¿Quitar «${a.name}» del tablero? Su conversación no se borra.`)) return;
           b.disabled = true;
-          post("/api/session", { name: a.sessionName || a.name, areaId: a.id, remove: true }, `«${a.name}» quitada del tablero.`);
+          post("/api/session", { name, areaId: a.id, remove: true }, `«${a.name}» quitada del tablero.`);
         },
       })
     );
-  return h("div", { class: "srow-actions" }, out);
+  return h("div", { class: "srow-actions" }, [...main, moreMenu(more)]);
+}
+
+const pendingConvs = () => new Set(((state.permissions && state.permissions.pending) || []).map((p) => p.conversation));
+
+function phaseOf(a) {
+  if (!a.conversation) return "sleeping";
+  const live = liveOf(a.conversation);
+  if (pendingConvs().has(a.conversation) || (live && live.status === "waiting")) return "waiting";
+  if (!live) return "sleeping";
+  return live.status === "busy" ? "busy" : "open";
+}
+
+const PHASES = [
+  ["waiting", "Te esperan", "Tienen una pregunta o un permiso pendiente."],
+  ["busy", "Trabajando", ""],
+  ["open", "Abiertas", "En marcha y paradas."],
+  ["sleeping", "Dormidas", "Se despiertan solas cuando les llega algo."],
+];
+
+function currentTask(a) {
+  const mine = (state.allTasks || state.tasks || []).filter((t) => t.area === a.id && ["sent", "waiting", "partial"].includes(t.status));
+  mine.sort((x, y) => String(y.sentAt || "").localeCompare(String(x.sentAt || "")));
+  return mine[0] || null;
+}
+
+const hhmm = (iso) => (iso ? new Date(iso).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" }) : "");
+
+function rowFacts(a) {
+  const parts = [];
+  if (mixedProjects()) parts.push(projectName(a.project || mainProject()));
+  const t = currentTask(a);
+  if (t) parts.push(`${t.key} ${t.title || ""}`.trim());
+  const live = a.conversation && liveOf(a.conversation);
+  if (live && live.statusSince) parts.push(`${live.status === "busy" ? "trabajando" : "parada"} desde las ${hhmm(live.statusSince)}`);
+  if (live && live.subagents) parts.push(`${live.subagents} ${live.subagents === 1 ? "agente" : "agentes"}`);
+  const rem = (state.reminders || []).filter((r) => r.area === a.id).map((r) => r.time);
+  if (rem.length) parts.push(`aviso diario a las ${rem.join(", ")}`);
+  if (a.keepOpen) parts.push("fijada");
+  return parts.length ? h("span", { class: "meta srow-facts", text: parts.join(" · ") }) : null;
+}
+
+const openEpics = new Set();
+
+function epicToggle(a) {
+  const keys = Object.keys(a.epics || {});
+  if (!(hasModule("jira") && workspacesWith("jira").includes(a.project || mainProject()))) return null;
+  const isOpen = openEpics.has(a.id);
+  const label = keys.length ? `${keys.length} ${keys.length === 1 ? "epic" : "epics"}` : "Sin epics";
+  return h("button", { type: "button", class: "srow-epic-toggle", "aria-expanded": String(isOpen), onclick: () => (isOpen ? openEpics.delete(a.id) : openEpics.add(a.id), render()) }, [label, h("span", { class: "ps-chev", "aria-hidden": "true", text: isOpen ? "▴" : "▾" })]);
+}
+
+function searchText(a) {
+  return [a.name, a.sessionName, projectName(a.project || mainProject()), ...Object.entries(a.epics || {}).flat()].join(" ").toLowerCase();
 }
 
 function row(a) {
-  const st = a.conversation ? statusOf(a.conversation) : { dot: "off", text: "Sin conversación" };
-  return h("div", { class: "srow" }, [h("span", { class: `dot ${st.dot}`, title: st.text }), nameInput(a), hasModule("jira") && workspacesWith("jira").includes(a.project || mainProject()) ? epicChips(a) : h("span", {}), actions(a, false)]);
+  const ph = phaseOf(a);
+  const dot = { waiting: "wait", busy: "busy", open: "on", sleeping: "off" }[ph];
+  const kids = [
+    h("span", { class: `dot ${dot}`, title: PHASES.find((x) => x[0] === ph)[1] }),
+    h("div", { class: "srow-main" }, [nameInput(a), rowFacts(a)]),
+    epicToggle(a) || h("span", {}),
+    actions(a, false),
+  ];
+  if (openEpics.has(a.id)) kids.push(epicChips(a));
+  return h("div", { class: `srow ${ph}`, "data-search": searchText(a) }, kids);
 }
 
-function fixedRow(name, role, conversation, note, profile) {
-  const st = conversation ? statusOf(conversation) : { dot: "off", text: "Sin registrar" };
-  note = [note, profileText(profile)].filter(Boolean).join(" · ");
+function fixedCard(name, role, conversation, profile) {
+  const live = conversation && liveOf(conversation);
+  const ph = !conversation ? "sleeping" : pendingConvs().has(conversation) ? "waiting" : !live ? "sleeping" : live.status === "busy" ? "busy" : "open";
+  const text = { waiting: "te espera", busy: "trabajando", open: "abierta", sleeping: conversation ? "dormida" : "sin registrar" }[ph];
+  const dot = { waiting: "wait", busy: "busy", open: "on", sleeping: "off" }[ph];
   const a = { name, conversation, epics: {} };
-  return h("div", { class: "srow fixed" }, [h("span", { class: `dot ${st.dot}`, title: st.text }), h("strong", { class: "srow-title", text: name }), h("span", { class: "meta srow-note", text: `${role} · ${st.text.toLowerCase()}${note ? ` · ${note}` : ""}` }), actions(a, true)]);
+  return h("div", { class: `fcard ${ph}`, title: [role, profileText(profile)].filter(Boolean).join(" · ") }, [
+    h("div", { class: "fcard-head" }, [h("span", { class: `dot ${dot}` }), h("strong", { text: name })]),
+    h("span", { class: "meta", text: text }),
+    actions(a, true),
+  ]);
 }
 
-function epicRow(e) {
+const STOP = new Set(["super", "backoffice", "landing", "para", "con", "sin", "entre", "desde"]);
+const wordsOf = (t) => new Set(String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length > 3 && !STOP.has(w)));
+
+function suggestFor(e, areas) {
+  const mine = wordsOf(e.name);
+  let best = null;
+  let tie = false;
+  for (const a of areas) {
+    const epicWords = wordsOf(Object.values(a.epics || {}).join(" "));
+    const nameWords = wordsOf(a.name);
+    let score = 0;
+    for (const w of mine) if (epicWords.has(w) || nameWords.has(w)) score += 1;
+    if (score > (best ? best.score : 0)) (best = { area: a, score }), (tie = false);
+    else if (best && score === best.score) tie = true;
+  }
+  return best && !tie ? best.area : null;
+}
+
+function epicRow(e, suggestion) {
   const sel = taskAreaSelect(`ep2-${e.key}`, e.area || "", "Sin sesión", (v) => post("/api/epic", { key: e.key, name: e.name, area: v }, v ? `${e.key} va a la sesión «${areaName(v)}».` : `${e.key} ya no tiene sesión.`));
-  const create = e.area ? null : button("Sesión nueva", { cls: "subtle", onClick: (b) => { const n = window.prompt(`Nombre de la sesión nueva para ${e.key} ${e.name}`, e.name); if (n) createSession(n, e, b); } });
-  return h("div", { class: "erow" }, [h("a", { class: "key jira-link", href: ticketUrl(e.key), target: "_blank", rel: "noopener noreferrer", text: e.key }), h("span", { class: "erow-name", text: e.name }), sel, create]);
+  const extra = e.area
+    ? null
+    : suggestion
+      ? button(`→ ${suggestion.name}`, { title: `Propuesta: la sesión «${suggestion.name}»`, onClick: (b) => ((b.disabled = true), post("/api/epic", { key: e.key, name: e.name, area: suggestion.id }, `${e.key} va a la sesión «${suggestion.name}».`)) })
+      : button("Sesión nueva", { cls: "subtle", onClick: (b) => { const n = window.prompt(`Nombre de la sesión nueva para ${e.key} ${e.name}`, e.name); if (n) createSession(n, e, b); } });
+  return h("div", { class: "erow" }, [h("a", { class: "key jira-link", href: ticketUrl(e.key), target: "_blank", rel: "noopener noreferrer", text: e.key }), h("span", { class: "erow-name", text: e.name }), sel, extra]);
 }
 
 function head(title, n, note) {
@@ -251,7 +351,7 @@ function reminderForm(r) {
   return box;
 }
 
-function remindersSection(root) {
+export function remindersSection(root) {
   const visible = new Set(state.areas.map((a) => a.id));
   const list = (state.reminders || []).filter((r) => visible.has(r.area));
   const sec = h("section", { class: "s2-section" }, [head("Avisos programados", list.length, "El tablero se los manda a la sesión cada día a su hora, aunque se haya dormido o reiniciado.")]);
@@ -261,69 +361,100 @@ function remindersSection(root) {
   root.appendChild(sec);
 }
 
-export function renderSessions(root) {
-  const nameBox = h("input", { type: "text", class: "find-input", maxlength: "60", placeholder: "Nombre de una sesión nueva", "aria-label": "Nombre de la sesión nueva" });
-  const create = button("Crear sesión", { cls: "primary", onClick: (b) => nameBox.value.trim() && createSession(nameBox.value.trim(), null, b) });
-  nameBox.addEventListener("keydown", (e) => e.key === "Enter" && create.click());
-  root.appendChild(h("div", { class: "s2-toolbar" }, [nameBox, create]));
+let sessionQuery = "";
+let freeOpen = false;
+let sleepingOpen = false;
 
-  const jira = hasModule("jira");
-  const free = jira ? freeEpics() : [];
-  if (free.length) {
-    const sec = h("section", { class: "s2-section warn" }, [head("Epics sin sesión", free.length, "Sus tareas llegan a Pendientes sin sesión propuesta.")]);
-    const list = h("div", { class: "erows" });
-    free.forEach((e) => list.appendChild(epicRow(e)));
-    sec.appendChild(list);
-    root.appendChild(sec);
-  }
+function newSessionButton() {
+  return button("Nueva sesión", { cls: "primary", onClick: (b) => { const n = window.prompt("Nombre de la sesión nueva"); if (n && n.trim()) createSession(n.trim(), null, b); } });
+}
 
+function applySearch(root) {
+  const q = sessionQuery.trim().toLowerCase();
+  root.querySelectorAll(".srow[data-search]").forEach((r) => (r.hidden = !!q && !r.dataset.search.includes(q)));
+  root.querySelectorAll(".phase").forEach((sec) => {
+    const rows = [...sec.querySelectorAll(".srow[data-search]")];
+    sec.hidden = !!q && rows.every((r) => r.hidden);
+    if (q && sec.tagName === "DETAILS" && !sec.hidden) sec.open = true;
+  });
+}
+
+function epicsBlock(root, areas) {
+  const free = freeEpics();
   const fixedIds = new Set([state.deployerArea, state.sentry && state.sentry.errorsArea].filter(Boolean));
-  const followUp = state.followUpStatus && state.followUpStatus.conversation;
-  const areas = state.areas.filter((a) => !a.unnamed && !fixedIds.has(a.id) && a.conversation !== followUp);
-  const rank = (a) => (liveOf(a.conversation) ? (statusOf(a.conversation).dot === "busy" ? 0 : 1) : 2);
-  areas.sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name, "es"));
-  const sec = h("section", { class: "s2-section" }, [head("Sesiones", areas.length, `${jira ? "Reciben las tareas de sus epics" : "Reciben las tareas que les mandes desde el tablero"} · ${profileText("area")}`)]);
-  if (!areas.length) sec.appendChild(empty("Sin sesiones.", "Crea una arriba."));
-  else if (mixedProjects())
-    for (const id of inProjectOrder(areas.map((a) => a.project || mainProject()))) {
-      const mine = areas.filter((a) => (a.project || mainProject()) === id);
-      sec.appendChild(projectTitle(id, mine.length));
-      sec.appendChild(h("div", { class: "srows" }, mine.map(row)));
-    }
-  else sec.appendChild(h("div", { class: "srows" }, areas.map(row)));
-  root.appendChild(sec);
-  remindersSection(root);
+  const candidates = state.areas.filter((a) => !a.unnamed && a.conversation && !fixedIds.has(a.id) && Object.keys(a.epics || {}).length);
+  const proposals = free.map((e) => ({ e, s: suggestFor(e, candidates) }));
+  const ready = proposals.filter((x) => x.s);
+  const box = h("details", { class: `s2-free${free.length ? " warn" : ""}` });
+  box.open = freeOpen;
+  box.addEventListener("toggle", () => (freeOpen = box.open));
+  const summary = free.length ? `${free.length} ${free.length === 1 ? "epic sin sesión" : "epics sin sesión"}` : "Epics";
+  box.appendChild(h("summary", {}, [h("strong", { text: summary }), h("span", { class: "meta", text: free.length ? ` · sus tareas llegan a Pendientes sin sesión propuesta · ${ready.length ? `${ready.length} con propuesta` : "repartir"}` : " · buscar uno para darle sesión" })]));
+  if (ready.length > 1) {
+    box.appendChild(
+      h("div", { class: "s2-free-bar" }, [
+        h("span", { class: "meta", text: `El tablero propone sesión para ${ready.length} por su nombre.` }),
+        button(`Aceptar las ${ready.length} propuestas`, {
+          cls: "primary",
+          onClick: async (b) => {
+            b.disabled = true;
+            let ok = 0;
+            for (const { e, s } of ready) await requestOrFail("/api/epic", { key: e.key, name: e.name, area: s.id }).then(() => ok++, () => {});
+            toast(`${ok} epics repartidos.`);
+            refresh(true);
+          },
+        }),
+      ])
+    );
+  }
+  if (free.length) box.appendChild(h("div", { class: "erows" }, proposals.map(({ e, s }) => epicRow(e, s))));
+  const search = h("div", { class: "s2-free-search" });
+  epicSearch(search);
+  box.appendChild(search);
+  root.appendChild(box);
+}
+
+export function renderSessions(root) {
+  const find = h("input", { type: "search", class: "find-input", placeholder: "Buscar una sesión o un epic", value: sessionQuery, "aria-label": "Buscar una sesión" });
+  find.addEventListener("input", () => ((sessionQuery = find.value), applySearch(root)));
+  root.appendChild(h("div", { class: "s2-toolbar" }, [find, newSessionButton()]));
 
   const fixed = [];
   const area = (id) => state.areas.find((a) => a.id === id);
   const mainId = ((state.jiraSetup && state.jiraSetup.workspaces) || [])[0];
-  if (currentProject() && mainId && currentProject() !== mainId.id) {
-    if (state.boardStatus) fixed.push(fixedRow("Tablero", "Mejoras del propio tablero, común a todos los proyectos", state.boardStatus.conversation, "", "board"));
-    root.appendChild(h("section", { class: "s2-section" }, [head("Fijas", fixed.length, "Las que hacen funcionar el tablero."), h("div", { class: "srows" }, fixed)]));
-    return;
+  const onlyOther = currentProject() && mainId && currentProject() !== mainId.id;
+  if (!onlyOther) {
+    if (state.reporterRoute) fixed.push(fixedCard("Reporte de Jira", "Lee Jira y publica el reporte", state.reporterRoute.conversation, "reporter"));
+    if (state.orchestrator) fixed.push(fixedCard("Orquestadora", "Habla contigo de tareas, aprobaciones y restricciones", state.orchestrator.conversation, "orchestrator"));
+    if (state.followUpStatus) fixed.push(fixedCard("Seguimiento", "Lo que hace cada uno en beta y producción", state.followUpStatus.conversation, "followUp"));
+    if (area(state.deployerArea)) fixed.push(fixedCard("Despliegue", "Despliegues de la pestaña Desplegar", area(state.deployerArea).conversation, "deploy"));
+    const err = state.sentry && area(state.sentry.errorsArea);
+    if (err) fixed.push(fixedCard("Errores sentry", "Errores de Sentry y del seguimiento", err.conversation, "errors"));
   }
-  if (state.reporterRoute) fixed.push(fixedRow("Reporte de Jira", "Lee Jira y publica el reporte", state.reporterRoute.conversation, "", "reporter"));
-  if (state.orchestrator) fixed.push(fixedRow("Orquestadora", "Habla contigo de tareas, aprobaciones y restricciones", state.orchestrator.conversation, "", "orchestrator"));
-  const board = state.boardStatus && fixedRow("Tablero", mixedProjects() ? "Mejoras del propio tablero, común a todos los proyectos" : "Mejoras del propio tablero", state.boardStatus.conversation, "", "board");
-  if (board && !mixedProjects()) fixed.push(board);
-  if (state.followUpStatus) fixed.push(fixedRow("Seguimiento", "Lo que hace cada uno en beta y producción", state.followUpStatus.conversation, "", "followUp"));
-  if (area(state.deployerArea)) fixed.push(fixedRow("Despliegue", "Despliegues de la pestaña Desplegar", area(state.deployerArea).conversation, "", "deploy"));
-  const err = state.sentry && area(state.sentry.errorsArea);
-  if (err) fixed.push(fixedRow("Errores sentry", "Errores de Sentry y del seguimiento", err.conversation, "", "errors"));
-  if (mixedProjects())
-    root.appendChild(
-      h("section", { class: "s2-section" }, [
-        head("Fijas", fixed.length + (board ? 1 : 0), "Las que hacen funcionar el tablero."),
-        fixed.length ? projectTitle(mainProject(), fixed.length) : null,
-        fixed.length ? h("div", { class: "srows" }, fixed) : null,
-        board ? h("h3", { class: "project-title", text: "Todos los proyectos" }) : null,
-        board ? h("div", { class: "srows" }, [board]) : null,
-      ])
-    );
-  else root.appendChild(h("section", { class: "s2-section" }, [head("Fijas", fixed.length, "Las que hacen funcionar el tablero."), h("div", { class: "srows" }, fixed)]));
+  if (state.boardStatus) fixed.push(fixedCard("Tablero", "Mejoras del propio tablero, común a todos los proyectos", state.boardStatus.conversation, "board"));
+  if (fixed.length) root.appendChild(h("section", { class: "s2-section" }, [head("Fijas", null, "Las que hacen funcionar el tablero."), h("div", { class: "fcards" }, fixed)]));
 
-  if (!jira) return;
-  const search = h("section", { class: "s2-section" }, [head("Buscar epics", null, null)]);
-  epicSearch(search);
-  root.appendChild(search);
+  const fixedIds = new Set([state.deployerArea, state.sentry && state.sentry.errorsArea].filter(Boolean));
+  const followUp = state.followUpStatus && state.followUpStatus.conversation;
+  const areas = state.areas.filter((a) => !a.unnamed && !fixedIds.has(a.id) && a.conversation !== followUp);
+  const jira = hasModule("jira");
+  if (jira) epicsBlock(root, areas);
+
+  if (!areas.length) root.appendChild(empty("Sin sesiones.", "Crea una con «Nueva sesión»."));
+  for (const [id, title, note] of PHASES) {
+    const order = inProjectOrder(areas.map((a) => a.project || mainProject()));
+    const at = (a) => order.indexOf(a.project || mainProject());
+    const mine = areas.filter((a) => phaseOf(a) === id).sort((a, b) => at(a) - at(b) || a.name.localeCompare(b.name, "es"));
+    if (!mine.length) continue;
+    const headEl = head(title, mine.length, id === "busy" ? "" : note);
+    const rows = h("div", { class: "srows" }, mine.map(row));
+    if (id === "sleeping") {
+      const d = h("details", { class: "s2-section phase" }, [h("summary", {}, [headEl]), rows]);
+      d.open = sleepingOpen;
+      d.addEventListener("toggle", () => (sleepingOpen = d.open));
+      root.appendChild(d);
+    } else root.appendChild(h("section", { class: `s2-section phase ${id}` }, [headEl, rows]));
+  }
+  root.appendChild(h("p", { class: "meta", text: `${jira ? "Las sesiones reciben las tareas de sus epics" : "Las sesiones reciben las tareas que les mandes desde el tablero"} · ${profileText("area")} · los avisos programados están en Ajustes → Proyectos.` }));
+  applySearch(root);
 }
