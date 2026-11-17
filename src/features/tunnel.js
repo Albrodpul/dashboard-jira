@@ -60,6 +60,12 @@ async function target() {
   return { host, label: peer.label || "el otro ordenador" };
 }
 
+// On Windows the tunnel runs as cmd.exe > ssh.exe; the pid that holds the ports, and the one to keep and kill, is ssh's.
+function sshUnder(parent) {
+  const r = cp.spawnSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", `(Get-CimInstance Win32_Process -Filter "ParentProcessId=${Number(parent)} AND Name='ssh.exe'" | Select-Object -First 1).ProcessId`], { windowsHide: true, encoding: "utf8", timeout: 20000 });
+  return Number(String(r.stdout || "").trim()) || null;
+}
+
 async function open() {
   if (current()) return status();
   if (require("../cluster/cluster").primaryNow()) throw new Error("este ordenador manda: los proyectos se abren aquí directamente");
@@ -71,9 +77,10 @@ async function open() {
   let pid;
   if (process.platform === "win32") {
     fs.writeFileSync(LOG, "");
-    pid = require("./devservers").spawnHidden("ssh", args, os.homedir(), LOG);
+    const wrapper = require("./devservers").spawnHidden("ssh", args, os.homedir(), LOG);
     await new Promise((r) => setTimeout(r, 3500));
-    if (!alive(pid)) throw new Error(lastError() || "ssh no arranca");
+    pid = alive(wrapper) ? sshUnder(wrapper) : null;
+    if (!pid) throw new Error(lastError() || "ssh no arranca");
   } else {
     const fd = fs.openSync(LOG, "w");
     const child = cp.spawn("ssh", args, { detached: true, stdio: ["ignore", fd, fd] });
