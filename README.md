@@ -38,6 +38,8 @@ It also has:
 
 Everything runs on your machines: a Node server on `127.0.0.1`, a SQLite file and your Jira API token in a local `.env`. Nothing goes anywhere except your own Jira, and Sentry, GitHub and AWS if you turn them on. The interface is in Spanish.
 
+Why it is built the way it is, decision by decision, with the traps found on the way: [docs/DECISIONS.md](docs/DECISIONS.md).
+
 ## Quick start
 
 ```bash
