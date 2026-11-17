@@ -131,7 +131,7 @@ function sessionCard(s, group) {
   const others = s.tasks.filter((t) => !s.reason || t !== s.reason.task);
   if (others.length) kids.push(h("div", { class: "meta", text: `Con ${others.map((t) => t.key).join(", ")}` }));
   const where = mixedProjects() && s.project ? h("span", { class: "chip session-project", text: projectName(s.project) }) : null;
-  kids.push(h("div", { class: "home-footer" }, [h("span", { class: "home-footer-who" }, [where, h("span", { class: "meta", text: s.sessionName || "" })]), vsCodeLink(s)]));
+  kids.push(h("div", { class: "home-footer" }, [h("span", { class: "home-footer-who" }, [where]), vsCodeLink(s)]));
   return h("article", { class: `card home-session ${group}` }, kids);
 }
 

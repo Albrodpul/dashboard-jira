@@ -38,3 +38,21 @@ test("the board keeps one notice per stuck session, tells only the first time an
   stuck.report({ conversation: "c1", cleared: true });
   assert.deepEqual(stuck.list(), []);
 });
+
+test("the autocompact tip between turns gets one Esc, and the same tip is not answered twice", () => {
+  const { lateDialog } = require("../src/sessions/host");
+  const sent = [];
+  const tip = "\r\n  Tip: Enable autocompact at 80% to keep long sessions going\r\n  Enter to enable · Esc not now\r\n";
+  const s = { name: "x", buffer: "", total: 0, pty: { write: (k) => sent.push(k) } };
+  const feed = (d) => {
+    s.buffer += d;
+    s.total += d.length;
+  };
+  feed("some output" + tip);
+  assert.equal(lateDialog(s), true);
+  assert.equal(lateDialog(s), false);
+  feed("\r\n> working on it");
+  assert.equal(lateDialog(s), false);
+  feed(tip);
+  assert.equal(lateDialog(s), true);
+});

@@ -76,6 +76,45 @@ function askNewSession(promptText, defaultName, epic, onCreated) {
   });
 }
 
+const openExtras = new Set();
+const skipped = {};
+
+function sendOptions(t) {
+  const id = `ctx-${t.id}`;
+  const box = h("textarea", { class: "reply-box", id, rows: "3", placeholder: "Qué hacer, qué no tocar, qué adjunto mirar…", "aria-label": `Indicaciones para la sesión en ${t.key}` });
+  box.value = drafts[id] || "";
+  box.addEventListener("input", () => (drafts[id] = box.value));
+  const kids = [box];
+  const atts = t.attachments || [];
+  if (atts.length) {
+    const skip = (skipped[t.id] = skipped[t.id] || new Set());
+    kids.push(h("div", { class: "meta", text: "Adjuntos que se le pasan (desmarca los que sobran):" }));
+    for (const a of atts) {
+      const cb = h("input", { type: "checkbox" });
+      cb.checked = !skip.has(a.name);
+      cb.addEventListener("change", () => (cb.checked ? skip.delete(a.name) : skip.add(a.name)));
+      kids.push(h("label", { class: "send-option" }, [cb, h("span", { text: a.name })]));
+    }
+  }
+  const extra = (drafts[id] || "").trim() || (skipped[t.id] && skipped[t.id].size);
+  const d = h("details", { class: "send-options" }, [h("summary", { text: extra ? "Indicaciones para la sesión (añadidas)" : atts.length ? "Añadir indicaciones o quitar adjuntos" : "Añadir indicaciones para la sesión" }), h("div", { class: "send-options-body" }, kids)]);
+  d.open = openExtras.has(t.id);
+  d.addEventListener("toggle", () => (d.open ? openExtras.add(t.id) : openExtras.delete(t.id)));
+  return d;
+}
+
+function approvePatch(t, area) {
+  const patch = { status: "approved", area, extraContext: (drafts[`ctx-${t.id}`] || "").trim() };
+  if (skipped[t.id] && skipped[t.id].size) patch.skipAttachments = [...skipped[t.id]];
+  return patch;
+}
+
+function forgetOptions(t) {
+  delete drafts[`ctx-${t.id}`];
+  delete skipped[t.id];
+  openExtras.delete(t.id);
+}
+
 function pendingActions(t) {
   const current = chosenSession(t);
   const sel = taskAreaSelect(`sel-${t.id}`, current, "Elige sesión…", (v) => {
@@ -88,12 +127,22 @@ function pendingActions(t) {
   sel.appendChild(h("option", { value: "__new__", text: "+ Sesión nueva…" }));
   sel.setAttribute("aria-label", `Sesión de destino de ${t.key}`);
   const held = holdOf(t, current);
-  return h("div", { class: "actions" }, [
+  const actions = h("div", { class: "actions" }, [
     sel,
-    button("Hacer", { cls: "primary", disabled: !current || !!held, title: held ? held.chip.title : undefined, onClick: () => saveTask(t, { status: "approved", area: current }, `${t.key} aprobada: ${whoSends()} la envía a ${areaName(current)} en unos segundos.`) }),
+    button("Hacer", {
+      cls: "primary",
+      disabled: !current || !!held,
+      title: held ? held.chip.title : undefined,
+      onClick: () => {
+        const patch = approvePatch(t, current);
+        forgetOptions(t);
+        saveTask(t, patch, `${t.key} aprobada: ${whoSends()} la envía a ${areaName(current)} en unos segundos.`);
+      },
+    }),
     button("Resuelta", { disabled: !!held, title: held ? held.chip.title : "Ya la has hecho o mandado tú. Pasa a Enviadas sin avisar a ninguna sesión.", onClick: () => saveTask(t, { status: "sent", manual: true, area: current || undefined }, `${t.key} resuelta a mano: queda en Enviadas.`) }),
     button("Ignorar", { onClick: () => saveTask(t, { status: "ignored" }, `${t.key} ignorada.`) }),
   ]);
+  return h("div", {}, [sendOptions(t), actions]);
 }
 
 function reviewedButton(t) {
@@ -186,24 +235,29 @@ function answerForSession(t, kids, acts, proposal) {
     kids.push(h("div", { class: "reply", text: `Tu respuesta de las ${when(t.answer.at)}, de camino a la sesión: ${t.answer.text}` }));
     return;
   }
-  const placeholder = proposal ? "O, en vez de publicarlo, dile otra cosa a la sesión…" : t.status === "waiting" ? "Tu respuesta para la sesión…" : "Lo que necesita para seguir (opcional)…";
+  const changes = t.status === "done";
+  const placeholder = changes ? "Qué quieres que cambie: vuelve a la misma sesión con esto…" : proposal ? "O, en vez de publicarlo, dile otra cosa a la sesión…" : t.status === "waiting" ? "Tu respuesta para la sesión…" : "Lo que necesita para seguir (opcional)…";
   const box = h("textarea", { class: "reply-box", id: `resp-${t.id}`, rows: "3", placeholder, "aria-label": `Respuesta para la sesión sobre ${t.key}` });
   box.value = drafts[t.id] || "";
   box.addEventListener("input", () => (drafts[t.id] = box.value));
   kids.push(box);
   acts.push(
-    button("Responder", {
-      cls: "primary",
+    button(changes ? "Pedir cambios" : "Responder", {
+      cls: changes ? "" : "primary",
+      title: changes ? "La devuelve a su sesión con lo que escribas, y vuelve a En curso." : undefined,
       onClick: (b) => {
         const txt = (drafts[t.id] || "").trim();
-        if (!txt) return toast("Escribe la respuesta.");
+        if (!txt) return toast(changes ? "Escribe qué quieres que cambie." : "Escribe la respuesta.");
         b.disabled = true;
         requestOrFail("/api/answer", { key: t.id, text: txt })
           .then(() => {
             delete drafts[t.id];
-            toast(`Respuesta guardada: ${whoSends()} se la pasa a la sesión.`);
+            toast(changes ? `${t.key} vuelve a ${areaName(t.area) || "su sesión"} con tus cambios.` : `Respuesta guardada: ${whoSends()} se la pasa a la sesión.`);
           })
-          .catch(() => toast("No se pudo guardar la respuesta."))
+          .catch((e) => {
+            b.disabled = false;
+            toast(`No se pudo guardar: ${e.message}`);
+          })
           .then(() => refresh(true));
       },
     })
@@ -223,9 +277,39 @@ function deliveryProblem(x, kind, id, label = "No se pudo entregar") {
   ]);
 }
 
+function sentExtras(t, kids) {
+  if (t.extraContext) kids.push(h("div", { class: "note" }, [h("b", { text: "Tus indicaciones: " }), t.extraContext]));
+  if (t.skipAttachments && t.skipAttachments.length) kids.push(h("div", { class: "meta", text: `Adjuntos quitados: ${t.skipAttachments.join(", ")}` }));
+  if (t.answer && t.answer.kind === "changes") {
+    const label = t.answer.delivered ? `Cambios pedidos a las ${when(t.answer.at)}` : `Cambios pedidos a las ${when(t.answer.at)}, de camino a la sesión`;
+    kids.push(h("div", { class: "reply" }, [h("b", { text: `${label}: ` }), t.answer.text]));
+  }
+}
+
+const ago = (iso) => {
+  const s = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 1000));
+  return s < 60 ? `hace ${s} s` : s < 3600 ? `hace ${Math.round(s / 60)} min` : `hace ${Math.round(s / 3600)} h`;
+};
+const span = (mins) => (mins < 1 ? "menos de 1 min" : mins < 90 ? `${mins} min` : `${Math.floor(mins / 60)} h ${mins % 60} min`);
+
+function progressLine(t) {
+  const pr = (state.progress || {})[t.key];
+  const all = state.progressPhases || [];
+  const phases = all.slice(1);
+  if (!pr || !phases.length || t.status !== "sent" || t.manual) return null;
+  const name = (all.find((p) => p.id === pr.phase) || {}).label || pr.phase;
+  const steps = h("div", { class: "pg-steps", style: `grid-template-columns: repeat(${phases.length}, 1fr)`, role: "progressbar", "aria-label": name, "aria-valuemin": "0", "aria-valuemax": String(pr.of), "aria-valuenow": String(pr.step) }, phases.map((p, i) => h("i", { class: i + 1 < pr.step ? "on" : i + 1 === pr.step ? "now" : "", title: p.label })));
+  const quiet = pr.action && Date.now() - Date.parse(pr.action.at) > 4 * 60000;
+  const doing = pr.action ? (quiet ? `Sin moverse ${ago(pr.action.at)} · lo último: ${pr.action.text}` : `${pr.action.text} · ${ago(pr.action.at)}`) : "Aún no ha empezado a trabajar en ella";
+  const mins = pr.since ? Math.round((Date.now() - Date.parse(pr.since)) / 60000) : null;
+  const time = [mins !== null ? `lleva ${span(mins)}` : "", pr.typical ? `suelen tardar ${pr.typical.low}–${pr.typical.high} min` : ""].filter(Boolean).join(" · ");
+  return h("div", { class: "pg" }, [h("div", { class: "pg-head" }, [h("b", { text: name }), time ? h("span", { text: time }) : null]), steps, h("div", { class: `pg-doing${quiet || !pr.action ? " quiet" : ""}`, text: doing })]);
+}
+
 function inSession(t, kids) {
   kids.push(h("div", { class: "state-line", text: `En la sesión ${areaName(t.area) || t.area}${t.sentAt ? `, enviada a las ${when(t.sentAt)}` : ""}.` }));
   stopLines(t, kids);
+  sentExtras(t, kids);
   if (t.notice) kids.push(h("div", { class: `notice ${t.status}` }, [h("b", { text: `${NOTICE_LABEL[t.notice.type] || "Aviso"} · ${when(t.notice.at)}` }), h("div", { text: t.notice.text })]));
   if (hasChanges(t)) kids.push(changesList(t, "Cambió en Jira después del envío"));
   const acts = [];
@@ -235,7 +319,7 @@ function inSession(t, kids) {
   }
   const proposal = t.status === "waiting" && t.notice && t.notice.type === "comment" && !(t.answer && !t.answer.delivered);
   if (proposal) commentProposal(t, kids, acts);
-  if (t.status !== "done") answerForSession(t, kids, acts, proposal);
+  if (t.status !== "done" || (t.area && t.approvedVia !== "manual")) answerForSession(t, kids, acts, proposal);
   acts.push(backToPendingButton(t));
   if (t.status !== "waiting") acts.push(deleteButton(t));
   kids.push(h("div", { class: "actions" }, acts));
@@ -249,6 +333,9 @@ function sentCard(t, kids) {
   }
   kids.push(h("div", { class: "state-line", text: `Enviada a ${areaName(t.area) || t.area}${t.sentAt ? ` a las ${when(t.sentAt)}` : ""}.` }));
   stopLines(t, kids);
+  sentExtras(t, kids);
+  const pg = progressLine(t);
+  if (pg) kids.push(pg);
   const silentHours = t.sentAt ? Math.floor((Date.now() - new Date(t.sentAt).getTime()) / 3600000) : 0;
   if (silentHours >= 3) kids.push(h("div", {}, [h("span", { class: "chip silent", title: "La sesión no ha avisado al tablero de cómo va: ni hecha, ni a medias, ni con una pregunta. Puede haberse quedado parada.", text: `Sin noticias desde hace ${silentHours} h` })]));
   if (t.reply) kids.push(h("div", { class: "reply", text: t.reply }));
@@ -383,7 +470,12 @@ function batchControls(g) {
     title: heldCount ? `${heldCount === 1 ? "Una está retenida y no se envía" : `${heldCount} están retenidas y no se envían`}.` : undefined,
     onClick: (b) => {
       b.disabled = true;
-      post("/api/batch", { items: free.map((t) => ({ key: t.id, area: chosenSession(t) })) }, free.length === 1 ? "Tarea aprobada." : `${free.length} tareas aprobadas: van juntas en un solo mensaje.`);
+      const items = free.map((t) => {
+        const { extraContext, skipAttachments } = approvePatch(t, chosenSession(t));
+        forgetOptions(t);
+        return { key: t.id, area: chosenSession(t), extraContext, skipAttachments };
+      });
+      post("/api/batch", { items }, free.length === 1 ? "Tarea aprobada." : `${free.length} tareas aprobadas: van juntas en un solo mensaje.`);
     },
   });
   return h("span", { class: "group-actions" }, [sel, btn]);

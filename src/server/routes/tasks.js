@@ -38,7 +38,7 @@ function handleTask(res, { key, patch }, send) {
         decidedAt: null,
       });
       if (!task.at || (task.sentAt && task.sentAt > task.at && !changes.length)) task.at = task.sentAt || task.at;
-      for (const k of ["sentAt", "reply", "manual", "approvedVia", "area", "notice", "answer"]) delete task[k];
+      for (const k of ["sentAt", "reply", "manual", "approvedVia", "area", "notice", "answer", "extraContext", "skipAttachments"]) delete task[k];
       return { code: 200, task: { ...task } };
     }
     if (IN_SESSION.includes(task.status) && !(task.manual && patch.status === "pending")) return { code: 409, error: "ya enviada" };
@@ -54,6 +54,12 @@ function handleTask(res, { key, patch }, send) {
     }
     if (patch.area !== undefined) task.area = area;
     if (patch.status === "approved") {
+      const extra = String(patch.extraContext || "").trim().slice(0, 4000);
+      const skip = (Array.isArray(patch.skipAttachments) ? patch.skipAttachments : []).map(String).filter(Boolean).slice(0, 100);
+      if (extra) task.extraContext = extra;
+      else delete task.extraContext;
+      if (skip.length) task.skipAttachments = skip;
+      else delete task.skipAttachments;
       task.decidedAt = now();
       task.approvedVia = "board";
       delete task.delivery;
@@ -77,7 +83,7 @@ function handleTask(res, { key, patch }, send) {
 function handleBatch(res, { items }, send) {
   if (!Array.isArray(items) || !items.length) return send(res, 400, { error: "faltan las tareas" });
   const routes = loadRoutes();
-  const pairs = items.map((i) => ({ key: String(i.key), area: realArea(i.area) }));
+  const pairs = items.map((i) => ({ key: String(i.key), area: realArea(i.area), extra: String(i.extraContext || "").trim().slice(0, 4000), skip: (Array.isArray(i.skipAttachments) ? i.skipAttachments : []).map(String).filter(Boolean).slice(0, 100) }));
   if (pairs.some((p) => !p.area || !routes.areas[p.area])) return send(res, 400, { error: "todas las tareas necesitan una sesión" });
   const held = [];
   const approved = mutate((d) => {
@@ -92,6 +98,10 @@ function handleBatch(res, { items }, send) {
         continue;
       }
       Object.assign(task, { status: "approved", area: p.area, decidedAt: at, approvedVia: "board" });
+      if (p.extra) task.extraContext = p.extra;
+      else delete task.extraContext;
+      if (p.skip.length) task.skipAttachments = p.skip;
+      else delete task.skipAttachments;
       delete task.delivery;
       delete task.heldBack;
       out.push({ ...task });
@@ -156,6 +166,15 @@ function handleAnswer(res, { key, text }, send) {
   const error = mutate((d) => {
     const t = d.tasks[key];
     if (!t) return "tarea desconocida";
+    if (t.answer && !t.answer.delivered) return "ya hay un mensaje tuyo de camino a la sesión: espera a que le llegue";
+    if (t.status === "done" && t.area && t.approvedVia !== "manual") {
+      t.answer = { text: clean, at: now(), delivered: false, kind: "changes" };
+      t.status = "sent";
+      t.sentAt = now();
+      t.rounds = (t.rounds || 0) + 1;
+      for (const k of ["reviewedAt", "notice"]) delete t[k];
+      return "";
+    }
     if (!["waiting", "partial"].includes(t.status)) return "esta tarea no espera respuesta";
     t.answer = { text: clean, at: now(), delivered: false };
     return "";

@@ -315,3 +315,19 @@ test("a task made by hand is sent without Jira wording", () => {
   assert.match(text, /No las busques ni las muevas en Jira/);
   assert.doesNotMatch(text, /desde el reporte/);
 });
+
+test("a task carries your indications and leaves out the attachments you removed", () => {
+  const { composeTasks } = require("../src/features/mailman");
+  const t = { key: "SIDE-2", title: "Arreglar el pie", source: "manual", kind: "new", approvedVia: "board", extraContext: "no toques la cabecera", skipAttachments: ["vieja.png"] };
+  const text = composeTasks({ restrictions: [] }, [t], "E2", { "SIDE-2": { files: [{ file: "/x/SIDE-2/vieja.png" }, { file: "/x/SIDE-2/buena.png" }] } });
+  assert.match(text, /no toques la cabecera/);
+  assert.match(text, /ya descargados: \/x\/SIDE-2\/buena\.png\n/);
+  assert.match(text, /ha quitado estos adjuntos porque no hacen falta: vieja\.png/);
+});
+
+test("asking for changes on a done task sends what you want changed, not a question and its answer", () => {
+  const { composeAnswers } = require("../src/features/mailman");
+  const text = composeAnswers({ restrictions: [] }, [{ key: "SIDE-3", title: "Botón", area: "pay", answer: { text: "ponlo a la derecha", kind: "changes" } }], "E3");
+  assert.match(text, /quiere cambios\. Lo que pide, literal: ponlo a la derecha/);
+  assert.doesNotMatch(text, /Lo que preguntabas/);
+});

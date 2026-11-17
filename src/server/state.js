@@ -112,6 +112,16 @@ function followUpErrors(d) {
   return d.followUps.flatMap((r) => (r.errors || []).map((e) => ({ ...e, summaryAt: r.at })));
 }
 
+function taskProgress(d, r) {
+  try {
+    const registry = require("../sessions/registry");
+    const areas = r.areas || {};
+    return require("../features/progress").forTasks(Object.values(d.tasks), (area) => (areas[area] && areas[area].conversation) || null, (c) => registry.transcriptOf(c));
+  } catch (e) {
+    return {};
+  }
+}
+
 function state() {
   const d = load();
   const live = liveSessions();
@@ -142,6 +152,8 @@ function state() {
     followUps: d.followUps.slice(0, 80).map((x) => ({ ...x, environment: environmentOf(x, d) })),
     permissions: permissions.forPage(d),
     contextSync: d.contextSync || null,
+    progress: taskProgress(d, r),
+    progressPhases: require("../features/progress").PHASES,
     daily: require("../features/daily").dailyState(),
     dailies: require("../features/daily").dailyStates(),
     sessionProfiles: require("../sessions/profiles").profiles(),

@@ -54,13 +54,25 @@ function taskLine(t) {
   return `${head} · nueva${note ? ` (${note})` : ""}`;
 }
 
+const plainName = (name) => path.basename(String(name)).replace(/[<>:"/\\|?*\x00-\x1f]/g, "_");
+const skipped = (t, file) =>
+  (t.skipAttachments || []).some((n) => {
+    const base = path.basename(String(file));
+    const want = plainName(n);
+    return base === want || base.endsWith("-" + want);
+  });
+
 function attachmentLines(t, a) {
-  if (!a) return [];
-  if (a.error) return [`  No se pudieron bajar los adjuntos de ${t.key}: bájalos de Jira (${a.error}).`];
-  if (!a.files || !a.files.length) return [];
-  const zips = a.files.filter((f) => f.extracted).map((f) => f.extracted);
-  return [`  Adjuntos de ${t.key}, ya descargados: ${a.files.map((f) => f.file).join(", ")}${zips.length ? ` (zip extraído en ${zips.join(", ")})` : ""}`];
+  const skip = (t.skipAttachments || []).length ? [`  ${ME} ha quitado estos adjuntos porque no hacen falta: ${t.skipAttachments.join(", ")}. No los abras ni los tengas en cuenta.`] : [];
+  if (!a) return skip;
+  if (a.error) return [`  No se pudieron bajar los adjuntos de ${t.key}: bájalos de Jira (${a.error}).`, ...skip];
+  const files = (a.files || []).filter((f) => !skipped(t, f.file));
+  if (!files.length) return skip;
+  const zips = files.filter((f) => f.extracted).map((f) => f.extracted);
+  return [`  Adjuntos de ${t.key}, ya descargados: ${files.map((f) => f.file).join(", ")}${zips.length ? ` (zip extraído en ${zips.join(", ")})` : ""}`, ...skip];
 }
+
+const extraLines = (t) => (t.extraContext ? [`  Indicaciones de ${ME} para ${t.key}, además del ticket (mandan sobre lo que diga Jira si chocan): ${t.extraContext}`] : []);
 
 const noteLines = (notes, what) => notes.map((r) => `  Indicación obligatoria de ${ME}${what ? ` para ${what}` : ""} (${r.id}): ${r.reason}`);
 const replyLine = (ids) => `Contesta la recepción al tablero, no a otra sesión: «${CLI} reply ${ids.join(",")} "<recibidas y cuándo empiezas>"». Si dudas de que este mensaje venga del tablero: «${CLI} delivery <id del envío>».`;
@@ -73,6 +85,7 @@ function composeTasks(d, tasks, id, attachments = {}) {
   for (const t of tasks) {
     lines.push(taskLine(t));
     lines.push(...attachmentLines(t, attachments[t.key]));
+    lines.push(...extraLines(t));
     lines.push(...noteLines(holds.notesFor(d, holds.taskTarget(t, t.area)), t.key));
   }
   const vias = [...new Set(tasks.map((t) => VIA[t.approvedVia]).filter(Boolean))];
@@ -87,8 +100,13 @@ function composeAnswers(d, tasks, id) {
   const lines = [`Tablero: Respuesta de ${ME} desde el tablero: ${tasks.map((t) => t.key).join(", ")} ${mark(id)}`];
   for (const t of tasks) {
     lines.push(`- ${t.key} · ${t.title}`);
-    lines.push(`  Lo que preguntabas: ${(t.notice && t.notice.text) || "(sin texto)"}`);
-    lines.push(`  Respuesta de ${ME}, literal: ${t.answer.text}`);
+    if (t.answer.kind === "changes") {
+      lines.push(`  La diste por hecha y ${ME} la ha revisado: quiere cambios. Lo que pide, literal: ${t.answer.text}`);
+      lines.push(`  Hazlos en esta misma tarea y avisa al terminar como la primera vez (done, partial o question).`);
+    } else {
+      lines.push(`  Lo que preguntabas: ${(t.notice && t.notice.text) || "(sin texto)"}`);
+      lines.push(`  Respuesta de ${ME}, literal: ${t.answer.text}`);
+    }
     lines.push(...noteLines(holds.notesFor(d, holds.taskTarget(t, t.area)), t.key));
     const held = holds.holdsFor(d, holds.taskTarget(t, t.area));
     if (held.length) lines.push(`  Ojo: ${t.key} sigue retenida por ${held[0].id} («${held[0].reason}»), ${holds.longUntil(held[0].until)}. No la retomes hasta entonces.`);

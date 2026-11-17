@@ -111,6 +111,7 @@ function serve() {
     log(`start ${entry.name} ${entry.conversation} pid ${s.pty.pid}`);
     s.pty.onData((d) => {
       s.buffer += d;
+      s.total = (s.total || 0) + d.length;
       if (s.buffer.length > BUFFER_BYTES) s.buffer = s.buffer.slice(-BUFFER_BYTES);
       for (const ws of s.clients) if (ws.readyState === 1) ws.send(d);
       clearTimeout(s.promptTimer);
@@ -317,7 +318,19 @@ function postBoard(route, body) {
   req.end(data);
 }
 
+const LATE_DIALOGS = [/autocompact ?at[\s\S]{0,400}?esc ?(to )?not ?now/i];
+
+function lateDialog(s) {
+  const unseen = Math.min(4000, (s.total || 0) - (s.lateMark || 0), s.buffer.length);
+  if (unseen <= 0 || !LATE_DIALOGS.some((re) => re.test(readable(s.buffer.slice(-unseen))))) return false;
+  s.lateMark = s.total;
+  log(`late dialog in ${s.name}: Esc`);
+  setTimeout(() => s.pty && s.pty.write("\x1b"), 300);
+  return true;
+}
+
 function checkPrompt(s) {
+  if (lateDialog(s)) return;
   const text = readable(s.buffer.slice(-6000));
   const m = PROMPT.exec(text.slice(-2500));
   const asking = m && /1\.\s*Yes/i.test(text.slice(-2500));
@@ -433,4 +446,4 @@ function markWaiting(conversation, name) {
   writeConfig(list);
 }
 
-module.exports = { DIALOGS, readable, serve, hostRequest, ensureHost, hostedConversations, markWaiting, adopt, markOnDemand, vsCodeHas, HOST_PORT, readConfig };
+module.exports = { DIALOGS, readable, lateDialog, serve, hostRequest, ensureHost, hostedConversations, markWaiting, adopt, markOnDemand, vsCodeHas, HOST_PORT, readConfig };
