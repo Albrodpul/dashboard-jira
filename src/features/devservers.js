@@ -190,4 +190,4 @@ async function schedule() {
   }
 }
 
-module.exports = { servers, autoProjects, setAutoProject, status, start, stop, restart, startAll, stopAll, standby, schedule };
+module.exports = { spawnHidden, servers, autoProjects, setAutoProject, status, start, stop, restart, startAll, stopAll, standby, schedule };

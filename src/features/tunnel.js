@@ -68,17 +68,26 @@ async function open() {
   const args = ["-N", "-C", "-o", "BatchMode=yes", "-o", "ExitOnForwardFailure=yes", "-o", "ServerAliveInterval=30", "-o", "ServerAliveCountMax=3", "-o", "StrictHostKeyChecking=accept-new", "-o", "ConnectTimeout=10"];
   for (const p of ports()) args.push("-L", `${p}:127.0.0.1:${p}`);
   args.push(host);
-  const fd = fs.openSync(LOG, "w");
-  const child = cp.spawn("ssh", args, { detached: process.platform !== "win32", windowsHide: true, stdio: ["ignore", fd, fd] });
-  fs.closeSync(fd);
-  child.unref();
-  const exited = await new Promise((resolve) => {
-    const timer = setTimeout(() => resolve(false), 3500);
-    child.once("exit", () => (clearTimeout(timer), resolve(true)));
-    child.once("error", () => (clearTimeout(timer), resolve(true)));
-  });
-  if (exited || !child.pid) throw new Error(lastError() || "ssh no arranca");
-  fs.writeFileSync(STATE, JSON.stringify({ pid: child.pid, host, label, since: new Date().toISOString() }));
+  let pid;
+  if (process.platform === "win32") {
+    fs.writeFileSync(LOG, "");
+    pid = require("./devservers").spawnHidden("ssh", args, os.homedir(), LOG);
+    await new Promise((r) => setTimeout(r, 3500));
+    if (!alive(pid)) throw new Error(lastError() || "ssh no arranca");
+  } else {
+    const fd = fs.openSync(LOG, "w");
+    const child = cp.spawn("ssh", args, { detached: true, stdio: ["ignore", fd, fd] });
+    fs.closeSync(fd);
+    child.unref();
+    const exited = await new Promise((resolve) => {
+      const timer = setTimeout(() => resolve(false), 3500);
+      child.once("exit", () => (clearTimeout(timer), resolve(true)));
+      child.once("error", () => (clearTimeout(timer), resolve(true)));
+    });
+    if (exited || !child.pid) throw new Error(lastError() || "ssh no arranca");
+    pid = child.pid;
+  }
+  fs.writeFileSync(STATE, JSON.stringify({ pid, host, label, since: new Date().toISOString() }));
   return status();
 }
 
