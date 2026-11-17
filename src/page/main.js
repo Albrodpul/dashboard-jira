@@ -359,18 +359,18 @@ function paint() {
   const right = document.getElementById("top-right");
   right.textContent = "";
   const c = state.cluster;
-  if (c && c.peer) {
+  if (!mobile) right.appendChild(activityButton());
+  if (c && c.peer && (viaHeaders[1] || c.role !== "primary")) {
     const stale = viaHeaders[1];
-    const text = stale ? `${stale}: el otro no responde` : c.role === "primary" ? `Manda el ${c.label || "ordenador"}` : "Sin ordenador al mando";
-    right.appendChild(h("span", { class: `commander${stale || c.role !== "primary" ? " warn" : ""}`, title: c.role === "primary" ? `Manda desde ${new Date(c.since).toLocaleString("es-ES")}` : "", text }));
+    right.appendChild(h("span", { class: "commander warn", text: stale ? `${stale}: el otro no responde` : "Sin ordenador al mando" }));
   }
-  const badge = batteryBadge(c && c.macPower && c.macPower.battery);
+  const badge = batteryBadge(c && c.macPower && c.macPower.battery, null);
   if (badge) right.appendChild(badge);
   const brand = document.querySelector(".nav > .brand");
   if (brand) {
     const old = brand.querySelector(".mobile-battery");
     if (old) old.remove();
-    const small = batteryBadge(c && c.macPower && c.macPower.battery);
+    const small = batteryBadge(c && c.macPower && c.macPower.battery, null);
     brand.appendChild(h("span", { class: "mobile-battery" }, [small, quotaBlock()]));
   }
   right.appendChild(quotaBlock());
@@ -550,25 +550,31 @@ try {
 } catch (e) {}
 setNavHidden(navHidden, false);
 navToggle.addEventListener("click", () => setNavHidden(!document.body.classList.contains("nav-hidden"), true));
-const reportToggle = document.getElementById("report-toggle");
-const setReportCollapsed = (collapsed, save) => {
-  document.body.classList.toggle("report-collapsed", collapsed);
-  reportToggle.setAttribute("aria-expanded", String(!collapsed));
-  reportToggle.title = collapsed ? "Desplegar el reporte de Jira" : "Plegar el reporte de Jira";
-  reportToggle.setAttribute("aria-label", reportToggle.title);
-  if (!save) return;
+let reportHidden = false;
+try {
+  reportHidden = localStorage.getItem("report-hidden") === "1";
+} catch (e) {}
+document.body.classList.toggle("report-hidden", reportHidden);
+function setReportHidden(hidden) {
+  reportHidden = hidden;
+  document.body.classList.toggle("report-hidden", hidden);
   try {
-    localStorage.setItem("report-collapsed", collapsed ? "1" : "");
+    localStorage.setItem("report-hidden", hidden ? "1" : "");
   } catch (e) {}
   window.dispatchEvent(new Event("layoutchange"));
-};
-let reportCollapsed = false;
-try {
-  reportCollapsed = localStorage.getItem("report-collapsed") === "1";
-} catch (e) {}
-setReportCollapsed(reportCollapsed, false);
-reportToggle.addEventListener("click", () => setReportCollapsed(!document.body.classList.contains("report-collapsed"), true));
-document.querySelector(".report-head strong").addEventListener("click", () => document.body.classList.contains("report-collapsed") && setReportCollapsed(false, true));
+  render();
+}
+function activityButton() {
+  return h("button", {
+    class: `btn activity-toggle${reportHidden ? "" : " on"}`,
+    type: "button",
+    "aria-controls": "report",
+    "aria-pressed": String(!reportHidden),
+    title: reportHidden ? "Enseñar el reporte de Jira" : "Ocultar el reporte de Jira",
+    text: "Actividad",
+    onclick: () => setReportHidden(!reportHidden),
+  });
+}
 render();
 const askedTab = new URLSearchParams(location.search).get("tab");
 if (askedTab) {
