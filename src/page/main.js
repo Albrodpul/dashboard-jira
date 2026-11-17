@@ -33,8 +33,16 @@ const GROUPS = [
     [
       { id: "home", label: "Inicio", hint: "Qué pasa ahora" },
       { id: "tasks", label: "Tareas", hint: "Lo de Jira y lo que te espera" },
-      { id: "talk", label: "Chats", hint: "Escribir a una sesión" },
       { id: "daily", label: "Daily", hint: "El resumen de ayer y el de hoy" },
+      { id: "follow-up", label: "Seguimiento", hint: "Lo que hacen los compañeros" },
+    ],
+  ],
+  [
+    "Sesiones",
+    [
+      { id: "talk", label: "Chats", hint: "Escribir a una sesión" },
+      { id: "sessions", label: "Sesiones", hint: "Quién lleva cada epic" },
+      { id: "context", label: "Contexto", hint: "Lo que aprenden las sesiones y ordenarlo" },
     ],
   ],
   [
@@ -42,33 +50,18 @@ const GROUPS = [
     [
       { id: "sentry", label: "Errores", hint: "Errores de Sentry a una sesión" },
       { id: "deploy", label: "Desplegar", hint: "Subir a develop o producción" },
-    ],
-  ],
-  [
-    "Entorno",
-    [
       { id: "projects", label: "Servidores", hint: "Servidores de desarrollo en local" },
-      { id: "machines", label: "Ordenadores", hint: "PC y Mac: quién manda" },
-    ],
-  ],
-  [
-    "Qué hacen los demás",
-    [
-      { id: "follow-up", label: "Seguimiento", hint: "Lo que hacen los compañeros" },
-      { id: "learning", label: "Aprendizaje", hint: "Si vuelven menos tareas" },
     ],
   ],
   [
     "Ajustes",
     [
       { id: "workspaces", label: "Proyectos", hint: "Alta y ajustes de cada proyecto" },
-      { id: "sessions", label: "Sesiones", hint: "Quién lleva cada epic" },
-      { id: "context", label: "Ordenar contexto", short: "Contexto", hint: "Repasar context/" },
+      { id: "machines", label: "Ordenadores", hint: "PC y Mac: quién manda" },
     ],
   ],
 ];
 const VIEWS = {
-  learning: ["Aprendizaje", "Si el contexto que van guardando las sesiones hace que vuelvan menos tareas de revisión."],
   home: ["Inicio", "Lo que te necesita y cómo van las sesiones."],
   daily: ["Daily", "El resumen del último día laborable y el de hoy, agrupado por área: qué se hizo, dónde y cómo. Se redacta solo a la hora de la daily."],
   pending: ["Pendientes", "Tareas nuevas o devueltas que puedes pasar a la sesión de su epic. Nada se envía hasta que pulsas Hacer."],
@@ -87,7 +80,7 @@ const VIEWS = {
   workspaces: ["Proyectos", "Cada proyecto que lleva el tablero: su carpeta en este ordenador, sus módulos y sus credenciales."],
   projects: ["Servidores", "Los servidores locales que usan las sesiones: base de datos, API y webs de cada proyecto."],
   sentry: ["Errores", "Errores sin resolver de los proyectos de Sentry. Elige la sesión y pulsa Enviar: el tablero se lo pasa con el enlace y te cuenta aquí lo que ha encontrado."],
-  context: ["Ordenar contexto", "La orquestadora repasa y ordena context/ y el índice de AGENTS.md. Solo se puede lanzar con todo limpio: sin tareas pendientes, por enviar ni en sesión."],
+  context: ["Contexto", "Lo que van guardando las sesiones en context/: si hace que vuelvan menos tareas de revisión y, cuando todo está limpio, la orquestadora para repasarlo y ordenarlo."],
   "follow-up": ["Seguimiento", "Lo que hace cada uno según sus peticiones a la API, separado por persona: beta se resume sola cada hora y producción cada dos; cualquiera de los dos, también cuando lo pidas."],
 };
 const mainOnly = (paint) => (root) => {
@@ -95,7 +88,6 @@ const mainOnly = (paint) => (root) => {
   return paint(root);
 };
 const NON_TASK_VIEWS = {
-  learning: mainOnly(renderLearning),
   home: renderHome,
   daily: renderDaily,
   sessions: renderSessions,
@@ -106,7 +98,15 @@ const NON_TASK_VIEWS = {
   projects: renderProjects,
   workspaces: renderWorkspaces,
   "follow-up": mainOnly(renderFollowUp),
-  context: renderContext,
+  context: (root) => {
+    const part = (title, paint) => {
+      const box = h("section", { class: "page-part" }, [h("h3", { class: "page-part-title", text: title })]);
+      root.appendChild(box);
+      paint(box);
+    };
+    if (hasModule("context")) part("Ordenar contexto", renderContext);
+    if (hasModule("jira")) part("Aprendizaje", mainOnly(renderLearning));
+  },
   talk: renderTalk,
 };
 const ICONS = {
@@ -126,9 +126,8 @@ const NAV_ICONS = {
   machines: '<rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/>',
   workspaces: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
   "follow-up": '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
-  learning: '<path d="M22 10 12 5 2 10l10 5 10-5z"/><path d="M6 12v5c3 2 9 2 12 0v-5"/>',
   sessions: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18.5 20a6.5 6.5 0 0 0-3-5.5"/>',
-  context: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+  context: '<path d="M22 10 12 5 2 10l10 5 10-5z"/><path d="M6 12v5c3 2 9 2 12 0v-5"/>',
 };
 const navIcon = (id) => {
   const s = h("span", { class: "tab-icon", "aria-hidden": "true" });
@@ -143,7 +142,7 @@ const BOTTOM_BAR = [
 ];
 const MOBILE = window.matchMedia("(max-width: 760px)");
 const isTaskTab = (tab) => TASK_TABS.some((t) => t.id === tab);
-const tabOf = (status) => (status === "partial" ? "waiting" : status === "jira" ? "find" : status === "epics" || status === "sessions-new" ? "sessions" : status);
+const tabOf = (status) => (status === "partial" ? "waiting" : status === "jira" ? "find" : status === "epics" || status === "sessions-new" ? "sessions" : status === "learning" ? "context" : status);
 
 try {
   const saved = localStorage.getItem("board-tab");

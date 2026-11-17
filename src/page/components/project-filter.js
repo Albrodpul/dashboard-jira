@@ -30,14 +30,14 @@ export const workspacesWith = (module) => workspaces().filter((p) => !p.modules 
 
 export const projectChip = (id) => (mixedProjects() ? h("span", { class: "chip project-chip", text: projectName(id || mainProject()) }) : null);
 
-const TAB_MODULE = { daily: "daily", sentry: "sentry", deploy: "deploy", projects: "devServers", "follow-up": "followUp", learning: "jira", context: "context" };
+const TAB_MODULE = { daily: "daily", sentry: "sentry", deploy: "deploy", projects: "devServers", "follow-up": "followUp" };
 
 export function hasModule(name) {
   const p = workspaces().find((x) => x.id === currentProject());
   return !p || !p.modules || p.modules[name] !== false;
 }
 
-export const tabVisible = (id) => !TAB_MODULE[id] || hasModule(TAB_MODULE[id]);
+export const tabVisible = (id) => (id === "context" ? hasModule("context") || hasModule("jira") : !TAB_MODULE[id] || hasModule(TAB_MODULE[id]));
 
 export const filterTasks = (list) => {
   const p = currentProject();

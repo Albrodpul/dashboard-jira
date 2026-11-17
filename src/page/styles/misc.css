@@ -157,3 +157,7 @@
 .rem-editing { display: flex; flex-direction: column; gap: 10px; margin: 0; padding: 12px 14px; border-bottom: 1px solid var(--line); }
 .rem-row .actions { display: flex; gap: 6px; flex: none; }
 .rem-form textarea { width: 100%; box-sizing: border-box; font: inherit; }
+
+.page-part { display: flex; flex-direction: column; gap: 14px; }
+.page-part + .page-part { margin-top: 18px; padding-top: 22px; border-top: 1px solid var(--line); }
+.page-part-title { margin: 0; font-size: 16px; font-weight: 600; }
