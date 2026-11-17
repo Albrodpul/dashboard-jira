@@ -17,3 +17,18 @@ test("the repositories come from the deploy targets unless the project lists its
   assert.deepEqual(github.reposOf({ deployTargets: [{ id: "a", repo: "o/a" }, { id: "b" }] }), ["o/a"]);
   assert.deepEqual(github.reposOf({ github: ["o/z"], deployTargets: [{ id: "a", repo: "o/a" }] }), ["o/z"]);
 });
+
+test("commits are read from the branches, grouped by author and pause, without mine, merges or repeats", () => {
+  const c = (oid, who, at, msg = `m ${oid}`) => ({ oid, message: `${msg}\n\nbody`, committedDate: at, author: { name: `N ${who}`, user: { login: who } } });
+  const branches = [
+    { branch: "develop", commits: [c("a3", "sou", "2026-11-17T11:11:03Z"), c("a2", "sou", "2026-11-17T10:33:15Z"), c("m1", "sou", "2026-11-17T10:00:00Z", "Merge branch 'x'"), c("me", "Albrodpul", "2026-11-17T09:50:00Z"), c("a1", "sou", "2026-11-17T08:40:49Z")] },
+    { branch: "feat/x", commits: [c("a2", "sou", "2026-11-17T10:33:15Z"), c("b1", "sou", "2026-11-16T08:00:00Z")] },
+  ];
+  const out = github.commitEvents("o/super-app", branches, { login: "albrodpul", seen: new Set(["a1"]) });
+  assert.deepEqual(out.map((e) => [e.text, e.oids, e.at]), [
+    ["sube 2 commits a develop", ["a2", "a3"], "2026-11-17T11:11:03Z"],
+    ["sube un commit a feat/x", ["b1"], "2026-11-16T08:00:00Z"],
+  ]);
+  assert.deepEqual(out[0].items, ["m a2", "m a3"]);
+  assert.equal(out[0].repo, "super-app");
+});
