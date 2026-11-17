@@ -113,20 +113,38 @@ function board(cmd, data) {
   }
 }
 
+// Search hands at most the newest 40 histories; when the window goes further back, the rest comes page by page from the end.
+async function fullChangelog(ctx, it) {
+  const c = it.changelog || { histories: [] };
+  const oldest = (list) => Math.min(...list.map((h) => new Date(h.created).getTime()));
+  if (!(c.total > c.histories.length) || oldest(c.histories) < cutoff) return c;
+  const histories = [];
+  for (let end = c.total; end > 0; end -= 100) {
+    const start = Math.max(0, end - 100);
+    const page = await api(`${ctx.BASE}/issue/${it.key}/changelog?startAt=${start}&maxResults=${end - start}`, ctx);
+    histories.push(...(page.values || []));
+    if (!page.values || !page.values.length || oldest(page.values) < cutoff) break;
+  }
+  return { histories };
+}
+
 // The events of one Jira site in the window, each tagged with its site context.
 async function readSite(ctx) {
   const { BASE, ME, REJECTED } = ctx;
   const jql = `${ctx.project.jira.projectsJql} AND updated >= -${minutes}m`;
+  const FIELDS = "summary,comment,created,reporter,status,issuetype,assignee,parent";
   const issues = [];
   let token = "";
   do {
-    const s = await api(`${BASE}/search/jql?jql=${encodeURIComponent(jql)}&fields=summary&maxResults=100${token ? `&nextPageToken=${encodeURIComponent(token)}` : ""}`, ctx);
+    const s = await api(`${BASE}/search/jql?jql=${encodeURIComponent(jql)}&fields=${FIELDS}&expand=changelog&maxResults=100${token ? `&nextPageToken=${encodeURIComponent(token)}` : ""}`, ctx);
     issues.push(...s.issues);
     token = s.isLast ? "" : s.nextPageToken || "";
   } while (token);
   const out = [];
   for (const it of issues) {
-    const d = await api(`${BASE}/issue/${it.key}?fields=summary,comment,created,reporter,status,issuetype,assignee,parent&expand=changelog`, ctx);
+    const m = it.fields && it.fields.comment;
+    const d = m && m.total > (m.comments || []).length ? await api(`${BASE}/issue/${it.key}?fields=${FIELDS}`, ctx) : it;
+    d.changelog = await fullChangelog(ctx, it);
     const f = d.fields;
     const isEpic = f.issuetype && f.issuetype.name === "Epic";
     const block = isEpic ? { key: it.key, name: f.summary } : f.parent ? { key: f.parent.key, name: (f.parent.fields && f.parent.fields.summary) || f.parent.key } : null;
@@ -192,7 +210,15 @@ async function readSite(ctx) {
 
   const blockLabel = (b) => (b ? `${b.key} ${b.name}` : "sin epic");
   console.log(`Ventana: ${minutes} min (hora Madrid ahora: ${fmtDate.format(new Date())})${repeated ? ` · ${repeated} evento(s) ya contados en revisiones anteriores no se repiten (--all para verlos)` : ""}`);
-  for (const e of fresh) console.log(`${madrid(e.t)} | ${e.key} | ${e.who} | ${e.text} | asignado: ${e.assignee} | epic: ${blockLabel(e.block)}`);
+  const attachments = {};
+  for (const e of fresh) if (e.type === "Attachment") (attachments[e.who] = attachments[e.who] || []).push(e);
+  const bulk = new Set(Object.keys(attachments).filter((who) => attachments[who].length > 20));
+  for (const e of fresh) if (!(e.type === "Attachment" && bulk.has(e.who))) console.log(`${madrid(e.t)} | ${e.key} | ${e.who} | ${e.text} | asignado: ${e.assignee} | epic: ${blockLabel(e.block)}`);
+  for (const who of bulk) {
+    const list = attachments[who];
+    const keys = [...new Set(list.map((e) => e.key))];
+    console.log(`${madrid(list[0].t)}–${hhmm(list[list.length - 1].t)} | ${keys.length} tickets | ${who} | ${list.length} adjuntos en bloque (${keys.slice(0, 15).join(", ")}${keys.length > 15 ? ", …" : ""}) | resumido: no se listan uno a uno`);
+  }
   if (!fresh.length) console.log("(nada nuevo)");
 
   const routes = readJson(ROUTES_FILE, { areas: {} });
