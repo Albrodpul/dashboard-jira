@@ -171,7 +171,7 @@ function renderTalkMain(root, others) {
   if (other) {
     const close = button("Cerrar sesión", {
       cls: "subtle",
-      title: "La cierra y la quita de Hablar. Su conversación sigue en el historial y se puede volver a abrir desde Sesiones.",
+      title: "La cierra y la quita de Chats. Su conversación sigue en el historial y se puede volver a abrir desde Sesiones.",
       onClick: (b) => {
         if (!window.confirm(`¿Cerrar «${other.name}»? Si está a mitad de algo, se corta. La conversación no se borra.`)) return;
         b.disabled = true;

@@ -82,7 +82,7 @@ function paintMenu(onChange) {
     ])
   );
   portal.appendChild(h("div", { class: "ps-backdrop", onclick: () => ((switchOpen = false), onChange(true)) }));
-  portal.appendChild(h("div", { class: "ps-menu", role: "listbox", "aria-label": "Proyecto" }, [h("div", { class: "ps-menu-title", text: "Proyecto" }), ...options]));
+  portal.appendChild(h("div", { class: "ps-menu", role: "listbox", "aria-label": "Proyecto" }, [h("div", { class: "ps-menu-head" }, [h("strong", { text: cur ? projectName(cur) : "Todos los proyectos" }), h("span", { text: `Cambia de proyecto con las teclas 0-${Math.min(list.length, 9)}` })]), ...options]));
 }
 
 export function projectStats(id) {

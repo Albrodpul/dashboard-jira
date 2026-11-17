@@ -104,7 +104,7 @@ export function renderFind(root) {
         h("div", { class: "row" }, [
           h("div", { class: "row-id" }, [h("strong", { text: a.name })]),
           h("div", { class: "row-side" }, [h("span", { class: "meta", text: Object.keys(a.epics || {}).join(", ") || "Sin epics" })]),
-          button("Hablar", { onClick: () => openTalk(a.conversation) }),
+          button("Chat", { onClick: () => openTalk(a.conversation) }),
         ])
       )
     );

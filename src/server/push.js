@@ -10,7 +10,7 @@ const REASONS = {
   tasks: { title: "Tareas", text: "Hay tareas nuevas en Pendientes", tab: "pending" },
   sessions: { title: "Sesiones", text: "Una sesión necesita tu respuesta", tab: "waiting" },
   followup: { title: "Seguimiento", text: "Hay novedades en el seguimiento", tab: "follow-up" },
-  reply: { title: "Hablar", text: "Te han contestado en Hablar", tab: "talk" },
+  reply: { title: "Chats", text: "Te han contestado en Chats", tab: "talk" },
   deploys: { title: "Despliegues", text: "Ha terminado un despliegue", tab: "deploy" },
   permission: { title: "Permiso", text: "Una sesión pide permiso", tab: "waiting" },
   sentry: { title: "Sentry", text: "Una sesión ha contestado sobre un error de Sentry", tab: "sentry" },

@@ -120,7 +120,7 @@ function actions(a, fixed) {
   const live = conv && liveOf(conv);
   const name = a.sessionName || a.name;
   if (conv && !hosted && !live && !fixed) main.push(button("Al tablero", { title: "La lleva al tablero para poder hablarle y mandarle tareas desde aquí", onClick: (b) => hostAction("move", conv, name, b, `«${a.name}» ya vive en el tablero.`) }));
-  if (hosted) main.push(button("Hablar", { onClick: () => openTalk(conv) }));
+  if (hosted) main.push(button("Chat", { onClick: () => openTalk(conv) }));
   if (hosted && !live) more.push(button("Abrir", { cls: "subtle", onClick: (b) => hostAction("open", conv, name, b, `Abriendo «${a.name}»…`) }));
   if (conv && !fixed && a.id)
     more.push(

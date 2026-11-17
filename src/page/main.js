@@ -33,7 +33,7 @@ const GROUPS = [
     [
       { id: "home", label: "Inicio", hint: "Qué pasa ahora" },
       { id: "tasks", label: "Tareas", hint: "Lo de Jira y lo que te espera" },
-      { id: "talk", label: "Hablar", hint: "Escribir a una sesión" },
+      { id: "talk", label: "Chats", hint: "Escribir a una sesión" },
       { id: "daily", label: "Daily", hint: "El resumen de ayer y el de hoy" },
     ],
   ],
@@ -63,7 +63,7 @@ const GROUPS = [
     [
       { id: "workspaces", label: "Proyectos", hint: "Alta y ajustes de cada proyecto" },
       { id: "sessions", label: "Sesiones", hint: "Quién lleva cada epic" },
-      { id: "context", label: "Ordenar contexto", hint: "Repasar context/" },
+      { id: "context", label: "Ordenar contexto", short: "Contexto", hint: "Repasar context/" },
     ],
   ],
 ];
@@ -83,7 +83,7 @@ const VIEWS = {
   find: ["Buscar", "Lo que coincide en las tareas del tablero, en las sesiones y en Jira. Lo de Jira se puede traer a Pendientes."],
   today: ["Hoy", "Lo que necesita algo de ti ahora mismo y, debajo, el último reporte."],
   more: ["Más", "Errores, despliegues, tu ordenador, lo que hacen los demás y ajustes."],
-  talk: ["Hablar", "Las sesiones del tablero en directo: las fijas y cualquier otra que esté abierta. Escríbeles o córtalas, o abre una nueva para hablar."],
+  talk: ["Chats", "Las sesiones del tablero en directo: las fijas y cualquier otra que esté abierta. Escríbeles o córtalas, o abre una nueva para hablar."],
   workspaces: ["Proyectos", "Cada proyecto que lleva el tablero: su carpeta en este ordenador, sus módulos y sus credenciales."],
   projects: ["Servidores", "Los servidores locales que usan las sesiones: base de datos, API y webs de cada proyecto."],
   sentry: ["Errores", "Errores sin resolver de los proyectos de Sentry. Elige la sesión y pulsa Enviar: el tablero se lo pasa con el enlace y te cuenta aquí lo que ha encontrado."],
@@ -138,7 +138,7 @@ const navIcon = (id) => {
 const BOTTOM_BAR = [
   ["today", "Hoy", "today"],
   ["tasks", "Tareas", "pending"],
-  ["talk", "Hablar", "talk"],
+  ["talk", "Chats", "talk"],
   ["more", "Más", "more"],
 ];
 const MOBILE = window.matchMedia("(max-width: 760px)");
@@ -175,7 +175,7 @@ function paintTabs(counts, waitingDeploys) {
   }
 }
 
-const tabText = (t) => h("span", { class: "tab-text", text: t.label });
+const tabText = (t) => h("span", { class: "tab-text" }, [h("span", { class: "tab-long", text: t.label }), h("span", { class: "tab-short", text: t.short || t.label })]);
 
 function lastTaskTab() {
   try {
@@ -532,24 +532,6 @@ document.addEventListener("focusout", () =>
 );
 document.addEventListener("visibilitychange", () => !document.hidden && reload(false));
 MOBILE.addEventListener("change", render);
-const navToggle = document.getElementById("nav-toggle");
-const setNavHidden = (hidden, save) => {
-  document.body.classList.toggle("nav-hidden", hidden);
-  navToggle.setAttribute("aria-expanded", String(!hidden));
-  navToggle.title = hidden ? "Desplegar el menú lateral" : "Plegar el menú lateral a solo iconos";
-  navToggle.setAttribute("aria-label", navToggle.title);
-  if (!save) return;
-  try {
-    localStorage.setItem("nav-hidden", hidden ? "1" : "");
-  } catch (e) {}
-  window.dispatchEvent(new Event("layoutchange"));
-};
-let navHidden = false;
-try {
-  navHidden = localStorage.getItem("nav-hidden") === "1";
-} catch (e) {}
-setNavHidden(navHidden, false);
-navToggle.addEventListener("click", () => setNavHidden(!document.body.classList.contains("nav-hidden"), true));
 let reportHidden = false;
 try {
   reportHidden = localStorage.getItem("report-hidden") === "1";

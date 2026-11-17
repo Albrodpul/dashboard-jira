@@ -77,7 +77,7 @@ async function typeInto(conversation, text, token, deps = defaults()) {
   if (await confirm(deps, conversation, token, from, CONFIRM_MS)) return { ok: true };
   await put("\r");
   if (await confirm(deps, conversation, token, from, CONFIRM_MS)) return { ok: true, retried: true };
-  return { ok: false, error: "el mensaje no aparece en la conversación de la sesión: puede tener un diálogo abierto o estar arrancando. Mírala en Hablar" };
+  return { ok: false, error: "el mensaje no aparece en la conversación de la sesión: puede tener un diálogo abierto o estar arrancando. Mírala en Chats" };
 }
 
 async function sendMessageInto(conversation, sendTo, text, token, deps = {}) {

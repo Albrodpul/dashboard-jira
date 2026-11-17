@@ -115,9 +115,9 @@
   .term-inline .term-compose { padding: 6px 8px 8px; }
 }
 @media (min-width: 1100px) and (max-width: 1400px) {
-  body.nav-hidden .talk-layout { grid-template-columns: 190px minmax(0, 1fr); gap: 18px; }
-  body.nav-hidden .talk-list { display: flex; }
-  body.nav-hidden .chat-select-row { display: none; }
+  .talk-layout { grid-template-columns: 190px minmax(0, 1fr); gap: 18px; }
+  .talk-list { display: flex; }
+  .chat-select-row { display: none; }
 }
 
 .term-wrap { position: relative; }

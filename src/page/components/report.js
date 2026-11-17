@@ -139,7 +139,7 @@ function paintPause() {
   const paused = !!(state.config && state.config.paused);
   btn.className = `btn bell${paused ? " active" : ""}`;
   btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paused ? PLAY_ICON : STOP_ICON}</svg>`;
-  const txt = paused ? `Revisiones en pausa desde las ${when(state.config.pausedAt)}. Pulsa para reanudarlas.` : `Pausar las revisiones automáticas y los seguimientos para no gastar cuota. Revisar ahora, Hablar y «Pedir resumen ahora» siguen funcionando.`;
+  const txt = paused ? `Revisiones en pausa desde las ${when(state.config.pausedAt)}. Pulsa para reanudarlas.` : `Pausar las revisiones automáticas y los seguimientos para no gastar cuota. Revisar ahora, Chats y «Pedir resumen ahora» siguen funcionando.`;
   btn.title = txt;
   btn.setAttribute("aria-label", txt);
   btn.setAttribute("aria-pressed", paused ? "true" : "false");
