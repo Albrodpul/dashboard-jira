@@ -582,7 +582,7 @@ function boardRow(t) {
 
 function boardCard(t) {
   const held = holdOf(t, t.area);
-  const flag = held ? "Retenida" : t.status === "approved" && t.delivery && !t.delivery.soft ? "Sin entregar" : t.status === "partial" ? "A medias" : t.status === "waiting" ? "Te espera" : t.manual ? "A mano" : hasChanges(t) ? "Cambió en Jira" : "";
+  const flag = held ? "Retenida" : t.status === "approved" && t.delivery && !t.delivery.soft ? "Sin entregar" : t.status === "partial" ? "A medias" : t.status === "waiting" ? "Te espera" : t.manual ? "A mano" : hasChanges(t) ? "Cambió en Jira" : t.status === "done" && t.reviewedAt ? "En revisión" : "";
   return h("button", { type: "button", class: `board-card${state.ticket === t.id ? " open" : ""}`, onclick: () => openDrawer(t) }, [
     projectChip(t.project),
     h("span", { class: "board-card-title", text: t.title }),
@@ -605,15 +605,64 @@ function pendingColumn(list) {
   );
 }
 
+let boardQuery = "";
+const fold = (x) => String(x || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+const matches = (t, words) => {
+  const hay = fold([t.key, t.title, t.epicKey, t.epicName, areaName(t.area || t.proposedArea), t.assignee, projectName(t.project)].join(" "));
+  return words.every((w) => hay.includes(w));
+};
+
+export function boardSearch() {
+  const input = h("input", { type: "search", class: "board-search", id: "board-search", placeholder: "Filtrar tareas: clave, título, epic o sesión", "aria-label": "Filtrar las tareas del tablero", autocomplete: "off" });
+  input.value = boardQuery;
+  let timer = null;
+  input.addEventListener("input", () => {
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      boardQuery = input.value;
+      render();
+      const again = document.getElementById("board-search");
+      if (again) {
+        again.focus();
+        again.setSelectionRange(again.value.length, again.value.length);
+      }
+    }, 150);
+  });
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && input.value) {
+      e.stopPropagation();
+      input.value = "";
+      boardQuery = "";
+      render();
+    }
+  });
+  return input;
+}
+
 export function renderBoard(root) {
   renderPermissions(root, false, true);
+  const words = fold(boardQuery).split(/\s+/).filter(Boolean);
+  const shown = words.length ? state.tasks.filter((t) => matches(t, words)) : state.tasks;
+  if (words.length && !shown.length) return root.appendChild(empty("Ninguna tarea coincide.", "Prueba con otra clave, palabra del título, epic o sesión."));
   const columns = BOARD_COLUMNS.map(([id, title, statuses]) => {
-    const list = state.tasks.filter((t) => statuses.includes(t.status)).sort((a, b) => String(b.sentAt || b.at || "").localeCompare(String(a.sentAt || a.at || "")));
+    const list = shown.filter((t) => statuses.includes(t.status)).sort((a, b) => String(b.sentAt || b.at || "").localeCompare(String(a.sentAt || a.at || "")));
     const head = h("div", { class: "board-head" }, [h("span", { text: title }), h("span", { class: "n", text: String(list.length) })]);
     const body = !list.length ? [h("div", { class: "board-empty", text: "Ninguna" })] : id === "pending" ? pendingColumn(list) : list.map(boardCard);
     if (id === "done") {
       const all = reviewAllButton(list);
-      if (all) body.unshift(h("div", { class: "board-col-action" }, [all]));
+      const inReview = list.filter((t) => t.reviewedAt);
+      const clear = inReview.length
+        ? button(inReview.length === 1 ? "Borrar la que ya está en revisión" : `Borrar las ${inReview.length} que ya están en revisión`, {
+            cls: "subtle",
+            title: `Quita del tablero las tareas hechas que ya pasaste a ${reviewStatus()}. En Jira no cambia nada.`,
+            onClick: (b) => {
+              if (!window.confirm(`¿Borrar del tablero ${inReview.length === 1 ? "la tarea" : `las ${inReview.length} tareas`} en ${reviewStatus()}? En Jira no cambia nada.`)) return;
+              b.disabled = true;
+              deleteTasks(inReview.map((t) => t.id));
+            },
+          })
+        : null;
+      if (all || clear) body.unshift(h("div", { class: "board-col-action" }, [all, clear]));
     }
     return h("section", { class: `board-col tasks-col${id === "pending" ? " wide" : ""}` }, [head, ...body]);
   });

@@ -1,5 +1,5 @@
 import { state, h, post, switchView, setRender, setRefresh, empty, reviewer, button } from "./lib/base.js";
-import { renderTasks, renderToday, renderBoard } from "./views/tasks.js";
+import { renderTasks, renderToday, renderBoard, boardSearch } from "./views/tasks.js";
 import { renderSessions } from "./views/sessions.js";
 import { renderDeploy } from "./views/deploy.js";
 import { renderTalk } from "./views/talk.js";
@@ -378,6 +378,7 @@ function paint() {
     if (switchable && !board) bar.appendChild(button("← Volver al tablero", { onClick: () => switchView("pending") }));
     const chips = !mobile && root.querySelector(".status-chips");
     if (chips) bar.appendChild(chips);
+    if (board) bar.appendChild(boardSearch());
     bar.appendChild(newTaskButton());
     if ((state.tab === "pending" || switchable) && hasModule("jira")) returnedRule(bar);
     root.appendChild(bar);

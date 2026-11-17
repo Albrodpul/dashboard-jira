@@ -19,6 +19,8 @@ textarea.reply-box { font: inherit; color: var(--ink); background: var(--surface
 .task-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; margin: 0 0 14px; }
 .task-toolbar .status-chips, .task-toolbar .rule { margin: 0; }
 .task-toolbar .new-task-toggle { margin-left: auto; }
+.board-search { flex: 0 1 320px; min-width: 200px; font: inherit; font-size: 13.5px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink); }
+.board-search:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 .new-task { margin: 0 0 14px; }
 .new-task input, .new-task select { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; width: 100%; box-sizing: border-box; }
 .new-task select.new-task-project { width: auto; max-width: 260px; align-self: flex-start; }
@@ -108,7 +110,7 @@ textarea.comment-box { font-family: inherit; }
 }
 .status-chips button.alert { border-color: var(--danger); color: var(--danger); font-weight: 600; }
 .s2-section.warn .group-name { color: var(--back); }
-.board-col-action { display: flex; }
+.board-col-action { display: flex; flex-direction: column; gap: 6px; }
 .review-job { display: grid; gap: 6px; flex: 1; font-size: 13px; }
 .board-col-action .btn { width: 100%; padding: 6px 8px; font-size: 12.5px; white-space: normal; }
 .ticket-facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 12px; margin: 0; font-size: 13px; }
