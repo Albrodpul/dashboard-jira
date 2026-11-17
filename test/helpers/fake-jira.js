@@ -9,6 +9,11 @@ const ISSUES = {
 };
 const failing = (process.env.FAKE_JIRA_FAIL || "").split(",").filter(Boolean);
 
+const full = (i) => ({
+  key: i.key,
+  fields: { summary: i.summary, created: new Date().toISOString(), reporter: { displayName: "Alguien" }, status: { name: "To Do" }, issuetype: { name: "Story" }, assignee: null, parent: null, comment: { comments: [] } },
+  changelog: { histories: [] },
+});
 const reply = (status, body) => ({ ok: status < 400, status, json: async () => body, text: async () => JSON.stringify(body) });
 
 globalThis.fetch = async (url, options = {}) => {
@@ -17,16 +22,12 @@ globalThis.fetch = async (url, options = {}) => {
   if (process.env.FAKE_JIRA_LOG) fs.appendFileSync(process.env.FAKE_JIRA_LOG, JSON.stringify({ method: options.method || "GET", url: String(url), auth: headers.Authorization || null }) + "\n");
   if (failing.includes(u.host)) return reply(500, { error: "down" });
   const issues = ISSUES[u.host] || [];
-  if (u.pathname.endsWith("/search/jql")) return reply(200, { issues: issues.map((i) => ({ key: i.key, fields: { summary: i.summary } })), isLast: true });
+  if (u.pathname.endsWith("/search/jql")) return reply(200, { issues: issues.map((i) => (u.searchParams.get("expand") === "changelog" ? full(i) : { key: i.key, fields: { summary: i.summary } })), isLast: true });
   const m = /\/issue\/([A-Z]+-\d+)$/.exec(u.pathname);
   if (m && (options.method || "GET") === "GET") {
     const i = issues.find((x) => x.key === m[1]);
     if (!i) return reply(404, {});
-    return reply(200, {
-      key: i.key,
-      fields: { summary: i.summary, created: new Date().toISOString(), reporter: { displayName: "Alguien" }, status: { name: "To Do" }, issuetype: { name: "Story" }, assignee: null, parent: null, comment: { comments: [] } },
-      changelog: { histories: [] },
-    });
+    return reply(200, full(i));
   }
   return reply(204, {});
 };
