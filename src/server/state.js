@@ -152,6 +152,7 @@ function state() {
     followUps: d.followUps.slice(0, 80).map((x) => ({ ...x, environment: environmentOf(x, d) })),
     permissions: permissions.forPage(d),
     contextSync: d.contextSync || null,
+    github: require("../features/github").forPage(d),
     progress: taskProgress(d, r),
     progressPhases: require("../features/progress").PHASES,
     daily: require("../features/daily").dailyState(),

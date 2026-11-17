@@ -12,7 +12,56 @@ function dayLabel(iso) {
 let historyOpen = false;
 let paintedReport = "";
 
+let paintedGithub = "";
+let githubMoreOpen = false;
+const GH_SHOWN = 12;
+const clock = new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", hour: "2-digit", minute: "2-digit" });
+
+function githubRow(e) {
+  const kids = [
+    h("span", { class: "t", text: clock.format(new Date(e.at)) }),
+    h("div", { class: "gh-body" }, [
+      h("div", { class: "gh-line" }, [h("b", { text: e.name }), ` ${e.text} `, h("span", { class: "gh-repo", text: e.repo })]),
+      e.items && e.items.length ? h("ul", { class: "gh-items" }, [...e.items.map((x) => h("li", { text: x })), e.more ? h("li", { class: "meta", text: `y ${e.more} más` }) : null]) : null,
+    ]),
+  ];
+  return e.url ? h("a", { class: "ev gh-ev", href: e.url, target: "_blank", rel: "noopener" }, kids) : h("div", { class: "ev gh-ev" }, kids);
+}
+
+function githubDays(list) {
+  const out = [];
+  let last = null;
+  for (const e of list) {
+    const day = dayLabel(e.at) || "hoy";
+    if (day !== last) out.push(h("div", { class: "jira-head", text: day.charAt(0).toUpperCase() + day.slice(1) }));
+    last = day;
+    out.push(githubRow(e));
+  }
+  return out;
+}
+
+function renderGithub() {
+  const box = document.getElementById("github-body");
+  if (!box) return;
+  const events = (state.github && state.github.events) || [];
+  const fingerprint = JSON.stringify([events.map((e) => e.id), fmtDay.format(new Date())]);
+  if (fingerprint === paintedGithub) return;
+  paintedGithub = fingerprint;
+  box.hidden = !events.length;
+  box.textContent = "";
+  if (!events.length) return;
+  box.appendChild(h("div", { class: "act-source", text: "GitHub" }));
+  box.append(...githubDays(events.slice(0, GH_SHOWN)));
+  const rest = events.slice(GH_SHOWN);
+  if (!rest.length) return;
+  const det = h("details", {}, [h("summary", { class: "meta", text: `Más actividad en GitHub (${rest.length})` }), ...githubDays(rest)]);
+  det.open = githubMoreOpen;
+  det.addEventListener("toggle", () => (githubMoreOpen = det.open));
+  box.appendChild(det);
+}
+
 export function renderReport() {
+  renderGithub();
   const box = document.getElementById("report-body");
   const reports = state.reports || [];
   const last = state.lastReview || null;
@@ -28,6 +77,7 @@ export function renderReport() {
   paintedReport = fingerprint;
   box.hidden = false;
   box.textContent = "";
+  box.appendChild(h("div", { class: "act-source", text: "Jira" }));
   if (req) box.appendChild(h("div", { class: "pending-note", text: `Revisión pedida a las ${when(req.at)}. ${slow ? "Tarda más de lo normal: la sesión de reporte puede estar ocupada o cerrada." : "Se está preparando."}` }));
   if (!reports.length) return;
   const noChanges = last && last.empty && new Date(last.at) > new Date(reports[0].at);
@@ -143,10 +193,14 @@ function quotaMeter(c, k, name, main) {
   return h("span", { class: `quota-meter${level}${main ? "" : " minor"}`, title: `${main ? "Semana" : name}: ${used} % usado, ${resets(c[k].resetsAt)}` }, [main ? null : h("span", { class: "quota-name", text: name }), h("b", { text: `${used}%` })]);
 }
 
+const CLAUDE_LOGO = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M14.2 12.3L22.4 13.5M13.7 13.4L18.7 17.2M12.8 14.0L15.7 21.3M11.7 14.2L10.7 20.9M10.6 13.7L5.4 20.5M10.0 12.8L4.4 15.1M9.8 11.7L1.9 10.6M10.3 10.6L4.8 6.3M11.2 10.0L8.0 2.2M12.3 9.8L13.2 3.5M13.4 10.3L18.0 4.3M14.0 11.2L20.7 8.5" fill="none" stroke="#D97757" stroke-width="2.3" stroke-linecap="round"/></svg>';
+
 function quotaBlockInner() {
   const c = state.quota;
   const live = (k) => c && c[k] && !(c[k].resetsAt && new Date(c[k].resetsAt) < new Date());
-  const box = h("div", { class: "quota" }, [h("span", { class: "quota-title", text: "Claude" })]);
+  const logo = h("span", { class: "quota-title claude-logo", title: "Cuota de Claude", role: "img", "aria-label": "Claude" });
+  logo.innerHTML = CLAUDE_LOGO;
+  const box = h("div", { class: "quota" }, [logo]);
   if (!live("seven_day") && !live("five_hour")) {
     box.appendChild(h("span", { class: "meta", text: c ? "Semana recién renovada" : "Aún sin datos" }));
     return box;

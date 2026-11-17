@@ -419,7 +419,7 @@ function paint() {
   (NON_TASK_VIEWS[state.tab] || renderTasks)(root);
 }
 
-const FIELDS = ["cluster", "daily", "dailies", "tidies", "sessionProfiles", "sessions", "aliases", "reporterRoute", "reporterStatus", "boardStatus", "orchestrator", "epics", "allEpics", "reports", "lastReview", "config", "followUps", "sentry", "permissions", "hosted", "contextSync", "contextTidy", "messages", "tidyBlockers", "lastContextPass", "followUpStatus", "refreshRequest", "deployments", "deployerArea", "quota", "people", "jiraSetup", "voice", "speech", "deployStatus", "reviewJob", "convProfiles", "claudeTokenExpires", "workHours", "workSchedule", "restrictions", "mailman", "stuckDialogs", "reminders", "watchdog", "progress", "progressPhases"];
+const FIELDS = ["cluster", "daily", "dailies", "tidies", "sessionProfiles", "sessions", "aliases", "reporterRoute", "reporterStatus", "boardStatus", "orchestrator", "epics", "allEpics", "reports", "lastReview", "config", "followUps", "sentry", "permissions", "hosted", "contextSync", "contextTidy", "messages", "tidyBlockers", "lastContextPass", "followUpStatus", "refreshRequest", "deployments", "deployerArea", "quota", "people", "jiraSetup", "voice", "speech", "deployStatus", "reviewJob", "convProfiles", "claudeTokenExpires", "workHours", "workSchedule", "restrictions", "mailman", "stuckDialogs", "reminders", "watchdog", "progress", "progressPhases", "github"];
 const withoutReadTime = (d) => JSON.stringify(d, (k, v) => (k === "syncedAt" ? undefined : v));
 const editing = () => {
   const a = document.activeElement;
@@ -570,7 +570,7 @@ function activityButton() {
     type: "button",
     "aria-controls": "report",
     "aria-pressed": String(!reportHidden),
-    title: reportHidden ? "Enseñar el reporte de Jira" : "Ocultar el reporte de Jira",
+    title: reportHidden ? "Enseñar la última actividad de Jira y GitHub" : "Ocultar la última actividad",
     text: "Actividad",
     onclick: () => setReportHidden(!reportHidden),
   });

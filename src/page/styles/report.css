@@ -4,6 +4,14 @@
 .report-tools { display: flex; gap: 2px; margin-left: auto; }
 .jira { display: flex; flex-direction: column; gap: 10px; border-top: 1px solid var(--line); padding-top: 12px; }
 .jira-head { font-size: 12px; color: var(--ink-3); }
+.act-source { font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-3); }
+.gh-ev { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 2px 10px; color: inherit; text-decoration: none; font-size: 13.5px; line-height: 1.45; padding: 4px 0; border-radius: 4px; }
+a.gh-ev:hover .gh-line { color: var(--accent); }
+.gh-ev .t { font-family: var(--mono); font-size: 12px; color: var(--ink-3); padding-top: 2px; }
+.gh-line { overflow-wrap: anywhere; }
+.gh-repo { font-size: 11.5px; color: var(--ink-3); border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; white-space: nowrap; }
+.gh-items { margin: 2px 0 0; padding-left: 16px; font-size: 12.5px; color: var(--ink-2); }
+.gh-items li { overflow-wrap: anywhere; }
 .jira-head strong { font-weight: 500; }
 #stamp { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; font-size: 12.5px; color: var(--ink-3); }
 #stamp .stamp-line.late, #stamp .stamp-line.late strong { color: var(--back); }

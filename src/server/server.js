@@ -163,6 +163,7 @@ function serve() {
   every(require("../features/mac-power").tick, 60 * 1000);
   every(require("../sessions/rotate").rotateIfMorning, 5 * 60 * 1000);
   every(require("../features/watchdog").tick, 2 * 60 * 1000);
+  every(require("../features/github").poll, 3 * 60 * 1000);
   setTimeout(() => require("../features/files").warmFiles(), 5000);
   setTimeout(() => require("./smoke").smokeAfterUpdate().catch(() => {}), 30000);
 }

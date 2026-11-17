@@ -42,6 +42,7 @@ const DEFAULTS = {
   restrictions: () => [],
   deliveries: () => [],
   reminders: () => [],
+  github: () => ({ events: [], names: {} }),
 };
 
 let db = null;
