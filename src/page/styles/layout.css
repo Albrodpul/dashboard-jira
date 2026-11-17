@@ -150,12 +150,52 @@ h1 { font-size: 16px; font-weight: 600; letter-spacing: -0.01em; margin: 0; }
   .mobile-battery { display: none; }
 }
 @media (min-width: 761px) {
-  .top-project { flex: none; }
   .app[data-jira="off"] { grid-template-columns: var(--nav-w) minmax(0, 1fr); }
   .app[data-jira="off"] #report { display: none; }
-  .nav > .brand .mobile-project { display: none; }
+}
+.nav-project:empty, .brand-project:empty { display: none; }
+.proj-switch { position: relative; display: flex; align-items: center; gap: 2px; min-width: 0; }
+.ps-button { display: flex; align-items: center; gap: 8px; flex: 1 1 auto; min-width: 0; font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; cursor: pointer; text-align: left; }
+.ps-button:hover { border-color: var(--ink-3); }
+.ps-initial { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 22px; height: 22px; border-radius: 6px; background: var(--mute-soft); color: var(--ink-2); font-size: 12px; font-weight: 600; }
+.ps-name { flex: 1 1 auto; min-width: 0; font-weight: 600; font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ps-chev { display: inline-flex; flex: none; color: var(--ink-3); }
+.proj-switch.open .ps-chev { transform: rotate(180deg); }
+.proj-switch.filtered .ps-button { border-color: var(--accent); background: var(--accent-soft); }
+.proj-switch.filtered .ps-initial { background: var(--accent); color: var(--accent-ink); }
+.proj-switch.filtered .ps-name { color: var(--accent); }
+.ps-clear { flex: none; width: 28px; height: 28px; border: 0; border-radius: 6px; background: transparent; color: var(--ink-3); font-size: 18px; line-height: 1; cursor: pointer; }
+.ps-clear:hover { background: var(--mute-soft); color: var(--ink); }
+.ps-backdrop { position: fixed; inset: 0; z-index: 60; }
+.ps-menu { position: fixed; z-index: 61; display: flex; flex-direction: column; gap: 2px; padding: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.14); }
+.ps-menu-title { padding: 6px 8px 4px; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); }
+.ps-option { display: flex; align-items: center; gap: 10px; width: 100%; font: inherit; color: var(--ink); background: transparent; border: 0; border-radius: 8px; padding: 8px; cursor: pointer; text-align: left; }
+.ps-option:hover { background: var(--surface-2); }
+.ps-option[aria-selected="true"] { background: var(--accent-soft); }
+.ps-option[aria-selected="true"] .ps-initial { background: var(--accent); color: var(--accent-ink); }
+.ps-text { display: flex; flex-direction: column; gap: 1px; flex: 1 1 auto; min-width: 0; }
+.ps-option-name { font-weight: 600; font-size: 13.5px; }
+.ps-stats { display: flex; flex-wrap: wrap; gap: 0 10px; font-size: 12px; color: var(--ink-3); }
+.ps-stats .ps-wait { color: var(--danger); font-weight: 600; }
+.ps-option kbd { flex: none; font-family: var(--mono); font-size: 11px; color: var(--ink-3); border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; }
+@media (min-width: 761px) {
+  .nav-project { margin: -6px 0 -8px; }
+  .ps-menu { top: calc(var(--top) + 62px); left: 12px; width: 320px; max-height: calc(100vh - var(--top) - 80px); overflow-y: auto; }
+  body.nav-hidden .ps-name, body.nav-hidden .ps-chev, body.nav-hidden .ps-clear { display: none; }
+  body.nav-hidden .ps-button { justify-content: center; padding: 6px 0; }
+  .brand-project { display: none; }
 }
 @media (max-width: 760px) {
-  .nav > .brand:has(.mobile-project) { flex-wrap: wrap; row-gap: 8px; }
-  .nav > .brand .mobile-project { flex: 1 0 100%; max-width: none; font-size: 14px; padding: 6px 8px; }
+  .nav-project { display: none; }
+  .brand-project { flex: 1 1 auto; min-width: 72px; max-width: 52vw; }
+  .brand-project .proj-switch { display: inline-flex; max-width: 100%; }
+  .nav > .brand:has(.brand-project .proj-switch) h1 { display: none; }
+  .brand-project .ps-button { padding: 4px 6px; gap: 6px; border-radius: 999px; }
+  .brand-project .ps-initial { width: 18px; height: 18px; font-size: 11px; border-radius: 999px; }
+  .brand-project .ps-name { font-size: 13px; }
+  .brand-project .ps-clear { width: 24px; height: 24px; }
+  .ps-backdrop { background: rgba(0, 0, 0, 0.32); }
+  .ps-menu { left: 0; right: 0; bottom: 0; max-height: 70vh; overflow-y: auto; border-radius: 14px 14px 0 0; padding: 8px 8px calc(12px + env(safe-area-inset-bottom)); }
+  .ps-option { padding: 12px 8px; }
+  .ps-option kbd { display: none; }
 }

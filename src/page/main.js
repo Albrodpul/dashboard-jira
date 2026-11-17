@@ -17,7 +17,7 @@ import { renderFind, searchBox } from "./views/find.js";
 import { renderMachines } from "./views/machines.js";
 import { paintTicket } from "./components/ticket.js";
 import { newTaskButton, newTaskForm } from "./components/new-task.js";
-import { projectPicker, applyProjectFilter, tabVisible, hasModule, mixedProjects, mainProject, projectTitle } from "./components/project-filter.js";
+import { projectSwitch, bindProjectKeys, applyProjectFilter, tabVisible, hasModule, mixedProjects, mainProject, projectTitle } from "./components/project-filter.js";
 
 const TASK_TABS = [
   { id: "pending", label: "Pendientes" },
@@ -272,26 +272,24 @@ function returnedRule(root) {
 }
 
 function paintProjectPicker() {
-  const onChange = () => {
+  const onChange = (onlyMenu) => {
+    if (onlyMenu === true) return paintProjectPicker();
     applyProjectFilter();
     if (!tabVisible(state.tab)) return switchView("home");
     render();
   };
+  bindProjectKeys(onChange);
   const top = document.getElementById("top-project");
-  if (top && !top.contains(document.activeElement)) {
-    top.textContent = "";
-    const pick = projectPicker(onChange);
-    if (pick) top.appendChild(pick);
-  }
-  const brand = document.querySelector(".nav > .brand");
-  if (brand && !brand.contains(document.activeElement)) {
-    const old = brand.querySelector(".mobile-project");
-    if (old) old.remove();
-    const pick = projectPicker(onChange);
-    if (pick) {
-      pick.classList.add("mobile-project");
-      brand.appendChild(pick);
-    }
+  if (top) top.textContent = "";
+  const spots = [
+    [document.getElementById("nav-project"), "side"],
+    [document.querySelector(".nav > .brand .brand-project"), "mobile"],
+  ];
+  for (const [el, variant] of spots) {
+    if (!el) continue;
+    el.textContent = "";
+    const pick = projectSwitch(onChange, variant);
+    if (pick) el.appendChild(pick);
   }
 }
 
