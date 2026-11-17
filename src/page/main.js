@@ -1,4 +1,4 @@
-import { state, h, post, switchView, setRender, setRefresh, empty, reviewer } from "./lib/base.js";
+import { state, h, post, switchView, setRender, setRefresh, empty, reviewer, button } from "./lib/base.js";
 import { renderTasks, renderToday, renderBoard } from "./views/tasks.js";
 import { renderSessions } from "./views/sessions.js";
 import { renderDeploy } from "./views/deploy.js";
@@ -212,14 +212,7 @@ function paintBottomBar(section, attention) {
 
 function statusChips(root, counts, board) {
   const chips = h("div", { class: "status-chips", role: "group", "aria-label": "Listas de tareas" });
-  const open = (id) => () => {
-    if (board) {
-      try {
-        localStorage.setItem("task-view", "list");
-      } catch (e) {}
-    }
-    switchView(id);
-  };
+  const open = (id) => () => switchView(id);
   for (const t of TASK_TABS.filter((x) => !board || x.id === "ignored")) chips.appendChild(h("button", { type: "button", class: `${counts[t.id] ? "" : "zero"}${t.id === "waiting" && counts.waiting ? " alert" : ""}`, "aria-pressed": String(!board && state.tab === t.id), text: t.label + (counts[t.id] ? ` ${counts[t.id]}` : ""), onclick: open(t.id) }));
   root.appendChild(chips);
   const sel = chips.querySelector('[aria-pressed="true"]');
@@ -239,28 +232,6 @@ function renderMore(root, waitingDeploys, errors) {
   root.appendChild(searchBox());
   root.appendChild(menu);
   root.appendChild(quotaBlock());
-}
-
-function taskView() {
-  try {
-    return localStorage.getItem("task-view") || "board";
-  } catch (e) {
-    return "board";
-  }
-}
-
-function viewSwitch(current) {
-  const pick = (v) => () => {
-    try {
-      localStorage.setItem("task-view", v);
-    } catch (e) {}
-    if (v === "board" && state.tab === "ignored") return switchView("pending");
-    render();
-  };
-  return h("div", { class: "view-switch", role: "group", "aria-label": "Vista de tareas" }, [
-    h("button", { type: "button", "aria-pressed": String(current === "list"), text: "Lista", onclick: pick("list") }),
-    h("button", { type: "button", "aria-pressed": String(current === "board"), text: "Tablero", onclick: pick("board") }),
-  ]);
 }
 
 function returnedRule(root) {
@@ -377,7 +348,7 @@ function paint() {
   document.querySelector(".app").setAttribute("data-jira", hasModule("jira") ? "on" : "off");
   document.querySelector(".app").setAttribute("data-view", state.tab);
   document.querySelector(".app").setAttribute("data-section", section);
-  const board = !mobile && isTaskTab(state.tab) && state.tab !== "ignored" && taskView() === "board";
+  const board = !mobile && isTaskTab(state.tab) && state.tab !== "ignored";
   const [title, sub] = board ? ["Tareas", "Todas las tareas por estado. Pulsa una para ver su tarjeta entera."] : VIEWS[state.tab] || VIEWS.pending;
   document.getElementById("view-title").textContent = title;
   document.getElementById("view-sub").textContent = sub;
@@ -392,7 +363,7 @@ function paint() {
     try {
       localStorage.setItem("last-task-tab", state.tab);
     } catch (e) {}
-    statusChips(root, counts, board);
+    if (mobile || board) statusChips(root, counts, board);
   }
   if (state.tab === "today") {
     shortcuts(root);
@@ -404,7 +375,7 @@ function paint() {
   const switchable = !mobile && isTaskTab(state.tab);
   if (switchable || state.tab === "pending") {
     const bar = h("div", { class: "task-toolbar" });
-    if (switchable) bar.appendChild(viewSwitch(board ? "board" : "list"));
+    if (switchable && !board) bar.appendChild(button("← Volver al tablero", { onClick: () => switchView("pending") }));
     const chips = !mobile && root.querySelector(".status-chips");
     if (chips) bar.appendChild(chips);
     bar.appendChild(newTaskButton());

@@ -18,7 +18,6 @@ textarea.reply-box { font: inherit; color: var(--ink); background: var(--surface
 .rule { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-2); margin: 0 0 12px; cursor: pointer; }
 .task-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; margin: 0 0 14px; }
 .task-toolbar .status-chips, .task-toolbar .rule { margin: 0; }
-.task-toolbar .view-switch { align-self: center; }
 .task-toolbar .new-task-toggle { margin-left: auto; }
 .new-task { margin: 0 0 14px; }
 .new-task input, .new-task select { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; width: 100%; box-sizing: border-box; }
@@ -73,10 +72,6 @@ textarea.comment-box { font-family: inherit; }
   .board-col { max-height: none; }
   .today-empty { margin: 0; font-size: 13.5px; color: var(--ink-3); }
 }
-.view-switch { display: inline-flex; align-self: flex-start; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
-.view-switch button { font: inherit; font-size: 13px; padding: 5px 14px; border: 0; background: var(--surface); color: var(--ink-2); cursor: pointer; }
-.view-switch button + button { border-left: 1px solid var(--line); }
-.view-switch button[aria-pressed="true"] { background: var(--mute-soft); color: var(--ink); font-weight: 600; }
 .task-board { display: flex; gap: 10px; align-items: flex-start; }
 .tasks-col { flex: 1 1 0; }
 .task-board .board-col { max-height: calc(100vh - var(--board-top, 230px) - 52px); }
