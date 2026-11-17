@@ -40,17 +40,38 @@ function githubDays(list) {
   return out;
 }
 
+let actTab = "jira";
+
+function paintActTabs() {
+  const bar = document.getElementById("act-tabs");
+  if (!bar) return;
+  document.getElementById("report").setAttribute("data-act", actTab);
+  const today = fmtDay.format(new Date());
+  const fresh = ((state.github && state.github.events) || []).filter((e) => fmtDay.format(new Date(e.at)) === today).length;
+  const fingerprint = actTab + fresh;
+  if (bar.dataset.painted === fingerprint) return;
+  bar.dataset.painted = fingerprint;
+  bar.textContent = "";
+  const tab = (id, label, n) =>
+    h("button", { type: "button", role: "tab", class: `act-tab${actTab === id ? " on" : ""}`, "aria-selected": String(actTab === id), onclick: () => ((actTab = id), paintActTabs()) }, [label, n ? h("span", { class: "n", text: String(n), title: "De hoy" }) : null]);
+  bar.append(tab("jira", "Jira"), tab("github", "GitHub", fresh));
+}
+
 function renderGithub() {
+  paintActTabs();
   const box = document.getElementById("github-body");
   if (!box) return;
-  const events = (state.github && state.github.events) || [];
-  const fingerprint = JSON.stringify([events.map((e) => e.id), fmtDay.format(new Date())]);
+  const g = state.github || {};
+  const events = g.events || [];
+  const fingerprint = JSON.stringify([events.map((e) => e.id), g.at && minutesSince(g.at), fmtDay.format(new Date())]);
   if (fingerprint === paintedGithub) return;
   paintedGithub = fingerprint;
-  box.hidden = !events.length;
   box.textContent = "";
-  if (!events.length) return;
-  box.appendChild(h("div", { class: "act-source", text: "GitHub" }));
+  if (g.at) box.appendChild(h("div", { class: "jira-head", text: `Mirado en GitHub ${minutesSince(g.at) < 1 ? "hace un momento" : `hace ${minutesSince(g.at)} min`} · lo de los demás en super-app, backoffice, landing y Donatella` }));
+  if (!events.length) {
+    box.appendChild(h("div", { class: "meta", text: g.at ? "Nadie más ha movido nada en la última semana." : "Aún no se ha mirado GitHub." }));
+    return;
+  }
   box.append(...githubDays(events.slice(0, GH_SHOWN)));
   const rest = events.slice(GH_SHOWN);
   if (!rest.length) return;
@@ -77,7 +98,6 @@ export function renderReport() {
   paintedReport = fingerprint;
   box.hidden = false;
   box.textContent = "";
-  box.appendChild(h("div", { class: "act-source", text: "Jira" }));
   if (req) box.appendChild(h("div", { class: "pending-note", text: `Revisión pedida a las ${when(req.at)}. ${slow ? "Tarda más de lo normal: la sesión de reporte puede estar ocupada o cerrada." : "Se está preparando."}` }));
   if (!reports.length) return;
   const noChanges = last && last.empty && new Date(last.at) > new Date(reports[0].at);
