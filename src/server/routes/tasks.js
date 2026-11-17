@@ -206,7 +206,7 @@ function handleReviewed(res, { key }, send) {
 
 function handleReviewedAll(res, { keys }, send) {
   const tasks = load().tasks;
-  const list = (Array.isArray(keys) ? keys : []).map(String).filter((k) => tasks[k] && tasks[k].status === "done" && !tasks[k].reviewedAt).slice(0, 100);
+  const list = (Array.isArray(keys) ? keys : []).map(String).filter((k) => tasks[k] && tasks[k].status === "done" && !tasks[k].reviewedAt);
   if (!list.length) return send(res, 400, { error: "no hay tareas hechas sin pasar a revisión" });
   if (reviewJob && !reviewJob.finishedAt) return send(res, 409, { error: `ya se están pasando (${reviewJob.done.length} de ${reviewJob.total})` });
   const job = (reviewJob = { id: Date.now(), total: list.length, done: [], failed: [], startedAt: now(), finishedAt: null });
