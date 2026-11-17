@@ -295,8 +295,39 @@ function paintProjectPicker() {
 
 let renderedTab = null;
 
+function scrollKey(el) {
+  const parts = [];
+  for (let x = el; x && x !== document.body; x = x.parentElement) {
+    if (x.id) {
+      parts.unshift(`#${x.id}`);
+      break;
+    }
+    const cls = (x.classList && x.classList[0]) || "";
+    const same = x.parentElement ? [...x.parentElement.children].filter((y) => y.tagName === x.tagName && ((y.classList && y.classList[0]) || "") === cls) : [];
+    parts.unshift(`${x.tagName}.${cls}:${same.indexOf(x)}`);
+  }
+  return parts.join(">");
+}
+
+function innerScrolls() {
+  const out = new Map();
+  for (const el of document.querySelectorAll("main *, .drawer, .drawer *")) if (el.scrollTop > 0 || el.scrollLeft > 0) out.set(scrollKey(el), [el.scrollTop, el.scrollLeft]);
+  return out;
+}
+
+function restoreScrolls(saved) {
+  if (!saved.size) return;
+  for (const el of document.querySelectorAll("main *, .drawer, .drawer *")) {
+    const at = saved.get(scrollKey(el));
+    if (!at) continue;
+    if (el.scrollTop !== at[0]) el.scrollTop = at[0];
+    if (el.scrollLeft !== at[1]) el.scrollLeft = at[1];
+  }
+}
+
 function render() {
   const keepY = renderedTab === state.tab ? window.scrollY : null;
+  const inner = keepY !== null ? innerScrolls() : new Map();
   const groups = document.getElementById("groups");
   if (keepY !== null && groups) groups.style.minHeight = groups.offsetHeight + "px";
   try {
@@ -306,6 +337,7 @@ function render() {
     renderedTab = state.tab;
     if (groups) groups.style.minHeight = "";
     if (keepY !== null && window.scrollY !== keepY) window.scrollTo(0, Math.min(keepY, document.documentElement.scrollHeight));
+    restoreScrolls(inner);
   }
 }
 
