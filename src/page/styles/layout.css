@@ -198,7 +198,7 @@ h1 { font-size: 16px; font-weight: 600; letter-spacing: -0.01em; margin: 0; }
   .nav { padding: 10px 4px 12px; gap: 8px; align-items: stretch; scrollbar-width: none; }
   .nav::-webkit-scrollbar { display: none; }
   .tabs { gap: 2px; }
-  .tab-group { flex: none; height: 1px; margin: 5px 18px; padding: 0; background: var(--line); font-size: 0; color: transparent; overflow: hidden; }
+  .tab-group { flex: none; height: 1px; margin: 6px 14px; padding: 0; background: color-mix(in srgb, var(--ink-3) 50%, transparent); font-size: 0; color: transparent; overflow: hidden; }
   .tab-group:first-child { display: none; }
   .tab { position: relative; height: auto; flex-direction: column; justify-content: flex-start; align-items: center; gap: 2px; padding: 3px 0 4px; border-radius: 8px; background: transparent; font-weight: 500; }
   .tab:hover, .tab[aria-selected="true"] { background: transparent; }
