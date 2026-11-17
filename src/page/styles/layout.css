@@ -92,6 +92,7 @@ h1 { font-size: 16px; font-weight: 600; letter-spacing: -0.01em; margin: 0; }
 @media (min-width: 761px) {
   .topbar { display: flex; align-items: center; gap: 24px; position: sticky; top: 0; z-index: 6; height: var(--top); box-sizing: border-box; padding: 0 20px; background: var(--surface-2); border-bottom: 1px solid var(--line); }
   .topbar .brand { flex: none; padding: 0; }
+  body:not(.nav-hidden) .topbar .brand { width: calc(var(--nav-w) - 62px); box-sizing: border-box; }
   .topbar .brand .sub { display: none; }
   .top-search { flex: 0 1 340px; min-width: 200px; }
   .top-right { margin-left: auto; flex: none; }
