@@ -79,6 +79,10 @@ textarea.comment-box { font-family: inherit; }
 .view-switch button[aria-pressed="true"] { background: var(--mute-soft); color: var(--ink); font-weight: 600; }
 .task-board { display: flex; gap: 10px; align-items: flex-start; }
 .tasks-col { flex: 1 1 0; }
+.task-board .board-col { max-height: calc(100vh - var(--board-top, 230px) - 52px); }
+@media (max-width: 760px) {
+  .task-board .board-col { max-height: none; }
+}
 .tasks-col.wide { flex: 1.7 1 0; }
 .board-epic { flex: none; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
 .board-epic-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; padding: 8px 10px; }

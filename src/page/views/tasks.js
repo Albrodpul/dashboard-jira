@@ -617,5 +617,16 @@ export function renderBoard(root) {
     }
     return h("section", { class: `board-col tasks-col${id === "pending" ? " wide" : ""}` }, [head, ...body]);
   });
-  root.appendChild(h("div", { class: "task-board" }, columns));
+  const board = h("div", { class: "task-board" }, columns);
+  root.appendChild(board);
+  fitBoard(board);
+}
+
+function fitBoard(board) {
+  const fit = () => board.isConnected && board.style.setProperty("--board-top", `${Math.round(board.getBoundingClientRect().top + window.scrollY)}px`);
+  requestAnimationFrame(fit);
+  if (!fitBoard.bound) {
+    fitBoard.bound = true;
+    window.addEventListener("resize", () => document.querySelectorAll(".task-board").forEach((b) => b.style.setProperty("--board-top", `${Math.round(b.getBoundingClientRect().top + window.scrollY)}px`)));
+  }
 }
