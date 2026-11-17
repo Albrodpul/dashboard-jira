@@ -41,19 +41,31 @@ function githubDays(list) {
 }
 
 let actTab = "jira";
+let ghSeenAt = "";
+try {
+  ghSeenAt = localStorage.getItem("gh-seen-at") || "";
+} catch (e) {}
 
 function paintActTabs() {
   const bar = document.getElementById("act-tabs");
   if (!bar) return;
   document.getElementById("report").setAttribute("data-act", actTab);
+  const events = (state.github && state.github.events) || [];
+  const newest = events.reduce((m, e) => (e.at > m ? e.at : m), "");
+  if (actTab === "github" && newest > ghSeenAt) {
+    ghSeenAt = newest;
+    try {
+      localStorage.setItem("gh-seen-at", newest);
+    } catch (e) {}
+  }
   const today = fmtDay.format(new Date());
-  const fresh = ((state.github && state.github.events) || []).filter((e) => fmtDay.format(new Date(e.at)) === today).length;
+  const fresh = events.filter((e) => e.at > ghSeenAt && fmtDay.format(new Date(e.at)) === today).length;
   const fingerprint = actTab + fresh;
   if (bar.dataset.painted === fingerprint) return;
   bar.dataset.painted = fingerprint;
   bar.textContent = "";
   const tab = (id, label, n) =>
-    h("button", { type: "button", role: "tab", class: `act-tab${actTab === id ? " on" : ""}`, "aria-selected": String(actTab === id), onclick: () => ((actTab = id), paintActTabs()) }, [label, n ? h("span", { class: "n", text: String(n), title: "De hoy" }) : null]);
+    h("button", { type: "button", role: "tab", class: `act-tab${actTab === id ? " on" : ""}`, "aria-selected": String(actTab === id), onclick: () => ((actTab = id), paintActTabs()) }, [label, n ? h("span", { class: "n", text: String(n), title: "Nuevo desde la última vez que miraste" }) : null]);
   bar.append(tab("jira", "Jira"), tab("github", "GitHub", fresh));
 }
 
