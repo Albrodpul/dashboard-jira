@@ -83,7 +83,7 @@ function renderGithub() {
   if (stamp) {
     stamp.textContent = "";
     stamp.append(h("strong", { text: g.at ? `Mirado ${minutesSince(g.at) < 1 ? "hace un momento" : `hace ${minutesSince(g.at)} min`}` : "Aún sin mirar" }), " · lo de los demás");
-    stamp.title = "Commits, PR y revisiones de los demás en super-app, backoffice, landing y Donatella. Lo tuyo no sale.";
+    stamp.title = "Commits, PR y revisiones de los demás en los repos de despliegue de cada proyecto. Lo tuyo no sale.";
   }
   if (!events.length) {
     box.appendChild(h("div", { class: "meta", text: g.at ? "Nadie más ha movido nada en la última semana." : "Aún no se ha mirado GitHub." }));
