@@ -134,7 +134,14 @@
 /* tu mesa */
 .queue { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; position: relative; z-index: 1; }
 .queuer { display: flex; flex-direction: column; align-items: center; gap: 2px; }
-.sign { padding: 2px 6px; border-radius: 3px; background: #fff; color: #24242a; border: 2px solid var(--wood-dark); font: 600 11.5px/1.2 var(--mono); white-space: nowrap; }
+.sign { max-width: 120px; overflow: hidden; text-overflow: ellipsis; padding: 2px 6px; border-radius: 3px; background: #fff; color: #24242a; border: 2px solid var(--wood-dark); font: 600 11.5px/1.2 var(--mono); white-space: nowrap; }
+.perm-minis { display: flex; gap: 4px; margin-top: 2px; }
+.perm-mini { width: 26px; height: 22px; padding: 0; border-radius: 5px; border: 2px solid transparent; font: 700 13px/1 var(--font); color: #fff; cursor: pointer; }
+.perm-mini.yes { background: #2f9e5b; border-color: #237a46; }
+.perm-mini.no { background: #d2453b; border-color: #a6342c; }
+.perm-mini:hover { filter: brightness(1.1); }
+.perm-mini:disabled { opacity: .5; cursor: default; }
+.perm-mini:focus-visible, .room[role=button]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .queue-more { align-self: center; padding: 4px 8px; border-radius: 12px; background: var(--sign-bg); color: var(--sign-ink); font-weight: 600; font-size: 13px; }
 .big-desk { position: relative; width: 140px; height: 54px; flex: none; }
 .big-desk::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 14px; border-radius: 3px; background: var(--wood); box-shadow: 0 3px 0 var(--wood-dark); }

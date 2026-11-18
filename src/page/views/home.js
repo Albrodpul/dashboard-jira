@@ -1,3 +1,4 @@
+import { decide } from "../components/permissions.js";
 import { state, h, when, minutesSince, switchView, empty, fixedAreaIds, button, post, toast } from "../lib/base.js";
 import { currentProject, mixedProjects, projectName } from "../components/project-filter.js";
 import { nutria, paint, CLAYS } from "../components/nutria.js";
@@ -145,9 +146,15 @@ const plant = () => h("span", { class: "plant" }, [h("i"), h("i"), h("i")]);
 const pin = () => h("span", { class: "pinned-paper" });
 const poster = (text) => h("span", { class: "poster", text });
 
-function room(kind, name, count, body, { decor = [], onclick, title } = {}) {
+function room(kind, name, count, body, { decor = [], onclick, title, nested = false } = {}) {
   const wall = h("header", { class: "room-wall" }, [h("span", { class: "room-sign" }, [h("strong", { text: name }), count ? h("span", { text: count }) : null]), h("span", { class: "room-decor" }, decor)]);
   const floor = h("div", { class: "room-floor" }, body);
+  if (onclick && nested) {
+    const el = h("section", { class: `room r-${kind} go`, role: "button", tabindex: "0", title }, [wall, floor]);
+    el.addEventListener("click", (e) => !e.target.closest("button") && onclick());
+    el.addEventListener("keydown", (e) => e.target === el && (e.key === "Enter" || e.key === " ") && (e.preventDefault(), onclick()));
+    return el;
+  }
   const el = h(onclick ? "button" : "section", { class: `room r-${kind}${onclick ? " go" : ""}`, ...(onclick ? { type: "button", onclick, title } : {}) }, [wall, floor]);
   return el;
 }
@@ -247,10 +254,18 @@ function shelf(n) {
   return h("span", { class: `shelf${spines ? "" : " empty"}` }, [...rows.map((r) => h("span", { class: "shelf-row" }, r)), spines ? null : cobweb("on-shelf")]);
 }
 
+function permButtons(p) {
+  const yes = h("button", { class: "perm-mini yes", type: "button", title: `Permitir: ${p.label}`, "aria-label": `Permitir ${p.label}`, text: "✓" });
+  const no = h("button", { class: "perm-mini no", type: "button", title: `Denegar: ${p.label}`, "aria-label": `Denegar ${p.label}`, text: "✕" });
+  yes.addEventListener("click", () => decide(p, "allow", yes));
+  no.addEventListener("click", () => decide(p, "deny", no));
+  return h("span", { class: "perm-minis" }, [yes, no]);
+}
+
 function queue(items) {
   const shown = items.slice(0, 5);
   return h("span", { class: "queue" }, [
-    ...shown.map((x) => h("span", { class: "queuer", title: x.title }, [h("span", { class: "sign", text: x.label }), paint(nutria(x.mood || "waiting", "mid"), x.label)])),
+    ...shown.map((x) => h("span", { class: "queuer", title: x.title }, [h("span", { class: "sign", text: x.label }), paint(nutria(x.mood || "waiting", "mid"), x.label), x.permission ? permButtons(x.permission) : null])),
     items.length > shown.length ? h("span", { class: "queue-more", text: `+${items.length - shown.length}` }) : null,
   ]);
 }
@@ -268,10 +283,10 @@ export function renderHome(root) {
 
   const plan = h("div", { class: `office-plan${resting.length >= 2 ? " wide-rest" : ""}${state.workHours === false && !(state.config && state.config.overtime) ? " lights-off" : ""}` });
 
-  const yours = [...perms.map((p) => ({ label: "Permiso", title: p.label, mood: "blocked" })), ...waiting.map((t) => ({ label: t.key, title: `${t.status === "partial" ? "A medias" : "Te espera"}: ${t.title}`, mood: t.status === "partial" ? "blocked" : "waiting" }))];
+  const yours = [...perms.map((p) => ({ label: p.areaName || "Permiso", title: `${p.areaName || "Una sesión"} quiere: ${p.label}`, mood: "blocked", permission: p })), ...waiting.map((t) => ({ label: t.key, title: `${t.status === "partial" ? "A medias" : "Te espera"}: ${t.title}`, mood: t.status === "partial" ? "blocked" : "waiting" }))];
   const yourN = yours.length;
   plan.append(
-    room("desk", "Tu mesa", yourN ? `${plural(yourN, "cosa te espera", "cosas te esperan")}` : "Nadie te espera", [yourN ? queue(yours) : h("span", { class: "calm" }, [h("span", { class: "chair pushed" })]), h("span", { class: "big-desk" }, yourN ? [] : [deskItems()])], { decor: [windowDecor(), plant()], onclick: () => switchView("waiting"), title: "Ver lo que te espera" }),
+    room("desk", "Tu mesa", yourN ? `${plural(yourN, "cosa te espera", "cosas te esperan")}` : "Nadie te espera", [yourN ? queue(yours) : h("span", { class: "calm" }, [h("span", { class: "chair pushed" })]), h("span", { class: "big-desk" }, yourN ? [] : [deskItems()])], { decor: [windowDecor(), plant()], onclick: () => switchView("waiting"), title: "Ver lo que te espera", nested: perms.length > 0 }),
     room("inbox", "Bandeja de entrada", pending.length ? plural(pending.length, "pendiente", "pendientes") : "Vacía", [h("span", { class: "inbox-scene" }, [pending.length ? paint(nutria("pending", "mid"), "bandeja") : null, inboxPile(pending.length)]), h("strong", { class: "big-n", text: String(pending.length) })], { decor: [poster("IN")], onclick: () => switchView("pending"), title: "Ver las pendientes" }),
     room("work", "Sala de trabajo", `${atDesk.length ? plural(atDesk.length, "sesión", "sesiones") : "Vacía"} · ${plural(sent, "tarea en curso", "tareas en curso")}`, atDesk.length ? atDesk.map(({ x, id }) => workScene(x, id)) : [h("span", { class: "still-row" }, [0, 1, 2].map(emptyStation))], { decor: [clockDecor(), plant()] }),
     room("sofa", "Sala de descanso", resting.length ? plural(resting.length, "libre", "libres") : "Vacía", resting.length ? restScenes(resting) : [emptyLounge()], { decor: [h("span", { class: "lamp" })] }),

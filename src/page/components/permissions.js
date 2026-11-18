@@ -2,7 +2,7 @@ import { state, h, button, when, toast, requestOrFail, refresh } from "../lib/ba
 
 export const pendingPermissions = () => (state.permissions && state.permissions.pending) || [];
 
-function decide(p, decision, b) {
+export function decide(p, decision, b) {
   let reason = "";
   if (decision === "deny") {
     reason = window.prompt("¿Por qué? (opcional, se lo dice a la sesión)", "");
