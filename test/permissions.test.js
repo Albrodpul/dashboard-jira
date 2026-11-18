@@ -209,3 +209,11 @@ test("check: a denied request reports denied with its reason", () => {
   assert.equal(perms.decide(r.id, "allow"), false);
   assert.deepEqual(perms.poll("perm-missing"), { status: "missing" });
 });
+
+test("moving a ticket to in progress or assigning it to me passes without asking", () => {
+  assert.equal(perms.classify("mcp__jira__transitionJiraIssue", { issueIdOrKey: "WEB-3", transitionName: "In Progress" }).kind, "allow");
+  assert.equal(perms.classify("mcp__jira__transitionJiraIssue", { issueIdOrKey: "WEB-3", transitionName: "Done" }).kind, "protected");
+  assert.equal(perms.classify("mcp__jira__editJiraIssue", { issueIdOrKey: "WEB-3", fields: { assignee: { accountId: "me" } } }).kind, "allow");
+  assert.equal(perms.classify("mcp__jira__editJiraIssue", { issueIdOrKey: "WEB-3", fields: { assignee: { accountId: "rev" } } }).kind, "protected");
+  assert.equal(perms.classify("mcp__jira__editJiraIssue", { issueIdOrKey: "WEB-3", fields: { assignee: { accountId: "me" }, summary: "x" } }).kind, "protected");
+});

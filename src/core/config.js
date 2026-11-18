@@ -153,6 +153,7 @@ function buildProject(p, index) {
           returned: st.returned,
           reviewRegex: new RegExp(escape(st.review), "i"),
           returnedRegex: new RegExp(`^(${alternatives(st.returned)})$`, "i"),
+          inProgressRegex: new RegExp(`^(${alternatives(st.inProgress)})$`, "i"),
           backFromReviewRegex: new RegExp(`^(${alternatives([...st.returned, ...st.inProgress])})$`, "i"),
           closedRegex: new RegExp(`^(${alternatives(st.closed)})$`, "i"),
           rejectLabel: st.rejectLabel,

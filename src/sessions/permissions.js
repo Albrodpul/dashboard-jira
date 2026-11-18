@@ -239,8 +239,26 @@ function devLoginGrep(input) {
   return input.pattern === "^DEV_LOGIN_CODE=" && /^(?:[\w.~:\\/-]*[\\/])?super-app[\\/]\.env$/.test(String(input.path || ""));
 }
 
+function startsOrClaims(op, input) {
+  const jira = config.jira || {};
+  if (/^transition/.test(op)) {
+    const id = String((input.transition && input.transition.id) || input.transitionId || "");
+    const name = String((input.transition && input.transition.name) || input.transitionName || "");
+    const start = jira.transitions && jira.transitions.start;
+    return (!!start && id === String(start)) || (!id && !!name && !!config.statuses && !!config.statuses.inProgressRegex && config.statuses.inProgressRegex.test(name.trim()));
+  }
+  if (/^edit\w*Jira/.test(op)) {
+    const fields = input.fields || {};
+    const keys = Object.keys(fields);
+    const others = Object.keys(input).filter((k) => !["cloudId", "issueIdOrKey", "issueKey", "fields", "responseFields", "view"].includes(k));
+    return keys.length === 1 && keys[0] === "assignee" && !others.length && !!jira.me && !!fields.assignee && fields.assignee.accountId === jira.me.id;
+  }
+  return false;
+}
+
 function atlassianWrite(tool, input) {
   const op = tool.replace(/^mcp__.+__/, "");
+  if (startsOrClaims(op, input)) return { kind: "allow" };
   const key = input.issueIdOrKey || input.issueKey || "";
   const on = key ? ` ${key}` : "";
   let label = "escribir en Jira";
