@@ -529,6 +529,8 @@ export function openTerminal(conversation, name) {
   });
 }
 
+document.addEventListener("ticket-open", () => closeTerminal());
+
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && overlay && !e.defaultPrevented && !overlay.root.contains(document.activeElement)) closeTerminal();
 });

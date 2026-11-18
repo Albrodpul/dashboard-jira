@@ -150,7 +150,10 @@ export function switchView(tab, toTop) {
 
 let ticketOpener = null;
 export const setTicketOpener = (fn) => (ticketOpener = fn);
-export const openTicket = (key) => ticketOpener && ticketOpener(key);
+export const openTicket = (key) => {
+  document.dispatchEvent(new Event("ticket-open"));
+  return ticketOpener && ticketOpener(key);
+};
 
 export function ticketLink(key, cls = "ticket-link") {
   return h("a", {
