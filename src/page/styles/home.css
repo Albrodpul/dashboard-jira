@@ -197,6 +197,15 @@
 .nutria .nose, .nutria .eye { fill: #1b1b1f; }
 .nutria .whisker { fill: color-mix(in srgb, var(--fur) 55%, #fff); }
 .nutria .scarf { fill: var(--clay); }
+.nutria .scarf.dark, .nutria .hat.dark { fill: color-mix(in srgb, var(--clay) 72%, #000); }
+.nutria .scarf.light { fill: color-mix(in srgb, var(--clay) 60%, #fff); }
+.nutria .collar { fill: #f7f7f2; }
+.nutria .button { fill: #f2c94c; }
+.nutria .hat { fill: var(--hat, #4f9bd6); }
+.nutria .hat.dark { fill: color-mix(in srgb, var(--hat, #4f9bd6) 72%, #000); }
+.nutria .hat.light { fill: color-mix(in srgb, var(--hat, #4f9bd6) 50%, #fff); }
+.nutria .frame { fill: #2a2a30; }
+.nutria .petal { fill: #ff8fb8; }
 .nutria .laptop { fill: #55555f; }
 .nutria .screen { fill: #9fd3e3; }
 .nutria .paper { fill: #ffffff; stroke: #c9d2dc; stroke-width: .3; }

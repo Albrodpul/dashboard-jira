@@ -39,6 +39,25 @@ const MOODS = {
   alert: { arms: "up", eyes: "open", bubble: ["!", "warn"] },
 };
 
+const OUTFITS = {
+  scarf: '<rect class="scarf" x="4" y="7" width="8" height="1"/><rect class="scarf" x="9" y="8" width="2" height="2"/>',
+  tie: '<rect class="collar" x="5" y="7" width="2" height="1"/><rect class="collar" x="9" y="7" width="2" height="1"/><rect class="scarf" x="7" y="7" width="2" height="1"/><rect class="scarf dark" x="7" y="8" width="2" height="3"/>',
+  bowtie: '<rect class="scarf" x="5" y="7" width="2" height="2"/><rect class="scarf" x="9" y="7" width="2" height="2"/><rect class="scarf dark" x="7" y="7" width="2" height="1"/>',
+  sweater: '<rect class="scarf" x="4" y="7" width="8" height="5"/><rect class="scarf dark" x="4" y="7" width="8" height="1"/><rect class="scarf light" x="4" y="9" width="8" height="1"/>',
+  hoodie: '<rect class="scarf" x="4" y="7" width="8" height="5"/><rect class="scarf dark" x="3" y="6" width="2" height="2"/><rect class="scarf dark" x="11" y="6" width="2" height="2"/><rect class="collar" x="6" y="8" width="1" height="2"/><rect class="collar" x="9" y="8" width="1" height="2"/><rect class="scarf dark" x="6" y="10" width="4" height="1"/>',
+  overalls: '<rect class="scarf" x="5" y="7" width="1" height="2"/><rect class="scarf" x="10" y="7" width="1" height="2"/><rect class="scarf" x="5" y="9" width="6" height="3"/><rect class="button" x="5" y="9" width="1" height="1"/><rect class="button" x="10" y="9" width="1" height="1"/>',
+  sailor: '<rect class="collar" x="4" y="7" width="8" height="5"/><rect class="scarf" x="4" y="8" width="8" height="1"/><rect class="scarf" x="4" y="10" width="8" height="1"/>',
+};
+const HATS = {
+  none: "",
+  beanie: '<rect class="hat" x="4" y="-1" width="8" height="1"/><rect class="hat dark" x="3" y="0" width="10" height="1"/><rect class="hat light" x="7" y="-2" width="2" height="1"/>',
+  cap: '<rect class="hat" x="4" y="-1" width="8" height="2"/><rect class="hat dark" x="10" y="0" width="5" height="1"/>',
+  glasses: '<rect class="frame" x="4" y="1" width="3" height="1"/><rect class="frame" x="4" y="2" width="1" height="2"/><rect class="frame" x="6" y="2" width="1" height="2"/><rect class="frame" x="7" y="2" width="2" height="1"/><rect class="frame" x="9" y="1" width="3" height="1"/><rect class="frame" x="9" y="2" width="1" height="2"/><rect class="frame" x="11" y="2" width="1" height="2"/>',
+  headphones: '<rect class="frame" x="3" y="-1" width="10" height="1"/><rect class="frame" x="2" y="0" width="1" height="1"/><rect class="frame" x="13" y="0" width="1" height="1"/><rect class="hat" x="1" y="1" width="2" height="3"/><rect class="hat" x="13" y="1" width="2" height="3"/>',
+  bow: '<rect class="hat" x="10" y="-1" width="2" height="2"/><rect class="hat" x="13" y="-1" width="2" height="2"/><rect class="hat dark" x="12" y="0" width="1" height="1"/>',
+  flower: '<rect class="petal" x="11" y="-2" width="1" height="1"/><rect class="petal" x="10" y="-1" width="1" height="1"/><rect class="petal" x="12" y="-1" width="1" height="1"/><rect class="petal" x="11" y="0" width="1" height="1"/><rect class="hat light" x="11" y="-1" width="1" height="1"/>',
+};
+
 const BODY =
   '<rect class="tail" x="12" y="10" width="3" height="2"/><rect class="tail" x="14" y="9" width="1" height="1"/>' +
   '<rect class="ear" x="2" y="0" width="2" height="2"/><rect class="ear" x="12" y="0" width="2" height="2"/>' +
@@ -46,7 +65,6 @@ const BODY =
   '<rect class="cream" x="5" y="4" width="6" height="3"/><rect class="nose" x="7" y="4" width="2" height="1"/>' +
   '<rect class="whisker" x="1" y="5" width="2" height="1"/><rect class="whisker" x="13" y="5" width="2" height="1"/>' +
   '<rect class="fur" x="4" y="7" width="8" height="5"/><rect class="cream" x="6" y="8" width="4" height="4"/>' +
-  '<rect class="scarf" x="4" y="7" width="8" height="1"/><rect class="scarf" x="9" y="8" width="2" height="2"/>' +
   '<rect class="ear" x="4" y="12" width="3" height="1"/><rect class="ear" x="9" y="12" width="3" height="1"/>';
 
 export function nutria(mood, size = "", prop = null) {
@@ -55,7 +73,8 @@ export function nutria(mood, size = "", prop = null) {
   el.className = `nutria ${mood} ${size}`.trim();
   el.setAttribute("aria-hidden", "true");
   const extra = prop || m.prop;
-  el.innerHTML = `<svg viewBox="0 -1 17 15" shape-rendering="crispEdges">${BODY}${ARMS[m.arms]}${EYES[m.eyes]}${extra ? PROPS[extra] : ""}</svg>${m.bubble ? `<b class="bubble ${m.bubble[1]}">${m.bubble[0]}</b>` : ""}${m.zz ? '<i class="zz">z<span>z</span></i>' : ""}`;
+  if (extra) el.dataset.prop = extra;
+  el.innerHTML = `<svg viewBox="0 -1 17 15" shape-rendering="crispEdges">${BODY}${ARMS[m.arms]}${EYES[m.eyes]}<g class="wear">${OUTFITS.scarf}</g>${extra ? PROPS[extra] : ""}</svg>${m.bubble ? `<b class="bubble ${m.bubble[1]}">${m.bubble[0]}</b>` : ""}${m.zz ? '<i class="zz">z<span>z</span></i>' : ""}`;
   return el;
 }
 
@@ -63,9 +82,19 @@ export const CLAYS = ["#d97757", "#e0a63b", "#5fa86b", "#4f9bd6", "#9b7fd6", "#d
 const FURS = ["#8a5a3b", "#a0694a", "#6f4a33", "#b07d56", "#7d5a44", "#94704f"];
 const hashOf = (name, mul, seed) => [...String(name || "")].reduce((n, ch) => (n * mul + ch.charCodeAt(0)) >>> 0, seed);
 
+const OUTFIT_KEYS = Object.keys(OUTFITS);
+const HAT_KEYS = ["none", "none", ...Object.keys(HATS).filter((k) => k !== "none")];
+
 export function paint(el, name) {
-  el.style.setProperty("--clay", CLAYS[hashOf(name, 31, 7) % CLAYS.length]);
+  const clay = hashOf(name, 31, 7) % CLAYS.length;
+  el.style.setProperty("--clay", CLAYS[clay]);
+  el.style.setProperty("--hat", CLAYS[(clay + 3 + (hashOf(name, 13, 5) % 4)) % CLAYS.length]);
   el.style.setProperty("--fur", FURS[hashOf(name, 17, 3) % FURS.length]);
+  const wear = el.querySelector(".wear");
+  if (wear) {
+    const hat = ["helmet", "binoculars"].includes(el.dataset.prop) ? "" : HATS[HAT_KEYS[hashOf(name, 37, 11) % HAT_KEYS.length]];
+    wear.innerHTML = OUTFITS[OUTFIT_KEYS[hashOf(name, 23, 19) % OUTFIT_KEYS.length]] + hat;
+  }
   return el;
 }
 
