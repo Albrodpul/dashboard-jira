@@ -280,3 +280,17 @@ test("a returned task whose card was deleted goes back to the session that did i
   assert.equal(n.code, 0, n.err);
   assert.equal(load().tasks["WEB-10"].status, "pending");
 });
+
+test("a returned task the board never sent goes to the proposed session when the rule is on", () => {
+  reset({}, { config: { autoReturned: true } });
+  const r = cli("add", JSON.stringify([{ key: "WEB-11", title: "Tarea WEB-11", kind: "returned", proposedArea: "cat", event: "ev-11" }, { key: "WEB-12", title: "Tarea WEB-12", kind: "returned", proposedArea: "nope", event: "ev-12" }]));
+  assert.equal(r.code, 0, r.err);
+  const t = load().tasks["WEB-11"];
+  assert.equal(t.status, "approved");
+  assert.equal(t.area, "cat");
+  assert.equal(t.approvedVia, "rule");
+  assert.equal(load().tasks["WEB-12"].status, "pending");
+  reset({}, { config: { autoReturned: false } });
+  cli("add", JSON.stringify([{ key: "WEB-13", title: "Tarea WEB-13", kind: "returned", proposedArea: "cat", event: "ev-13" }]));
+  assert.equal(load().tasks["WEB-13"].status, "pending");
+});

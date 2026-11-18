@@ -9,6 +9,9 @@ const { state } = require("../server/state");
 const holds = require("../features/holds");
 const { cmd, a, b, rest, keyList, json, status, ME, MY_FIRST_NAME, fail } = require("./args");
 
+let routesCache = null;
+const routes = () => routesCache || (routesCache = loadRoutes());
+
 function removedCard(d, t) {
   if (!["returned", "comment"].includes(t.kind) || !d.deleted || !d.deleted[t.key]) return null;
   let found = null;
@@ -84,6 +87,14 @@ const commands = {
             auto++;
             out.push(`${t.key}: ya estaba ${previous.status}; vuelve sola a su sesión (${previous.area}) por la regla de devueltas de ${ME}`);
           } else out.push(`${t.key}: ya estaba ${previous.status}; vuelve a Pendientes como ${t.kind}`);
+        } else if (!previous && ["returned", "comment"].includes(task.kind) && d.config && d.config.autoReturned && task.proposedArea && routes().areas[task.proposedArea]) {
+          const held = holds.checkTask(d, task, task.proposedArea);
+          if (held) out.push(`${t.key}: el tablero no la había enviado; tu regla de devueltas la mandaría a ${task.proposedArea}, pero ${held} Queda en Pendientes.`);
+          else {
+            Object.assign(task, { status: "approved", area: task.proposedArea, decidedAt: now(), approvedVia: "rule" });
+            auto++;
+            out.push(`${t.key}: el tablero no la había enviado; va sola a la sesión propuesta (${task.proposedArea}) por la regla de devueltas de ${ME}`);
+          }
         }
         if (task.status === "pending") pending++;
         added++;

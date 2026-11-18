@@ -264,7 +264,7 @@ function renderMore(root, waitingDeploys, errors) {
 function returnedRule(root) {
   const rule = h("input", { type: "checkbox", id: "auto-returned" });
   rule.checked = !!(state.config && state.config.autoReturned);
-  rule.addEventListener("change", () => post("/api/config", { autoReturned: rule.checked }, rule.checked ? "Las tareas devueltas o comentadas irán solas a la sesión que las hizo." : "Las tareas devueltas o comentadas esperarán aquí a que pulses Hacer."));
+  rule.addEventListener("change", () => post("/api/config", { autoReturned: rule.checked }, rule.checked ? "Las tareas devueltas o comentadas irán solas a la sesión que las hizo (o a la que propone el reporte si el tablero no la envió)." : "Las tareas devueltas o comentadas esperarán aquí a que pulses Hacer."));
   root.appendChild(h("label", { class: "rule", for: "auto-returned" }, [rule, ` Enviar solas a su sesión las tareas devueltas o comentadas por ${reviewer()}`]));
 }
 
