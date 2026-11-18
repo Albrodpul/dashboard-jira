@@ -165,11 +165,13 @@ function deskLine(s, group) {
   return bits.length ? h("span", { class: "plate-meta", text: bits.join(" · ") }) : null;
 }
 
+const sofaFront = () => h("span", { class: "sofa" }, [h("i", { class: "arm-rest left" }), h("i", { class: "arm-rest right" })]);
+
 function seat(x, id) {
   const who = paint(nutria(id), x.name);
   const helpers = x.subagents ? h("span", { class: "helpers" }, Array.from({ length: Math.min(x.subagents, 3) }, () => paint(nutria(id === "working" ? "working" : "free", "tiny"), x.name))) : null;
   return h("button", { class: `seat ${id}`, type: "button", "data-conv": x.conversation, title: `${x.name}: ${MOOD_TEXT[id]}${x.since ? ` desde ${when(x.since)}` : ""}. Pulsa para verla en directo.`, onclick: () => openLive(x.conversation, x.sessionName || x.name) }, [
-    h("span", { class: "seat-scene" }, [who, helpers, h("span", { class: id === "free" ? "cushion" : "desk-top" })]),
+    h("span", { class: "seat-scene" }, [id === "free" ? h("i", { class: "sofa-back" }) : null, who, helpers, id === "free" ? sofaFront() : h("span", { class: "desk-top" })]),
     h("span", { class: "plate" }, [h("strong", { text: x.name }), deskLine(x, id), mixedProjects() && x.project ? h("span", { class: "plate-project", text: projectName(x.project) }) : null]),
   ]);
 }
@@ -213,7 +215,7 @@ export function renderHome(root) {
     room("desk", "Tu mesa", yourN ? `${plural(yourN, "cosa te espera", "cosas te esperan")}` : "Nadie te espera", [yourN ? queue(yours) : h("span", { class: "calm" }, [h("span", { class: "chair" }), h("span", { class: "calm-text", text: "Todo tranquilo por aquí" })]), h("span", { class: "big-desk" })], { decor: [windowDecor(), plant()], onclick: () => switchView("waiting"), title: "Ver lo que te espera" }),
     room("inbox", "Bandeja de entrada", pending.length ? plural(pending.length, "pendiente", "pendientes") : "Vacía", [h("span", { class: "inbox-scene" }, [paint(nutria(pending.length ? "pending" : "free", "mid"), "bandeja"), inboxPile(pending.length)]), h("strong", { class: "big-n", text: String(pending.length) })], { decor: [poster("IN")], onclick: () => switchView("pending"), title: "Ver las pendientes" }),
     room("work", "Sala de trabajo", `${atDesk.length ? plural(atDesk.length, "sesión", "sesiones") : "Vacía"} · ${plural(sent, "tarea en curso", "tareas en curso")}`, atDesk.length ? atDesk.map(({ x, id }) => seat(x, id)) : [h("span", { class: "empty-room", text: "Ninguna nutria trabajando ahora" })], { decor: [clockDecor(), plant()] }),
-    room("sofa", "Sala de descanso", resting.length ? plural(resting.length, "libre", "libres") : "Vacía", resting.length ? resting.map(({ x, id }) => seat(x, id)) : [h("span", { class: "couch-empty" }, [h("span", { class: "cushion" })])], { decor: [h("span", { class: "lamp" })] }),
+    room("sofa", "Sala de descanso", resting.length ? plural(resting.length, "libre", "libres") : "Vacía", resting.length ? resting.map(({ x, id }) => seat(x, id)) : [h("span", { class: "couch-empty seat-scene" }, [h("i", { class: "sofa-back" }), sofaFront()])], { decor: [h("span", { class: "lamp" })] }),
     room("archive", "Archivo", done ? plural(done, "hecha", "hechas") : "Nada archivado", [h("span", { class: "archive-scene" }, [shelf(done), done ? paint(nutria("done", "mid"), "archivo") : null]), h("strong", { class: "big-n", text: String(done) })], { decor: [poster("✓")], onclick: () => switchView("done"), title: "Ver las hechas" }),
   );
   if (s.system.length) {
