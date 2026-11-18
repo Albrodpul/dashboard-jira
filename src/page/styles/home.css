@@ -167,7 +167,13 @@
 .plate-why { font-size: 11.5px; font-weight: 600; color: var(--danger); text-align: center; }
 .plate.small strong { font-size: 11.5px; max-width: 110px; }
 .empty-room { align-self: center; margin: auto; padding: 6px 12px; border-radius: 6px; background: var(--sign-bg); color: var(--sign-ink); font-size: 13px; }
-.cushion { width: 118px; height: 30px; margin-top: -22px; border-radius: 12px 12px 5px 5px; background: #b07ad6; box-shadow: inset 0 -11px 0 #9560bd, -7px 5px 0 -2px #8a52b3, 7px 5px 0 -2px #8a52b3; position: relative; z-index: 0; }
+.bed { --clay: #9b7fd6; position: relative; z-index: 2; width: 124px; height: 26px; margin-top: -24px; border-radius: 4px 6px 3px 3px; background: linear-gradient(#fff 0 6px, var(--clay) 6px); box-shadow: inset 0 -5px 0 rgba(0,0,0,.15), 0 5px 0 #8a6a4a, 0 9px 0 -3px #6e5238; }
+.bed .headboard { position: absolute; left: -8px; bottom: -6px; width: 10px; height: 62px; border-radius: 5px 5px 2px 2px; background: #8a6a4a; box-shadow: inset -3px 0 0 #6e5238; }
+.pillow { position: absolute; left: 50%; margin-left: -44px; bottom: 24px; width: 68px; height: 20px; border-radius: 9px; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.15); z-index: 0; }
+.bed.empty .pillow { position: absolute; left: 6px; bottom: 22px; }
+.bed.empty { margin-top: 0; }
+.r-sofa .seat-scene { padding-left: 10px; }
+.r-sofa .seat-scene .nutria { z-index: 1; transform: translateX(-10px); }
 .couch-empty { margin: auto; padding-top: 30px; }
 .r-sofa .room-floor { justify-content: center; }
 
