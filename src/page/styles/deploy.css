@@ -36,6 +36,7 @@
 .ds-bar.success i { background: var(--ok); }
 .ds-bar.failed i { background: var(--danger); }
 .ds-bar.cancelled i { background: var(--back); }
+.ds-bar.unknown i { background: var(--ink-3); opacity: .35; }
 .ds-bar.indeterminate i { width: 30% !important; animation: ds-slide 1.4s ease-in-out infinite; }
 @keyframes ds-slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(340%); } }
 @media (prefers-reduced-motion: reduce) {

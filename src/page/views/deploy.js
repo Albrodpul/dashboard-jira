@@ -57,6 +57,7 @@ function codedeployPhase(e, first) {
   if (!e.codedeployCurrent) {
     if (first && first.state === "running") return { state: "waiting", text: "Empieza cuando acaben las Actions" };
     if (first && first.state !== "success") return { state: "waiting", text: "No se lanza" };
+    if (e.state === "unknown") return { state: "unknown", text: "No aparece en CodeDeploy" };
     return { state: "running", text: "Esperando a que arranque" };
   }
   if (CODEDEPLOY_RUNNING.includes(cd.status)) {

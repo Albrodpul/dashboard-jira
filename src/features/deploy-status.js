@@ -101,8 +101,8 @@ function pair(runs, deployments) {
   const byRun = new Map();
   const used = new Set();
   for (const d of [...deployments].reverse()) {
-    const cand = runs.filter((r) => !byRun.has(r.id) && r.status === "completed" && ms(d.startedAt) >= ms(r.updatedAt) - PAIR_BEFORE && ms(d.startedAt) - ms(r.updatedAt) <= PAIR_AFTER);
-    cand.sort((a, b) => ms(b.updatedAt) - ms(a.updatedAt));
+    const cand = runs.filter((r) => !byRun.has(r.id) && r.status === "completed" && ms(d.startedAt) >= ms(r.startedAt || r.updatedAt) - PAIR_BEFORE && ms(d.startedAt) - ms(r.updatedAt) <= PAIR_AFTER);
+    cand.sort((a, b) => ms(b.startedAt || b.updatedAt) - ms(a.startedAt || a.updatedAt));
     if (cand[0]) {
       byRun.set(cand[0].id, d);
       used.add(d.id);
@@ -222,4 +222,4 @@ function handleDeployStatusRefresh(res, send) {
     .catch((e) => send(res, 502, { error: String(e.message || e) }));
 }
 
-module.exports = { readStatus, refreshStatus, startDeployStatus, handleDeployStatusRefresh, anyRunning };
+module.exports = { readStatus, refreshStatus, startDeployStatus, handleDeployStatusRefresh, anyRunning, pair };
