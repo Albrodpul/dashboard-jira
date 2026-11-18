@@ -330,20 +330,30 @@ function lateDialog(s) {
   return true;
 }
 
+const PROMPT_SCAN = 40000;
+const AFTER_ANSWER = /[⏺⎿✢✳✶✻✽]/;
+
+function promptIn(raw) {
+  const text = readable(raw.slice(-PROMPT_SCAN));
+  const re = new RegExp(PROMPT.source, "gi");
+  let last = null;
+  for (let m = re.exec(text); m; m = re.exec(text)) last = m;
+  if (!last) return null;
+  const after = text.slice(last.index + last[0].length);
+  if (!/1\.\s*Yes/i.test(after.slice(0, 400)) || AFTER_ANSWER.test(after)) return null;
+  const question = text.slice(Math.max(0, last.index - 700), last.index + 400).replace(/[─━╌│╭╮╰╯]+/g, " ").replace(/\s+/g, " ").trim();
+  return { question: last[0], text: question };
+}
+
 function checkPrompt(s) {
   if (lateDialog(s)) return;
-  const text = readable(s.buffer.slice(-6000));
-  const m = PROMPT.exec(text.slice(-2500));
-  const asking = m && /1\.\s*Yes/i.test(text.slice(-2500));
-  if (asking) {
-    const tail = text.slice(-2500);
-    const at = tail.search(PROMPT);
-    const question = tail.slice(Math.max(0, at - 700), at + 400).replace(/[─━╌│╭╮╰╯]+/g, " ").replace(/\s+/g, " ").trim();
-    const key = m[0] + question.slice(0, 200);
+  const found = promptIn(s.buffer);
+  if (found) {
+    const key = found.question + found.text.slice(0, 200);
     if (s.promptKey === key) return;
     s.promptKey = key;
-    log(`native prompt in ${s.name}: ${m[0]}`);
-    postBoard("/api/host/prompt", { conversation: s.conversation, name: s.name, question: m[0], text: question.slice(-1500) });
+    log(`native prompt in ${s.name}: ${found.question}`);
+    postBoard("/api/host/prompt", { conversation: s.conversation, name: s.name, question: found.question, text: found.text.slice(-1500) });
   } else if (s.promptKey) {
     s.promptKey = null;
     postBoard("/api/host/prompt", { conversation: s.conversation, cleared: true });
@@ -447,4 +457,4 @@ function markWaiting(conversation, name) {
   writeConfig(list);
 }
 
-module.exports = { DIALOGS, readable, lateDialog, serve, hostRequest, ensureHost, hostedConversations, markWaiting, adopt, markOnDemand, vsCodeHas, HOST_PORT, readConfig };
+module.exports = { DIALOGS, readable, lateDialog, promptIn, serve, hostRequest, ensureHost, hostedConversations, markWaiting, adopt, markOnDemand, vsCodeHas, HOST_PORT, readConfig };

@@ -56,3 +56,13 @@ test("the autocompact tip between turns gets one Esc, and the same tip is not an
   feed(tip);
   assert.equal(lateDialog(s), true);
 });
+
+test("a native prompt is found even when a long diff is redrawn after it", () => {
+  const { promptIn } = require("../src/sessions/host");
+  const dialog = "Edit file\r.claude/commands/x.md\r Do you want to make this edit to x.md?\r ❯ 1. Yes\r2. Yes, and allow\r   3. No\r\r Esc to cancel · Tab to amend\r";
+  const redraw = Array.from({ length: 80 }, (_, i) => ` ${i} - una línea larga del diff que se redibuja debajo del cuadro\r`).join("");
+  const found = promptIn(dialog + redraw);
+  assert.equal(found && found.question, "Do you want to make this edit to x.md?");
+  assert.equal(promptIn(dialog + redraw + "⏺ Update(.claude/commands/x.md)\r"), null);
+  assert.equal(promptIn(redraw), null);
+});
