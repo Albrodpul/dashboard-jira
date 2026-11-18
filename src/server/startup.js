@@ -64,6 +64,19 @@ async function noticeFollowUp(e) {
   return ok;
 }
 
+async function noticeReporter(session, wake = wakeSession) {
+  if (!session) return null;
+  const claimed = require("../core/data").mutate((d) => {
+    if (d.reporterNoticeAt && Date.now() - new Date(d.reporterNoticeAt).getTime() < NOTICE_GAP_MS) return false;
+    d.reporterNoticeAt = new Date().toISOString();
+    return true;
+  });
+  if (!claimed) return null;
+  const ok = await wake(session);
+  if (!ok) require("../core/data").mutate((d) => (d.reporterNoticeAt = null));
+  return ok;
+}
+
 const BOARD_NOTICE = "Aviso del tablero: arranca la sesión del tablero. Eres la sesión del tablero registrada: ejecuta ahora .claude/commands/tablero.md (regla de AGENTS.md).";
 
 const localDay = (iso) => new Date(iso).toLocaleDateString("sv-SE");
@@ -118,7 +131,12 @@ async function startReporter(force) {
       log("la sesión de reporte no se abre");
       continue;
     }
-    const ok = await wakeSession(rep.session);
+    const ok = await noticeReporter(rep.session);
+    if (ok === null) {
+      log("aviso de arranque al reporte ya enviado hace nada: no lo repito");
+      require("../core/data").mutate((d) => (d.reporterStartedOn = today));
+      return;
+    }
     log(`aviso de arranque a ${rep.session}: ${ok ? "enviado" : "falló"}`);
     if (ok) {
       require("../core/data").mutate((d) => (d.reporterStartedOn = today));
@@ -173,4 +191,4 @@ async function setOvertime(on) {
   return value;
 }
 
-module.exports = { launchStartup, wakeFollowUp, setOvertime, noticeFollowUp, noticeBoard };
+module.exports = { launchStartup, wakeFollowUp, setOvertime, noticeFollowUp, noticeBoard, noticeReporter };

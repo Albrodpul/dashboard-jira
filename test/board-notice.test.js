@@ -28,3 +28,15 @@ test("a failed notice can be retried at once", async () => {
   assert.equal(await noticeBoard("Tablero", false, async () => false), false);
   assert.equal(await noticeBoard("Tablero", false, async () => true), true);
 });
+
+test("the reporter gets its startup notice once when the daily start and the respawn both fire", async () => {
+  const { noticeReporter } = require("../src/server/startup");
+  const sent = [];
+  const wake = async (s) => (sent.push(s), true);
+  assert.equal(await noticeReporter("Reporte JIRA", wake), true);
+  assert.equal(await noticeReporter("Reporte JIRA", wake), null);
+  assert.equal(sent.length, 1);
+  mutate((d) => (d.reporterNoticeAt = null));
+  assert.equal(await noticeReporter("Reporte JIRA", async () => false), false);
+  assert.equal(await noticeReporter("Reporte JIRA", wake), true);
+});
