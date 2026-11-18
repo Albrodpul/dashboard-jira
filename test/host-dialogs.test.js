@@ -66,3 +66,7 @@ test("a native prompt is found even when a long diff is redrawn after it", () =>
   assert.equal(promptIn(dialog + redraw + "⏺ Update(.claude/commands/x.md)\r"), null);
   assert.equal(promptIn(redraw), null);
 });
+
+test("the new project trust dialog is accepted", () => {
+  assert.equal(answer("Is this a project you trust? ❯ 1. Yes, proceed 2. No, exit"), "\r");
+});

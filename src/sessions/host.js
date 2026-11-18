@@ -25,7 +25,7 @@ const DIALOGS = [
   [/Claude ?in ?Chrome/i, "\x1b"],
   [/fullscreen ?renderer/i, "2\r"],
   [new RegExp(`${POINTER} ?No, ?exit`, "i"), "\x1b[B\r"],
-  [/trust ?this ?folder/i, "\r"],
+  [/trust ?this ?folder|project ?you ?trust/i, "\r"],
   [/Use ?this ?MCP ?server/i, mcpChoice],
   [/MCP ?servers? ?found/i, "\r"],
 ];
