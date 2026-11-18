@@ -137,10 +137,8 @@ function windowDecor() {
 
 function clockDecor() {
   const { h: hour, m } = madridNow();
-  const face = h("span", { class: "clock", title: `${String(hour).padStart(2, "0")}:${String(m).padStart(2, "0")}` }, [h("i", { class: "hand hour" }), h("i", { class: "hand min" })]);
-  face.firstChild.style.transform = `rotate(${(hour % 12) * 30 + m / 2}deg)`;
-  face.lastChild.style.transform = `rotate(${m * 6}deg)`;
-  return face;
+  const pad = (n) => String(n).padStart(2, "0");
+  return h("span", { class: "clock", title: `${pad(hour)}:${pad(m)}` }, [h("span", { text: pad(hour) }), h("i", { class: "colon", text: ":" }), h("span", { text: pad(m) })]);
 }
 
 const plant = () => h("span", { class: "plant" }, [h("i"), h("i"), h("i")]);

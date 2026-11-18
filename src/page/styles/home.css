@@ -103,9 +103,10 @@
 .win.night { background: linear-gradient(#1c2a4a, #34406b); }
 .sun { position: absolute; left: 5px; top: 4px; width: 10px; height: 10px; border-radius: 50%; background: #ffd23f; box-shadow: 0 0 8px #ffd23f; }
 .moon { position: absolute; left: 5px; top: 4px; width: 10px; height: 10px; border-radius: 50%; box-shadow: 3px -2px 0 0 #f4eec8; }
-.clock { position: relative; width: 28px; height: 28px; border-radius: 50%; background: #fff; border: 3px solid #3b3b44; }
-.clock .hand { position: absolute; left: 50%; bottom: 50%; width: 2px; margin-left: -1px; background: #3b3b44; transform-origin: 50% 100%; border-radius: 1px; }
-.clock .hand.hour { height: 7px; } .clock .hand.min { height: 10px; background: #d92d2d; }
+.clock { display: inline-flex; align-items: center; height: 24px; padding: 0 7px; border-radius: 5px; background: #14181f; border: 2px solid #3b3b44; color: #ff5a4f; font: 700 15px/1 ui-monospace, "SF Mono", Menlo, Consolas, monospace; letter-spacing: 1px; text-shadow: 0 0 6px rgba(255,90,79,.7); font-variant-numeric: tabular-nums; }
+.clock .colon { font-style: normal; margin: 0 1px; }
+@media (prefers-reduced-motion: no-preference) { .clock .colon { animation: clock-blink 1s steps(2) infinite; } }
+@keyframes clock-blink { 50% { opacity: 0; } }
 .plant { position: relative; width: 22px; height: 30px; }
 .plant::after { content: ""; position: absolute; left: 4px; bottom: 0; width: 14px; height: 11px; background: #c4673e; border-radius: 2px 2px 4px 4px; }
 .plant i { position: absolute; bottom: 9px; left: 8px; width: 7px; height: 16px; background: #4caf6a; border-radius: 7px 0; transform-origin: bottom center; }
