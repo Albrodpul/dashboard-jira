@@ -11,7 +11,8 @@ const WINDOW = 10;
 function slots(environment, everyHours) {
   const n = Math.max(1, Math.min(9, Math.round(everyHours || 1)));
   const out = [];
-  for (let h = firstHour(); h <= lastHour(environment); h += n) out.push(h * 60 + MINUTE[environment]);
+  const last = lastHour(environment);
+  for (let h = firstHour(); h <= last; h += n) out.push(h * 60 + MINUTE[environment]);
   return out;
 }
 

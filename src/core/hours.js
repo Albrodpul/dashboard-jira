@@ -1,4 +1,4 @@
-const { load, mutate } = require("./data");
+const { load, mutate, readKey } = require("./data");
 
 const madrid = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Madrid", weekday: "short", hour: "2-digit", minute: "2-digit", hour12: false });
 
@@ -15,7 +15,7 @@ const DAILY_LEAD = 90;
 const dailyOk = (daily, start, end) => HHMM.test(daily || "") && toMin(daily) > toMin(start) && toMin(daily) <= toMin(end);
 
 function schedule() {
-  const s = (load().config || {}).workSchedule || {};
+  const s = (readKey("config") || {}).workSchedule || {};
   let start = HHMM.test(s.start || "") ? s.start : DEFAULT.start;
   let end = HHMM.test(s.end || "") ? s.end : DEFAULT.end;
   if (toMin(end) <= toMin(start)) ({ start, end } = DEFAULT);
