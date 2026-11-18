@@ -59,6 +59,8 @@ async function runSmoke() {
   return { problems };
 }
 
+const CUT = /has been closed|Target closed|browser has disconnected/i;
+
 async function smokeAfterUpdate() {
   if (!require("../cluster/cluster").isPrimary()) return;
   const now = head();
@@ -67,7 +69,9 @@ async function smokeAfterUpdate() {
     last = JSON.parse(fs.readFileSync(FILE, "utf8"));
   } catch (e) {}
   if (!now || last.head === now) return;
-  const result = await runSmoke().catch((e) => ({ problems: [`no se pudo lanzar la prueba: ${String(e.message || e).slice(0, 200)}`] }));
+  const result = await runSmoke().catch((e) => ({ problems: [`no se pudo lanzar la prueba: ${String(e.message || e).slice(0, 200)}`], cut: CUT.test(String(e.message || e)) }));
+  if (result.cut || head() !== now) return;
+  delete result.cut;
   fs.writeFileSync(FILE, JSON.stringify({ head: now, at: new Date().toISOString(), ...result }, null, 1));
   if (!result.problems || !result.problems.length) return;
   const board = require("../sessions/registry").loadRoutes().board;
