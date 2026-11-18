@@ -65,7 +65,7 @@ function transcripts() {
   const out = new Map();
   const add = (conversation, name, f, hosted) => {
     const st2 = fs.statSync(f);
-    out.set(conversation, { conversation, name, size: st2.size, mtime: st2.mtimeMs, tail: st2.size ? tailHash(f, st2.size) : "", project: projectOfFile(f), hosted });
+    out.set(conversation, { conversation, name, size: st2.size, mtime: st2.mtimeMs, tail: st2.size ? cachedTailHash(f, st2.size, st2.mtimeMs) : "", project: projectOfFile(f), hosted });
   };
   for (const e of require("../sessions/host").readConfig()) {
     const f = transcriptPath(e.conversation);
@@ -94,6 +94,15 @@ function transcripts() {
 }
 
 const TAIL = 4096;
+const tailCache = new Map();
+
+function cachedTailHash(file, size, mtime) {
+  const hit = tailCache.get(file);
+  if (hit && hit.size === size && hit.mtime === mtime) return hit.hash;
+  const hash = tailHash(file, size);
+  tailCache.set(file, { size, mtime, hash });
+  return hash;
+}
 
 function tailHash(file, end) {
   const start = Math.max(0, end - TAIL);

@@ -1,7 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const cp = require("child_process");
-const { DATA_DIR, load, mutate } = require("../core/data");
+const { DATA_DIR, readKey, mutate } = require("../core/data");
 const { appendLog } = require("../core/logfile");
 
 const DEFAULT = { wake: "06:00", sleep: "21:00", days: "MTWRF", weeklyOff: true };
@@ -11,7 +11,7 @@ const isMac = process.platform === "darwin";
 const log = (m) => appendLog(path.join(DATA_DIR, "mac-power.log"), `[${new Date().toISOString()}] ${m}\n`);
 
 function schedule() {
-  const s = (load().config || {}).macSchedule || {};
+  const s = (readKey("config") || {}).macSchedule || {};
   const ok = (t) => typeof t === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(t);
   return { wake: ok(s.wake) ? s.wake : DEFAULT.wake, sleep: ok(s.sleep) ? s.sleep : DEFAULT.sleep, days: DEFAULT.days, weeklyOff: typeof s.weeklyOff === "boolean" ? s.weeklyOff : DEFAULT.weeklyOff };
 }
@@ -70,7 +70,7 @@ function sudoPmset(args) {
 let sudoCache = null;
 
 function canSudo() {
-  if (sudoCache && Date.now() - sudoCache.t < 60000) return sudoCache.ok;
+  if (sudoCache && Date.now() - sudoCache.t < 10 * 60000) return sudoCache.ok;
   let ok = false;
   try {
     cp.execFileSync("/usr/bin/sudo", ["-n", "-l", "/usr/bin/pmset"], { stdio: "ignore", timeout: 5000 });

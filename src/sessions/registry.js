@@ -28,7 +28,12 @@ function processAlive(pid) {
   }
 }
 
+const transcriptPaths = new Map();
+
 function transcriptOf(sessionId) {
+  const known = transcriptPaths.get(sessionId);
+  if (known && fs.existsSync(known)) return known;
+  transcriptPaths.delete(sessionId);
   let dirs = [];
   try {
     dirs = fs.readdirSync(TRANSCRIPTS);
@@ -37,7 +42,10 @@ function transcriptOf(sessionId) {
   }
   for (const dir of dirs) {
     const file = path.join(TRANSCRIPTS, dir, `${sessionId}.jsonl`);
-    if (fs.existsSync(file)) return file;
+    if (fs.existsSync(file)) {
+      transcriptPaths.set(sessionId, file);
+      return file;
+    }
   }
   return null;
 }
@@ -51,7 +59,9 @@ function conversationTitle(sessionId) {
   const mark = `${st.size}:${st.mtimeMs}`;
   const previous = titleCache.get(sessionId);
   if (previous && previous.mark === mark) return previous.title;
-  const length = Math.min(st.size, 512 * 1024);
+  // Only the bytes appended since the last read can hold a newer title (with a little overlap for a title split at the edge).
+  const from = previous && previous.size <= st.size ? Math.max(0, previous.size - 1024) : 0;
+  const length = Math.min(st.size - from, 512 * 1024);
   const buf = Buffer.alloc(length);
   const fd = fs.openSync(file, "r");
   try {
@@ -66,7 +76,7 @@ function conversationTitle(sessionId) {
       title = JSON.parse(`{${found[found.length - 1]}}`).customTitle;
     } catch (e) {}
   }
-  titleCache.set(sessionId, { mark, title });
+  titleCache.set(sessionId, { mark, size: st.size, title });
   return title;
 }
 

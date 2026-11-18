@@ -2,7 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const cp = require("child_process");
 const config = require("../core/config");
-const { mutate, load, now } = require("../core/data");
+const { mutate, load, readKey, now } = require("../core/data");
 
 const projects = require("../core/projects");
 const projectFor = (id) => config.project(id || config.mainProject.id) || config.mainProject;
@@ -170,7 +170,7 @@ function entriesOf(d, p) {
 
 function dailyState(projectId) {
   const p = projectFor(projectId);
-  const all = entriesOf(load(), p);
+  const all = entriesOf({ dailies: readKey("dailies"), daily: readKey("daily"), projectDailies: readKey("projectDailies") }, p);
   const prev = lastWorkday();
   return { project: p.id, prevDay: prev, prev: all[prev] || null, today: today(), todayText: all[today()] || null, busy: running.has(p.id) };
 }
