@@ -309,16 +309,20 @@ function insertAtCaret(input, text) {
   input.focus();
 }
 
+const UPLOAD_MAX_MB = 500;
+
 function uploadFiles(input, files, conversation) {
   const list = [...files].filter(Boolean);
   if (!list.length) return;
+  const big = list.find((f) => f.size > UPLOAD_MAX_MB * 1024 * 1024);
+  if (big) return toast(`«${big.name}» pasa de ${UPLOAD_MAX_MB} MB: no se puede subir.`);
   toast(list.length === 1 ? "Subiendo el fichero…" : `Subiendo ${list.length} ficheros…`);
   list
     .reduce(
       (chain, file, i) =>
         chain.then(() =>
           fetch("/api/upload", { method: "POST", headers: { "content-type": "application/octet-stream", "x-file-name": encodeURIComponent(file.name || `captura-${i + 1}.png`), "x-conversation": conversation || "" }, body: file })
-            .then(async (r) => (r.ok ? r.json() : Promise.reject(new Error(r.status === 413 ? "pasa de 25 MB" : (await r.json().catch(() => ({}))).error || `error ${r.status}`))))
+            .then(async (r) => (r.ok ? r.json() : Promise.reject(new Error(r.status === 413 ? `pasa de ${UPLOAD_MAX_MB} MB` : (await r.json().catch(() => ({}))).error || `error ${r.status}`))))
             .then((d) => insertAtCaret(input, `@${d.path} `))
         ),
       Promise.resolve()

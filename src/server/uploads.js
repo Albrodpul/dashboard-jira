@@ -2,7 +2,8 @@ const fs = require("fs");
 const path = require("path");
 const config = require("../core/config");
 
-const MAX_BYTES = 25 * 1024 * 1024;
+const MAX_MB = 500;
+const MAX_BYTES = MAX_MB * 1024 * 1024;
 const KEEP_DAYS = 7;
 const MAIN_DIR = path.join("pruebas", "hablar");
 const OWN_DIR = path.join(".tablero", "hablar");
@@ -49,22 +50,43 @@ function handleUpload(req, res, send) {
   const name = `${new Date().toTimeString().slice(0, 8).replace(/:/g, "")}-${safeName(decodeURIComponent(req.headers["x-file-name"] || ""))}`;
   const top = path.join(where.root, where.base);
   const dir = path.join(top, day);
-  const chunks = [];
+  const declared = Number(req.headers["content-length"] || 0);
+  const tooBig = () => {
+    res.setHeader("connection", "close");
+    send(res, 413, { error: `pasa de ${MAX_MB} MB` });
+    req.unpipe();
+    req.resume();
+  };
+  if (declared > MAX_BYTES) return tooBig();
+  fs.mkdirSync(dir, { recursive: true });
+  const file = path.join(dir, name);
+  const part = `${file}.part`;
+  const out = fs.createWriteStream(part);
   let size = 0;
+  let failed = false;
+  const fail = (code, error) => {
+    if (failed) return;
+    failed = true;
+    out.destroy();
+    fs.rmSync(part, { force: true });
+    if (code === 413) return tooBig();
+    send(res, code, { error });
+  };
   req.on("data", (c) => {
     size += c.length;
-    if (size > MAX_BYTES) return req.destroy();
-    chunks.push(c);
+    if (size > MAX_BYTES) fail(413);
   });
-  req.on("end", () => {
-    if (!size) return send(res, 400, { error: "fichero vacío" });
-    fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(path.join(dir, name), Buffer.concat(chunks));
+  req.on("error", () => fail(400, "subida cortada"));
+  out.on("error", (e) => fail(500, String(e.message || e)));
+  out.on("finish", () => {
+    if (failed) return;
+    if (!size) return fail(400, "fichero vacío");
+    fs.renameSync(part, file);
     cleanOld(top);
     const rel = path.join(where.base, day, name).split(path.sep).join("/");
-    send(res, 200, { path: where.absolute ? path.join(dir, name).split(path.sep).join("/") : rel });
+    send(res, 200, { path: where.absolute ? file.split(path.sep).join("/") : rel });
   });
-  req.on("error", () => send(res, 413, { error: "demasiado grande" }));
+  req.pipe(out);
 }
 
-module.exports = { handleUpload, target };
+module.exports = { handleUpload, target, MAX_MB };
