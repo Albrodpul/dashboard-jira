@@ -161,6 +161,18 @@ function deskLine(s, group) {
 }
 
 const sofaFront = () => h("span", { class: "sofa" }, [h("i", { class: "arm-rest left" }), h("i", { class: "arm-rest right" })]);
+function art(cls, markup) {
+  const el = document.createElement("span");
+  el.className = cls;
+  el.setAttribute("aria-hidden", "true");
+  el.innerHTML = markup;
+  return el;
+}
+const cobweb = (cls = "") => art(`cobweb ${cls}`.trim(), '<svg viewBox="0 0 30 30"><g fill="none" stroke="currentColor" stroke-width=".9" stroke-linecap="round"><path d="M0 0L29 29M0 0L29 11M0 0L11 29M0 0L29 1M0 0L1 29"/><path d="M9 0Q8 4 7 7Q4 8 0 9M17 0Q16 8 14 14Q8 16 0 17M26 0Q24 12 21 21Q12 24 0 26"/></g><circle cx="15" cy="15" r="1.8" fill="currentColor"/></svg>');
+const deskItems = () => h("span", { class: "desk-items" }, [h("i", { class: "laptop-shut" }), h("i", { class: "postit" }), h("i", { class: "cup" }, [h("b"), h("b")])]);
+const emptyStation = (i) => h("span", { class: `ws-empty tilt-${i}` }, [h("i", { class: "mon-off" }), h("i", { class: "ws-desk" }), h("span", { class: "chair" })]);
+const emptyLounge = () => h("span", { class: "still-row" }, [h("span", { class: "couch-empty seat-scene" }, [h("i", { class: "rug" }), h("i", { class: "sofa-back" }), sofaFront(), h("i", { class: "cushion" })]), h("span", { class: "side-table" }, [h("i", { class: "magazine" })])]);
+const lonelyBox = () => h("span", { class: "lonely-box" }, [h("i")]);
 const pick = (key, n) => [...String(key || "")].reduce((v, ch) => (v * 33 + ch.charCodeAt(0)) >>> 0, 11) % n;
 
 function actor(x, id, fig, extra = "") {
@@ -226,6 +238,7 @@ function restScenes(list) {
 
 function inboxPile(n) {
   const sheets = Math.min(n, 9);
+  if (!n) return h("span", { class: "tray empty" }, [h("i", { class: "clip" }), h("span", { class: "tray-box" }), cobweb("on-tray")]);
   return h("span", { class: "tray" }, [...Array.from({ length: sheets }, (_, i) => h("i", { class: "sheet", style: `bottom:${6 + i * 4}px;transform:rotate(${((i * 37) % 9) - 4}deg)` })), h("span", { class: "tray-box" })]);
 }
 
@@ -233,7 +246,7 @@ function shelf(n) {
   const spines = Math.min(n, 28);
   const rows = [[], []];
   for (let i = 0; i < spines; i++) rows[i < 14 ? 0 : 1].push(h("i", { class: "folder", style: `height:${26 + ((i * 7) % 12)}px;background:${CLAYS[(i * 3) % CLAYS.length]}` }));
-  return h("span", { class: "shelf" }, rows.map((r) => h("span", { class: "shelf-row" }, r)));
+  return h("span", { class: `shelf${spines ? "" : " empty"}` }, [...rows.map((r) => h("span", { class: "shelf-row" }, r)), spines ? null : cobweb("on-shelf")]);
 }
 
 function queue(items) {
@@ -260,11 +273,11 @@ export function renderHome(root) {
   const yours = [...perms.map((p) => ({ label: "Permiso", title: p.label, mood: "blocked" })), ...waiting.map((t) => ({ label: t.key, title: `${t.status === "partial" ? "A medias" : "Te espera"}: ${t.title}`, mood: t.status === "partial" ? "blocked" : "waiting" }))];
   const yourN = yours.length;
   plan.append(
-    room("desk", "Tu mesa", yourN ? `${plural(yourN, "cosa te espera", "cosas te esperan")}` : "Nadie te espera", [yourN ? queue(yours) : h("span", { class: "calm" }, [h("span", { class: "chair" }), h("span", { class: "calm-text", text: "Todo tranquilo por aquí" })]), h("span", { class: "big-desk" })], { decor: [windowDecor(), plant()], onclick: () => switchView("waiting"), title: "Ver lo que te espera" }),
-    room("inbox", "Bandeja de entrada", pending.length ? plural(pending.length, "pendiente", "pendientes") : "Vacía", [h("span", { class: "inbox-scene" }, [paint(nutria(pending.length ? "pending" : "free", "mid"), "bandeja"), inboxPile(pending.length)]), h("strong", { class: "big-n", text: String(pending.length) })], { decor: [poster("IN")], onclick: () => switchView("pending"), title: "Ver las pendientes" }),
-    room("work", "Sala de trabajo", `${atDesk.length ? plural(atDesk.length, "sesión", "sesiones") : "Vacía"} · ${plural(sent, "tarea en curso", "tareas en curso")}`, atDesk.length ? atDesk.map(({ x, id }) => workScene(x, id)) : [h("span", { class: "empty-room", text: "Ninguna nutria trabajando ahora" })], { decor: [clockDecor(), plant()] }),
-    room("sofa", "Sala de descanso", resting.length ? plural(resting.length, "libre", "libres") : "Vacía", resting.length ? restScenes(resting) : [h("span", { class: "couch-empty seat-scene" }, [h("i", { class: "sofa-back" }), sofaFront()])], { decor: [h("span", { class: "lamp" })] }),
-    room("archive", "Archivo", done ? plural(done, "hecha", "hechas") : "Nada archivado", [h("span", { class: "archive-scene" }, [shelf(done), done ? paint(nutria("done", "mid"), "archivo") : null]), h("strong", { class: "big-n", text: String(done) })], { decor: [poster("✓")], onclick: () => switchView("done"), title: "Ver las hechas" }),
+    room("desk", "Tu mesa", yourN ? `${plural(yourN, "cosa te espera", "cosas te esperan")}` : "Nadie te espera", [yourN ? queue(yours) : h("span", { class: "calm" }, [h("span", { class: "chair pushed" })]), h("span", { class: "big-desk" }, yourN ? [] : [deskItems()])], { decor: [windowDecor(), plant()], onclick: () => switchView("waiting"), title: "Ver lo que te espera" }),
+    room("inbox", "Bandeja de entrada", pending.length ? plural(pending.length, "pendiente", "pendientes") : "Vacía", [h("span", { class: "inbox-scene" }, [pending.length ? paint(nutria("pending", "mid"), "bandeja") : null, inboxPile(pending.length)]), h("strong", { class: "big-n", text: String(pending.length) })], { decor: [poster("IN")], onclick: () => switchView("pending"), title: "Ver las pendientes" }),
+    room("work", "Sala de trabajo", `${atDesk.length ? plural(atDesk.length, "sesión", "sesiones") : "Vacía"} · ${plural(sent, "tarea en curso", "tareas en curso")}`, atDesk.length ? atDesk.map(({ x, id }) => workScene(x, id)) : [h("span", { class: "still-row" }, [0, 1, 2].map(emptyStation))], { decor: [clockDecor(), plant()] }),
+    room("sofa", "Sala de descanso", resting.length ? plural(resting.length, "libre", "libres") : "Vacía", resting.length ? restScenes(resting) : [emptyLounge()], { decor: [h("span", { class: "lamp" })] }),
+    room("archive", "Archivo", done ? plural(done, "hecha", "hechas") : "Nada archivado", [h("span", { class: "archive-scene" }, [shelf(done), done ? paint(nutria("done", "mid"), "archivo") : lonelyBox()]), h("strong", { class: "big-n", text: String(done) })], { decor: [poster("✓")], onclick: () => switchView("done"), title: "Ver las hechas" }),
   );
   if (s.system.length) {
     plan.append(

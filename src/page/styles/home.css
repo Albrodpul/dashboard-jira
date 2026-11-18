@@ -139,6 +139,41 @@
 .big-desk::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 14px; border-radius: 3px; background: var(--wood); box-shadow: 0 3px 0 var(--wood-dark); }
 .big-desk::after { content: ""; position: absolute; left: 8px; right: 8px; top: 17px; bottom: 0; border-left: 6px solid var(--wood-dark); border-right: 6px solid var(--wood-dark); }
 .calm { display: flex; align-items: flex-end; gap: 12px; }
+/* paisajes vacíos */
+.cobweb { position: absolute; width: 30px; height: 30px; color: color-mix(in srgb, var(--muted, #8a94a0) 70%, transparent); pointer-events: none; }
+.cobweb svg { width: 100%; height: 100%; display: block; }
+.cobweb.on-tray { left: 0; bottom: 12px; width: 26px; height: 26px; }
+.cobweb.on-shelf { right: 4px; top: 4px; }
+.tray .clip { position: absolute; left: 22px; bottom: 12px; width: 12px; height: 5px; border: 2px solid #9aa5b1; border-radius: 4px; }
+.shelf.empty { position: relative; min-width: 96px; }
+.lonely-box { position: relative; width: 34px; height: 26px; border-radius: 2px; background: #c9955c; box-shadow: inset 0 5px 0 #b07d47; }
+.lonely-box i { position: absolute; left: 14px; top: 0; width: 6px; height: 12px; background: #a8773f; }
+.big-desk .desk-items { position: absolute; left: 12px; right: 12px; bottom: 100%; display: flex; align-items: flex-end; justify-content: space-between; }
+.laptop-shut { width: 40px; height: 4px; border-radius: 2px; background: #6b6b75; box-shadow: 0 -2px 0 #85858f; }
+.postit { width: 14px; height: 14px; background: #f2d65c; transform: rotate(-8deg); margin-bottom: 1px; }
+.cup { position: relative; width: 12px; height: 13px; border-radius: 0 0 3px 3px; background: #f3f3ef; box-shadow: inset 0 3px 0 #6e4a2f; }
+.cup::after { content: ""; position: absolute; right: -5px; top: 3px; width: 4px; height: 5px; border: 2px solid #f3f3ef; border-left: 0; border-radius: 0 4px 4px 0; }
+.cup b { position: absolute; bottom: 15px; left: 3px; width: 2px; height: 9px; border-radius: 2px; background: color-mix(in srgb, var(--muted, #8a94a0) 55%, transparent); }
+.cup b + b { left: 7px; height: 7px; }
+.calm:has(.pushed) { margin-left: auto; margin-right: -26px; position: relative; z-index: 1; }
+.chair.pushed { transform: rotate(-8deg); }
+.still-row { display: flex; align-items: flex-end; justify-content: center; gap: 26px; margin: auto; padding-top: 8px; flex-wrap: wrap; }
+.ws-empty { position: relative; width: 86px; height: 84px; }
+.ws-empty .mon-off { position: absolute; left: 22px; bottom: 44px; width: 40px; height: 28px; border-radius: 3px; background: #1b2433; border: 3px solid #3b3b44; box-sizing: border-box; }
+.ws-empty .mon-off::before { content: ""; position: absolute; left: 14px; bottom: -9px; width: 6px; height: 6px; background: #3b3b44; }
+.ws-empty .mon-off::after { content: ""; position: absolute; right: 2px; bottom: 2px; width: 3px; height: 3px; border-radius: 50%; background: #e0a63b; }
+.ws-empty .ws-desk { position: absolute; left: 0; right: 0; bottom: 26px; height: 10px; border-radius: 3px; background: var(--wood); box-shadow: 0 3px 0 var(--wood-dark); }
+.ws-empty .ws-desk::before, .ws-empty .ws-desk::after { content: ""; position: absolute; top: 13px; width: 5px; height: 13px; background: var(--wood-dark); }
+.ws-empty .ws-desk::before { left: 6px; } .ws-empty .ws-desk::after { right: 6px; }
+.ws-empty .chair { position: absolute; bottom: -2px; left: 30px; transform: scale(.75); transform-origin: bottom center; }
+.ws-empty.tilt-0 .chair { left: 12px; transform: scale(.75) rotate(-10deg); }
+.ws-empty.tilt-2 .chair { left: 50px; transform: scale(.75) rotate(8deg); }
+.couch-empty .rug { position: absolute; left: 50%; bottom: -10px; width: 170px; height: 18px; margin-left: -85px; border-radius: 50%; background: repeating-linear-gradient(90deg, #e9b872 0 10px, #d99e57 10px 20px); opacity: .8; z-index: 0; }
+.couch-empty .cushion { position: absolute; z-index: 3; left: 50%; bottom: 14px; width: 22px; height: 18px; margin-left: 14px; border-radius: 5px; background: #f2c94c; transform: rotate(10deg); }
+.side-table { position: relative; width: 40px; height: 52px; margin-bottom: -4px; }
+.side-table::before { content: ""; position: absolute; left: 0; right: 0; top: 22px; height: 6px; border-radius: 3px; background: var(--wood); }
+.side-table::after { content: ""; position: absolute; left: 17px; top: 28px; width: 6px; height: 24px; background: var(--wood-dark); }
+.side-table .magazine { position: absolute; left: 6px; top: 18px; width: 20px; height: 4px; background: #d76f9c; box-shadow: 2px -3px 0 #4f9bd6; }
 .calm-text { padding: 4px 10px; border-radius: 6px; background: var(--sign-bg); color: var(--sign-ink); font-size: 13px; }
 .chair { width: 30px; height: 44px; position: relative; }
 .chair::before { content: ""; position: absolute; left: 4px; top: 0; width: 22px; height: 24px; border-radius: 6px 6px 2px 2px; background: #4f9bd6; }
@@ -252,6 +287,7 @@
   .room-sign { flex-direction: column; gap: 0; padding: 3px 8px; }
   .r-inbox .room-decor, .r-archive .room-decor { display: none; }
   .big-desk { display: none; }
+  .big-desk:has(.desk-items) { display: block; width: 110px; }
   .seat { width: calc(50% - 6px); }
   .nutria { width: 58px; height: 50px; }
   .nutria.mid { width: 40px; height: 35px; }
