@@ -1,5 +1,6 @@
 import { state, h, when, minutesSince, switchView, empty, fixedAreaIds, button, post, toast } from "../lib/base.js";
 import { currentProject, mixedProjects, projectName } from "../components/project-filter.js";
+import { claudito } from "../components/claudito.js";
 
 
 const GROUPS = [
@@ -104,26 +105,6 @@ export function watchdogBanners() {
   );
 }
 
-export function homeAlerts(items) {
-  const cs = state.contextSync;
-  const rows = [];
-  if (cs && cs.state === "conflict") rows.push(h("div", { class: "token-banner high" }, [h("div", {}, [h("strong", { text: "El contexto compartido no se sincroniza" }), h("span", { text: "Hay un choque entre los dos ordenadores: hay que resolverlo a mano en la carpeta del contexto (git status)." })])]));
-  else if (cs && cs.state === "error") rows.push(h("div", { class: "token-banner high" }, [h("div", {}, [h("strong", { text: "El contexto compartido no se sincroniza" }), h("span", { text: String(cs.error || "").split(/\r?\n/)[0] })])]));
-  rows.push(...items.filter(Boolean));
-  return rows.length ? h("div", { class: "alerts" }, rows) : null;
-}
-
-export function shortcuts(root) {
-  const count = (statuses) => state.tasks.filter((t) => statuses.includes(t.status)).length;
-  const data = [
-    ["pending", "Pendientes", ["pending"]],
-    ["waiting", "Te esperan", ["waiting", "partial"]],
-    ["sent", "En curso", ["sent"]],
-    ["done", "Hechas", ["done"]],
-  ].map(([id, label, statuses]) => [id, label, count(statuses) + (id === "waiting" ? ((state.permissions && state.permissions.pending) || []).length : 0)]);
-  root.appendChild(h("div", { class: "shortcuts" }, data.map(([id, label, n]) => h("button", { type: "button", class: `shortcut${n ? " filled" : ""}${id === "waiting" && n ? " urgent" : ""}`, onclick: () => switchView(id) }, [h("strong", { text: String(n) }), h("span", { text: label })]))));
-}
-
 function sessionCard(s, group) {
   const kids = [h("div", { class: "top" }, [h("span", { class: `dot ${DOTS[group]}` }), h("strong", { class: "session-title", text: s.name }), h("span", { class: "time", text: s.since ? `desde ${when(s.since)}` : "" })])];
   if (s.reason) {
@@ -138,96 +119,135 @@ function sessionCard(s, group) {
   return h("article", { class: `card home-session ${group}` }, kids);
 }
 
-const MOOD = { working: "Trabajando", blocked: "Bloqueada", free: "Libre", closed: "Cerrada" };
+const ALERT_MOOD = (el) => (el.classList.contains("overtime-banner") ? (el.classList.contains("on") ? "working" : "free") : "alert");
 
-export function claudito(mood, size = "") {
-  const eyes = mood === "free" || mood === "closed" ? '<rect class="eye" x="4" y="6" width="2" height="1"/><rect class="eye" x="10" y="6" width="2" height="1"/>' : '<rect class="eye" x="5" y="5" width="1" height="2"/><rect class="eye" x="10" y="5" width="1" height="2"/>';
-  const arms = mood === "blocked" ? '<rect class="arm" x="0" y="5" width="2" height="2"/><rect class="arm raised" x="14" y="0" width="2" height="5"/>' : '<rect class="arm left" x="0" y="5" width="2" height="2"/><rect class="arm right" x="14" y="5" width="2" height="2"/>';
-  const laptop = mood === "working" ? '<rect class="laptop" x="3" y="9" width="10" height="3"/><rect class="screen" x="4" y="10" width="8" height="1"/>' : "";
-  const el = h("span", { class: `claudito ${mood} ${size}`.trim(), "aria-hidden": "true" });
-  el.innerHTML = `<svg viewBox="0 0 16 14" shape-rendering="crispEdges"><rect class="body" x="2" y="3" width="12" height="7"/>${arms}<rect class="leg" x="3" y="10" width="1" height="2"/><rect class="leg" x="5" y="10" width="1" height="2"/><rect class="leg" x="10" y="10" width="1" height="2"/><rect class="leg" x="12" y="10" width="1" height="2"/>${eyes}${laptop}</svg>${mood === "blocked" ? '<b class="bubble">?</b>' : mood === "free" ? '<i class="zz">z<span>z</span></i>' : ""}`;
+export function homeAlerts(items) {
+  const cs = state.contextSync;
+  const rows = [];
+  if (cs && cs.state === "conflict") rows.push(h("div", { class: "token-banner high" }, [h("div", {}, [h("strong", { text: "El contexto compartido no se sincroniza" }), h("span", { text: "Hay un choque entre los dos ordenadores: hay que resolverlo a mano en la carpeta del contexto (git status)." })])]));
+  else if (cs && cs.state === "error") rows.push(h("div", { class: "token-banner high" }, [h("div", {}, [h("strong", { text: "El contexto compartido no se sincroniza" }), h("span", { text: String(cs.error || "").split(/\r?\n/)[0] })])]));
+  rows.push(...items.filter(Boolean));
+  if (!rows.length) return null;
+  rows.forEach((el, i) => {
+    el.classList.add("note", `tilt-${i % 3}`);
+    el.prepend(claudito(ALERT_MOOD(el), "note-who"));
+  });
+  return room("cork", "Tablón de avisos", rows.length === 1 ? "1 aviso" : `${rows.length} avisos`, [h("div", { class: "cork-board" }, rows)], { decor: [pin()] });
+}
+
+const CLAYS = ["#d97757", "#e0a63b", "#5fa86b", "#4f9bd6", "#9b7fd6", "#d76f9c", "#3fb3a8", "#c4825a"];
+const clayOf = (name) => CLAYS[[...String(name || "")].reduce((n, ch) => (n * 31 + ch.charCodeAt(0)) >>> 0, 7) % CLAYS.length];
+const paint = (el, name) => (el.style.setProperty("--clay", clayOf(name)), el);
+const MOOD_TEXT = { working: "trabajando", blocked: "bloqueada", free: "libre" };
+const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+
+function madridNow() {
+  const p = Object.fromEntries(new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Madrid", hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(new Date()).map((x) => [x.type, x.value]));
+  return { h: Number(p.hour) % 24, m: Number(p.minute) };
+}
+
+function windowDecor() {
+  const { h: hour } = madridNow();
+  const night = hour < 8 || hour >= 20;
+  return h("span", { class: `win${night ? " night" : ""}`, title: night ? "De noche" : "De día" }, [h("span", { class: night ? "moon" : "sun" })]);
+}
+
+function clockDecor() {
+  const { h: hour, m } = madridNow();
+  const face = h("span", { class: "clock", title: `${String(hour).padStart(2, "0")}:${String(m).padStart(2, "0")}` }, [h("i", { class: "hand hour" }), h("i", { class: "hand min" })]);
+  face.firstChild.style.transform = `rotate(${(hour % 12) * 30 + m / 2}deg)`;
+  face.lastChild.style.transform = `rotate(${m * 6}deg)`;
+  return face;
+}
+
+const plant = () => h("span", { class: "plant" }, [h("i"), h("i"), h("i")]);
+const pin = () => h("span", { class: "pinned-paper" });
+const poster = (text) => h("span", { class: "poster", text });
+
+function room(kind, name, count, body, { decor = [], onclick, title } = {}) {
+  const wall = h("header", { class: "room-wall" }, [h("span", { class: "room-sign" }, [h("strong", { text: name }), count ? h("span", { text: count }) : null]), h("span", { class: "room-decor" }, decor)]);
+  const floor = h("div", { class: "room-floor" }, body);
+  const el = h(onclick ? "button" : "section", { class: `room r-${kind}${onclick ? " go" : ""}`, ...(onclick ? { type: "button", onclick, title } : {}) }, [wall, floor]);
   return el;
 }
 
 let picked = null;
 
 function deskLine(s, group) {
-  if (group === "blocked" && s.reason) return h("span", { class: "desk-why", text: s.reason.text + (s.reason.task ? ` ${s.reason.task.key}` : "") });
-  const n = s.tasks.length;
-  const bits = [n ? (n === 1 ? "1 tarea" : `${n} tareas`) : group === "free" ? "Sin nada entre manos" : "Sin tareas del tablero", s.subagents ? (s.subagents === 1 ? "1 subagente" : `${s.subagents} subagentes`) : null].filter(Boolean);
-  return h("span", { class: "meta", text: bits.join(" · ") });
+  if (group === "blocked" && s.reason) return h("span", { class: "plate-why", text: s.reason.text + (s.reason.task ? ` ${s.reason.task.key}` : "") });
+  const bits = [s.tasks.length ? plural(s.tasks.length, "tarea", "tareas") : null, s.subagents ? plural(s.subagents, "ayudante", "ayudantes") : null].filter(Boolean);
+  return bits.length ? h("span", { class: "plate-meta", text: bits.join(" · ") }) : null;
+}
+
+function seat(x, id, select) {
+  const who = paint(claudito(id), x.name);
+  const helpers = x.subagents ? h("span", { class: "helpers" }, Array.from({ length: Math.min(x.subagents, 3) }, () => paint(claudito(id === "working" ? "working" : "free", "tiny"), x.name))) : null;
+  return h("button", { class: `seat ${id}`, type: "button", "data-conv": x.conversation, title: `${x.name}: ${MOOD_TEXT[id]}${x.since ? ` desde ${when(x.since)}` : ""}. Pulsa para ver su tarjeta.`, onclick: () => select(x.conversation) }, [
+    h("span", { class: "seat-scene" }, [who, helpers, h("span", { class: id === "free" ? "cushion" : "desk-top" })]),
+    h("span", { class: "plate" }, [h("strong", { text: x.name }), deskLine(x, id), mixedProjects() && x.project ? h("span", { class: "plate-project", text: projectName(x.project) }) : null]),
+  ]);
+}
+
+function inboxPile(n) {
+  const sheets = Math.min(n, 9);
+  return h("span", { class: "tray" }, [...Array.from({ length: sheets }, (_, i) => h("i", { class: "sheet", style: `bottom:${6 + i * 4}px;transform:rotate(${((i * 37) % 9) - 4}deg)` })), h("span", { class: "tray-box" })]);
+}
+
+function shelf(n) {
+  const spines = Math.min(n, 28);
+  const rows = [[], []];
+  for (let i = 0; i < spines; i++) rows[i < 14 ? 0 : 1].push(h("i", { class: "folder", style: `height:${26 + ((i * 7) % 12)}px;background:${CLAYS[(i * 3) % CLAYS.length]}` }));
+  return h("span", { class: "shelf" }, rows.map((r) => h("span", { class: "shelf-row" }, r)));
+}
+
+function queue(items) {
+  const shown = items.slice(0, 5);
+  return h("span", { class: "queue" }, [
+    ...shown.map((x) => h("span", { class: "queuer", title: x.title }, [h("span", { class: "sign", text: x.label }), paint(claudito(x.mood || "waiting", "mid"), x.label)])),
+    items.length > shown.length ? h("span", { class: "queue-more", text: `+${items.length - shown.length}` }) : null,
+  ]);
 }
 
 export function renderHome(root) {
-  shortcuts(root);
   const s = sessionSituation();
-  const all = BOARD.flatMap((id) => s[id].map((x) => ({ x, id })));
+  const count = (st) => state.tasks.filter((t) => st.includes(t.status));
+  const waiting = count(["waiting", "partial"]);
+  const perms = (state.permissions && state.permissions.pending) || [];
+  const pending = count(["pending"]);
+  const sent = count(["sent"]).length;
+  const done = count(["done"]).length;
+  const atDesk = [...s.working.map((x) => ({ x, id: "working" })), ...s.blocked.map((x) => ({ x, id: "blocked" }))];
+  const resting = s.free.map((x) => ({ x, id: "free" }));
+  const all = [...atDesk, ...resting];
   if (picked && !all.some((d) => d.x.conversation === picked)) picked = null;
+
   const detail = h("div", { class: "office-detail" });
+  const plan = h("div", { class: `office-plan${state.workHours === false && !(state.config && state.config.overtime) ? " lights-off" : ""}` });
   const showDetail = () => {
     detail.replaceChildren();
     const d = all.find((y) => y.x.conversation === picked);
     if (d) detail.appendChild(sessionCard(d.x, d.id));
-    for (const el of floor.querySelectorAll(".desk")) el.classList.toggle("picked", el.dataset.conv === picked);
+    for (const el of plan.querySelectorAll(".seat")) el.classList.toggle("picked", el.dataset.conv === picked);
   };
-  const desks = all.map(({ x, id }) =>
-    h("button", { class: `desk ${id}`, type: "button", "data-conv": x.conversation, title: `${x.name}: ${MOOD[id]}${x.since ? ` desde ${when(x.since)}` : ""}`, onclick: () => ((picked = picked === x.conversation ? null : x.conversation), showDetail()) }, [
-      claudito(id),
-      h("strong", { class: "desk-name", text: x.name }),
-      deskLine(x, id),
-      mixedProjects() && x.project ? h("span", { class: "chip session-project", text: projectName(x.project) }) : null,
-    ])
-  );
-  const label = { working: () => "trabajando", blocked: (n) => (n === 1 ? "bloqueada" : "bloqueadas"), free: (n) => (n === 1 ? "libre" : "libres") };
-  const counts = BOARD.filter((id) => s[id].length).map((id) => `${s[id].length} ${label[id](s[id].length)}`);
-  const head = h("div", { class: "office-head" }, [h("strong", { text: "Sesiones" }), h("span", { class: "meta", text: counts.length ? counts.join(" · ") : "Ninguna abierta" })]);
-  const floor = h("div", { class: "office-floor" }, desks.length ? desks : [h("div", { class: "office-empty" }, [claudito("closed"), h("span", { class: "meta", text: "No hay sesiones abiertas" })])]);
-  root.appendChild(h("section", { class: "office" }, [head, floor, detail]));
-  showDetail();
-  if (s.system.length)
-    root.appendChild(
-      h("div", { class: "office-crew" }, [
-        h("span", { class: "meta", text: "Del tablero" }),
-        ...s.system.map((x) => {
-          const mood = x.working ? "working" : x.open ? "free" : "closed";
-          return h("span", { class: "crew", title: `${x.name}: ${x.working ? "trabajando" : x.open ? "abierta" : "cerrada"}` }, [claudito(mood, "small"), h("span", { text: x.name })]);
-        }),
-      ])
-    );
-}
+  const select = (conv) => ((picked = picked === conv ? null : conv), showDetail());
 
-export function sessionStrip() {
-  const s = sessionSituation();
-  const total = s.working.length + s.blocked.length + s.free.length;
-  if (!total) return null;
-  const parts = [
-    ["working", "busy", "trabajando"],
-    ["blocked", "bad", s.blocked.length === 1 ? "bloqueada" : "bloqueadas"],
-    ["free", "on", s.free.length === 1 ? "libre" : "libres"],
-  ].filter(([id]) => s[id].length);
-  const summary = h("summary", { class: "strip-summary" }, [h("span", { class: "strip-title", text: "Sesiones abiertas:" }), ...parts.flatMap(([id, dot, label], i) => [i ? " · " : null, h("span", { class: "strip-part" }, [h("span", { class: `dot ${dot}` }), ` ${s[id].length} ${label}`])]).filter(Boolean)]);
-  const list = h(
-    "div",
-    { class: "strip-list" },
-    GROUPS.flatMap(([id]) =>
-      s[id].map((x) =>
-        h("div", { class: "strip-row" }, [
-          h("span", { class: `dot ${DOTS[id]}` }),
-          h("span", { class: "strip-name", text: x.name }),
-          h("span", { class: "meta", text: x.reason ? `${x.reason.text}${x.reason.task ? " " + x.reason.task.key : ""}` : x.tasks.length ? x.tasks.map((t) => t.key).join(", ") : "" }),
-        ])
-      )
-    )
+  const yours = [...perms.map((p) => ({ label: "Permiso", title: p.label, mood: "blocked" })), ...waiting.map((t) => ({ label: t.key, title: `${t.status === "partial" ? "A medias" : "Te espera"}: ${t.title}`, mood: t.status === "partial" ? "blocked" : "waiting" }))];
+  const yourN = yours.length;
+  plan.append(
+    room("desk", "Tu mesa", yourN ? `${plural(yourN, "cosa te espera", "cosas te esperan")}` : "Nadie te espera", [yourN ? queue(yours) : h("span", { class: "calm" }, [h("span", { class: "chair" }), h("span", { class: "calm-text", text: "Todo tranquilo por aquí" })]), h("span", { class: "big-desk" })], { decor: [windowDecor(), plant()], onclick: () => switchView("waiting"), title: "Ver lo que te espera" }),
+    room("inbox", "Bandeja de entrada", pending.length ? plural(pending.length, "pendiente", "pendientes") : "Vacía", [h("span", { class: "inbox-scene" }, [paint(claudito(pending.length ? "pending" : "free", "mid"), "bandeja"), inboxPile(pending.length)]), h("strong", { class: "big-n", text: String(pending.length) })], { decor: [poster("IN")], onclick: () => switchView("pending"), title: "Ver las pendientes" }),
+    room("work", "Sala de trabajo", `${atDesk.length ? plural(atDesk.length, "sesión", "sesiones") : "Vacía"} · ${plural(sent, "tarea en curso", "tareas en curso")}`, atDesk.length ? atDesk.map(({ x, id }) => seat(x, id, select)) : [h("span", { class: "empty-room", text: "Ningún claudito trabajando ahora" })], { decor: [clockDecor(), plant()] }),
+    room("sofa", "Sala de descanso", resting.length ? plural(resting.length, "libre", "libres") : "Vacía", resting.length ? resting.map(({ x, id }) => seat(x, id, select)) : [h("span", { class: "couch-empty" }, [h("span", { class: "cushion" })])], { decor: [h("span", { class: "lamp" })] }),
+    room("archive", "Archivo", done ? plural(done, "hecha", "hechas") : "Nada archivado", [h("span", { class: "archive-scene" }, [shelf(done), done ? paint(claudito("done", "mid"), "archivo") : null]), h("strong", { class: "big-n", text: String(done) })], { decor: [poster("✓")], onclick: () => switchView("done"), title: "Ver las hechas" }),
   );
-  const det = h("details", { class: "session-strip" }, [summary, list]);
-  try {
-    const saved = sessionStorage.getItem("strip-open");
-    det.open = saved ? saved === "1" : s.blocked.length > 0;
-  } catch (e) {}
-  det.addEventListener("toggle", () => {
-    try {
-      sessionStorage.setItem("strip-open", det.open ? "1" : "0");
-    } catch (e) {}
-  });
-  return det;
+  if (s.system.length) {
+    plan.append(
+      room("control", "Sala de control", plural(s.system.filter((x) => x.open).length, "abierta", "abiertas"), s.system.map((x) => {
+        const mood = x.working ? "working" : x.open ? "free" : "closed";
+        return h("span", { class: `console ${mood}`, title: `${x.name}: ${x.working ? "trabajando" : x.open ? "abierta" : "cerrada"}` }, [h("span", { class: "screen-wall" }), paint(claudito(mood, "mid"), x.name), h("span", { class: "plate small" }, [h("strong", { text: x.name })])]);
+      }), { decor: [h("span", { class: "radar" })] })
+    );
+  }
+  root.appendChild(h("div", { class: "office" }, [plan, detail]));
+  showDetail();
 }

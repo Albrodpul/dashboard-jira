@@ -6,7 +6,7 @@ import { renderTalk } from "./views/talk.js";
 import { renderContext } from "./views/context.js";
 import { renderFollowUp } from "./views/follow-up.js";
 import { renderReport, updateStamp, mountHeader, quotaBlock, tokenBanner, overtimeBanner } from "./components/report.js";
-import { renderHome, sessionStrip, shortcuts, homeAlerts, stuckBanners, watchdogBanners } from "./views/home.js";
+import { renderHome, homeAlerts, stuckBanners, watchdogBanners } from "./views/home.js";
 import { renderDaily } from "./views/daily.js";
 import { batteryBadge } from "./components/battery.js";
 import { renderLearning } from "./views/learning.js";
@@ -366,9 +366,7 @@ function paint() {
     if (mobile || board) statusChips(root, counts, board);
   }
   if (state.tab === "today") {
-    shortcuts(root);
-    const strip = sessionStrip();
-    if (strip) root.appendChild(strip);
+    renderHome(root);
     return renderToday(root, errors);
   }
   if (state.tab === "more") return renderMore(root, waitingDeploys, errors);
