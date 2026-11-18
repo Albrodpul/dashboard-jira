@@ -76,19 +76,27 @@ const subagentCache = new Map();
 let shellCommands = [];
 let shellTimer = null;
 
+const keepShells = (list) => list.filter((x) => typeof x === "string" && x.includes("shell-snapshots"));
+
 function refreshShellCommands() {
+  if (process.platform !== "win32") {
+    cp.execFile("ps", ["-axww", "-o", "command="], { timeout: 20000, maxBuffer: 8 * 1024 * 1024 }, (err, out) => {
+      if (!err) shellCommands = keepShells(String(out).split("\n"));
+    });
+    return;
+  }
   const script = "Get-CimInstance Win32_Process -Filter \"Name='bash.exe'\" | ForEach-Object { $_.CommandLine } | ConvertTo-Json -Compress";
   cp.execFile("powershell", ["-NoProfile", "-Command", script], { windowsHide: true, timeout: 20000, maxBuffer: 8 * 1024 * 1024 }, (err, out) => {
     if (err) return;
     try {
       const list = JSON.parse(String(out).trim() || "[]");
-      shellCommands = (Array.isArray(list) ? list : [list]).filter((x) => typeof x === "string" && x.includes("shell-snapshots"));
+      shellCommands = keepShells(Array.isArray(list) ? list : [list]);
     } catch (e) {}
   });
 }
 
 function watchShells() {
-  if (shellTimer || process.platform !== "win32") return;
+  if (shellTimer) return;
   refreshShellCommands();
   shellTimer = setInterval(refreshShellCommands, 20000);
   shellTimer.unref();
