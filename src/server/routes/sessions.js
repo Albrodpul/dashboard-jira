@@ -98,6 +98,9 @@ function linkNew(res, { clean, epicKey, epicName, created, project }, send) {
   }, 2000);
 }
 
+const creating = new Map();
+const CREATING_MS = 2 * 60000;
+
 function handleNewSession(res, { title, epicKey, epicName, project: projectId }, send) {
   const clean = String(title || "").trim().slice(0, 60);
   if (!clean) return send(res, 400, { error: "falta el nombre" });
@@ -105,7 +108,15 @@ function handleNewSession(res, { title, epicKey, epicName, project: projectId },
   const project = projectId ? config.project(String(projectId)) : config.mainProject;
   if (!project) return send(res, 400, { error: "proyecto desconocido" });
   if (!project.root || !require("fs").existsSync(project.root)) return send(res, 400, { error: `${project.name} no tiene carpeta en este ordenador` });
-  createConversation(clean, project.root).then((created) => linkNew(res, { clean, epicKey, epicName, created, project }, send));
+  const key = `${project.id}|${titleKey(clean)}`;
+  if (Date.now() - (creating.get(key) || 0) < CREATING_MS) return send(res, 409, { error: `«${clean}» ya se está creando` });
+  creating.set(key, Date.now());
+  createConversation(clean, project.root)
+    .then((created) => linkNew(res, { clean, epicKey, epicName, created, project }, send))
+    .catch((e) => {
+      creating.delete(key);
+      send(res, 500, { error: String((e && e.message) || e) });
+    });
 }
 
 function handleEpic(res, { key, name, area }, send) {
