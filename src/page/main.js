@@ -64,7 +64,7 @@ const GROUPS = [
 ];
 const VIEWS = {
   home: ["Inicio", "Lo que te necesita y cómo van las sesiones."],
-  daily: ["Daily", "El resumen del último día laborable y el de hoy, agrupado por área: qué se hizo, dónde y cómo. Se redacta solo a la hora de la daily."],
+  daily: ["Daily", "El resumen del último día laborable y el de hoy, agrupado por área: qué se hizo, dónde y cómo. Se redacta solo a la hora de la daily y se puede rehacer con su botón."],
   pending: ["Pendientes", "Tareas nuevas o devueltas que puedes pasar a la sesión de su epic. Nada se envía hasta que pulsas Hacer."],
   approved: ["Por enviar", "Aprobadas con Hacer, mientras el tablero las escribe en su sesión. Si no puede, lo dice aquí."],
   sent: ["En curso", "Lo que ya está en su sesión, con lo que ha contestado."],

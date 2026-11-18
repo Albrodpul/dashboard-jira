@@ -113,6 +113,13 @@ const POST_ROUTES = {
     }
     send(res, 200, { sent: n });
   },
+  "/api/daily": (res, { today, project }, send) => {
+    if (!cluster.isPrimary()) return send(res, 409, { error: "la daily la redacta el ordenador que manda" });
+    const daily = require("../../features/daily");
+    const day = today ? new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" }) : daily.lastWorkday();
+    daily.dailyFor(day, false, project ? String(project) : undefined).catch(() => {});
+    send(res, 200, { ok: true });
+  },
   "/api/cluster/yield": (res, input, send) => {
     cluster
       .handleYield(input)

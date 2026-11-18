@@ -1,4 +1,6 @@
-import { state, h, when, button, toast } from "../lib/base.js";
+import { state, h, when, button, post, toast } from "../lib/base.js";
+
+const asked = {};
 import { currentProject } from "../components/project-filter.js";
 
 function dailyLines(text) {
@@ -65,13 +67,20 @@ function currentDaily() {
 const fmt = (day) => (day ? new Date(`${day}T12:00:00`).toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" }) : "");
 
 function dayCard({ title, day, entry, today }) {
+  const d = currentDaily();
+  const busy = !!(d.busy && asked[day] && (!entry || entry.at < asked[day]));
   const actions = entry && entry.text ? [button("Copiar", { onClick: () => copyDaily(entry.text) })] : [];
+  const redo = () => {
+    asked[day] = new Date().toISOString();
+    post("/api/daily", { today, project: d.project }, "Redactando…");
+  };
+  actions.push(button(busy ? "Redactando…" : entry ? "Redactar de nuevo" : "Redactarlo", { cls: "subtle", disabled: busy || d.busy, title: "Lo escribe Claude con lo de ese día: gasta un poco de cuota", onClick: redo }));
   const kids = [h("div", { class: "daily-head" }, [h("div", {}, [h("h3", { text: title }), h("span", { class: "meta", text: fmt(day) })]), h("div", { class: "actions" }, actions)])];
   if (entry && entry.text) {
     kids.push(dailyBody(entry.text));
     kids.push(h("p", { class: "meta daily-at", text: `Redactado a las ${when(entry.at)}` }));
   } else if (entry && entry.empty) kids.push(h("p", { class: "daily-text", text: "Ese día no hay tareas mandadas, commits ni errores arreglados." }));
-  else kids.push(h("p", { class: "daily-text meta", text: today ? `Se redacta solo a las ${draftAt()}.` : `Se redacta solo a las ${draftAt()} de ese día; si no se pudo, a la mañana siguiente.` }));
+  else kids.push(h("p", { class: "daily-text meta", text: today ? `Se redacta solo a las ${draftAt()}; antes, con «Redactarlo».` : `Se redacta solo a las ${draftAt()} de ese día; si no se pudo, a la mañana siguiente.` }));
   return h("section", { class: `card daily-day${today ? " today" : ""}` }, kids);
 }
 
