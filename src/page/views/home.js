@@ -96,7 +96,10 @@ export function watchdogBanners() {
   return (state.watchdog || []).map((x) =>
     h("div", { class: "token-banner high" }, [
       h("div", {}, [h("strong", { text: x.title }), h("span", { text: `${x.detail} Visto a las ${when(x.at)}.` })]),
-      x.conversation && x.kind !== "typing" ? h("button", { class: "btn", type: "button", text: "Ver en directo", onclick: () => import("../components/terminal.js").then((m) => m.openTerminal(x.conversation, x.name)) }) : null,
+      h("div", { class: "banner-actions" }, [
+        x.conversation && x.kind !== "typing" ? h("button", { class: "btn", type: "button", text: "Ver en directo", onclick: () => import("../components/terminal.js").then((m) => m.openTerminal(x.conversation, x.name)) }) : null,
+        x.key ? h("button", { class: "btn", type: "button", text: "Quitar", onclick: () => post("/api/watchdog/dismiss", { key: x.key }) }) : null,
+      ]),
     ])
   );
 }

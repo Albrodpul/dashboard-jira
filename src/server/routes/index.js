@@ -124,6 +124,11 @@ const POST_ROUTES = {
       .takeHere()
       .then((r) => send(res, r.ok ? 200 : 409, r))
       .catch((e) => send(res, 500, { error: String(e.message || e) })),
+  "/api/watchdog/dismiss": (res, { key }, send) => {
+    if (!key) return send(res, 400, { error: "falta el aviso" });
+    require("../../features/watchdog").dismiss(String(key));
+    send(res, 200);
+  },
   "/api/cluster/auto": (res, input, send) => send(res, 200, cluster.backToAuto()),
   "/api/cluster/command": (res, { target, action }, send) =>
     cluster

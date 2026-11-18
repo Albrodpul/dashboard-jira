@@ -121,6 +121,7 @@ h1 { font-size: 16px; font-weight: 600; letter-spacing: -0.01em; margin: 0; }
 .token-warn.high { color: var(--danger); }
 .token-banner { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; padding: 12px 14px; border-radius: 6px; background: var(--back-soft); }
 .token-banner > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 320px; }
+.token-banner > .banner-actions { flex-direction: row; flex: 0 0 auto; gap: 8px; }
 .token-banner strong { color: var(--back); font-weight: 600; }
 .token-banner span { color: var(--ink-2); font-size: 13.5px; }
 .overtime-banner { background: var(--surface-2); }

@@ -32,3 +32,14 @@ test("each problem is announced once, stays listed while it lasts and goes away 
   apply([]);
   assert.equal(load().watchdog.alerts.length, 0);
 });
+
+test("a dismissed alert leaves the page and does not come back while the same finding repeats", () => {
+  const { dismiss, forPage } = require("../src/features/watchdog");
+  const f = { key: "repeat|c9|t", kind: "repeat", conversation: "c9", name: "R", title: "t", detail: "d" };
+  apply([f]);
+  assert.equal(forPage(load()).length, 1);
+  dismiss(f.key);
+  assert.equal(forPage(load()).length, 0);
+  apply([f]);
+  assert.equal(forPage(load()).length, 0);
+});

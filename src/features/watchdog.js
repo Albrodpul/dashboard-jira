@@ -85,8 +85,10 @@ function apply(found) {
   mutate((d) => {
     const prev = new Map(((d.watchdog && d.watchdog.alerts) || []).map((a) => [a.key, a]));
     const notified = { ...((d.watchdog && d.watchdog.notified) || {}) };
+    const dismissed = { ...((d.watchdog && d.watchdog.dismissed) || {}) };
+    for (const [k, at] of Object.entries(dismissed)) if (Date.now() - new Date(at).getTime() > DISMISS_KEEP_MS) delete dismissed[k];
     for (const [k, at] of Object.entries(notified)) if (Date.now() - new Date(at).getTime() > RENOTIFY_MS) delete notified[k];
-    const alerts = found.map((f) => {
+    const alerts = found.filter((f) => !dismissed[f.key]).map((f) => {
       const old = prev.get(f.key);
       const kindKey = `${f.kind}|${f.conversation || ""}`;
       if (!old && !notified[kindKey]) {
@@ -95,9 +97,19 @@ function apply(found) {
       }
       return { ...f, at: old ? old.at : now(), seenAt: now() };
     });
-    d.watchdog = { alerts, notified, checkedAt: now() };
+    d.watchdog = { alerts, notified, dismissed, checkedAt: now() };
   });
   return fresh;
+}
+
+const DISMISS_KEEP_MS = 24 * 3600000;
+
+function dismiss(key) {
+  mutate((d) => {
+    const w = (d.watchdog = d.watchdog || {});
+    w.dismissed = { ...(w.dismissed || {}), [key]: now() };
+    w.alerts = (w.alerts || []).filter((a) => a.key !== key);
+  });
 }
 
 function tick() {
@@ -113,7 +125,7 @@ function tick() {
 }
 
 function forPage(d) {
-  return ((d.watchdog && d.watchdog.alerts) || []).map(({ kind, conversation, name, title, detail, at }) => ({ kind, conversation, name, title, detail, at }));
+  return ((d.watchdog && d.watchdog.alerts) || []).map(({ key, kind, conversation, name, title, detail, at }) => ({ key, kind, conversation, name, title, detail, at }));
 }
 
-module.exports = { tick, forPage, findings, repeatedNotices, apply };
+module.exports = { tick, dismiss, forPage, findings, repeatedNotices, apply };
