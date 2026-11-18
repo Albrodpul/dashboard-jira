@@ -161,14 +161,67 @@ function deskLine(s, group) {
 }
 
 const sofaFront = () => h("span", { class: "sofa" }, [h("i", { class: "arm-rest left" }), h("i", { class: "arm-rest right" })]);
+const pick = (key, n) => [...String(key || "")].reduce((v, ch) => (v * 33 + ch.charCodeAt(0)) >>> 0, 11) % n;
 
-function seat(x, id) {
-  const who = paint(nutria(id), x.name);
-  const helpers = x.subagents ? h("span", { class: "helpers" }, Array.from({ length: Math.min(x.subagents, 3) }, () => paint(nutria(id === "working" ? "working" : "free", "tiny"), x.name))) : null;
-  return h("button", { class: `seat ${id}`, type: "button", "data-conv": x.conversation, title: `${x.name}: ${MOOD_TEXT[id]}${x.since ? ` desde ${when(x.since)}` : ""}. Pulsa para verla en directo.`, onclick: () => openLive(x.conversation, x.sessionName || x.name) }, [
-    h("span", { class: "seat-scene" }, [id === "free" ? h("i", { class: "sofa-back" }) : null, who, helpers, id === "free" ? sofaFront() : h("span", { class: "desk-top" })]),
+function actor(x, id, fig, extra = "") {
+  const helpers = x.subagents ? h("span", { class: "helpers" }, Array.from({ length: Math.min(x.subagents, 3) }, () => paint(nutria(id === "working" ? "working" : "relax", "tiny"), x.name))) : null;
+  return h("button", { class: `seat ${id} ${extra}`.trim(), type: "button", "data-conv": x.conversation, title: `${x.name}: ${MOOD_TEXT[id]}${x.since ? ` desde ${when(x.since)}` : ""}. Pulsa para verla en directo.`, onclick: () => openLive(x.conversation, x.sessionName || x.name) }, [
+    h("span", { class: "seat-scene" }, [...fig, helpers]),
     h("span", { class: "plate" }, [h("strong", { text: x.name }), deskLine(x, id), mixedProjects() && x.project ? h("span", { class: "plate-project", text: projectName(x.project) }) : null]),
   ]);
+}
+
+const otter = (x, mood, prop, cls = "") => {
+  const el = paint(nutria(mood, "", prop), x.name);
+  if (cls) el.classList.add(...cls.split(" "));
+  return el;
+};
+
+const WORK = [
+  (x) => [otter(x, "working"), h("span", { class: "desk-top" })],
+  (x) => [h("span", { class: "monitor" }, [h("i"), h("i"), h("i")]), otter(x, "typing", null, "working-arms"), h("span", { class: "desk-top keyboard" })],
+  (x) => [h("span", { class: "whiteboard" }, [h("i"), h("i"), h("i")]), otter(x, "drawing")],
+];
+
+function workScene(x, id) {
+  if (id === "blocked") return actor(x, id, [otter(x, "blocked"), h("span", { class: "desk-top" })]);
+  const v = pick(x.name, WORK.length);
+  return actor(x, id, WORK[v](x), `work-v${v}`);
+}
+
+const REST = [
+  (x) => [h("i", { class: "sofa-back" }), otter(x, "free"), sofaFront()],
+  (x) => [h("span", { class: "hammock" }, [h("i", { class: "post left" }), h("i", { class: "post right" })]), h("span", { class: "swing" }, [otter(x, "free"), h("i", { class: "cloth" })])],
+  (x) => [h("span", { class: "beanbag" }), otter(x, "idle", "book")],
+  (x) => [h("span", { class: "pool" }), otter(x, "relax", null, "floating"), h("span", { class: "pool-front" }), h("span", { class: "float-ring" })],
+  (x) => [otter(x, "idle", "controller"), h("span", { class: "tv" }, [h("i")])],
+];
+
+const PAIRS = [
+  (a, b) => ({ cls: "coffee", left: [otter(a, "idle", "mug"), h("b", { class: "say one", text: "…" })], middle: h("span", { class: "coffee-table" }), right: [otter(b, "idle", "mug", "mirror"), h("b", { class: "say two", text: "jaja" })] }),
+  (a, b) => ({ cls: "pingpong", left: [otter(a, "idle", "paddle")], middle: h("span", { class: "pp-table" }, [h("i", { class: "net" }), h("i", { class: "ball" })]), right: [otter(b, "idle", "paddle", "mirror")] }),
+  (a, b) => ({ cls: "chess", left: [otter(a, "idle"), h("b", { class: "say one", text: "?" })], middle: h("span", { class: "chess-table" }), right: [otter(b, "idle", null, "mirror")] }),
+];
+
+function restScenes(list) {
+  const sorted = [...list].sort((p, q) => p.x.name.localeCompare(q.x.name));
+  const out = [];
+  let last = -1;
+  for (let i = 0; i < sorted.length; i += 2) {
+    const a = sorted[i].x;
+    const b = sorted[i + 1] && sorted[i + 1].x;
+    if (!b) {
+      const v = pick(a.name, REST.length);
+      out.push(h("div", { class: `scene rest-v${v}` }, [actor(a, "free", REST[v](a))]));
+      continue;
+    }
+    let k = pick(a.name + b.name, PAIRS.length);
+    if (k === last) k = (k + 1) % PAIRS.length;
+    last = k;
+    const p = PAIRS[k](a, b);
+    out.push(h("div", { class: `scene pair ${p.cls}` }, [actor(a, "free", p.left), p.middle, actor(b, "free", p.right)]));
+  }
+  return out;
 }
 
 function inboxPile(n) {
@@ -202,15 +255,15 @@ export function renderHome(root) {
   const atDesk = [...s.working.map((x) => ({ x, id: "working" })), ...s.blocked.map((x) => ({ x, id: "blocked" }))];
   const resting = s.free.map((x) => ({ x, id: "free" }));
 
-  const plan = h("div", { class: `office-plan${state.workHours === false && !(state.config && state.config.overtime) ? " lights-off" : ""}` });
+  const plan = h("div", { class: `office-plan${resting.length >= 2 ? " wide-rest" : ""}${state.workHours === false && !(state.config && state.config.overtime) ? " lights-off" : ""}` });
 
   const yours = [...perms.map((p) => ({ label: "Permiso", title: p.label, mood: "blocked" })), ...waiting.map((t) => ({ label: t.key, title: `${t.status === "partial" ? "A medias" : "Te espera"}: ${t.title}`, mood: t.status === "partial" ? "blocked" : "waiting" }))];
   const yourN = yours.length;
   plan.append(
     room("desk", "Tu mesa", yourN ? `${plural(yourN, "cosa te espera", "cosas te esperan")}` : "Nadie te espera", [yourN ? queue(yours) : h("span", { class: "calm" }, [h("span", { class: "chair" }), h("span", { class: "calm-text", text: "Todo tranquilo por aquí" })]), h("span", { class: "big-desk" })], { decor: [windowDecor(), plant()], onclick: () => switchView("waiting"), title: "Ver lo que te espera" }),
     room("inbox", "Bandeja de entrada", pending.length ? plural(pending.length, "pendiente", "pendientes") : "Vacía", [h("span", { class: "inbox-scene" }, [paint(nutria(pending.length ? "pending" : "free", "mid"), "bandeja"), inboxPile(pending.length)]), h("strong", { class: "big-n", text: String(pending.length) })], { decor: [poster("IN")], onclick: () => switchView("pending"), title: "Ver las pendientes" }),
-    room("work", "Sala de trabajo", `${atDesk.length ? plural(atDesk.length, "sesión", "sesiones") : "Vacía"} · ${plural(sent, "tarea en curso", "tareas en curso")}`, atDesk.length ? atDesk.map(({ x, id }) => seat(x, id)) : [h("span", { class: "empty-room", text: "Ninguna nutria trabajando ahora" })], { decor: [clockDecor(), plant()] }),
-    room("sofa", "Sala de descanso", resting.length ? plural(resting.length, "libre", "libres") : "Vacía", resting.length ? resting.map(({ x, id }) => seat(x, id)) : [h("span", { class: "couch-empty seat-scene" }, [h("i", { class: "sofa-back" }), sofaFront()])], { decor: [h("span", { class: "lamp" })] }),
+    room("work", "Sala de trabajo", `${atDesk.length ? plural(atDesk.length, "sesión", "sesiones") : "Vacía"} · ${plural(sent, "tarea en curso", "tareas en curso")}`, atDesk.length ? atDesk.map(({ x, id }) => workScene(x, id)) : [h("span", { class: "empty-room", text: "Ninguna nutria trabajando ahora" })], { decor: [clockDecor(), plant()] }),
+    room("sofa", "Sala de descanso", resting.length ? plural(resting.length, "libre", "libres") : "Vacía", resting.length ? restScenes(resting) : [h("span", { class: "couch-empty seat-scene" }, [h("i", { class: "sofa-back" }), sofaFront()])], { decor: [h("span", { class: "lamp" })] }),
     room("archive", "Archivo", done ? plural(done, "hecha", "hechas") : "Nada archivado", [h("span", { class: "archive-scene" }, [shelf(done), done ? paint(nutria("done", "mid"), "archivo") : null]), h("strong", { class: "big-n", text: String(done) })], { decor: [poster("✓")], onclick: () => switchView("done"), title: "Ver las hechas" }),
   );
   if (s.system.length) {

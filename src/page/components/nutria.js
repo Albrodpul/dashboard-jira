@@ -10,6 +10,10 @@ const EYES = {
   happy: '<rect class="eye" x="4" y="3" width="1" height="1"/><rect class="eye" x="5" y="2" width="1" height="1"/><rect class="eye" x="6" y="3" width="1" height="1"/><rect class="eye" x="9" y="3" width="1" height="1"/><rect class="eye" x="10" y="2" width="1" height="1"/><rect class="eye" x="11" y="3" width="1" height="1"/>',
 };
 const PROPS = {
+  mug: '<rect class="mug" x="11" y="8" width="3" height="3"/><rect class="coffee" x="11" y="8" width="3" height="1"/><rect class="mug" x="14" y="9" width="1" height="1"/>',
+  controller: '<rect class="pad" x="5" y="9" width="6" height="2"/><rect class="pad" x="4" y="10" width="1" height="2"/><rect class="pad" x="11" y="10" width="1" height="2"/><rect class="btn-a" x="9" y="9" width="1" height="1"/><rect class="btn-b" x="6" y="9" width="1" height="1"/>',
+  paddle: '<rect class="paddle" x="13" y="5" width="3" height="3"/><rect class="handle" x="13" y="8" width="1" height="2"/>',
+  marker: '<rect class="metal" x="13" y="-1" width="1" height="2"/>',
   magnifier: '<rect class="lens" x="11" y="6" width="3" height="3"/><rect class="metal" x="11" y="5" width="3" height="1"/><rect class="metal" x="10" y="6" width="1" height="3"/><rect class="metal" x="14" y="6" width="1" height="3"/><rect class="metal" x="11" y="9" width="3" height="1"/><rect class="handle" x="9" y="10" width="1" height="1"/><rect class="handle" x="8" y="11" width="1" height="1"/>',
   binoculars: '<rect class="metal" x="4" y="2" width="3" height="2"/><rect class="metal" x="9" y="2" width="3" height="2"/><rect class="metal" x="7" y="2" width="2" height="1"/><rect class="lens" x="5" y="2" width="1" height="1"/><rect class="lens" x="10" y="2" width="1" height="1"/>',
   newspaper: '<rect class="paper" x="2" y="7" width="12" height="6"/><rect class="ink" x="3" y="8" width="10" height="1"/><rect class="ink" x="3" y="10" width="4" height="1"/><rect class="ink" x="9" y="10" width="4" height="1"/><rect class="ink" x="3" y="11" width="4" height="1"/><rect class="ink" x="9" y="11" width="3" height="1"/>',
@@ -21,6 +25,9 @@ const PROPS = {
   paper: '<rect class="paper" x="4" y="9" width="8" height="5"/><rect class="ink" x="5" y="10" width="5" height="1"/><rect class="ink" x="5" y="12" width="4" height="1"/>',
 };
 const MOODS = {
+  relax: { arms: "rest", eyes: "shut" },
+  typing: { arms: "rest", eyes: "open" },
+  drawing: { arms: "hand", eyes: "open", prop: "marker" },
   idle: { arms: "rest", eyes: "open" },
   working: { arms: "rest", eyes: "open", prop: "laptop" },
   blocked: { arms: "hand", eyes: "open", bubble: ["?", "bad"] },
