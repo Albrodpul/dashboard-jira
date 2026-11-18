@@ -40,7 +40,7 @@
 .stuck-text { margin: 6px 0 0; padding: 8px 10px; max-height: 180px; overflow: auto; border-radius: 6px; background: var(--surface); color: var(--ink-2); font-family: var(--mono); font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
 
 
-/* Oficina de clauditos */
+/* Oficina de nutrias */
 .office { display: flex; flex-direction: column; gap: 12px; }
 .office-plan, .r-cork {
   --sign-bg: rgba(255,255,255,.82); --sign-ink: #24242a; --plate-bg: #ffffff; --plate-ink: #24242a; --plate-sub: #6b6b75;
@@ -127,7 +127,7 @@
 .token-banner.note strong { color: #2b2b2f; }
 .token-banner.note span { color: #4a4a52; }
 .token-banner.note.tilt-0 { transform: rotate(-.8deg); } .token-banner.note.tilt-1 { transform: rotate(.6deg); } .token-banner.note.tilt-2 { transform: rotate(-.3deg); }
-.token-banner.note > .claudito { flex: none; }
+.token-banner.note > .nutria { flex: none; }
 .alerts { border: 0; }
 
 /* tu mesa */
@@ -159,7 +159,7 @@
 .seat:hover { background: rgba(255,255,255,.25); }
 .seat-scene { position: relative; display: flex; flex-direction: column; align-items: center; }
 .desk-top { width: 96px; height: 10px; margin-top: -6px; border-radius: 2px; background: var(--wood); box-shadow: 0 3px 0 var(--wood-dark); position: relative; z-index: 0; }
-.seat-scene .claudito { position: relative; z-index: 1; }
+.seat-scene .nutria { position: relative; z-index: 1; }
 .helpers { position: absolute; right: -14px; bottom: 6px; display: flex; gap: 1px; z-index: 2; }
 .plate { display: flex; flex-direction: column; align-items: center; gap: 1px; max-width: 100%; padding: 4px 8px; border-radius: 6px; background: var(--plate-bg); color: var(--plate-ink); box-shadow: 0 1px 2px rgba(0,0,0,.12); }
 .plate strong { font-size: 13px; font-weight: 700; max-width: 136px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -178,42 +178,46 @@
 .console.working .screen-wall { background: linear-gradient(90deg, #2bd18c 0 30%, transparent 30% 40%, #2bd18c 40% 70%, transparent 70%) 0 6px/100% 3px no-repeat, linear-gradient(90deg, #4f9bd6 0 50%, transparent 50%) 0 12px/100% 3px no-repeat, #0d1622; }
 .console.free .screen-wall { background: radial-gradient(circle at 50% 50%, #2bd18c 0 2px, transparent 3px), #0d1622; }
 
-/* clauditos */
-.claudito { --clay: #d97757; position: relative; display: inline-block; width: 76px; height: 66px; flex: none; }
-.claudito.mid { width: 52px; height: 46px; }
-.claudito.tiny { width: 18px; height: 16px; }
-.claudito.note-who { width: 46px; height: 40px; }
-.claudito svg { width: 100%; height: 100%; display: block; overflow: visible; }
-.claudito .body, .claudito .arm, .claudito .leg { fill: var(--clay); }
-.claudito .eye { fill: #1b1b1f; }
-.claudito .laptop { fill: #55555f; }
-.claudito .screen { fill: #9fd3e3; }
-.claudito .paper { fill: #ffffff; stroke: #c9d2dc; stroke-width: .3; }
-.claudito .ink { fill: #9aa5b1; }
-.claudito.closed { --clay: #8a8a94 !important; opacity: .6; }
-.claudito .bubble { position: absolute; top: -6px; right: -8px; width: 18px; height: 18px; border-radius: 50%; color: #fff; font: 700 12px/18px var(--font); text-align: center; }
-.claudito .bubble.bad { background: #d92d2d; } .claudito .bubble.ok { background: #2b8a3e; } .claudito .bubble.warn { background: #e08a00; }
-.claudito .zz { position: absolute; top: -6px; right: -6px; color: #6f63a8; font: italic 700 13px/1 var(--font); }
-.claudito .zz span { position: relative; top: -7px; font-size: 10px; }
-.claudito.tiny .bubble, .claudito.tiny .zz { display: none; }
+/* nutrias */
+.nutria { --clay: #d97757; --fur: #8a5a3b; position: relative; display: inline-block; width: 76px; height: 66px; flex: none; }
+.nutria.mid { width: 52px; height: 46px; }
+.nutria.tiny { width: 18px; height: 16px; }
+.nutria.note-who { width: 46px; height: 40px; }
+.nutria svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.nutria .fur, .nutria .arm, .nutria .tail { fill: var(--fur); }
+.nutria .ear, .nutria .paw { fill: color-mix(in srgb, var(--fur) 70%, #000); }
+.nutria .cream { fill: #f3dfc4; }
+.nutria .nose, .nutria .eye { fill: #1b1b1f; }
+.nutria .whisker { fill: color-mix(in srgb, var(--fur) 55%, #fff); }
+.nutria .scarf { fill: var(--clay); }
+.nutria .laptop { fill: #55555f; }
+.nutria .screen { fill: #9fd3e3; }
+.nutria .paper { fill: #ffffff; stroke: #c9d2dc; stroke-width: .3; }
+.nutria .ink { fill: #9aa5b1; }
+.nutria.closed { filter: grayscale(1); opacity: .6; }
+.nutria .bubble { position: absolute; top: -6px; right: -8px; width: 18px; height: 18px; border-radius: 50%; color: #fff; font: 700 12px/18px var(--font); text-align: center; }
+.nutria .bubble.bad { background: #d92d2d; } .nutria .bubble.ok { background: #2b8a3e; } .nutria .bubble.warn { background: #e08a00; }
+.nutria .zz { position: absolute; top: -6px; right: -6px; color: #6f63a8; font: italic 700 13px/1 var(--font); }
+.nutria .zz span { position: relative; top: -7px; font-size: 10px; }
+.nutria.tiny .bubble, .nutria.tiny .zz { display: none; }
 @media (prefers-reduced-motion: no-preference) {
-  .claudito.working .arm { animation: claudito-type .5s steps(2) infinite; }
-  .claudito.working .arm.right { animation-delay: .25s; }
-  .claudito.working .screen { animation: claudito-blink 1.2s steps(2) infinite; }
-  .claudito.blocked .raised { transform-origin: 15px 5px; animation: claudito-wave 1s ease-in-out infinite; }
-  .claudito.waiting svg, .claudito.alert svg { animation: claudito-hop 1.4s ease-in-out infinite; }
-  .claudito.done svg { animation: claudito-hop .9s ease-in-out infinite; }
-  .claudito.free svg { animation: claudito-breathe 3s ease-in-out infinite; }
-  .claudito .zz { animation: claudito-float 3s ease-in-out infinite; }
+  .nutria.working .arm { animation: nutria-type .5s steps(2) infinite; }
+  .nutria.working .arm.right { animation-delay: .25s; }
+  .nutria.working .screen { animation: nutria-blink 1.2s steps(2) infinite; }
+  .nutria.blocked .raised, .nutria.blocked .paw { transform-origin: 12.5px 8px; animation: nutria-wave 1s ease-in-out infinite; }
+  .nutria.waiting svg, .nutria.alert svg { animation: nutria-hop 1.4s ease-in-out infinite; }
+  .nutria.done svg { animation: nutria-hop .9s ease-in-out infinite; }
+  .nutria.free svg { animation: nutria-breathe 3s ease-in-out infinite; }
+  .nutria .zz { animation: nutria-float 3s ease-in-out infinite; }
   .radar::after { animation: radar-spin 3s linear infinite; }
-  .queuer:nth-child(2) .claudito svg { animation-delay: .2s; } .queuer:nth-child(3) .claudito svg { animation-delay: .4s; }
+  .queuer:nth-child(2) .nutria svg { animation-delay: .2s; } .queuer:nth-child(3) .nutria svg { animation-delay: .4s; }
 }
-@keyframes claudito-type { 50% { transform: translateY(1px); } }
-@keyframes claudito-blink { 50% { opacity: .4; } }
-@keyframes claudito-wave { 50% { transform: rotate(14deg); } }
-@keyframes claudito-breathe { 50% { transform: translateY(1px); } }
-@keyframes claudito-hop { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-4px); } }
-@keyframes claudito-float { 50% { transform: translateY(-3px); opacity: .6; } }
+@keyframes nutria-type { 50% { transform: translateY(1px); } }
+@keyframes nutria-blink { 50% { opacity: .4; } }
+@keyframes nutria-wave { 50% { transform: rotate(14deg); } }
+@keyframes nutria-breathe { 50% { transform: translateY(1px); } }
+@keyframes nutria-hop { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-4px); } }
+@keyframes nutria-float { 50% { transform: translateY(-3px); opacity: .6; } }
 @keyframes radar-spin { to { transform: rotate(360deg); } }
 
 @media (max-width: 1100px) {
@@ -233,11 +237,11 @@
   .r-inbox .room-decor, .r-archive .room-decor { display: none; }
   .big-desk { display: none; }
   .seat { width: calc(50% - 6px); }
-  .claudito { width: 58px; height: 50px; }
-  .claudito.mid { width: 40px; height: 35px; }
+  .nutria { width: 58px; height: 50px; }
+  .nutria.mid { width: 40px; height: 35px; }
   .big-n { font-size: 26px; }
   .tray { width: 44px; } .sheet { width: 34px; left: 5px; }
-  .archive-scene .claudito, .inbox-scene .claudito { display: none; }
+  .archive-scene .nutria, .inbox-scene .nutria { display: none; }
   .shelf { min-width: 0; } .shelf-row { min-height: 30px; } .folder { width: 5px; }
   .cork-board { grid-template-columns: minmax(0, 1fr); }
   .console { width: calc(33% - 8px); }

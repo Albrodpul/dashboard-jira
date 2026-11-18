@@ -1,6 +1,6 @@
 import { state, h, when, minutesSince, switchView, empty, fixedAreaIds, button, post, toast } from "../lib/base.js";
 import { currentProject, mixedProjects, projectName } from "../components/project-filter.js";
-import { claudito } from "../components/claudito.js";
+import { nutria } from "../components/nutria.js";
 
 
 const GROUPS = [
@@ -116,14 +116,16 @@ export function homeAlerts(items) {
   if (!rows.length) return null;
   rows.forEach((el, i) => {
     el.classList.add("note", `tilt-${i % 3}`);
-    el.prepend(claudito(ALERT_MOOD(el), "note-who"));
+    el.prepend(nutria(ALERT_MOOD(el), "note-who"));
   });
   return room("cork", "Tablón de avisos", rows.length === 1 ? "1 aviso" : `${rows.length} avisos`, [h("div", { class: "cork-board" }, rows)], { decor: [pin()] });
 }
 
 const CLAYS = ["#d97757", "#e0a63b", "#5fa86b", "#4f9bd6", "#9b7fd6", "#d76f9c", "#3fb3a8", "#c4825a"];
 const clayOf = (name) => CLAYS[[...String(name || "")].reduce((n, ch) => (n * 31 + ch.charCodeAt(0)) >>> 0, 7) % CLAYS.length];
-const paint = (el, name) => (el.style.setProperty("--clay", clayOf(name)), el);
+const FURS = ["#8a5a3b", "#a0694a", "#6f4a33", "#b07d56", "#7d5a44", "#94704f"];
+const furOf = (name) => FURS[[...String(name || "")].reduce((n, ch) => (n * 17 + ch.charCodeAt(0)) >>> 0, 3) % FURS.length];
+const paint = (el, name) => (el.style.setProperty("--clay", clayOf(name)), el.style.setProperty("--fur", furOf(name)), el);
 const MOOD_TEXT = { working: "trabajando", blocked: "bloqueada", free: "libre" };
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 
@@ -164,8 +166,8 @@ function deskLine(s, group) {
 }
 
 function seat(x, id) {
-  const who = paint(claudito(id), x.name);
-  const helpers = x.subagents ? h("span", { class: "helpers" }, Array.from({ length: Math.min(x.subagents, 3) }, () => paint(claudito(id === "working" ? "working" : "free", "tiny"), x.name))) : null;
+  const who = paint(nutria(id), x.name);
+  const helpers = x.subagents ? h("span", { class: "helpers" }, Array.from({ length: Math.min(x.subagents, 3) }, () => paint(nutria(id === "working" ? "working" : "free", "tiny"), x.name))) : null;
   return h("button", { class: `seat ${id}`, type: "button", "data-conv": x.conversation, title: `${x.name}: ${MOOD_TEXT[id]}${x.since ? ` desde ${when(x.since)}` : ""}. Pulsa para verla en directo.`, onclick: () => openLive(x.conversation, x.sessionName || x.name) }, [
     h("span", { class: "seat-scene" }, [who, helpers, h("span", { class: id === "free" ? "cushion" : "desk-top" })]),
     h("span", { class: "plate" }, [h("strong", { text: x.name }), deskLine(x, id), mixedProjects() && x.project ? h("span", { class: "plate-project", text: projectName(x.project) }) : null]),
@@ -187,7 +189,7 @@ function shelf(n) {
 function queue(items) {
   const shown = items.slice(0, 5);
   return h("span", { class: "queue" }, [
-    ...shown.map((x) => h("span", { class: "queuer", title: x.title }, [h("span", { class: "sign", text: x.label }), paint(claudito(x.mood || "waiting", "mid"), x.label)])),
+    ...shown.map((x) => h("span", { class: "queuer", title: x.title }, [h("span", { class: "sign", text: x.label }), paint(nutria(x.mood || "waiting", "mid"), x.label)])),
     items.length > shown.length ? h("span", { class: "queue-more", text: `+${items.length - shown.length}` }) : null,
   ]);
 }
@@ -209,16 +211,16 @@ export function renderHome(root) {
   const yourN = yours.length;
   plan.append(
     room("desk", "Tu mesa", yourN ? `${plural(yourN, "cosa te espera", "cosas te esperan")}` : "Nadie te espera", [yourN ? queue(yours) : h("span", { class: "calm" }, [h("span", { class: "chair" }), h("span", { class: "calm-text", text: "Todo tranquilo por aquí" })]), h("span", { class: "big-desk" })], { decor: [windowDecor(), plant()], onclick: () => switchView("waiting"), title: "Ver lo que te espera" }),
-    room("inbox", "Bandeja de entrada", pending.length ? plural(pending.length, "pendiente", "pendientes") : "Vacía", [h("span", { class: "inbox-scene" }, [paint(claudito(pending.length ? "pending" : "free", "mid"), "bandeja"), inboxPile(pending.length)]), h("strong", { class: "big-n", text: String(pending.length) })], { decor: [poster("IN")], onclick: () => switchView("pending"), title: "Ver las pendientes" }),
-    room("work", "Sala de trabajo", `${atDesk.length ? plural(atDesk.length, "sesión", "sesiones") : "Vacía"} · ${plural(sent, "tarea en curso", "tareas en curso")}`, atDesk.length ? atDesk.map(({ x, id }) => seat(x, id)) : [h("span", { class: "empty-room", text: "Ningún claudito trabajando ahora" })], { decor: [clockDecor(), plant()] }),
+    room("inbox", "Bandeja de entrada", pending.length ? plural(pending.length, "pendiente", "pendientes") : "Vacía", [h("span", { class: "inbox-scene" }, [paint(nutria(pending.length ? "pending" : "free", "mid"), "bandeja"), inboxPile(pending.length)]), h("strong", { class: "big-n", text: String(pending.length) })], { decor: [poster("IN")], onclick: () => switchView("pending"), title: "Ver las pendientes" }),
+    room("work", "Sala de trabajo", `${atDesk.length ? plural(atDesk.length, "sesión", "sesiones") : "Vacía"} · ${plural(sent, "tarea en curso", "tareas en curso")}`, atDesk.length ? atDesk.map(({ x, id }) => seat(x, id)) : [h("span", { class: "empty-room", text: "Ninguna nutria trabajando ahora" })], { decor: [clockDecor(), plant()] }),
     room("sofa", "Sala de descanso", resting.length ? plural(resting.length, "libre", "libres") : "Vacía", resting.length ? resting.map(({ x, id }) => seat(x, id)) : [h("span", { class: "couch-empty" }, [h("span", { class: "cushion" })])], { decor: [h("span", { class: "lamp" })] }),
-    room("archive", "Archivo", done ? plural(done, "hecha", "hechas") : "Nada archivado", [h("span", { class: "archive-scene" }, [shelf(done), done ? paint(claudito("done", "mid"), "archivo") : null]), h("strong", { class: "big-n", text: String(done) })], { decor: [poster("✓")], onclick: () => switchView("done"), title: "Ver las hechas" }),
+    room("archive", "Archivo", done ? plural(done, "hecha", "hechas") : "Nada archivado", [h("span", { class: "archive-scene" }, [shelf(done), done ? paint(nutria("done", "mid"), "archivo") : null]), h("strong", { class: "big-n", text: String(done) })], { decor: [poster("✓")], onclick: () => switchView("done"), title: "Ver las hechas" }),
   );
   if (s.system.length) {
     plan.append(
       room("control", "Sala de control", plural(s.system.filter((x) => x.open).length, "abierta", "abiertas"), s.system.map((x) => {
         const mood = x.working ? "working" : x.open ? "free" : "closed";
-        return h("button", { class: `console ${mood}`, type: "button", title: `${x.name}: ${x.working ? "trabajando" : x.open ? "abierta" : "cerrada"}. Pulsa para verla en directo.`, onclick: () => openLive(x.conversation, x.session) }, [h("span", { class: "screen-wall" }), paint(claudito(mood, "mid"), x.name), h("span", { class: "plate small" }, [h("strong", { text: x.name })])]);
+        return h("button", { class: `console ${mood}`, type: "button", title: `${x.name}: ${x.working ? "trabajando" : x.open ? "abierta" : "cerrada"}. Pulsa para verla en directo.`, onclick: () => openLive(x.conversation, x.session) }, [h("span", { class: "screen-wall" }), paint(nutria(mood, "mid"), x.name), h("span", { class: "plate small" }, [h("strong", { text: x.name })])]);
       }), { decor: [h("span", { class: "radar" })] })
     );
   }

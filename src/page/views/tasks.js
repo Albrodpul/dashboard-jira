@@ -562,7 +562,7 @@ export function renderToday(root, errors) {
     any = true;
     root.appendChild(h("section", { class: "today-group" }, [h("h3", { text: `Posibles errores de seguimiento por decidir (${errors})` }), h("div", { class: "actions" }, [button("Verlos en Seguimiento", { onClick: () => switchView("follow-up") })])]));
   }
-  if (!any) root.appendChild(h("p", { class: "today-empty", text: "Nada que decidir ahora: los clauditos se apañan solos." }));
+  if (!any) root.appendChild(h("p", { class: "today-empty", text: "Nada que decidir ahora: las nutrias se apañan solas." }));
 }
 
 const BOARD_COLUMNS = [
