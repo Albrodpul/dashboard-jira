@@ -138,17 +138,62 @@ function sessionCard(s, group) {
   return h("article", { class: `card home-session ${group}` }, kids);
 }
 
+const MOOD = { working: "Trabajando", blocked: "Bloqueada", free: "Libre", closed: "Cerrada" };
+
+export function claudito(mood, size = "") {
+  const eyes = mood === "free" || mood === "closed" ? '<rect class="eye" x="4" y="6" width="2" height="1"/><rect class="eye" x="10" y="6" width="2" height="1"/>' : '<rect class="eye" x="5" y="5" width="1" height="2"/><rect class="eye" x="10" y="5" width="1" height="2"/>';
+  const arms = mood === "blocked" ? '<rect class="arm" x="0" y="5" width="2" height="2"/><rect class="arm raised" x="14" y="0" width="2" height="5"/>' : '<rect class="arm left" x="0" y="5" width="2" height="2"/><rect class="arm right" x="14" y="5" width="2" height="2"/>';
+  const laptop = mood === "working" ? '<rect class="laptop" x="3" y="9" width="10" height="3"/><rect class="screen" x="4" y="10" width="8" height="1"/>' : "";
+  const el = h("span", { class: `claudito ${mood} ${size}`.trim(), "aria-hidden": "true" });
+  el.innerHTML = `<svg viewBox="0 0 16 14" shape-rendering="crispEdges"><rect class="body" x="2" y="3" width="12" height="7"/>${arms}<rect class="leg" x="3" y="10" width="1" height="2"/><rect class="leg" x="5" y="10" width="1" height="2"/><rect class="leg" x="10" y="10" width="1" height="2"/><rect class="leg" x="12" y="10" width="1" height="2"/>${eyes}${laptop}</svg>${mood === "blocked" ? '<b class="bubble">?</b>' : mood === "free" ? '<i class="zz">z<span>z</span></i>' : ""}`;
+  return el;
+}
+
+let picked = null;
+
+function deskLine(s, group) {
+  if (group === "blocked" && s.reason) return h("span", { class: "desk-why", text: s.reason.text + (s.reason.task ? ` ${s.reason.task.key}` : "") });
+  const n = s.tasks.length;
+  const bits = [n ? (n === 1 ? "1 tarea" : `${n} tareas`) : group === "free" ? "Sin nada entre manos" : "Sin tareas del tablero", s.subagents ? (s.subagents === 1 ? "1 subagente" : `${s.subagents} subagentes`) : null].filter(Boolean);
+  return h("span", { class: "meta", text: bits.join(" · ") });
+}
+
 export function renderHome(root) {
   shortcuts(root);
   const s = sessionSituation();
-  const columns = BOARD.map((id) => {
-    const [, title, note] = GROUPS.find((g) => g[0] === id);
-    const head = h("div", { class: "board-head", title: note }, [h("span", { class: `dot ${DOTS[id]}` }), h("span", { text: title }), h("span", { class: "n", text: String(s[id].length) })]);
-    const cards = s[id].length ? s[id].map((x) => sessionCard(x, id)) : [h("div", { class: "board-empty", text: "Ninguna" })];
-    return h("section", { class: "board-col" }, [head, ...cards]);
-  });
-  root.appendChild(h("div", { class: "board" }, columns));
-  if (s.system.length) root.appendChild(h("div", { class: "system-chips" }, [h("span", { class: "meta", text: "Del tablero" }), ...s.system.map((x) => h("span", { class: "system-chip", title: x.working ? "Trabajando" : x.open ? "Abierta" : "Cerrada" }, [h("span", { class: `dot ${x.working ? "busy" : x.open ? "on" : ""}` }), x.name]))]));
+  const all = BOARD.flatMap((id) => s[id].map((x) => ({ x, id })));
+  if (picked && !all.some((d) => d.x.conversation === picked)) picked = null;
+  const detail = h("div", { class: "office-detail" });
+  const showDetail = () => {
+    detail.replaceChildren();
+    const d = all.find((y) => y.x.conversation === picked);
+    if (d) detail.appendChild(sessionCard(d.x, d.id));
+    for (const el of floor.querySelectorAll(".desk")) el.classList.toggle("picked", el.dataset.conv === picked);
+  };
+  const desks = all.map(({ x, id }) =>
+    h("button", { class: `desk ${id}`, type: "button", "data-conv": x.conversation, title: `${x.name}: ${MOOD[id]}${x.since ? ` desde ${when(x.since)}` : ""}`, onclick: () => ((picked = picked === x.conversation ? null : x.conversation), showDetail()) }, [
+      claudito(id),
+      h("strong", { class: "desk-name", text: x.name }),
+      deskLine(x, id),
+      mixedProjects() && x.project ? h("span", { class: "chip session-project", text: projectName(x.project) }) : null,
+    ])
+  );
+  const label = { working: () => "trabajando", blocked: (n) => (n === 1 ? "bloqueada" : "bloqueadas"), free: (n) => (n === 1 ? "libre" : "libres") };
+  const counts = BOARD.filter((id) => s[id].length).map((id) => `${s[id].length} ${label[id](s[id].length)}`);
+  const head = h("div", { class: "office-head" }, [h("strong", { text: "Sesiones" }), h("span", { class: "meta", text: counts.length ? counts.join(" · ") : "Ninguna abierta" })]);
+  const floor = h("div", { class: "office-floor" }, desks.length ? desks : [h("div", { class: "office-empty" }, [claudito("closed"), h("span", { class: "meta", text: "No hay sesiones abiertas" })])]);
+  root.appendChild(h("section", { class: "office" }, [head, floor, detail]));
+  showDetail();
+  if (s.system.length)
+    root.appendChild(
+      h("div", { class: "office-crew" }, [
+        h("span", { class: "meta", text: "Del tablero" }),
+        ...s.system.map((x) => {
+          const mood = x.working ? "working" : x.open ? "free" : "closed";
+          return h("span", { class: "crew", title: `${x.name}: ${x.working ? "trabajando" : x.open ? "abierta" : "cerrada"}` }, [claudito(mood, "small"), h("span", { text: x.name })]);
+        }),
+      ])
+    );
 }
 
 export function sessionStrip() {
