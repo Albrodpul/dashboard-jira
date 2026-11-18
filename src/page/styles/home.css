@@ -157,7 +157,6 @@
 /* sala de trabajo y descanso */
 .seat { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 150px; padding: 6px 4px 4px; border: 2px solid transparent; border-radius: 10px; background: transparent; font: inherit; color: inherit; cursor: pointer; }
 .seat:hover { background: rgba(255,255,255,.25); }
-.seat.picked { border-color: var(--accent); background: rgba(255,255,255,.35); }
 .seat-scene { position: relative; display: flex; flex-direction: column; align-items: center; }
 .desk-top { width: 96px; height: 10px; margin-top: -6px; border-radius: 2px; background: var(--wood); box-shadow: 0 3px 0 var(--wood-dark); position: relative; z-index: 0; }
 .seat-scene .claudito { position: relative; z-index: 1; }
@@ -173,7 +172,8 @@
 .r-sofa .room-floor { justify-content: center; }
 
 /* sala de control */
-.console { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 112px; }
+.console { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 112px; padding: 4px 0; border: 0; border-radius: 8px; background: none; font: inherit; color: inherit; cursor: pointer; }
+.console:hover { background: rgba(120,200,255,.1); }
 .screen-wall { width: 64px; height: 22px; border-radius: 3px; background: #0d1622; border: 2px solid #3a4c66; margin-bottom: -4px; }
 .console.working .screen-wall { background: linear-gradient(90deg, #2bd18c 0 30%, transparent 30% 40%, #2bd18c 40% 70%, transparent 70%) 0 6px/100% 3px no-repeat, linear-gradient(90deg, #4f9bd6 0 50%, transparent 50%) 0 12px/100% 3px no-repeat, #0d1622; }
 .console.free .screen-wall { background: radial-gradient(circle at 50% 50%, #2bd18c 0 2px, transparent 3px), #0d1622; }

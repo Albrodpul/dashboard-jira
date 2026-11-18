@@ -9,7 +9,6 @@ const GROUPS = [
   ["free", "Libres", "Abiertas y sin nada entre manos."],
 ];
 const BOARD = ["working", "blocked", "free"];
-const DOTS = { working: "busy", blocked: "bad", free: "on" };
 const SILENT_MIN = 5;
 
 function liveOf(conversation, sessionName, everywhere) {
@@ -72,11 +71,11 @@ export function sessionSituation() {
   return out;
 }
 
-const vsCodeLink = (s) => {
-  if (!s.conversation) return null;
-  if ((state.hosted || []).some((x) => x.conversation === s.conversation && !x.waitingForVsCode)) return h("button", { class: "btn link", type: "button", text: "Ver en directo", onclick: () => import("../components/terminal.js").then((m) => m.openTerminal(s.conversation, s.name || s.sessionName)) });
-  return h("a", { class: "btn link", href: `vscode://anthropic.claude-code/open?session=${encodeURIComponent(s.conversation)}`, text: "Ir a su pestaña" });
-};
+function openLive(conversation, name) {
+  if (!conversation) return;
+  if ((state.hosted || []).some((x) => x.conversation === conversation && !x.waitingForVsCode)) return import("../components/terminal.js").then((m) => m.openTerminal(conversation, name));
+  window.location.href = `vscode://anthropic.claude-code/open?session=${encodeURIComponent(conversation)}`;
+}
 
 
 
@@ -105,19 +104,6 @@ export function watchdogBanners() {
   );
 }
 
-function sessionCard(s, group) {
-  const kids = [h("div", { class: "top" }, [h("span", { class: `dot ${DOTS[group]}` }), h("strong", { class: "session-title", text: s.name }), h("span", { class: "time", text: s.since ? `desde ${when(s.since)}` : "" })])];
-  if (s.reason) {
-    const t = s.reason.task;
-    kids.push(h("div", { class: "reason" }, [h("b", { text: s.reason.text + (t ? " " : "") }), t ? h("button", { class: "task-link", type: "button", text: t.key, title: t.title, onclick: () => switchView(s.reason.view) }) : null]));
-  }
-  if (s.subagents) kids.push(h("div", { class: "meta", text: s.subagents === 1 ? "Con un subagente en marcha" : `Con ${s.subagents} subagentes en marcha` }));
-  const others = s.tasks.filter((t) => !s.reason || t !== s.reason.task);
-  if (others.length) kids.push(h("div", { class: "meta", text: `Con ${others.map((t) => t.key).join(", ")}` }));
-  const where = mixedProjects() && s.project ? h("span", { class: "chip session-project", text: projectName(s.project) }) : null;
-  kids.push(h("div", { class: "home-footer" }, [h("span", { class: "home-footer-who" }, [where]), vsCodeLink(s)]));
-  return h("article", { class: `card home-session ${group}` }, kids);
-}
 
 const ALERT_MOOD = (el) => (el.classList.contains("overtime-banner") ? (el.classList.contains("on") ? "working" : "free") : "alert");
 
@@ -171,18 +157,16 @@ function room(kind, name, count, body, { decor = [], onclick, title } = {}) {
   return el;
 }
 
-let picked = null;
-
 function deskLine(s, group) {
   if (group === "blocked" && s.reason) return h("span", { class: "plate-why", text: s.reason.text + (s.reason.task ? ` ${s.reason.task.key}` : "") });
   const bits = [s.tasks.length ? plural(s.tasks.length, "tarea", "tareas") : null, s.subagents ? plural(s.subagents, "ayudante", "ayudantes") : null].filter(Boolean);
   return bits.length ? h("span", { class: "plate-meta", text: bits.join(" · ") }) : null;
 }
 
-function seat(x, id, select) {
+function seat(x, id) {
   const who = paint(claudito(id), x.name);
   const helpers = x.subagents ? h("span", { class: "helpers" }, Array.from({ length: Math.min(x.subagents, 3) }, () => paint(claudito(id === "working" ? "working" : "free", "tiny"), x.name))) : null;
-  return h("button", { class: `seat ${id}`, type: "button", "data-conv": x.conversation, title: `${x.name}: ${MOOD_TEXT[id]}${x.since ? ` desde ${when(x.since)}` : ""}. Pulsa para ver su tarjeta.`, onclick: () => select(x.conversation) }, [
+  return h("button", { class: `seat ${id}`, type: "button", "data-conv": x.conversation, title: `${x.name}: ${MOOD_TEXT[id]}${x.since ? ` desde ${when(x.since)}` : ""}. Pulsa para verla en directo.`, onclick: () => openLive(x.conversation, x.sessionName || x.name) }, [
     h("span", { class: "seat-scene" }, [who, helpers, h("span", { class: id === "free" ? "cushion" : "desk-top" })]),
     h("span", { class: "plate" }, [h("strong", { text: x.name }), deskLine(x, id), mixedProjects() && x.project ? h("span", { class: "plate-project", text: projectName(x.project) }) : null]),
   ]);
@@ -218,36 +202,25 @@ export function renderHome(root) {
   const done = count(["done"]).length;
   const atDesk = [...s.working.map((x) => ({ x, id: "working" })), ...s.blocked.map((x) => ({ x, id: "blocked" }))];
   const resting = s.free.map((x) => ({ x, id: "free" }));
-  const all = [...atDesk, ...resting];
-  if (picked && !all.some((d) => d.x.conversation === picked)) picked = null;
 
-  const detail = h("div", { class: "office-detail" });
   const plan = h("div", { class: `office-plan${state.workHours === false && !(state.config && state.config.overtime) ? " lights-off" : ""}` });
-  const showDetail = () => {
-    detail.replaceChildren();
-    const d = all.find((y) => y.x.conversation === picked);
-    if (d) detail.appendChild(sessionCard(d.x, d.id));
-    for (const el of plan.querySelectorAll(".seat")) el.classList.toggle("picked", el.dataset.conv === picked);
-  };
-  const select = (conv) => ((picked = picked === conv ? null : conv), showDetail());
 
   const yours = [...perms.map((p) => ({ label: "Permiso", title: p.label, mood: "blocked" })), ...waiting.map((t) => ({ label: t.key, title: `${t.status === "partial" ? "A medias" : "Te espera"}: ${t.title}`, mood: t.status === "partial" ? "blocked" : "waiting" }))];
   const yourN = yours.length;
   plan.append(
     room("desk", "Tu mesa", yourN ? `${plural(yourN, "cosa te espera", "cosas te esperan")}` : "Nadie te espera", [yourN ? queue(yours) : h("span", { class: "calm" }, [h("span", { class: "chair" }), h("span", { class: "calm-text", text: "Todo tranquilo por aquí" })]), h("span", { class: "big-desk" })], { decor: [windowDecor(), plant()], onclick: () => switchView("waiting"), title: "Ver lo que te espera" }),
     room("inbox", "Bandeja de entrada", pending.length ? plural(pending.length, "pendiente", "pendientes") : "Vacía", [h("span", { class: "inbox-scene" }, [paint(claudito(pending.length ? "pending" : "free", "mid"), "bandeja"), inboxPile(pending.length)]), h("strong", { class: "big-n", text: String(pending.length) })], { decor: [poster("IN")], onclick: () => switchView("pending"), title: "Ver las pendientes" }),
-    room("work", "Sala de trabajo", `${atDesk.length ? plural(atDesk.length, "sesión", "sesiones") : "Vacía"} · ${plural(sent, "tarea en curso", "tareas en curso")}`, atDesk.length ? atDesk.map(({ x, id }) => seat(x, id, select)) : [h("span", { class: "empty-room", text: "Ningún claudito trabajando ahora" })], { decor: [clockDecor(), plant()] }),
-    room("sofa", "Sala de descanso", resting.length ? plural(resting.length, "libre", "libres") : "Vacía", resting.length ? resting.map(({ x, id }) => seat(x, id, select)) : [h("span", { class: "couch-empty" }, [h("span", { class: "cushion" })])], { decor: [h("span", { class: "lamp" })] }),
+    room("work", "Sala de trabajo", `${atDesk.length ? plural(atDesk.length, "sesión", "sesiones") : "Vacía"} · ${plural(sent, "tarea en curso", "tareas en curso")}`, atDesk.length ? atDesk.map(({ x, id }) => seat(x, id)) : [h("span", { class: "empty-room", text: "Ningún claudito trabajando ahora" })], { decor: [clockDecor(), plant()] }),
+    room("sofa", "Sala de descanso", resting.length ? plural(resting.length, "libre", "libres") : "Vacía", resting.length ? resting.map(({ x, id }) => seat(x, id)) : [h("span", { class: "couch-empty" }, [h("span", { class: "cushion" })])], { decor: [h("span", { class: "lamp" })] }),
     room("archive", "Archivo", done ? plural(done, "hecha", "hechas") : "Nada archivado", [h("span", { class: "archive-scene" }, [shelf(done), done ? paint(claudito("done", "mid"), "archivo") : null]), h("strong", { class: "big-n", text: String(done) })], { decor: [poster("✓")], onclick: () => switchView("done"), title: "Ver las hechas" }),
   );
   if (s.system.length) {
     plan.append(
       room("control", "Sala de control", plural(s.system.filter((x) => x.open).length, "abierta", "abiertas"), s.system.map((x) => {
         const mood = x.working ? "working" : x.open ? "free" : "closed";
-        return h("span", { class: `console ${mood}`, title: `${x.name}: ${x.working ? "trabajando" : x.open ? "abierta" : "cerrada"}` }, [h("span", { class: "screen-wall" }), paint(claudito(mood, "mid"), x.name), h("span", { class: "plate small" }, [h("strong", { text: x.name })])]);
+        return h("button", { class: `console ${mood}`, type: "button", title: `${x.name}: ${x.working ? "trabajando" : x.open ? "abierta" : "cerrada"}. Pulsa para verla en directo.`, onclick: () => openLive(x.conversation, x.session) }, [h("span", { class: "screen-wall" }), paint(claudito(mood, "mid"), x.name), h("span", { class: "plate small" }, [h("strong", { text: x.name })])]);
       }), { decor: [h("span", { class: "radar" })] })
     );
   }
-  root.appendChild(h("div", { class: "office" }, [plan, detail]));
-  showDetail();
+  root.appendChild(h("div", { class: "office" }, [plan]));
 }
