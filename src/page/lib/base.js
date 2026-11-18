@@ -1,3 +1,4 @@
+import { nutria } from "../components/nutria.js";
 export const state = { tasks: [], areas: [], sessions: { list: [], syncedAt: null }, aliases: {}, reporterRoute: null, epics: [], tab: "home", ok: true };
 export const choice = {};
 export const drafts = {};
@@ -231,6 +232,6 @@ export function renderMd(text) {
   return box;
 }
 
-export function empty(title, text) {
-  return h("div", { class: "empty" }, [h("strong", { text: title }), h("span", { text })]);
+export function empty(title, text, mood = "free") {
+  return h("div", { class: "empty" }, [nutria(mood, "empty-who"), h("strong", { text: title }), h("span", { text })]);
 }

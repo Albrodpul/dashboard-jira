@@ -1,4 +1,5 @@
 import { livePanel } from "../components/terminal.js";
+import { sessionNutria } from "../components/nutria.js";
 import { state, h, button, toast, requestOrFail, render, refresh, empty, switchView } from "../lib/base.js";
 import { currentProject, mixedProjects as mixed, projectName } from "../components/project-filter.js";
 
@@ -135,7 +136,7 @@ export function renderTalk(root) {
       const [dot, what] = talkActivity(conversation);
       list.appendChild(
         h("button", { type: "button", class: "talk-item", "aria-current": k === talkTo ? "true" : "false", onclick: () => { setTalk(k); render(); } }, [
-          h("span", { class: `dot ${dot}`, "aria-hidden": "true" }),
+          sessionNutria(label, dot),
           h("span", { class: "talk-item-text" }, [h("span", { class: "talk-item-name" }, [label, mixed() && (FIXED_TALK.includes(k) || kept.has(k)) ? pin() : null]), h("span", { class: "talk-item-state", text: what })]),
         ])
       );

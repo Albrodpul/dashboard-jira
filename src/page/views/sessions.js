@@ -1,4 +1,5 @@
 import { state, h, button, when, toast, requestOrFail, post, areaName, taskAreaSelect, refresh, render, empty, ticketUrl } from "../lib/base.js";
+import { sessionNutria } from "../components/nutria.js";
 import { currentProject, hasModule, mixedProjects, mainProject, projectTitle, inProjectOrder, workspacesWith, projectName } from "../components/project-filter.js";
 import { openTalk } from "./talk.js";
 
@@ -206,7 +207,7 @@ function row(a) {
   const ph = phaseOf(a);
   const dot = { waiting: "wait", busy: "busy", open: "on", sleeping: "off" }[ph];
   const kids = [
-    h("span", { class: `dot ${dot}`, title: PHASES.find((x) => x[0] === ph)[1] }),
+    h("span", { class: "srow-avatar", title: PHASES.find((x) => x[0] === ph)[1] }, [sessionNutria(a.name, dot)]),
     h("div", { class: "srow-main" }, [nameInput(a), rowFacts(a)]),
     epicToggle(a) || h("span", {}),
     actions(a, false),
@@ -222,7 +223,7 @@ function fixedCard(name, role, conversation, profile) {
   const dot = { waiting: "wait", busy: "busy", open: "on", sleeping: "off" }[ph];
   const a = { name, conversation, epics: {} };
   return h("div", { class: `fcard ${ph}`, title: [role, profileText(profile)].filter(Boolean).join(" · ") }, [
-    h("div", { class: "fcard-head" }, [h("span", { class: `dot ${dot}` }), h("strong", { text: name })]),
+    h("div", { class: "fcard-head" }, [sessionNutria(name, dot), h("strong", { text: name })]),
     h("span", { class: "meta", text: text }),
     actions(a, true),
   ]);

@@ -1,4 +1,5 @@
 import { renderPermissions } from "../components/permissions.js";
+import { nutria } from "../components/nutria.js";
 import { state, choice, drafts, h, button, when, minutesSince, fmtDay, reviewer, reviewStatus, toast, request, requestOrFail, post, saveTask, whoSends, areaName, taskAreaSelect, areaSelect, render, refresh, switchView, empty, openTicket, limitsFor, holdOf, limitChips } from "../lib/base.js";
 import { createSession } from "./sessions.js";
 import { mixedProjects, projectName, projectChip, mainProject } from "../components/project-filter.js";
@@ -647,7 +648,7 @@ export function renderBoard(root) {
   const columns = BOARD_COLUMNS.map(([id, title, statuses]) => {
     const list = shown.filter((t) => statuses.includes(t.status)).sort((a, b) => String(b.sentAt || b.at || "").localeCompare(String(a.sentAt || a.at || "")));
     const head = h("div", { class: "board-head" }, [h("span", { text: title }), h("span", { class: "n", text: String(list.length) })]);
-    const body = !list.length ? [h("div", { class: "board-empty", text: "Ninguna" })] : id === "pending" ? pendingColumn(list) : list.map(boardCard);
+    const body = !list.length ? [h("div", { class: "board-empty" }, [nutria(id === "done" ? "idle" : "free", "mid", id === "done" ? "box" : null), h("span", { text: "Ninguna" })])] : id === "pending" ? pendingColumn(list) : list.map(boardCard);
     if (id === "done") {
       const all = reviewAllButton(list);
       const inReview = list.filter((t) => t.reviewedAt);

@@ -1,5 +1,6 @@
 import { state, h, post, switchView, setRender, setRefresh, empty, reviewer, button } from "./lib/base.js";
 import { renderTasks, renderToday, renderBoard, boardSearch } from "./views/tasks.js";
+import { nutria, paint as paintOtter } from "./components/nutria.js";
 import { renderSessions } from "./views/sessions.js";
 import { renderDeploy } from "./views/deploy.js";
 import { renderTalk } from "./views/talk.js";
@@ -83,10 +84,36 @@ const VIEWS = {
   context: ["Contexto", "Lo que van guardando las sesiones en context/: si hace que vuelvan menos tareas de revisión y, cuando todo está limpio, la orquestadora para repasarlo y ordenarlo."],
   "follow-up": ["Seguimiento", "Lo que hace cada uno según sus peticiones a la API, separado por persona: beta se resume sola cada hora y producción cada dos; cualquiera de los dos, también cuando lo pidas."],
 };
-const mainOnly = (paint) => (root) => {
+const mainOnly = (draw) => (root) => {
   if (mixedProjects()) root.appendChild(projectTitle(mainProject()));
-  return paint(root);
+  return draw(root);
 };
+
+const PAGE_OTTERS = {
+  tasks: ["pending", null, "Ordenando la bandeja"],
+  daily: ["idle", "newspaper", "Leyendo lo que hizo cada uno"],
+  deploy: ["idle", "rocket", "Lista para despegar"],
+  sessions: ["idle", "book", "Pasando lista"],
+  machines: ["working", null, "Vigilando quién manda"],
+  find: ["idle", "magnifier", "Buscando…"],
+  talk: ["idle", null, "Escribe y se lo paso"],
+  workspaces: ["idle", "box", "Cada proyecto en su caja"],
+  projects: ["working", "helmet", "Manteniendo los servidores en marcha"],
+  sentry: ["idle", "magnifier", "Buscando pistas en los errores"],
+  context: ["idle", "book", "Repasando lo aprendido"],
+  "follow-up": ["idle", "binoculars", "Vigilando beta y producción"],
+  more: ["idle", null, "¿Qué más necesitas?"],
+};
+
+function pageOtter(key) {
+  const head = document.querySelector(".main-head");
+  if (!head) return;
+  head.querySelector(".page-otter")?.remove();
+  const o = PAGE_OTTERS[key];
+  if (!o) return;
+  const [mood, prop, say] = o;
+  head.appendChild(h("div", { class: "page-otter", title: say }, [h("span", { class: "page-otter-say", text: say }), paintOtter(nutria(mood, "page", prop), key)]));
+}
 const NON_TASK_VIEWS = {
   home: renderHome,
   daily: renderDaily,
@@ -352,6 +379,7 @@ function paint() {
   const [title, sub] = board ? ["Tareas", "Todas las tareas por estado. Pulsa una para ver su tarjeta entera."] : VIEWS[state.tab] || VIEWS.pending;
   document.getElementById("view-title").textContent = title;
   document.getElementById("view-sub").textContent = sub;
+  pageOtter(board || isTaskTab(state.tab) ? "tasks" : state.tab);
 
   const root = document.getElementById("groups");
   root.textContent = "";
@@ -383,7 +411,7 @@ function paint() {
     const form = newTaskForm();
     if (form) root.appendChild(form);
   }
-  if (!state.ok) return root.appendChild(empty("El tablero no responde.", "Arráncalo con: node board.js ensure"));
+  if (!state.ok) return root.appendChild(empty("El tablero no responde.", "Arráncalo con: node board.js ensure", "closed"));
   if (board) return renderBoard(root);
   (NON_TASK_VIEWS[state.tab] || renderTasks)(root);
 }

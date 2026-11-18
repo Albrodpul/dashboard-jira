@@ -1,6 +1,6 @@
 import { state, h, when, minutesSince, switchView, empty, fixedAreaIds, button, post, toast } from "../lib/base.js";
 import { currentProject, mixedProjects, projectName } from "../components/project-filter.js";
-import { nutria } from "../components/nutria.js";
+import { nutria, paint, CLAYS } from "../components/nutria.js";
 
 
 const GROUPS = [
@@ -121,11 +121,6 @@ export function homeAlerts(items) {
   return room("cork", "Tablón de avisos", rows.length === 1 ? "1 aviso" : `${rows.length} avisos`, [h("div", { class: "cork-board" }, rows)], { decor: [pin()] });
 }
 
-const CLAYS = ["#d97757", "#e0a63b", "#5fa86b", "#4f9bd6", "#9b7fd6", "#d76f9c", "#3fb3a8", "#c4825a"];
-const clayOf = (name) => CLAYS[[...String(name || "")].reduce((n, ch) => (n * 31 + ch.charCodeAt(0)) >>> 0, 7) % CLAYS.length];
-const FURS = ["#8a5a3b", "#a0694a", "#6f4a33", "#b07d56", "#7d5a44", "#94704f"];
-const furOf = (name) => FURS[[...String(name || "")].reduce((n, ch) => (n * 17 + ch.charCodeAt(0)) >>> 0, 3) % FURS.length];
-const paint = (el, name) => (el.style.setProperty("--clay", clayOf(name)), el.style.setProperty("--fur", furOf(name)), el);
 const MOOD_TEXT = { working: "trabajando", blocked: "bloqueada", free: "libre" };
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 

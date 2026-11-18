@@ -255,3 +255,38 @@
   .cork-board { grid-template-columns: minmax(0, 1fr); }
   .console { width: calc(33% - 8px); }
 }
+
+/* nutrias por todo el tablero */
+.nutria .lens { fill: #bfe6f5; }
+.nutria .metal { fill: #3b3b44; }
+.nutria .handle { fill: #6e5238; }
+.nutria .helmet { fill: #f2c230; } .nutria .helmet-band { fill: #e08a00; }
+.nutria .rocket { fill: #e9eef3; } .nutria .rocket-tip { fill: #d92d2d; } .nutria .flame { fill: #ffb020; }
+.nutria .book { fill: var(--clay); } .nutria .book-spine { fill: color-mix(in srgb, var(--clay) 70%, #000); }
+.nutria .box { fill: #c49a6c; } .nutria .tape { fill: #e8d3a8; }
+.nutria.avatar { width: 30px; height: 27px; }
+.nutria.avatar .zz { top: -8px; right: -8px; font-size: 10px; }
+.nutria.avatar .bubble { width: 12px; height: 12px; top: -5px; right: -6px; font-size: 9px; line-height: 12px; }
+.nutria.page { width: 58px; height: 51px; }
+.nutria.empty-who { width: 64px; height: 57px; margin-bottom: 4px; }
+.nutria.idle svg { transform-origin: 50% 100%; }
+@media (prefers-reduced-motion: no-preference) {
+  .nutria.idle svg { animation: nutria-look 5s ease-in-out infinite; }
+  .nutria .flame { animation: nutria-blink .3s steps(2) infinite; }
+  .nutria.page .metal, .nutria.page .lens { animation: nutria-scan 3s ease-in-out infinite; }
+}
+@keyframes nutria-look { 0%, 80%, 100% { transform: none; } 88% { transform: rotate(-4deg); } 94% { transform: rotate(3deg); } }
+@keyframes nutria-scan { 50% { transform: translateX(-.6px); } }
+
+.main-head { position: relative; }
+.page-otter { position: absolute; right: 0; top: -6px; display: flex; align-items: flex-end; gap: 6px; pointer-events: none; }
+.page-otter-say { position: relative; margin-bottom: 30px; padding: 5px 10px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--line); color: var(--ink-2); font-size: 12.5px; white-space: nowrap; }
+.page-otter-say::after { content: ""; position: absolute; right: -6px; bottom: 6px; border: 6px solid transparent; border-left-color: var(--line); border-right: 0; }
+.main-head:has(.page-otter) { padding-right: 300px; }
+@media (max-width: 1100px) { .page-otter-say { display: none; } .main-head:has(.page-otter) { padding-right: 70px; } }
+@media (max-width: 760px) { .nutria.page { width: 42px; height: 37px; } .page-otter { top: -2px; } .main-head:has(.page-otter) { padding-right: 50px; } }
+
+.board-empty { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.srow-avatar { display: inline-flex; align-items: center; }
+.talk-item > .nutria.avatar { flex: none; }
+.fcard-head { display: flex; align-items: center; gap: 8px; }
