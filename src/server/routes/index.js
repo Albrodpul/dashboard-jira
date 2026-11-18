@@ -141,7 +141,7 @@ const POST_ROUTES = {
     const r = require("../../sessions/registry").loadRoutes();
     const s = state();
     const is = (role) => r[role] && r[role].conversation === conversation;
-    if (is("orchestrator") && s.orchestrator) return mailman.notifyRole("orchestrator", require("../state").ORCHESTRATOR_NOTICE);
+    if (is("orchestrator") && s.orchestrator) return require("../startup").claimOrchestratorNotice() && mailman.notifyRole("orchestrator", require("../state").ORCHESTRATOR_NOTICE);
     if (is("reporter") && s.reporterStatus) return require("../startup").noticeReporter(s.reporterStatus.session).catch(() => {});
     if (is("board") && s.boardStatus) return require("../startup").noticeBoard(s.boardStatus.session, true).catch(() => {});
     if (is("followUp")) return require("../startup").wakeFollowUp().catch(() => {});

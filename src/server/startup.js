@@ -77,6 +77,14 @@ async function noticeReporter(session, wake = wakeSession) {
   return ok;
 }
 
+function claimOrchestratorNotice() {
+  return require("../core/data").mutate((d) => {
+    if (d.orchestratorNoticeAt && Date.now() - new Date(d.orchestratorNoticeAt).getTime() < NOTICE_GAP_MS) return false;
+    d.orchestratorNoticeAt = new Date().toISOString();
+    return true;
+  });
+}
+
 const BOARD_NOTICE = "Aviso del tablero: arranca la sesión del tablero. Eres la sesión del tablero registrada: ejecuta ahora .claude/commands/tablero.md (regla de AGENTS.md).";
 
 const localDay = (iso) => new Date(iso).toLocaleDateString("sv-SE");
@@ -191,4 +199,4 @@ async function setOvertime(on) {
   return value;
 }
 
-module.exports = { launchStartup, wakeFollowUp, setOvertime, noticeFollowUp, noticeBoard, noticeReporter };
+module.exports = { claimOrchestratorNotice, launchStartup, wakeFollowUp, setOvertime, noticeFollowUp, noticeBoard, noticeReporter };

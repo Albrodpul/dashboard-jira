@@ -40,3 +40,15 @@ test("the reporter gets its startup notice once when the daily start and the res
   assert.equal(await noticeReporter("Reporte JIRA", async () => false), false);
   assert.equal(await noticeReporter("Reporte JIRA", wake), true);
 });
+
+test("the orchestrator startup notice goes out once per quarter hour", () => {
+  const { claimOrchestratorNotice } = require("../src/server/startup");
+  require("../src/core/data").mutate((d) => (d.orchestratorNoticeAt = null));
+  assert.equal(claimOrchestratorNotice(), true);
+  assert.equal(claimOrchestratorNotice(), false);
+});
+
+test("startup notice stamps travel in the snapshot to the other computer", () => {
+  require("../src/core/data").mutate((d) => (d.followUpNoticeAt = "2026-11-18T16:19:00.000Z"));
+  assert.equal(require("../src/cluster/snapshot").snapshot().docs.followUpNoticeAt, "2026-11-18T16:19:00.000Z");
+});

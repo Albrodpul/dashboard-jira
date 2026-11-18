@@ -7,7 +7,11 @@ const { refreshFromPeer, runningConversations } = require("./transcripts");
 const { pullSnapshot, mergePeer } = require("./snapshot");
 const { keepAwake, letSleep } = require("./power");
 
-const TAKEOVER_MS = 60000;
+const TAKEOVER_MS = 3 * 60000;
+const SLEPT_MS = 2 * 60000;
+const RESUME_DELAY_MS = 25000;
+const ACTIVE_TASKS = ["sent", "approved"];
+let lastTick = 0;
 const BACK_PULL_MS = 3 * 60 * 1000;
 let lastBackPull = 0;
 const SNAPSHOT_MS = 60000;
@@ -55,6 +59,29 @@ async function stopRoles() {
   }
 }
 
+async function resumeWork() {
+  const host = require("../sessions/host");
+  const registry = require("../sessions/registry");
+  const routes = registry.loadRoutes();
+  const tasks = Object.values(require("../core/data").load().tasks || {});
+  const areas = [...new Set(tasks.filter((t) => ACTIVE_TASKS.includes(t.status) && t.area).map((t) => t.area))].map((id) => [id, (routes.areas || {})[id]]).filter(([, a]) => a && a.conversation);
+  if (!areas.length) return;
+  for (const [id, a] of areas) await host.hostRequest("POST", "/start", { conversation: a.conversation, name: a.session || a.title || id }).catch(() => {});
+  log(`relanzo ${areas.length} sesión(es) con tareas en curso: ${areas.map(([id]) => id).join(", ")}`);
+  setTimeout(async () => {
+    const live = new Map((registry.liveSessions() || []).map((x) => [x.conversation, x]));
+    for (const [, a] of areas) {
+      const l = live.get(a.conversation);
+      if (l && l.status !== "idle") continue;
+      await host.hostRequest("POST", "/input", { conversation: a.conversation, data: RESUME_NOTICE }).catch(() => {});
+      await new Promise((r) => setTimeout(r, 600));
+      await host.hostRequest("POST", "/input", { conversation: a.conversation, data: "\r" }).catch(() => {});
+    }
+  }, RESUME_DELAY_MS).unref();
+}
+
+const RESUME_NOTICE = "Tablero: el tablero ha cambiado de ordenador y esta sesión se cortó a medias. Sigue con tus tareas pendientes desde donde lo dejaste; revisa antes el estado del repo por si algo quedó a medio hacer.";
+
 async function promote(reason, manual) {
   Object.assign(st, { role: "primary", since: now(), manual: !!manual });
   save();
@@ -69,6 +96,7 @@ async function promote(reason, manual) {
     .catch(() => {});
   require("../features/tunnel").guard();
   await startRoles();
+  await resumeWork().catch((e) => log(`no pude relanzar las sesiones con tareas en curso: ${e.message}`));
   const board = require("../sessions/registry").loadRoutes().board;
   if (board && board.session) require("../server/startup").noticeBoard(board.session, false).catch(() => {});
   const overtime = !!require("../core/hours").overtime();
@@ -92,8 +120,14 @@ async function tick() {
   if (!CLUSTER || busy) return;
   keepAwake();
   busy = true;
+  const slept = lastTick && Date.now() - lastTick > SLEPT_MS;
+  lastTick = Date.now();
   try {
     const peer = await peerGet("/api/cluster");
+    if (slept && peer && peer.role === "primary" && isPrimary()) {
+      await demote("este ordenador ha estado dormido y el otro tomó el mando mientras");
+      return;
+    }
     if (peer && peer.macPower && process.platform !== "darwin") st.peerMacPower = peer.macPower;
     if (!peer) {
       st.peerDownSince = st.peerDownSince || now();
@@ -106,10 +140,11 @@ async function tick() {
     }
     st.peerDownSince = null;
     if (peer.role === "primary" && isPrimary()) {
-      if (tookLater(peer)) {
+      if (keepsCommand(peer)) {
         st.pendingPull = st.pendingPull || now();
-        log("los dos mandaban: sigo yo, que tomé el mando después; el otro cede");
-      } else await demote("los dos mandaban y el otro tomó el mando después");
+        log("los dos mandaban: sigo yo, que mandaba desde antes; el otro cede");
+      }
+      else await demote("los dos mandaban y el otro mandaba desde antes");
     }
     if (peer.role === "primary" && !isPrimary()) {
       st.noneSince = null;
@@ -149,10 +184,11 @@ async function tick() {
   }
 }
 
-function tookLater(peer) {
+function keepsCommand(peer) {
+  if (!!st.manual !== !!peer.manual) return !!st.manual;
   const mine = new Date(st.since).getTime();
   const theirs = new Date(peer.since).getTime();
-  return mine !== theirs ? mine > theirs : (CLUSTER.label || "") > (peer.label || "");
+  return mine !== theirs ? mine < theirs : (CLUSTER.label || "") < (peer.label || "");
 }
 
 async function handleYield(input) {
@@ -189,4 +225,4 @@ async function command(target, action) {
   return action === "auto" ? backToAuto() : takeHere();
 }
 
-module.exports = { tick, handleYield, command, takeHere, backToAuto };
+module.exports = { tick, handleYield, command, takeHere, backToAuto, keepsCommand };
