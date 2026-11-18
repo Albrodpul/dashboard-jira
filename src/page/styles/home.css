@@ -248,8 +248,10 @@
   .nutria.mid { width: 40px; height: 35px; }
   .big-n { font-size: 26px; }
   .tray { width: 44px; } .sheet { width: 34px; left: 5px; }
-  .archive-scene .nutria, .inbox-scene .nutria { display: none; }
-  .shelf { min-width: 0; } .shelf-row { min-height: 30px; } .folder { width: 5px; }
+  .inbox-scene .nutria, .archive-scene .nutria { width: 36px; height: 32px; }
+  .inbox-scene, .archive-scene { gap: 4px; }
+  .r-inbox .room-floor, .r-archive .room-floor { flex-wrap: wrap; align-content: flex-end; }
+  .shelf { min-width: 0; padding: 3px 3px 0; } .shelf-row { min-height: 28px; gap: 1px; } .folder { width: 4px; }
   .cork-board { grid-template-columns: minmax(0, 1fr); }
   .console { width: calc(33% - 8px); }
 }
