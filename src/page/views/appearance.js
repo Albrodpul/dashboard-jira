@@ -1,6 +1,4 @@
-import { h, render, toast } from "../lib/base.js";
-import { CASTS, currentCast, setCast } from "../components/cast.js";
-import { nutria, paint } from "../components/nutria.js";
+import { h, render } from "../lib/base.js";
 
 const THEME_KEY = "tower-theme";
 const THEMES = [
@@ -42,18 +40,6 @@ function choices(name, options, current, onPick, preview) {
   );
 }
 
-function castPreview(id) {
-  const was = currentCast();
-  setCast(id);
-  const row = h(
-    "span",
-    { class: "look-cast" },
-    ["Alfa", "Beta", "Gamma"].map((n, i) => paint(nutria(["working", "idle", "done"][i], "mid"), `${id}-${n}`))
-  );
-  setCast(was);
-  return row;
-}
-
 function themePreview(id) {
   return h("span", { class: `look-theme ${id}` }, [h("i"), h("i"), h("i")]);
 }
@@ -67,17 +53,6 @@ export function renderAppearance(root) {
         setTheme(id);
         render();
       }, themePreview),
-    ])
-  );
-  root.appendChild(
-    h("section", { class: "card setting-card" }, [
-      h("h3", { text: "Personajes" }),
-      h("p", { class: "meta", text: "Quién trabaja en Inicio, Sesiones y Chats. Cada sesión lleva siempre el mismo. El logo no cambia." }),
-      choices("cast", CASTS, currentCast(), (id) => {
-        setCast(id);
-        toast(`Personajes: ${CASTS.find((c) => c.id === id).label}.`);
-        render();
-      }, castPreview),
     ])
   );
 }

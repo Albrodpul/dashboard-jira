@@ -166,7 +166,6 @@
 .look-choice { display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 120px; padding: 12px 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; color: var(--ink); font: inherit; cursor: pointer; }
 .look-choice:hover { border-color: var(--ink-3); }
 .look-choice.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
-.look-cast { display: flex; gap: 4px; align-items: flex-end; min-height: 44px; }
 .look-theme { display: flex; width: 72px; height: 44px; border-radius: 4px; overflow: hidden; border: 1px solid var(--line); }
 .look-theme i { flex: 1; }
 .look-theme.light i { background: #f6f6f3; } .look-theme.light i + i { background: #ffffff; } .look-theme.light i:last-child { background: #0b6e8a; }
