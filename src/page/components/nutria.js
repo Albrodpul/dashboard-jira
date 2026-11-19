@@ -1,7 +1,7 @@
 const ARMS = {
-  rest: '<g class="arm left"><rect fill="#2a1d18" x="2.75" y="8" width="1.5" height="2.75"/><rect x="3" y="8" width="1" height="2.5"/></g><rect class="paw-rest" x="3" y="10" width="1" height=".5"/><g class="arm right"><rect fill="#2a1d18" x="11.75" y="8" width="1.5" height="2.75"/><rect x="12" y="8" width="1" height="2.5"/></g><rect class="paw-rest" x="12" y="10" width="1" height=".5"/>',
-  hand: '<g class="arm left"><rect fill="#2a1d18" x="2.75" y="8" width="1.5" height="2.75"/><rect x="3" y="8" width="1" height="2.5"/></g><rect class="paw-rest" x="3" y="10" width="1" height=".5"/><g class="arm raised"><rect fill="#2a1d18" x="11.75" y="2" width="1.5" height="6.25"/><rect x="12" y="2" width="1" height="6"/></g><g class="paw"><rect fill="#2a1d18" x="11.75" y="1.25" width="2.5" height="1"/><rect x="12" y="1.5" width="2" height=".5"/></g>',
-  up: '<g class="arm up left"><rect fill="#2a1d18" x="2.75" y="2" width="1.5" height="6.25"/><rect x="3" y="2" width="1" height="6"/></g><g class="paw"><rect fill="#2a1d18" x="1.75" y="1.25" width="2.5" height="1"/><rect x="2" y="1.5" width="2" height=".5"/></g><g class="arm up right"><rect fill="#2a1d18" x="11.75" y="2" width="1.5" height="6.25"/><rect x="12" y="2" width="1" height="6"/></g><g class="paw"><rect fill="#2a1d18" x="11.75" y="1.25" width="2.5" height="1"/><rect x="12" y="1.5" width="2" height=".5"/></g>',
+  rest: '<g class="arm left"><rect fill="#2a1d18" x="2.75" y="8" width="1.5" height="2.75"/><rect x="3" y="8" width="1" height="2.5"/><rect class="paw-rest" x="3" y="10" width="1" height=".5"/></g><g class="arm right"><rect fill="#2a1d18" x="11.75" y="8" width="1.5" height="2.75"/><rect x="12" y="8" width="1" height="2.5"/><rect class="paw-rest" x="12" y="10" width="1" height=".5"/></g>',
+  hand: '<g class="arm left"><rect fill="#2a1d18" x="2.75" y="8" width="1.5" height="2.75"/><rect x="3" y="8" width="1" height="2.5"/><rect class="paw-rest" x="3" y="10" width="1" height=".5"/></g><g class="arm raised"><rect fill="#2a1d18" x="11.75" y="2" width="1.5" height="6.25"/><rect x="12" y="2" width="1" height="6"/><g class="paw"><rect fill="#2a1d18" x="11.75" y="1.25" width="2.5" height="1"/><rect x="12" y="1.5" width="2" height=".5"/></g></g>',
+  up: '<g class="arm up left"><rect fill="#2a1d18" x="2.75" y="2" width="1.5" height="6.25"/><rect x="3" y="2" width="1" height="6"/><g class="paw"><rect fill="#2a1d18" x="1.75" y="1.25" width="2.5" height="1"/><rect x="2" y="1.5" width="2" height=".5"/></g></g><g class="arm up right"><rect fill="#2a1d18" x="11.75" y="2" width="1.5" height="6.25"/><rect x="12" y="2" width="1" height="6"/><g class="paw"><rect fill="#2a1d18" x="11.75" y="1.25" width="2.5" height="1"/><rect x="12" y="1.5" width="2" height=".5"/></g></g>',
 };
 const EYES = {
   open: '<rect class="eye" x="5" y="2" width="1" height="1.5"/><rect fill="#fff" x="5" y="2" width=".5" height=".5"/><rect class="eye" x="10" y="2" width="1" height="1.5"/><rect fill="#fff" x="10" y="2" width=".5" height=".5"/>',
@@ -57,89 +57,13 @@ const HATS = {
   flower: '<rect class="petal" x="11" y="-2" width="1" height="1"/><rect class="petal" x="10" y="-1" width="1" height="1"/><rect class="petal" x="12" y="-1" width="1" height="1"/><rect class="petal" x="11" y="0" width="1" height="1"/><rect class="hat light" x="11" y="-1" width="1" height="1"/>',
 };
 
-const OTTER = {
-  scale: 4,
-  palette: {"a": "#2a1d18", "b": "fur", "c": "ear", "d": "#d99a8a", "e": "fur-light", "f": "fur-dark", "g": "cream", "h": "nose", "i": "#ffffff", "j": "whisker", "l": "#e9a3a0", "m": "#4a3022", "n": "cream-dark"},
-  rows: [
-    "",
-    "",
-    "",
-    "..............................aaaa",
-    "............aaaaa.......aaaaaabbbbaaaaaa.......aaaaa",
-    "...........accccca....aabbbbbbbbbbbbbbbbaa....accccca",
-    "..........accccccca.aabbbbbbbbbbbbbbbbbbbbaa.accccccca",
-    ".........acccccccccabbbbbbbbbbbbbbbbbbbbbbbbaccccccccca",
-    ".........acccdddccbbbbeeeeeebbbbbbbbbbbbbbbbbbccdddccca",
-    "........accccddddbbbbeeeeeeeeebbbbbbbbbbbbbbbbbddddcccca",
-    "........accccddbbbbbbeeeeeeeeebbbbbbbbbbbbbbbbbbbddcccca",
-    ".........acccddbbbbbbbeeeeeebbbbbbbbbbbbbbbbbbbbbddccca",
-    ".........accccbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbcccca",
-    "..........accbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbcca",
-    "...........aabbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbaa",
-    "...........abbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbba",
-    "...........abbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbba",
-    "...........abbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbba",
-    "...........abbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbffffffa",
-    "...........abbbbbbbbbbbbbbbbbggggggbbbbbbbbbbbffffffa",
-    "...........abbbbbbbbbbbbbbggggghhgggggbbbbbbbbffffffa",
-    "...........abbbbbbbbbbbbggggghhhhhhgggggbbbbbbffffffa",
-    "...........abbbbbbbbbbbggggghhiihhhhgggggbbbbbffffffa",
-    "...........abbbbbbbbbbgggggghhhhhhhhggggggbbbbffffffa",
-    "........jjj.abbbbbbbbgggggggghhhhhhggggggggbbbfffffa.jjj",
-    ".............abbblllllgggggggggggggggggggglllllfffa",
-    ".............abbllllllggggggggggggggggggggllllllffa",
-    "......jj......abblllllgggggggggggggggggggglllllffa......jj",
-    "...............abbbbbgggggggmmgmmgmmgggggggbbbffa",
-    "................abbbbbggggggggmggmggggggggbbbbfa",
-    ".................aabbbbggggggggggggggggggbbbbaa",
-    "...................aabbbnnnnnnnnnnnnnnnnbbbaa",
-    "....................abbbbbnnnnnnnnnnnnbbbbfa",
-    "...................abbbbbbbbbbnnnnbbbbbbbbffa",
-    "..................abbbbbbbbbbbbnnbbbbbbbbbfffa",
-    ".................abbbbbbbbbbnnnnnnnnbbbbbbffffa",
-    "................abbbbeebbbnnnnnnnnnnnnbbbbfffffa...............aa",
-    "...............abbbbbeebbnnnnnnnnnnnnnnbbbffffffa.............affa",
-    "...............abbbbeeeennnnnnnnnnnnnnnnbbffffffa............affffa",
-    "..............abbbbbeeennnnnnnnnnnnnnnnnnbfffffffa..........afffffa",
-    "..............abbbbbbeennnnnnnnnnnnnnnnnnbfffffffa.........affffffa",
-    "..............abbbbbbeennnnnnnnnnnnnnnnnnbfffffffa........aafffffa",
-    "..............abbbbbbennnnnnnnnnnnnnnnnnnnfffffffa.......afffffffa",
-    "..............abbbbbbbnnnnnnnnnnnnnnnnnnnnfffffffa.....aaffffffffa",
-    "..............abbbbbbbnnnnnnnnnnnnnnnnnnnnfffffffa...aafffffffffa",
-    "..............abbbbbbbnnnnnnnnnnnnnnnnnnnnfffffffaaaafffffffffffa",
-    "..............abbbbbbbnnnnnnnnnnnnnnnnnnnnffffffffffffffffffffaa",
-    "...............abbbbbbnnnnnnnnnnnnnnnnnnnnfffffffffffffffffffa",
-    "...............abbbbbbbnnnnnnnnnnnnnnnnnnbffffffffffffffffffa",
-    "................abbbbbbnnnnnnnnnnnnnnnnnnbfffffffffffffffffa",
-    ".................abbbbbbnnnnnnnnnnnnnnnnbbffffffffffffffffa",
-    "..................abbbbbnnnnnnnnnnnnnnnnbbfffffffffffffaaa",
-    "...................afffffnnnnnnnnnnnnnnffffffffffffffaa",
-    ".................aaaacccfffnnnnnnnnnnfffcccaafffffaaa",
-    "................accccccccccfnnnnnnnnfccccccccccaaa",
-    "...............acccccccccccccffffffccccccccccccca",
-    "...............acccmccmccccccaaaaaaccccccmccmccca",
-    "...............acccmccmccmcca......accmccmccmccca",
-    "................aacmccmccmca........acmccmccmcaa",
-    "..................aaaaaaaaa..........aaaaaaaaa",
-  ],
+const LAYERS = {
+  tail: '<path fill="#2a1d18" d="M15.75 8h0.5v0.25h-0.5zM15.5 8.25h0.25v0.25h-0.25zM16.25 8.25h0.25v0.25h-0.25zM15.25 8.5h0.25v0.25h-0.25zM16.5 8.5h0.25v0.25h-0.25zM15 8.75h0.25v0.25h-0.25zM16.5 8.75h0.25v0.25h-0.25zM14.75 9h0.25v0.25h-0.25zM16.5 9h0.25v0.25h-0.25zM14.5 9.25h0.5v0.25h-0.5zM16.25 9.25h0.25v0.25h-0.25zM14.25 9.5h0.25v0.25h-0.25zM16.25 9.5h0.25v0.25h-0.25zM13.75 9.75h0.5v0.25h-0.5zM16.25 9.75h0.25v0.25h-0.25zM13.25 10h0.5v0.25h-0.5zM16 10h0.25v0.25h-0.25zM10.75 10.25h2.5v0.25h-2.5zM16 10.25h0.25v0.25h-0.25zM10.5 10.5h0.25v0.25h-0.25zM15.5 10.5h0.5v0.25h-0.5zM10.5 10.75h0.25v0.25h-0.25zM15.25 10.75h0.25v0.25h-0.25zM10.5 11h0.25v0.25h-0.25zM15 11h0.25v0.25h-0.25zM10.5 11.25h0.25v0.25h-0.25zM14.75 11.25h0.25v0.25h-0.25zM10.5 11.5h0.25v0.25h-0.25zM14.5 11.5h0.25v0.25h-0.25zM10.5 11.75h0.25v0.25h-0.25zM13.75 11.75h0.75v0.25h-0.75zM10.5 12h0.25v0.25h-0.25zM13.25 12h0.5v0.25h-0.5zM10.75 12.25h0.5v0.25h-0.5zM12.5 12.25h0.75v0.25h-0.75zM11.25 12.5h1.25v0.25h-1.25z"/><path class="fur-dark" d="M15.75 8.25h0.5v0.25h-0.5zM15.5 8.5h1v0.25h-1zM15.25 8.75h1.25v0.25h-1.25zM15 9h1.5v0.25h-1.5zM15 9.25h1.25v0.25h-1.25zM15 9.5h1.25v0.25h-1.25zM15 9.75h1.25v0.25h-1.25zM15 10h1v0.25h-1zM15 10.25h1v0.25h-1zM15 10.5h0.5v0.25h-0.5zM15 10.75h0.25v0.25h-0.25zM10.75 11h4.25v0.25h-4.25zM10.75 11.25h4v0.25h-4zM10.75 11.5h3.75v0.25h-3.75zM10.75 11.75h3v0.25h-3zM10.75 12h2.5v0.25h-2.5zM11.25 12.25h1.25v0.25h-1.25z"/><path class="fur" d="M14.5 9.5h0.5v0.25h-0.5zM14.25 9.75h0.75v0.25h-0.75zM13.75 10h1.25v0.25h-1.25zM13.25 10.25h1.75v0.25h-1.75zM10.75 10.5h4.25v0.25h-4.25zM10.75 10.75h4.25v0.25h-4.25z"/>',
+  body: '<path fill="#2a1d18" d="M6.5 6.25h3v0.25h-3zM5.75 6.5h0.75v0.25h-0.75zM9.5 6.5h0.75v0.25h-0.75zM5.25 6.75h0.5v0.25h-0.5zM10.25 6.75h0.5v0.25h-0.5zM5 7h0.25v0.25h-0.25zM10.75 7h0.25v0.25h-0.25zM4.75 7.25h0.25v0.25h-0.25zM11 7.25h0.25v0.25h-0.25zM4.5 7.5h0.25v0.25h-0.25zM11.25 7.5h0.25v0.25h-0.25zM4.25 7.75h0.25v0.25h-0.25zM11.5 7.75h0.25v0.25h-0.25zM4 8h0.25v0.25h-0.25zM11.75 8h0.25v0.25h-0.25zM3.75 8.25h0.25v0.25h-0.25zM12 8.25h0.25v0.25h-0.25zM3.75 8.5h0.25v0.25h-0.25zM12 8.5h0.25v0.25h-0.25zM3.5 8.75h0.25v0.25h-0.25zM12.25 8.75h0.25v0.25h-0.25zM3.5 9h0.25v0.25h-0.25zM12.25 9h0.25v0.25h-0.25zM3.5 9.25h0.25v0.25h-0.25zM12.25 9.25h0.25v0.25h-0.25zM3.5 9.5h0.25v0.25h-0.25zM12.25 9.5h0.25v0.25h-0.25zM3.5 9.75h0.25v0.25h-0.25zM12.25 9.75h0.25v0.25h-0.25zM3.5 10h0.25v0.25h-0.25zM12.25 10h0.25v0.25h-0.25zM3.5 10.25h0.25v0.25h-0.25zM12.25 10.25h0.25v0.25h-0.25zM3.5 10.5h0.25v0.25h-0.25zM12.25 10.5h0.25v0.25h-0.25zM3.75 10.75h0.25v0.25h-0.25zM12 10.75h0.25v0.25h-0.25zM3.75 11h0.25v0.25h-0.25zM12 11h0.25v0.25h-0.25zM4 11.25h0.25v0.25h-0.25zM11.75 11.25h0.25v0.25h-0.25zM4.25 11.5h0.25v0.25h-0.25zM11.5 11.5h0.25v0.25h-0.25zM4.5 11.75h0.25v0.25h-0.25zM11.25 11.75h0.25v0.25h-0.25zM4.75 12h0.25v0.25h-0.25zM11 12h0.25v0.25h-0.25zM5 12.25h0.5v0.25h-0.5zM10.5 12.25h0.5v0.25h-0.5zM5.5 12.5h0.5v0.25h-0.5zM10 12.5h0.5v0.25h-0.5zM6 12.75h0.75v0.25h-0.75zM9.25 12.75h0.75v0.25h-0.75zM6.75 13h2.5v0.25h-2.5z"/><path class="fur" d="M6.5 6.5h3v0.25h-3zM5.75 6.75h4.5v0.25h-4.5zM5.25 7h5.25v0.25h-5.25zM5 7.25h5.5v0.25h-5.5zM4.75 7.5h3v0.25h-3zM8.25 7.5h2.25v0.25h-2.25zM4.5 7.75h2.5v0.25h-2.5zM9 7.75h1.5v0.25h-1.5zM4.25 8h1v0.25h-1zM5.75 8h0.75v0.25h-0.75zM9.5 8h1v0.25h-1zM4 8.25h1.25v0.25h-1.25zM5.75 8.25h0.5v0.25h-0.5zM9.75 8.25h0.75v0.25h-0.75zM4 8.5h1v0.25h-1zM10 8.5h0.5v0.25h-0.5zM3.75 8.75h1.25v0.25h-1.25zM10.25 8.75h0.25v0.25h-0.25zM3.75 9h1.5v0.25h-1.5zM10.25 9h0.25v0.25h-0.25zM3.75 9.25h1.5v0.25h-1.5zM10.25 9.25h0.25v0.25h-0.25zM3.75 9.5h1.5v0.25h-1.5zM3.75 9.75h1.75v0.25h-1.75zM3.75 10h1.75v0.25h-1.75zM3.75 10.25h1.75v0.25h-1.75zM3.75 10.5h1.75v0.25h-1.75zM4 10.75h1.5v0.25h-1.5zM4 11h1.75v0.25h-1.75zM10.25 11h0.25v0.25h-0.25zM4.25 11.25h1.5v0.25h-1.5zM10.25 11.25h0.25v0.25h-0.25zM4.5 11.5h1.5v0.25h-1.5zM10 11.5h0.5v0.25h-0.5zM4.75 11.75h1.25v0.25h-1.25zM10 11.75h0.5v0.25h-0.5z"/><path class="fur-dark" d="M10.5 7h0.25v0.25h-0.25zM10.5 7.25h0.5v0.25h-0.5zM10.5 7.5h0.75v0.25h-0.75zM10.5 7.75h1v0.25h-1zM10.5 8h1.25v0.25h-1.25zM10.5 8.25h1.5v0.25h-1.5zM10.5 8.5h1.5v0.25h-1.5zM10.5 8.75h1.75v0.25h-1.75zM10.5 9h1.75v0.25h-1.75zM10.5 9.25h1.75v0.25h-1.75zM10.5 9.5h1.75v0.25h-1.75zM10.5 9.75h1.75v0.25h-1.75zM10.5 10h1.75v0.25h-1.75zM10.5 10.25h1.75v0.25h-1.75zM10.5 10.5h1.75v0.25h-1.75zM10.5 10.75h1.5v0.25h-1.5zM10.5 11h1.5v0.25h-1.5zM10.5 11.25h1.25v0.25h-1.25zM10.5 11.5h1v0.25h-1zM10.5 11.75h0.75v0.25h-0.75zM5 12h1.25v0.25h-1.25zM9.75 12h1.25v0.25h-1.25zM5.5 12.25h1.25v0.25h-1.25zM9.25 12.25h1.25v0.25h-1.25zM6 12.5h1v0.25h-1zM9 12.5h1v0.25h-1zM6.75 12.75h2.5v0.25h-2.5z"/><path class="cream" d="M7.75 7.5h0.5v0.25h-0.5zM7 7.75h2v0.25h-2zM6.5 8h2.75v0.25h-2.75zM6.25 8.25h3v0.25h-3zM6 8.5h3.25v0.25h-3.25zM5.75 8.75h3.5v0.25h-3.5zM5.75 9h1.5v0.25h-1.5zM7.5 9h0.5v0.25h-0.5zM8.25 9h1v0.25h-1zM5.75 9.25h1.5v0.25h-1.5zM8 9.25h1.25v0.25h-1.25zM5.5 9.5h3.75v0.25h-3.75zM5.5 9.75h3.75v0.25h-3.75zM5.5 10h1.75v0.25h-1.75zM7.5 10h0.5v0.25h-0.5zM8.25 10h1v0.25h-1zM5.5 10.25h1.75v0.25h-1.75zM8 10.25h1.25v0.25h-1.25zM5.5 10.5h3.75v0.25h-3.75zM5.5 10.75h3.75v0.25h-3.75zM5.75 11h1.5v0.25h-1.5zM7.5 11h0.5v0.25h-0.5zM8.25 11h1v0.25h-1zM5.75 11.25h1.5v0.25h-1.5zM8 11.25h1.25v0.25h-1.25z"/><path class="fur-light" d="M5.25 8h0.5v0.25h-0.5zM5.25 8.25h0.5v0.25h-0.5zM5 8.5h1v0.25h-1zM5 8.75h0.75v0.25h-0.75zM5.25 9h0.5v0.25h-0.5zM5.25 9.25h0.5v0.25h-0.5zM5.25 9.5h0.25v0.25h-0.25z"/><path class="cream-dark" d="M9.25 8h0.25v0.25h-0.25zM9.25 8.25h0.5v0.25h-0.5zM9.25 8.5h0.75v0.25h-0.75zM9.25 8.75h1v0.25h-1zM7.25 9h0.25v0.25h-0.25zM8 9h0.25v0.25h-0.25zM9.25 9h1v0.25h-1zM7.25 9.25h0.75v0.25h-0.75zM9.25 9.25h1v0.25h-1zM9.25 9.5h1.25v0.25h-1.25zM9.25 9.75h1.25v0.25h-1.25zM7.25 10h0.25v0.25h-0.25zM8 10h0.25v0.25h-0.25zM9.25 10h1.25v0.25h-1.25zM7.25 10.25h0.75v0.25h-0.75zM9.25 10.25h1.25v0.25h-1.25zM9.25 10.5h1.25v0.25h-1.25zM9.25 10.75h1.25v0.25h-1.25zM7.25 11h0.25v0.25h-0.25zM8 11h0.25v0.25h-0.25zM9.25 11h1v0.25h-1zM7.25 11.25h0.75v0.25h-0.75zM9.25 11.25h1v0.25h-1zM6 11.5h4v0.25h-4zM6 11.75h4v0.25h-4zM6.25 12h3.5v0.25h-3.5zM6.75 12.25h2.5v0.25h-2.5zM7 12.5h2v0.25h-2z"/>',
+  feet: '<path fill="#2a1d18" d="M5.25 12h0.75v0.25h-0.75zM10 12h0.75v0.25h-0.75zM4.25 12.25h1v0.25h-1zM6 12.25h0.75v0.25h-0.75zM9.25 12.25h0.75v0.25h-0.75zM10.75 12.25h1v0.25h-1zM4 12.5h0.25v0.25h-0.25zM6.75 12.5h0.5v0.25h-0.5zM8.75 12.5h0.5v0.25h-0.5zM11.75 12.5h0.25v0.25h-0.25zM3.75 12.75h0.25v0.25h-0.25zM7.25 12.75h0.25v0.25h-0.25zM8.5 12.75h0.25v0.25h-0.25zM12 12.75h0.25v0.25h-0.25zM3.75 13h0.25v0.25h-0.25zM7.25 13h0.25v0.25h-0.25zM8.5 13h0.25v0.25h-0.25zM12 13h0.25v0.25h-0.25zM3.75 13.25h0.25v0.25h-0.25zM7 13.25h0.25v0.25h-0.25zM8.75 13.25h0.25v0.25h-0.25zM12 13.25h0.25v0.25h-0.25zM4 13.5h0.5v0.25h-0.5zM6.75 13.5h0.25v0.25h-0.25zM9 13.5h0.25v0.25h-0.25zM11.5 13.5h0.5v0.25h-0.5zM4.5 13.75h2.25v0.25h-2.25zM9.25 13.75h2.25v0.25h-2.25z"/><path class="ear" d="M5.25 12.25h0.75v0.25h-0.75zM10 12.25h0.75v0.25h-0.75zM4.25 12.5h2.5v0.25h-2.5zM9.25 12.5h2.5v0.25h-2.5zM4 12.75h3.25v0.25h-3.25zM8.75 12.75h3.25v0.25h-3.25zM4 13h0.75v0.25h-0.75zM5 13h0.5v0.25h-0.5zM5.75 13h1.5v0.25h-1.5zM8.75 13h1.5v0.25h-1.5zM10.5 13h0.5v0.25h-0.5zM11.25 13h0.75v0.25h-0.75zM4 13.25h0.75v0.25h-0.75zM5 13.25h0.5v0.25h-0.5zM5.75 13.25h0.5v0.25h-0.5zM6.5 13.25h0.5v0.25h-0.5zM9 13.25h0.5v0.25h-0.5zM9.75 13.25h0.5v0.25h-0.5zM10.5 13.25h0.5v0.25h-0.5zM11.25 13.25h0.75v0.25h-0.75zM4.5 13.5h0.25v0.25h-0.25zM5 13.5h0.5v0.25h-0.5zM5.75 13.5h0.5v0.25h-0.5zM6.5 13.5h0.25v0.25h-0.25zM9.25 13.5h0.25v0.25h-0.25zM9.75 13.5h0.5v0.25h-0.5zM10.5 13.5h0.5v0.25h-0.5zM11.25 13.5h0.25v0.25h-0.25z"/><path fill="#4a3022" d="M4.75 13h0.25v0.25h-0.25zM5.5 13h0.25v0.25h-0.25zM10.25 13h0.25v0.25h-0.25zM11 13h0.25v0.25h-0.25zM4.75 13.25h0.25v0.25h-0.25zM5.5 13.25h0.25v0.25h-0.25zM6.25 13.25h0.25v0.25h-0.25zM9.5 13.25h0.25v0.25h-0.25zM10.25 13.25h0.25v0.25h-0.25zM11 13.25h0.25v0.25h-0.25zM4.75 13.5h0.25v0.25h-0.25zM5.5 13.5h0.25v0.25h-0.25zM6.25 13.5h0.25v0.25h-0.25zM9.5 13.5h0.25v0.25h-0.25zM10.25 13.5h0.25v0.25h-0.25zM11 13.5h0.25v0.25h-0.25z"/>',
+  head: '<path fill="#2a1d18" d="M7.5 -0.25h1v0.25h-1zM3 0h1.25v0.25h-1.25zM6 0h1.5v0.25h-1.5zM8.5 0h1.5v0.25h-1.5zM11.75 0h1.25v0.25h-1.25zM2.75 0.25h0.25v0.25h-0.25zM4.25 0.25h0.25v0.25h-0.25zM5.5 0.25h0.5v0.25h-0.5zM10 0.25h0.5v0.25h-0.5zM11.5 0.25h0.25v0.25h-0.25zM13 0.25h0.25v0.25h-0.25zM2.5 0.5h0.25v0.25h-0.25zM4.5 0.5h0.25v0.25h-0.25zM5 0.5h0.5v0.25h-0.5zM10.5 0.5h0.5v0.25h-0.5zM11.25 0.5h0.25v0.25h-0.25zM13.25 0.5h0.25v0.25h-0.25zM2.25 0.75h0.25v0.25h-0.25zM4.75 0.75h0.25v0.25h-0.25zM11 0.75h0.25v0.25h-0.25zM13.5 0.75h0.25v0.25h-0.25zM2.25 1h0.25v0.25h-0.25zM13.5 1h0.25v0.25h-0.25zM2 1.25h0.25v0.25h-0.25zM13.75 1.25h0.25v0.25h-0.25zM2 1.5h0.25v0.25h-0.25zM13.75 1.5h0.25v0.25h-0.25zM2.25 1.75h0.25v0.25h-0.25zM13.5 1.75h0.25v0.25h-0.25zM2.25 2h0.25v0.25h-0.25zM13.5 2h0.25v0.25h-0.25zM2.5 2.25h0.25v0.25h-0.25zM13.25 2.25h0.25v0.25h-0.25zM2.75 2.5h0.5v0.25h-0.5zM12.75 2.5h0.5v0.25h-0.5zM2.75 2.75h0.25v0.25h-0.25zM13 2.75h0.25v0.25h-0.25zM2.75 3h0.25v0.25h-0.25zM13 3h0.25v0.25h-0.25zM2.75 3.25h0.25v0.25h-0.25zM13 3.25h0.25v0.25h-0.25zM2.75 3.5h0.25v0.25h-0.25zM13 3.5h0.25v0.25h-0.25zM2.75 3.75h0.25v0.25h-0.25zM13 3.75h0.25v0.25h-0.25zM2.75 4h0.25v0.25h-0.25zM13 4h0.25v0.25h-0.25zM2.75 4.25h0.25v0.25h-0.25zM13 4.25h0.25v0.25h-0.25zM2.75 4.5h0.25v0.25h-0.25zM13 4.5h0.25v0.25h-0.25zM2.75 4.75h0.25v0.25h-0.25zM13 4.75h0.25v0.25h-0.25zM3 5h0.25v0.25h-0.25zM12.75 5h0.25v0.25h-0.25zM3.25 5.25h0.25v0.25h-0.25zM12.5 5.25h0.25v0.25h-0.25zM3.25 5.5h0.25v0.25h-0.25zM12.5 5.5h0.25v0.25h-0.25zM3.5 5.75h0.25v0.25h-0.25zM12.25 5.75h0.25v0.25h-0.25zM3.75 6h0.25v0.25h-0.25zM12 6h0.25v0.25h-0.25zM4 6.25h0.25v0.25h-0.25zM11.75 6.25h0.25v0.25h-0.25zM4.25 6.5h0.5v0.25h-0.5zM11.25 6.5h0.5v0.25h-0.5zM4.75 6.75h0.5v0.25h-0.5zM10.75 6.75h0.5v0.25h-0.5zM5.25 7h0.5v0.25h-0.5zM10.25 7h0.5v0.25h-0.5zM5.75 7.25h1v0.25h-1zM9.25 7.25h1v0.25h-1zM6.75 7.5h2.5v0.25h-2.5z"/><path class="fur" d="M7.5 0h1v0.25h-1zM6 0.25h4v0.25h-4zM5.5 0.5h5v0.25h-5zM5 0.75h6v0.25h-6zM4.5 1h1v0.25h-1zM7 1h4.5v0.25h-4.5zM4.25 1.25h1v0.25h-1zM7.5 1.25h4.25v0.25h-4.25zM3.75 1.5h1.5v0.25h-1.5zM7.5 1.5h4.75v0.25h-4.75zM3.75 1.75h1.75v0.25h-1.75zM7 1.75h5.25v0.25h-5.25zM3.5 2h9v0.25h-9zM3.25 2.25h9.5v0.25h-9.5zM3.25 2.5h9.5v0.25h-9.5zM3 2.75h10v0.25h-10zM3 3h10v0.25h-10zM3 3.25h10v0.25h-10zM3 3.5h8.5v0.25h-8.5zM3 3.75h4.25v0.25h-4.25zM8.75 3.75h2.75v0.25h-2.75zM3 4h3.5v0.25h-3.5zM9.5 4h2v0.25h-2zM3 4.25h3v0.25h-3zM10 4.25h1.5v0.25h-1.5zM3 4.5h2.75v0.25h-2.75zM10.25 4.5h1.25v0.25h-1.25zM3 4.75h2.5v0.25h-2.5zM10.5 4.75h1v0.25h-1zM3.25 5h2v0.25h-2zM10.75 5h0.75v0.25h-0.75zM3.5 5.25h0.75v0.25h-0.75zM3.5 5.5h0.5v0.25h-0.5zM3.75 5.75h0.5v0.25h-0.5zM4 6h1.25v0.25h-1.25zM10.75 6h0.75v0.25h-0.75zM4.25 6.25h1.25v0.25h-1.25zM10.5 6.25h1v0.25h-1zM4.75 6.5h1v0.25h-1zM10.25 6.5h1v0.25h-1zM5.25 6.75h0.75v0.25h-0.75zM10 6.75h0.75v0.25h-0.75zM5.75 7h0.75v0.25h-0.75zM9.5 7h0.75v0.25h-0.75zM6.75 7.25h0.75v0.25h-0.75zM8.5 7.25h0.75v0.25h-0.75z"/><path class="ear" d="M3 0.25h1.25v0.25h-1.25zM11.75 0.25h1.25v0.25h-1.25zM2.75 0.5h1.75v0.25h-1.75zM11.5 0.5h1.75v0.25h-1.75zM2.5 0.75h2.25v0.25h-2.25zM11.25 0.75h2.25v0.25h-2.25zM2.5 1h0.75v0.25h-0.75zM4 1h0.5v0.25h-0.5zM11.5 1h0.5v0.25h-0.5zM12.75 1h0.75v0.25h-0.75zM2.25 1.25h1v0.25h-1zM12.75 1.25h1v0.25h-1zM2.25 1.5h1v0.25h-1zM12.75 1.5h1v0.25h-1zM2.5 1.75h0.75v0.25h-0.75zM12.75 1.75h0.75v0.25h-0.75zM2.5 2h1v0.25h-1zM12.5 2h1v0.25h-1zM2.75 2.25h0.5v0.25h-0.5zM12.75 2.25h0.5v0.25h-0.5z"/><path fill="#d99a8a" d="M3.25 1h0.75v0.25h-0.75zM12 1h0.75v0.25h-0.75zM3.25 1.25h1v0.25h-1zM11.75 1.25h1v0.25h-1zM3.25 1.5h0.5v0.25h-0.5zM12.25 1.5h0.5v0.25h-0.5zM3.25 1.75h0.5v0.25h-0.5zM12.25 1.75h0.5v0.25h-0.5z"/><path class="fur-light" d="M5.5 1h1.5v0.25h-1.5zM5.25 1.25h2.25v0.25h-2.25zM5.25 1.5h2.25v0.25h-2.25zM5.5 1.75h1.5v0.25h-1.5z"/><path class="fur-dark" d="M11.5 3.5h1.5v0.25h-1.5zM11.5 3.75h1.5v0.25h-1.5zM11.5 4h1.5v0.25h-1.5zM11.5 4.25h1.5v0.25h-1.5zM11.5 4.5h1.5v0.25h-1.5zM11.5 4.75h1.5v0.25h-1.5zM11.5 5h1.25v0.25h-1.25zM11.75 5.25h0.75v0.25h-0.75zM12 5.5h0.5v0.25h-0.5zM11.75 5.75h0.5v0.25h-0.5zM11.5 6h0.5v0.25h-0.5zM11.5 6.25h0.25v0.25h-0.25z"/><path class="cream" d="M7.25 3.75h1.5v0.25h-1.5zM6.5 4h1.25v0.25h-1.25zM8.25 4h1.25v0.25h-1.25zM6 4.25h1.25v0.25h-1.25zM8.75 4.25h1.25v0.25h-1.25zM5.75 4.5h1.25v0.25h-1.25zM9 4.5h1.25v0.25h-1.25zM5.5 4.75h1.5v0.25h-1.5zM9 4.75h1.5v0.25h-1.5zM5.25 5h2v0.25h-2zM8.75 5h2v0.25h-2zM5.5 5.25h5v0.25h-5zM5.5 5.5h5v0.25h-5zM5.5 5.75h5v0.25h-5zM5.25 6h1.75v0.25h-1.75zM7.5 6h0.25v0.25h-0.25zM8.25 6h0.25v0.25h-0.25zM9 6h1.75v0.25h-1.75zM5.5 6.25h2v0.25h-2zM7.75 6.25h0.5v0.25h-0.5zM8.5 6.25h2v0.25h-2zM5.75 6.5h4.5v0.25h-4.5z"/><path class="nose" d="M7.75 4h0.5v0.25h-0.5zM7.25 4.25h1.5v0.25h-1.5zM7 4.5h0.5v0.25h-0.5zM8 4.5h1v0.25h-1zM7 4.75h2v0.25h-2zM7.25 5h1.5v0.25h-1.5z"/><path fill="#ffffff" d="M7.5 4.5h0.5v0.25h-0.5z"/><path class="whisker" d="M2 5h0.75v0.25h-0.75zM13.25 5h0.75v0.25h-0.75zM1.5 5.75h0.5v0.25h-0.5zM14 5.75h0.5v0.25h-0.5z"/><path fill="#e9a3a0" d="M4.25 5.25h1.25v0.25h-1.25zM10.5 5.25h1.25v0.25h-1.25zM4 5.5h1.5v0.25h-1.5zM10.5 5.5h1.5v0.25h-1.5zM4.25 5.75h1.25v0.25h-1.25zM10.5 5.75h1.25v0.25h-1.25z"/><path fill="#4a3022" d="M7 6h0.5v0.25h-0.5zM7.75 6h0.5v0.25h-0.5zM8.5 6h0.5v0.25h-0.5zM7.5 6.25h0.25v0.25h-0.25zM8.25 6.25h0.25v0.25h-0.25z"/><path class="cream-dark" d="M6 6.75h4v0.25h-4zM6.5 7h3v0.25h-3zM7.5 7.25h1v0.25h-1z"/>',
 };
-
-function toRects({ rows, palette, scale = 2 }) {
-  let out = "";
-  rows.forEach((row, i) => {
-    for (let x = 0; x < row.length; ) {
-      const ch = row[x];
-      let end = x + 1;
-      while (end < row.length && row[end] === ch) end++;
-      const paint = palette[ch];
-      if (paint) out += `<rect ${paint.startsWith("#") ? `fill="${paint}"` : `class="${paint}"`} x="${x / scale}" y="${i / scale - 1}" width="${(end - x) / scale}" height="${1 / scale}"/>`;
-      x = end;
-    }
-  });
-  return out;
-}
-
-const BODY = toRects(OTTER);
+const HEAD_PROPS = new Set(["helmet", "binoculars"]);
 
 export function nutria(mood, size = "", prop = null) {
   const m = MOODS[mood] || MOODS.free;
@@ -148,7 +72,9 @@ export function nutria(mood, size = "", prop = null) {
   el.setAttribute("aria-hidden", "true");
   const extra = prop || m.prop;
   if (extra) el.dataset.prop = extra;
-  el.innerHTML = `<svg viewBox="0 -1 17 15" shape-rendering="crispEdges">${BODY}${ARMS[m.arms]}${EYES[m.eyes]}<g class="wear">${OUTFITS.scarf}</g>${extra ? PROPS[extra] : ""}</svg>${m.bubble ? `<b class="bubble ${m.bubble[1]}">${m.bubble[0]}</b>` : ""}${m.zz ? '<i class="zz">z<span>z</span></i>' : ""}`;
+  const head = extra && HEAD_PROPS.has(extra) ? PROPS[extra] : "";
+  const held = extra && !HEAD_PROPS.has(extra) ? PROPS[extra] : "";
+  el.innerHTML = `<svg viewBox="0 -1 17 15" shape-rendering="crispEdges"><g class="o-all"><g class="o-tail">${LAYERS.tail}</g><g class="o-torso">${LAYERS.body}</g>${LAYERS.feet}<g class="o-neck"><g class="o-head">${LAYERS.head}<g class="o-eyes"><g class="o-blink">${EYES[m.eyes]}</g></g><g class="o-hat"></g>${head}</g></g><g class="o-torso"><g class="wear">${OUTFITS.scarf}</g>${ARMS[m.arms]}</g>${held}</g></svg>${m.bubble ? `<b class="bubble ${m.bubble[1]}">${m.bubble[0]}</b>` : ""}${m.zz ? '<i class="zz">z<span>z</span></i>' : ""}`;
   return el;
 }
 
@@ -164,11 +90,11 @@ export function paint(el, name) {
   el.style.setProperty("--clay", CLAYS[clay]);
   el.style.setProperty("--hat", CLAYS[(clay + 3 + (hashOf(name, 13, 5) % 4)) % CLAYS.length]);
   el.style.setProperty("--fur", FURS[hashOf(name, 17, 3) % FURS.length]);
+  el.style.setProperty("--nd", `-${(hashOf(name, 41, 13) % 4000) / 1000}s`);
   const wear = el.querySelector(".wear");
-  if (wear) {
-    const hat = ["helmet", "binoculars"].includes(el.dataset.prop) ? "" : HATS[HAT_KEYS[hashOf(name, 37, 11) % HAT_KEYS.length]];
-    wear.innerHTML = OUTFITS[OUTFIT_KEYS[hashOf(name, 23, 19) % OUTFIT_KEYS.length]] + hat;
-  }
+  if (wear) wear.innerHTML = OUTFITS[OUTFIT_KEYS[hashOf(name, 23, 19) % OUTFIT_KEYS.length]];
+  const hat = el.querySelector(".o-hat");
+  if (hat && !["helmet", "binoculars"].includes(el.dataset.prop)) hat.innerHTML = HATS[HAT_KEYS[hashOf(name, 37, 11) % HAT_KEYS.length]];
   return el;
 }
 
