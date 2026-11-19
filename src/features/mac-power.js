@@ -88,6 +88,28 @@ function sleepDisabled() {
   }
 }
 
+function lidOpen() {
+  try {
+    return /"AppleClamshellState" = No/.test(cp.execFileSync("/usr/sbin/ioreg", ["-r", "-k", "AppleClamshellState", "-d", "1"], { encoding: "utf8", timeout: 5000 }));
+  } catch (e) {
+    return false;
+  }
+}
+
+let screenKeeper = null;
+
+function keepScreen(on) {
+  if (on && !screenKeeper) {
+    screenKeeper = cp.spawn("/usr/bin/caffeinate", ["-d", "-w", String(process.pid)], { stdio: "ignore" });
+    screenKeeper.on("exit", () => (screenKeeper = null));
+    log("tapa abierta en horario: la pantalla no se apaga");
+  } else if (!on && screenKeeper) {
+    screenKeeper.kill();
+    screenKeeper = null;
+    log("la pantalla vuelve a apagarse sola");
+  }
+}
+
 function tick() {
   if (!isMac) return;
   const hours = require("../core/hours");
@@ -110,9 +132,11 @@ function tick() {
   const nearlyEmpty = !!(bat && !bat.onAC && !bat.charging && bat.percent < 10);
   const lidAwake = awake && !nearlyEmpty;
   if (lidAwake !== sleepDisabled() && canSudo() && sudoPmset(["-a", "disablesleep", lidAwake ? "1" : "0"])) log(lidAwake ? "no se duerme ni con la tapa cerrada (en horario)" : nearlyEmpty && awake ? "batería por debajo del 10 %: se deja dormir" : "vuelve a dormirse al cerrar la tapa");
+  keepScreen(lidAwake && lidOpen());
   const sleepAt = minutes(s.sleep);
   if (!clock.weekend && !overtime && clock.min >= sleepAt && clock.min < sleepAt + 30 && st.sleptOn !== today) {
     st.sleptOn = today;
+    keepScreen(false);
     writeState(st);
     require("../cluster/cluster").letSleep();
     if (sleepDisabled()) sudoPmset(["-a", "disablesleep", "0"]);
