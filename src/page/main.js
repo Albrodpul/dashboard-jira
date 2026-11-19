@@ -76,7 +76,7 @@ const VIEWS = {
   deploy: ["Desplegar", "Sube proyectos a develop, a producción o a los dos. La orden sale de aquí hacia la sesión que despliega; nada se sube hasta que pulsas Desplegar."],
   sessions: ["Sesiones", "Qué sesión lleva cada epic y en qué está cada una. Las dormidas se despiertan solas cuando les llega algo."],
   machines: ["Ordenadores", "Quién manda, el horario del Mac y el token de Claude."],
-  appearance: ["Apariencia", "Tema claro u oscuro y quién trabaja en el tablero: nutrias, Pokémon o Star Wars."],
+  appearance: ["Apariencia", "Tema claro u oscuro y quién trabaja en el tablero: nutrias, criaturas o la tripulación de la galaxia."],
   find: ["Buscar", "Lo que coincide en las tareas del tablero, en las sesiones y en Jira. Lo de Jira se puede traer a Pendientes."],
   today: ["Hoy", "Lo que necesita algo de ti ahora mismo y, debajo, el último reporte."],
   more: ["Más", "Errores, despliegues, tu ordenador, lo que hacen los demás y ajustes."],

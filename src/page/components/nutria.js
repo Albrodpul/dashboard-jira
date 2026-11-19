@@ -1,4 +1,4 @@
-import { characterFor, currentCast } from "./cast.js";
+import { characterFor, characterEyes, currentCast } from "./cast.js";
 const ARMS = {
   rest: '<rect class="arm left" x="3" y="8" width="1" height="3"/><rect class="arm right" x="12" y="8" width="1" height="3"/>',
   hand: '<rect class="arm" x="3" y="8" width="1" height="3"/><rect class="arm raised" x="12" y="2" width="1" height="6"/><rect class="paw" x="12" y="1" width="2" height="1"/>',
@@ -72,13 +72,10 @@ function draw(el, seed) {
   const extra = el.dataset.prop;
   const who = characterFor(seed);
   const body = who ? who.body : BODY;
-  const arms = !who || who.arms ? ARMS[m.arms] : "";
-  const eyes = !who || who.eyes ? EYES[m.eyes] : "";
+  const arms = who ? "" : ARMS[m.arms];
+  const eyes = who ? characterEyes(who, m.eyes) : EYES[m.eyes];
   const wear = who ? "" : `<g class="wear">${OUTFITS.scarf}</g>`;
-  if (who) {
-    el.style.setProperty("--fur", who.fur);
-    el.dataset.who = who.name;
-  }
+  if (who) el.dataset.who = who.name;
   el.innerHTML = `<svg viewBox="0 -1 17 15" shape-rendering="crispEdges">${body}${arms}${eyes}${wear}${extra ? PROPS[extra] : ""}</svg>${m.bubble ? `<b class="bubble ${m.bubble[1]}">${m.bubble[0]}</b>` : ""}${m.zz ? '<i class="zz">z<span>z</span></i>' : ""}`;
 }
 
