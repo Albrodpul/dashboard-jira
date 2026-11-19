@@ -332,6 +332,19 @@ function lateDialog(s) {
 
 const PROMPT_SCAN = 40000;
 const AFTER_ANSWER = /[⏺⎿✢✳✶✻✽]/;
+const ANSWERED = /esc to interrupt|Interrupted|User rejected/i;
+const letters = (s) => s.replace(/[^\p{L}\p{N}]+/gu, "");
+
+function answeredAfter(before, after) {
+  if (ANSWERED.test(after)) return true;
+  const seen = letters(before);
+  const re = new RegExp(AFTER_ANSWER.source, "g");
+  for (let m = re.exec(after); m; m = re.exec(after)) {
+    const key = letters(after.slice(m.index + 1, m.index + 60)).slice(0, 10);
+    if (key.length >= 4 && !seen.includes(key)) return true;
+  }
+  return false;
+}
 
 function promptIn(raw) {
   const text = readable(raw.slice(-PROMPT_SCAN));
@@ -340,7 +353,7 @@ function promptIn(raw) {
   for (let m = re.exec(text); m; m = re.exec(text)) last = m;
   if (!last) return null;
   const after = text.slice(last.index + last[0].length);
-  if (!/1\.\s*Yes/i.test(after.slice(0, 400)) || AFTER_ANSWER.test(after)) return null;
+  if (!/1\.\s*Yes/i.test(after.slice(0, 400)) || answeredAfter(text.slice(0, last.index), after)) return null;
   const question = text.slice(Math.max(0, last.index - 700), last.index + 400).replace(/[─━╌│╭╮╰╯]+/g, " ").replace(/\s+/g, " ").trim();
   return { question: last[0], text: question };
 }

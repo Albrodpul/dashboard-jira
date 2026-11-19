@@ -67,6 +67,17 @@ test("a native prompt is found even when a long diff is redrawn after it", () =>
   assert.equal(promptIn(redraw), null);
 });
 
+test("a native prompt is still found after a resize repaints the screen and the pending dot blinks", () => {
+  const { promptIn } = require("../src/sessions/host");
+  const before = "⏺ Cambio cada fila del listado a tres líneas\r⏺ Bash(grep -n 'Factura' e2e/smoke.mjs)\r";
+  const dialog = "Bash command\r grep -n 'Factura' e2e/smoke.mjs\r Do you want to proceed?\r ❯ 1. Yes\r 2. No\r Esc to cancel · Tab to amend\r";
+  const repaint = "Investigación inicial ⏺ Cambio cada fila del listado\r⎿ $ grep n 'Factura' e2e/smoke.mjs\r" + "⏺ ".repeat(40);
+  const found = promptIn(before + dialog + repaint);
+  assert.equal(found && found.question, "Do you want to proceed?");
+  assert.equal(promptIn(before + dialog + repaint + "⎿ Tests 115 passed\r"), null);
+  assert.equal(promptIn(before + dialog + "⎿ Interrupted · What should Claude do instead?\r"), null);
+});
+
 test("the new project trust dialog is accepted", () => {
   assert.equal(answer("Is this a project you trust? ❯ 1. Yes, proceed 2. No, exit"), "\r");
 });
