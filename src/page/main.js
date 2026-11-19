@@ -16,6 +16,7 @@ import { renderProjects } from "./views/projects.js";
 import { renderWorkspaces } from "./views/workspaces.js";
 import { renderFind, searchBox } from "./views/find.js";
 import { renderMachines } from "./views/machines.js";
+import { renderAppearance, applyTheme } from "./views/appearance.js";
 import { paintTicket } from "./components/ticket.js";
 import { newTaskButton, newTaskForm } from "./components/new-task.js";
 import { projectSwitch, bindProjectKeys, applyProjectFilter, tabVisible, hasModule, mixedProjects, mainProject, projectTitle } from "./components/project-filter.js";
@@ -59,6 +60,7 @@ const GROUPS = [
     [
       { id: "workspaces", label: "Proyectos", hint: "Alta y ajustes de cada proyecto" },
       { id: "machines", label: "Ordenadores", hint: "PC y Mac: quién manda" },
+      { id: "appearance", label: "Apariencia", hint: "Tema y personajes" },
     ],
   ],
 ];
@@ -74,6 +76,7 @@ const VIEWS = {
   deploy: ["Desplegar", "Sube proyectos a develop, a producción o a los dos. La orden sale de aquí hacia la sesión que despliega; nada se sube hasta que pulsas Desplegar."],
   sessions: ["Sesiones", "Qué sesión lleva cada epic y en qué está cada una. Las dormidas se despiertan solas cuando les llega algo."],
   machines: ["Ordenadores", "Quién manda, el horario del Mac y el token de Claude."],
+  appearance: ["Apariencia", "Tema claro u oscuro y quién trabaja en el tablero: nutrias, Pokémon o Star Wars."],
   find: ["Buscar", "Lo que coincide en las tareas del tablero, en las sesiones y en Jira. Lo de Jira se puede traer a Pendientes."],
   today: ["Hoy", "Lo que necesita algo de ti ahora mismo y, debajo, el último reporte."],
   more: ["Más", "Errores, despliegues, tu ordenador, lo que hacen los demás y ajustes."],
@@ -95,6 +98,7 @@ const PAGE_OTTERS = {
   deploy: ["idle", "rocket", "Lista para despegar"],
   sessions: ["idle", "book", "Pasando lista"],
   machines: ["working", null, "Vigilando quién manda"],
+  appearance: ["idle", null, "¿Qué tal estoy?"],
   find: ["idle", "magnifier", "Buscando…"],
   talk: ["idle", null, "Escribe y se lo paso"],
   workspaces: ["idle", "box", "Cada proyecto en su caja"],
@@ -120,6 +124,7 @@ const NON_TASK_VIEWS = {
   sessions: renderSessions,
   find: renderFind,
   machines: renderMachines,
+  appearance: renderAppearance,
   deploy: mainOnly(renderDeploy),
   sentry: mainOnly(renderSentry),
   projects: renderProjects,
@@ -151,6 +156,7 @@ const NAV_ICONS = {
   deploy: '<path d="M12 19V5M5 12l7-7 7 7"/><path d="M5 21h14"/>',
   projects: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="m7 10 3 2-3 2M13 15h4"/>',
   machines: '<rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/>',
+  appearance: '<circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18z" fill="currentColor"/>',
   workspaces: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
   "follow-up": '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
   sessions: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18.5 20a6.5 6.5 0 0 0-3-5.5"/>',
@@ -509,6 +515,8 @@ function reload(force) {
     .finally(() => (inFlight = null));
   return inFlight;
 }
+
+applyTheme();
 
 setRender(() => {
   const started = performance.now();

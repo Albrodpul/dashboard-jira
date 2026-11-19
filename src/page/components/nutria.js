@@ -1,4 +1,4 @@
-
+import { characterFor, currentCast } from "./cast.js";
 const ARMS = {
   rest: '<rect class="arm left" x="3" y="8" width="1" height="3"/><rect class="arm right" x="12" y="8" width="1" height="3"/>',
   hand: '<rect class="arm" x="3" y="8" width="1" height="3"/><rect class="arm raised" x="12" y="2" width="1" height="6"/><rect class="paw" x="12" y="1" width="2" height="1"/>',
@@ -67,14 +67,30 @@ const BODY =
   '<rect class="fur" x="4" y="7" width="8" height="5"/><rect class="cream" x="6" y="8" width="4" height="4"/>' +
   '<rect class="ear" x="4" y="12" width="3" height="1"/><rect class="ear" x="9" y="12" width="3" height="1"/>';
 
+function draw(el, seed) {
+  const m = MOODS[el.dataset.mood] || MOODS.free;
+  const extra = el.dataset.prop;
+  const who = characterFor(seed);
+  const body = who ? who.body : BODY;
+  const arms = !who || who.arms ? ARMS[m.arms] : "";
+  const eyes = !who || who.eyes ? EYES[m.eyes] : "";
+  const wear = who ? "" : `<g class="wear">${OUTFITS.scarf}</g>`;
+  if (who) {
+    el.style.setProperty("--fur", who.fur);
+    el.dataset.who = who.name;
+  }
+  el.innerHTML = `<svg viewBox="0 -1 17 15" shape-rendering="crispEdges">${body}${arms}${eyes}${wear}${extra ? PROPS[extra] : ""}</svg>${m.bubble ? `<b class="bubble ${m.bubble[1]}">${m.bubble[0]}</b>` : ""}${m.zz ? '<i class="zz">z<span>z</span></i>' : ""}`;
+}
+
 export function nutria(mood, size = "", prop = null) {
   const m = MOODS[mood] || MOODS.free;
   const el = document.createElement("span");
   el.className = `nutria ${mood} ${size}`.trim();
   el.setAttribute("aria-hidden", "true");
+  el.dataset.mood = mood;
   const extra = prop || m.prop;
   if (extra) el.dataset.prop = extra;
-  el.innerHTML = `<svg viewBox="0 -1 17 15" shape-rendering="crispEdges">${BODY}${ARMS[m.arms]}${EYES[m.eyes]}<g class="wear">${OUTFITS.scarf}</g>${extra ? PROPS[extra] : ""}</svg>${m.bubble ? `<b class="bubble ${m.bubble[1]}">${m.bubble[0]}</b>` : ""}${m.zz ? '<i class="zz">z<span>z</span></i>' : ""}`;
+  draw(el, hashOf(mood, 29, 1));
   return el;
 }
 
@@ -86,6 +102,10 @@ const OUTFIT_KEYS = Object.keys(OUTFITS);
 const HAT_KEYS = ["none", "none", ...Object.keys(HATS).filter((k) => k !== "none")];
 
 export function paint(el, name) {
+  if (currentCast() !== "nutrias") {
+    draw(el, hashOf(name, 41, 13));
+    return el;
+  }
   const clay = hashOf(name, 31, 7) % CLAYS.length;
   el.style.setProperty("--clay", CLAYS[clay]);
   el.style.setProperty("--hat", CLAYS[(clay + 3 + (hashOf(name, 13, 5) % 4)) % CLAYS.length]);
