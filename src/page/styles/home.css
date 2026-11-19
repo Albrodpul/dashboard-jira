@@ -235,7 +235,7 @@
 .nutria.note-who { width: 46px; height: 40px; }
 .nutria svg { width: 100%; height: 100%; display: block; overflow: visible; }
 .nutria .fur, .nutria .arm, .nutria .tail { fill: var(--fur); }
-.nutria .ear, .nutria .paw { fill: color-mix(in srgb, var(--fur) 70%, #000); }
+.nutria .ear, .nutria .paw, .nutria .paw-rest { fill: color-mix(in srgb, var(--fur) 70%, #000); }
 .nutria .cream { fill: #f3dfc4; }
 .nutria .nose, .nutria .eye { fill: #1b1b1f; }
 .nutria .whisker { fill: color-mix(in srgb, var(--fur) 55%, #fff); }
