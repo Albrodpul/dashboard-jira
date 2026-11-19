@@ -237,6 +237,9 @@
 .nutria .fur, .nutria .arm, .nutria .tail { fill: var(--fur); }
 .nutria .ear, .nutria .paw, .nutria .paw-rest { fill: color-mix(in srgb, var(--fur) 70%, #000); }
 .nutria .cream { fill: #f3dfc4; }
+.nutria .cream-dark { fill: #ddc4a4; }
+.nutria .fur-dark { fill: color-mix(in srgb, var(--fur) 78%, #000); }
+.nutria .fur-light { fill: color-mix(in srgb, var(--fur) 84%, #fff); }
 .nutria .nose, .nutria .eye { fill: #1b1b1f; }
 .nutria .whisker { fill: color-mix(in srgb, var(--fur) 55%, #fff); }
 .nutria .scarf { fill: var(--clay); }
@@ -268,10 +271,12 @@
   .nutria.done svg { animation: nutria-hop .9s ease-in-out infinite; }
   .nutria.free svg { animation: nutria-breathe 3s ease-in-out infinite; }
   .nutria .zz { animation: nutria-float 3s ease-in-out infinite; }
+  .nutria:is(.idle, .working, .typing, .pending, .drawing) .eye { transform-box: fill-box; transform-origin: center; animation: nutria-eyes 4.5s infinite; }
   .radar::after { animation: radar-spin 3s linear infinite; }
   .queuer:nth-child(2) .nutria svg { animation-delay: .2s; } .queuer:nth-child(3) .nutria svg { animation-delay: .4s; }
 }
 @keyframes nutria-type { 50% { transform: translateY(1px); } }
+@keyframes nutria-eyes { 0%, 94%, 100% { transform: scaleY(1); } 97% { transform: scaleY(.15); } }
 @keyframes nutria-blink { 50% { opacity: .4; } }
 @keyframes nutria-wave { 50% { transform: rotate(14deg); } }
 @keyframes nutria-breathe { 50% { transform: translateY(1px); } }

@@ -1,7 +1,7 @@
 const ARMS = {
-  rest: '<g class="arm left"><rect fill="#2a1d18" x="2.5" y="8" width="2" height="3.0"/><rect x="3" y="8" width="1" height="2.5"/></g><rect class="paw-rest" x="3" y="10" width="1" height=".5"/><g class="arm right"><rect fill="#2a1d18" x="11.5" y="8" width="2" height="3.0"/><rect x="12" y="8" width="1" height="2.5"/></g><rect class="paw-rest" x="12" y="10" width="1" height=".5"/>',
-  hand: '<g class="arm left"><rect fill="#2a1d18" x="2.5" y="8" width="2" height="3.0"/><rect x="3" y="8" width="1" height="2.5"/></g><rect class="paw-rest" x="3" y="10" width="1" height=".5"/><g class="arm raised"><rect fill="#2a1d18" x="11.5" y="2" width="2" height="6.5"/><rect x="12" y="2" width="1" height="6"/></g><g class="paw"><rect fill="#2a1d18" x="11.5" y="1.0" width="3" height="1.5"/><rect x="12" y="1.5" width="2" height=".5"/></g>',
-  up: '<g class="arm up left"><rect fill="#2a1d18" x="2.5" y="2" width="2" height="6.5"/><rect x="3" y="2" width="1" height="6"/></g><g class="paw"><rect fill="#2a1d18" x="1.5" y="1.0" width="3" height="1.5"/><rect x="2" y="1.5" width="2" height=".5"/></g><g class="arm up right"><rect fill="#2a1d18" x="11.5" y="2" width="2" height="6.5"/><rect x="12" y="2" width="1" height="6"/></g><g class="paw"><rect fill="#2a1d18" x="11.5" y="1.0" width="3" height="1.5"/><rect x="12" y="1.5" width="2" height=".5"/></g>',
+  rest: '<g class="arm left"><rect fill="#2a1d18" x="2.75" y="8" width="1.5" height="2.75"/><rect x="3" y="8" width="1" height="2.5"/></g><rect class="paw-rest" x="3" y="10" width="1" height=".5"/><g class="arm right"><rect fill="#2a1d18" x="11.75" y="8" width="1.5" height="2.75"/><rect x="12" y="8" width="1" height="2.5"/></g><rect class="paw-rest" x="12" y="10" width="1" height=".5"/>',
+  hand: '<g class="arm left"><rect fill="#2a1d18" x="2.75" y="8" width="1.5" height="2.75"/><rect x="3" y="8" width="1" height="2.5"/></g><rect class="paw-rest" x="3" y="10" width="1" height=".5"/><g class="arm raised"><rect fill="#2a1d18" x="11.75" y="2" width="1.5" height="6.25"/><rect x="12" y="2" width="1" height="6"/></g><g class="paw"><rect fill="#2a1d18" x="11.75" y="1.25" width="2.5" height="1"/><rect x="12" y="1.5" width="2" height=".5"/></g>',
+  up: '<g class="arm up left"><rect fill="#2a1d18" x="2.75" y="2" width="1.5" height="6.25"/><rect x="3" y="2" width="1" height="6"/></g><g class="paw"><rect fill="#2a1d18" x="1.75" y="1.25" width="2.5" height="1"/><rect x="2" y="1.5" width="2" height=".5"/></g><g class="arm up right"><rect fill="#2a1d18" x="11.75" y="2" width="1.5" height="6.25"/><rect x="12" y="2" width="1" height="6"/></g><g class="paw"><rect fill="#2a1d18" x="11.75" y="1.25" width="2.5" height="1"/><rect x="12" y="1.5" width="2" height=".5"/></g>',
 };
 const EYES = {
   open: '<rect class="eye" x="5" y="2" width="1" height="1.5"/><rect fill="#fff" x="5" y="2" width=".5" height=".5"/><rect class="eye" x="10" y="2" width="1" height="1.5"/><rect fill="#fff" x="10" y="2" width=".5" height=".5"/>',
@@ -58,42 +58,73 @@ const HATS = {
 };
 
 const OTTER = {
-  palette: {"a": "fur", "b": "ear", "c": "#d99a8a", "d": "cream", "e": "nose", "f": "#ffffff", "g": "#e9a3a0", "h": "whisker", "i": "#2a1d18"},
+  scale: 4,
+  palette: {"a": "#2a1d18", "b": "fur", "c": "ear", "d": "#d99a8a", "e": "fur-light", "f": "fur-dark", "g": "cream", "h": "nose", "i": "#ffffff", "j": "whisker", "l": "#e9a3a0", "m": "#4a3022", "n": "cream-dark"},
   rows: [
     "",
-    "......iii.....iiii.....iii",
-    ".....ibbbiiiiiaaaaiiiiibbbi",
-    "....ibbcbbaaaaaaaaaaaabbcbbi",
-    "....ibcccaaaaaaaaaaaaaacccbi",
-    "....ibbcaaaaaaaaaaaaaaaacbbi",
-    ".....ibaaaaaaaaaaaaaaaaaabi",
-    ".....iaaaaaaaaaaaaaaaaaaaai",
-    ".....iaaaaaaaaaaaaaaaaaaaai",
-    ".....iaaaaaaaaaaaaaaaaaaaai",
-    ".....iaaaaaadddeedddaaaaaai",
-    "...iiiaaaaadddefeedddaaaaaiiii",
-    "..ihhhiagggddddeeddddgggaiihhhi",
-    "...iihhhgggddddddddddgggihhhii",
-    ".....iiiiaaddddbdbdddaai.iii",
-    ".........iaaddddbdddaai",
-    ".........iaaaaaaaaaaaai",
-    "........iaaaaaddddaaaaai",
-    ".......iaaaaaddddddaaaaai",
-    ".......iaaaaddddddddaaaai...ii",
-    ".......iaaaddddddddddaaaiiiibbii",
-    ".......iaaaddddddddddaaaiaaabbbbi",
-    ".......iaaaddddddddddaaaaaaaabbi",
-    ".......iaaaddddddddddaaaaaaaaai",
-    "........iaaaddddddddaaaaaaaaii",
-    "........iiaaaddddddaaaiiaiii",
-    ".......ibbbbbbddddbbbbbbi",
-    ".......ibbbbbbaaaabbbbbbi",
-    "........iiiiiiiiiiiiiiii",
     "",
+    "",
+    "..............................aaaa",
+    "............aaaaa.......aaaaaabbbbaaaaaa.......aaaaa",
+    "...........accccca....aabbbbbbbbbbbbbbbbaa....accccca",
+    "..........accccccca.aabbbbbbbbbbbbbbbbbbbbaa.accccccca",
+    ".........acccccccccabbbbbbbbbbbbbbbbbbbbbbbbaccccccccca",
+    ".........acccdddccbbbbeeeeeebbbbbbbbbbbbbbbbbbccdddccca",
+    "........accccddddbbbbeeeeeeeeebbbbbbbbbbbbbbbbbddddcccca",
+    "........accccddbbbbbbeeeeeeeeebbbbbbbbbbbbbbbbbbbddcccca",
+    ".........acccddbbbbbbbeeeeeebbbbbbbbbbbbbbbbbbbbbddccca",
+    ".........accccbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbcccca",
+    "..........accbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbcca",
+    "...........aabbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbaa",
+    "...........abbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbba",
+    "...........abbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbba",
+    "...........abbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbba",
+    "...........abbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbffffffa",
+    "...........abbbbbbbbbbbbbbbbbggggggbbbbbbbbbbbffffffa",
+    "...........abbbbbbbbbbbbbbggggghhgggggbbbbbbbbffffffa",
+    "...........abbbbbbbbbbbbggggghhhhhhgggggbbbbbbffffffa",
+    "...........abbbbbbbbbbbggggghhiihhhhgggggbbbbbffffffa",
+    "...........abbbbbbbbbbgggggghhhhhhhhggggggbbbbffffffa",
+    "........jjj.abbbbbbbbgggggggghhhhhhggggggggbbbfffffa.jjj",
+    ".............abbblllllgggggggggggggggggggglllllfffa",
+    ".............abbllllllggggggggggggggggggggllllllffa",
+    "......jj......abblllllgggggggggggggggggggglllllffa......jj",
+    "...............abbbbbgggggggmmgmmgmmgggggggbbbffa",
+    "................abbbbbggggggggmggmggggggggbbbbfa",
+    ".................aabbbbggggggggggggggggggbbbbaa",
+    "...................aabbbnnnnnnnnnnnnnnnnbbbaa",
+    "....................abbbbbnnnnnnnnnnnnbbbbfa",
+    "...................abbbbbbbbbbnnnnbbbbbbbbffa",
+    "..................abbbbbbbbbbbbnnbbbbbbbbbfffa",
+    ".................abbbbbbbbbbnnnnnnnnbbbbbbffffa",
+    "................abbbbeebbbnnnnnnnnnnnnbbbbfffffa...............aa",
+    "...............abbbbbeebbnnnnnnnnnnnnnnbbbffffffa.............affa",
+    "...............abbbbeeeennnnnnnnnnnnnnnnbbffffffa............affffa",
+    "..............abbbbbeeennnnnnnnnnnnnnnnnnbfffffffa..........afffffa",
+    "..............abbbbbbeennnnnnnnnnnnnnnnnnbfffffffa.........affffffa",
+    "..............abbbbbbeennnnnnnnnnnnnnnnnnbfffffffa........aafffffa",
+    "..............abbbbbbennnnnnnnnnnnnnnnnnnnfffffffa.......afffffffa",
+    "..............abbbbbbbnnnnnnnnnnnnnnnnnnnnfffffffa.....aaffffffffa",
+    "..............abbbbbbbnnnnnnnnnnnnnnnnnnnnfffffffa...aafffffffffa",
+    "..............abbbbbbbnnnnnnnnnnnnnnnnnnnnfffffffaaaafffffffffffa",
+    "..............abbbbbbbnnnnnnnnnnnnnnnnnnnnffffffffffffffffffffaa",
+    "...............abbbbbbnnnnnnnnnnnnnnnnnnnnfffffffffffffffffffa",
+    "...............abbbbbbbnnnnnnnnnnnnnnnnnnbffffffffffffffffffa",
+    "................abbbbbbnnnnnnnnnnnnnnnnnnbfffffffffffffffffa",
+    ".................abbbbbbnnnnnnnnnnnnnnnnbbffffffffffffffffa",
+    "..................abbbbbnnnnnnnnnnnnnnnnbbfffffffffffffaaa",
+    "...................afffffnnnnnnnnnnnnnnffffffffffffffaa",
+    ".................aaaacccfffnnnnnnnnnnfffcccaafffffaaa",
+    "................accccccccccfnnnnnnnnfccccccccccaaa",
+    "...............acccccccccccccffffffccccccccccccca",
+    "...............acccmccmccccccaaaaaaccccccmccmccca",
+    "...............acccmccmccmcca......accmccmccmccca",
+    "................aacmccmccmca........acmccmccmcaa",
+    "..................aaaaaaaaa..........aaaaaaaaa",
   ],
 };
 
-function toRects({ rows, palette }) {
+function toRects({ rows, palette, scale = 2 }) {
   let out = "";
   rows.forEach((row, i) => {
     for (let x = 0; x < row.length; ) {
@@ -101,7 +132,7 @@ function toRects({ rows, palette }) {
       let end = x + 1;
       while (end < row.length && row[end] === ch) end++;
       const paint = palette[ch];
-      if (paint) out += `<rect ${paint.startsWith("#") ? `fill="${paint}"` : `class="${paint}"`} x="${x / 2}" y="${i / 2 - 1}" width="${(end - x) / 2}" height=".5"/>`;
+      if (paint) out += `<rect ${paint.startsWith("#") ? `fill="${paint}"` : `class="${paint}"`} x="${x / scale}" y="${i / scale - 1}" width="${(end - x) / scale}" height="${1 / scale}"/>`;
       x = end;
     }
   });
