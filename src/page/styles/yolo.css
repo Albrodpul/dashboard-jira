@@ -11,8 +11,9 @@ html.yolo .nav { box-shadow: inset -2px 0 0 rgba(255, 160, 30, .25); }
 html.yolo .logo-img { filter: drop-shadow(0 0 6px var(--ki-glow)); animation: logo-charge 1.4s ease-in-out infinite alternate; }
 @keyframes logo-charge { from { filter: drop-shadow(0 0 3px var(--ki-glow)); } to { filter: drop-shadow(0 0 9px var(--ki)); } }
 html.yolo .tab[aria-selected="true"] { background: linear-gradient(90deg, var(--ki), var(--ki-2)); color: #2a1500; box-shadow: 0 0 10px var(--ki-glow); }
-html.yolo .tab[aria-selected="true"] .tab-icon, html.yolo .tab[aria-selected="true"] .n { color: #2a1500; }
-@media (max-width: 760px) { html.yolo .tab[aria-selected="true"] { background: transparent; box-shadow: none; } html.yolo .tab[aria-selected="true"] .tab-icon { background: linear-gradient(135deg, var(--ki), var(--ki-2)); color: #2a1500; box-shadow: 0 0 8px var(--ki-glow); } }
+html.yolo .tab[aria-selected="true"] .tab-text, html.yolo .tab[aria-selected="true"] .n { color: #2a1500; font-weight: 700; }
+html.yolo .tab[aria-selected="true"] .tab-icon { background: rgba(255, 255, 255, .92); color: #c25200; }
+@media (max-width: 760px) { html.yolo .tab[aria-selected="true"] { background: transparent; box-shadow: none; } html.yolo .tab[aria-selected="true"] .tab-text { color: var(--accent); } html.yolo .tab[aria-selected="true"] .tab-icon { background: linear-gradient(135deg, var(--ki), var(--ki-2)); color: #2a1500; box-shadow: 0 0 8px var(--ki-glow); } }
 html.yolo .bottom { border-top: 2px solid var(--ki); }
 
 html.yolo .main-head h2 { background: linear-gradient(90deg, var(--ki-2), #d93a00 45%, var(--ki-2)); -webkit-background-clip: text; background-clip: text; color: transparent; font-weight: 800; letter-spacing: .01em; text-transform: uppercase; }

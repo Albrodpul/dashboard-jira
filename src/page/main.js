@@ -277,9 +277,9 @@ function yoloRule(root) {
       rule.checked = false;
       return;
     }
-    post("/api/config", { yolo: rule.checked }, rule.checked ? t("Modo YOLO activo: cada tarea pendiente va sola a su sesión, y si no tiene, el tablero la crea.") : t("Modo YOLO apagado: las tareas nuevas esperan a que pulses Hacer."));
+    post("/api/config", { yolo: rule.checked }, rule.checked ? t("Modo YOLO activo: cada tarea pendiente va sola a su sesión (si no tiene, el tablero la crea) y cada posible error del seguimiento, a la sesión de errores.") : t("Modo YOLO apagado: las tareas nuevas esperan a que pulses Hacer."));
   });
-  root.appendChild(h("label", { class: "rule", for: "yolo-mode", title: t("Todo automático: las tareas pendientes van solas a su sesión; si no tienen, el tablero crea una con el nombre del epic. Las restricciones siguen mandando.") }, [rule, " " + t("Modo YOLO")]));
+  root.appendChild(h("label", { class: "rule", for: "yolo-mode", title: t("Todo automático: las tareas pendientes van solas a su sesión (si no tienen, el tablero crea una con el nombre del epic) y los posibles errores del seguimiento, a la sesión de errores. Las restricciones siguen mandando.") }, [rule, " " + t("Modo YOLO")]));
 }
 
 function paintProjectPicker() {

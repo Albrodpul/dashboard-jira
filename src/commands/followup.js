@@ -73,7 +73,7 @@ module.exports = {
       let k = 0;
       for (const r of d.followUps) {
         for (const e of r.errors || []) {
-          if (!ids.includes(e.id) || e.state !== "approved" || e.approvedVia !== "board") continue;
+          if (!ids.includes(e.id) || e.state !== "approved" || !["board", "yolo"].includes(e.approvedVia)) continue;
           const held = require("../features/holds").checkArea(d, `El posible error ${e.id}`, config.errorsArea);
           if (held) {
             console.error(held);

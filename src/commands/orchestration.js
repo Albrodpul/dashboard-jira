@@ -40,7 +40,7 @@ const commands = {
         .filter((t) => t.answer && !t.answer.delivered)
         .map((t) => ({ key: t.key, title: t.title, asked: (t.notice && t.notice.text) || "", answer: t.answer.text, area: t.area, destination: destination(t.area) }));
       const errors = followUpErrors(load())
-        .filter((e) => e.state === "approved" && e.approvedVia === "board" && !holds.checkArea(d, e.id, ERRORS_AREA))
+        .filter((e) => e.state === "approved" && ["board", "yolo"].includes(e.approvedVia) && !holds.checkArea(d, e.id, ERRORS_AREA))
         .map((e) => ({ id: e.id, text: e.text, seenAt: e.at, destination: destination(ERRORS_AREA) }));
       const sentry = sentryIssues(load())
         .filter((x) => x.state === "approved" && x.approvedVia === "board" && !holds.checkArea(d, x.id, x.area))

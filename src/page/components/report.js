@@ -220,7 +220,7 @@ export function yoloBanner() {
   const sent = (state.tasks || []).filter((x) => x.approvedVia === "yolo" && (Date.parse(x.decidedAt || "") || 0) >= from).length;
   const power = h("span", { class: "power", title: t("Tareas enviadas solas desde que lo encendiste: {n}", { n: sent }) }, [h("small", { text: t("Nivel de poder") }), h("b", { text: ((sent + 1) * 1000).toLocaleString(LOCALE) })]);
   const since = state.config.yoloAt ? t("Modo YOLO activo desde las {time}", { time: when(state.config.yoloAt) }) : t("Modo YOLO activo");
-  return h("div", { class: "token-banner overtime-banner on yolo-banner", role: "status" }, [h("div", {}, [h("strong", { text: since }), h("span", { text: t("Las tareas pendientes van solas a su sesión, y si no tienen, el tablero crea una con el nombre del epic.") })]), power, btn]);
+  return h("div", { class: "token-banner overtime-banner on yolo-banner", role: "status" }, [h("div", {}, [h("strong", { text: since }), h("span", { text: t("Las tareas pendientes van solas a su sesión (si no tienen, el tablero crea una con el nombre del epic) y los posibles errores del seguimiento, a la sesión de errores.") })]), power, btn]);
 }
 
 export function tokenBanner(goTo) {

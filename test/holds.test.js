@@ -345,3 +345,21 @@ test("YOLO mode keeps a restricted task in Pendientes", async () => {
   await yolo.tick();
   assert.equal(load().tasks["WEB-30"].status, "pending");
 });
+
+test("YOLO mode sends possible follow-up errors to the errors session unless it is held", async () => {
+  const yolo = require("../src/features/yolo");
+  yolo._test.reset();
+  const report = () => [{ at: "2026-11-08T09:00:00.000Z", text: "x", errors: [{ id: "err-1", text: "falla el login", state: "proposed", at: "2026-11-08T09:00:00.000Z" }, { id: "err-2", text: "y", state: "discarded" }] }];
+  reset({}, { config: { yolo: true }, followUps: report() });
+  await yolo.tick();
+  let e = load().followUps[0].errors;
+  assert.equal(e[0].state, "approved");
+  assert.equal(e[0].approvedVia, "yolo");
+  assert.equal(e[1].state, "discarded");
+  reset({}, { config: { yolo: true }, followUps: report(), restrictions: [{ id: "R8", scope: { tasks: [], epics: [], areas: ["errors"] }, mode: "hold", reason: "no", until: null, createdAt: new Date().toISOString(), releasedAt: null }] });
+  await yolo.tick();
+  assert.equal(load().followUps[0].errors[0].state, "proposed");
+  reset({}, { config: {}, followUps: report() });
+  await yolo.tick();
+  assert.equal(load().followUps[0].errors[0].state, "proposed");
+});

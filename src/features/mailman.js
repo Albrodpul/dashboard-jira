@@ -243,7 +243,7 @@ function collect(d, nowMs = Date.now()) {
   }
   jobs.push(...answers.values());
   for (const x of d.deployments || []) if (x.status === "approved" && x.approvedVia === "board" && due(x.delivery, nowMs) && !holds.checkArea(d, x.id, x.area, nowMs)) jobs.push({ kind: "deployment", area: x.area, ids: [x.id] });
-  const errors = followUpErrors(d).filter((e) => e.state === "approved" && e.approvedVia === "board" && due(e.delivery, nowMs));
+  const errors = followUpErrors(d).filter((e) => e.state === "approved" && ["board", "yolo"].includes(e.approvedVia) && due(e.delivery, nowMs));
   if (errors.length && config.errorsArea && !holds.checkArea(d, "", config.errorsArea, nowMs)) jobs.push({ kind: "errors", area: config.errorsArea, ids: errors.map((e) => e.id) });
   const sentry = new Map();
   for (const x of Object.values(d.sentry || {})) {
@@ -273,7 +273,7 @@ function itemsOf(d, job) {
   if (job.kind === "tasks") return job.ids.map((k) => d.tasks[k]).filter((t) => approvedTask(d, t) && t.area === job.area && !holds.checkTask(d, t, t.area));
   if (job.kind === "answers") return job.ids.map((k) => d.tasks[k]).filter((t) => t && t.answer && !t.answer.delivered);
   if (job.kind === "deployment") return (d.deployments || []).filter((x) => job.ids.includes(x.id) && x.status === "approved" && x.approvedVia === "board" && !holds.checkArea(d, x.id, x.area));
-  if (job.kind === "errors") return holds.checkArea(d, "", job.area) ? [] : followUpErrors(d).filter((e) => job.ids.includes(e.id) && e.state === "approved" && e.approvedVia === "board");
+  if (job.kind === "errors") return holds.checkArea(d, "", job.area) ? [] : followUpErrors(d).filter((e) => job.ids.includes(e.id) && e.state === "approved" && ["board", "yolo"].includes(e.approvedVia));
   if (job.kind === "sentry") return Object.values(d.sentry || {}).filter((x) => job.ids.includes(x.id) && x.state === "approved" && x.approvedVia === "board" && !holds.checkArea(d, x.id, x.area));
   if (job.kind === "stop") {
     const wanted = new Set(job.ids);

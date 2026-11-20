@@ -44,10 +44,34 @@ function createSession(name, t) {
   });
 }
 
+function sendErrors() {
+  const area = config.errorsArea;
+  if (!area) return 0;
+  const holds = require("./holds");
+  const ids = require("../core/data").mutate((x) => {
+    if (holds.checkArea(x, "La sesión de errores", area)) return [];
+    const out = [];
+    for (const r of x.followUps || []) {
+      for (const e of r.errors || []) {
+        if (e.state !== "proposed") continue;
+        Object.assign(e, { state: "approved", approvedVia: "yolo", decidedAt: now() });
+        out.push(e.id);
+      }
+    }
+    return out;
+  });
+  if (!ids.length) return 0;
+  for (const id of ids) log(`${id} -> ${area} (posible error del seguimiento)`);
+  require("../server/state").openIfClosed(area);
+  require("./mailman").kick();
+  return ids.length;
+}
+
 async function tick() {
   if (!require("../cluster/cluster").primaryNow()) return;
   const d = load();
   if (!on(d)) return;
+  if ((d.followUps || []).some((r) => (r.errors || []).some((e) => e.state === "proposed"))) sendErrors();
   const pending = Object.values(d.tasks || {}).filter((x) => x.status === "pending" && !x.withdrawn && !(Date.now() - (failed.get(x.key) || 0) < RETRY_MS));
   if (!pending.length) return;
   const routes = loadRoutes();
