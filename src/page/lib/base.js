@@ -1,9 +1,10 @@
 import { nutria } from "../components/nutria.js";
+import { t, LOCALE } from "./i18n.js";
 export const state = { tasks: [], areas: [], sessions: { list: [], syncedAt: null }, aliases: {}, reporterRoute: null, epics: [], tab: "home", ok: true };
 export const choice = {};
 export const drafts = {};
-const setup = () => state.jiraSetup || { jiraUrl: "", projects: [], reviewer: { name: "el revisor" }, reviewStatus: "en revisión", deployProjects: [] };
-export const isManualKey = (key) => (state.allTasks || state.tasks || []).some((t) => t.key === key && t.source === "manual");
+const setup = () => state.jiraSetup || { jiraUrl: "", projects: [], reviewer: { name: t("el revisor") }, reviewStatus: "en revisión", deployProjects: [] };
+export const isManualKey = (key) => (state.allTasks || state.tasks || []).some((x) => x.key === key && x.source === "manual");
 // Each ticket links to its own Jira: the site whose project keys hold its prefix, else the main one.
 const siteUrl = (key) => {
   const prefix = String(key).split("-")[0];
@@ -47,8 +48,8 @@ export function button(label, { cls = "", title, onClick, disabled = false } = {
   return b;
 }
 
-const fmtTime = new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", hour: "2-digit", minute: "2-digit", hour12: false });
-export const fmtDay = new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", day: "2-digit", month: "2-digit" });
+const fmtTime = new Intl.DateTimeFormat(LOCALE, { timeZone: "Europe/Madrid", hour: "2-digit", minute: "2-digit", hour12: false });
+export const fmtDay = new Intl.DateTimeFormat(LOCALE, { timeZone: "Europe/Madrid", day: "2-digit", month: "2-digit" });
 
 export function when(iso) {
   if (!iso) return "";
@@ -62,11 +63,11 @@ export const minutesSince = (iso) => Math.round((Date.now() - new Date(iso).getT
 
 let toastTimer;
 export function toast(msg) {
-  const t = document.getElementById("toast");
-  t.textContent = msg;
-  t.hidden = false;
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.hidden = false;
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => (t.hidden = true), 3500);
+  toastTimer = setTimeout(() => (el.hidden = true), 3500);
 }
 
 export const request = (url, body) => fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body || {}) });
@@ -89,7 +90,7 @@ export function post(url, body, okMsg) {
       return refresh(true);
     })
     .catch((e) => {
-      toast(e && e.message ? `No se pudo: ${e.message}` : "No se pudo guardar. Inténtalo de nuevo.");
+      toast(e && e.message ? t("No se pudo: {error}", { error: e.message }) : t("No se pudo guardar. Inténtalo de nuevo."));
       refresh(true);
     });
 }
@@ -97,20 +98,20 @@ export function post(url, body, okMsg) {
 export const saveTask = (task, patch, okMsg) => post("/api/task", { key: task.id, patch }, okMsg);
 
 export function whoSends(capitalize) {
-  return capitalize ? "El tablero" : "el tablero";
+  return capitalize ? t("El tablero") : t("el tablero");
 }
 
 const activeLimits = () => (state.restrictions || []).filter((r) => !r.releasedAt && (!r.until || Date.now() < Date.parse(r.until)));
 
-export function limitsFor(t, area) {
-  const target = { key: t.key, epicKey: t.epicKey || null, area: area || t.area || t.proposedArea || null };
+export function limitsFor(task, area) {
+  const target = { key: task.key, epicKey: task.epicKey || null, area: area || task.area || task.proposedArea || null };
   return activeLimits().filter((r) => (target.key && r.scope.tasks.includes(target.key)) || (target.epicKey && r.scope.epics.includes(target.epicKey)) || (target.area && r.scope.areas.includes(target.area)));
 }
 
-export const holdOf = (t, area) => limitsFor(t, area).find((r) => r.mode === "hold") || null;
+export const holdOf = (task, area) => limitsFor(task, area).find((r) => r.mode === "hold") || null;
 
-export function limitChips(t, area) {
-  return limitsFor(t, area).map((r) => h("span", { class: `chip limit limit-${r.mode}`, title: r.chip.title, text: r.chip.text }));
+export function limitChips(task, area) {
+  return limitsFor(task, area).map((r) => h("span", { class: `chip limit limit-${r.mode}`, title: r.chip.title, text: r.chip.text }));
 }
 
 export function areaName(id) {
@@ -118,7 +119,7 @@ export function areaName(id) {
   return a ? a.name : id;
 }
 
-export const targetLabel = (a) => a.name + (a.open ? "" : a.sessionName ? " (cerrada)" : "");
+export const targetLabel = (a) => (a.open || !a.sessionName ? a.name : t("{name} (cerrada)", { name: a.name }));
 
 export function areaSelectFrom(list, id, current, emptyLabel, onChange) {
   const sel = h("select", { id, onchange: (e) => onChange(e.target.value) });
@@ -161,7 +162,7 @@ export function ticketLink(key, cls = "ticket-link") {
     href: ticketUrl(key) || "#",
     target: ticketUrl(key) ? "_blank" : null,
     rel: "noopener noreferrer",
-    title: ticketUrl(key) ? "Ver el detalle en el tablero (Ctrl+clic: abrir en Jira)" : "Ver el detalle en el tablero (tarea sin Jira)",
+    title: ticketUrl(key) ? t("Ver el detalle en el tablero (Ctrl+clic: abrir en Jira)") : t("Ver el detalle en el tablero (tarea sin Jira)"),
     text: key,
     onclick: (e) => {
       if (!ticketOpener || e.ctrlKey || e.metaKey || e.shiftKey || e.button !== 0) return;
@@ -200,7 +201,7 @@ export function renderMd(text) {
         list = null;
         if (!table) {
           table = h("tbody");
-          const head = h("thead", {}, [h("tr", {}, [h("th", { scope: "col", text: "Hora" }), h("th", { scope: "col", text: "Ticket" }), h("th", { scope: "col", text: "Qué ha pasado" })])]);
+          const head = h("thead", {}, [h("tr", {}, [h("th", { scope: "col", text: t("Hora") }), h("th", { scope: "col", text: t("Ticket") }), h("th", { scope: "col", text: t("Qué ha pasado") })])]);
           box.appendChild(h("table", {}, [head, table]));
         }
         const withTicket = parts.length > 2 && new RegExp(`(?:${projectsRegex()})-\\d+`).test(parts[1]);

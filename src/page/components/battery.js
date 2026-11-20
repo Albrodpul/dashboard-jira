@@ -1,4 +1,5 @@
 import { h } from "../lib/base.js";
+import { t, LOCALE } from "../lib/i18n.js";
 
 export function batteryLevel(bat) {
   if (!bat) return "";
@@ -10,9 +11,9 @@ export function batteryLevel(bat) {
 
 export function batteryText(bat) {
   if (!bat) return "";
-  if (bat.charging) return "Cargando";
-  if (bat.onAC) return bat.percent >= 99 ? "Cargada" : "Enchufado";
-  return "Con batería";
+  if (bat.charging) return t("Cargando");
+  if (bat.onAC) return bat.percent >= 99 ? t("Cargada") : t("Enchufado");
+  return t("Con batería");
 }
 
 export function batteryIcon(bat, size = 26) {
@@ -28,8 +29,8 @@ export function batteryIcon(bat, size = 26) {
 
 export function batteryBadge(bat, label = "Mac") {
   if (!bat) return null;
-  const when = new Date(bat.at).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
-  return h("span", { class: `battery-badge ${batteryLevel(bat)}`, title: `Batería del Mac: ${bat.percent} %, ${batteryText(bat).toLowerCase()} (leída a las ${when})` }, [
+  const when = new Date(bat.at).toLocaleTimeString(LOCALE, { timeZone: "Europe/Madrid", hour: "2-digit", minute: "2-digit" });
+  return h("span", { class: `battery-badge ${batteryLevel(bat)}`, title: t("Batería del Mac: {percent} %, {state} (leída a las {time})", { percent: bat.percent, state: batteryText(bat).toLowerCase(), time: when }) }, [
     label ? h("span", { class: "battery-label", text: label }) : null,
     batteryIcon(bat),
     h("span", { class: "battery-pct", text: `${bat.percent}%` }),

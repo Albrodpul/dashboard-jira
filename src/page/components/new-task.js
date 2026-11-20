@@ -1,4 +1,5 @@
 import { state, h, button, toast, requestOrFail, refresh, render } from "../lib/base.js";
+import { t } from "../lib/i18n.js";
 import { currentProject } from "./project-filter.js";
 
 const draft = { open: false, project: "", title: "", description: "" };
@@ -6,7 +7,7 @@ const draft = { open: false, project: "", title: "", description: "" };
 const workspaces = () => (state.jiraSetup && state.jiraSetup.workspaces) || [];
 
 export function newTaskButton() {
-  return button(draft.open ? "Cerrar" : "Nueva tarea", {
+  return button(draft.open ? t("Cerrar") : t("Nueva tarea"), {
     cls: "subtle new-task-toggle",
     onClick: () => {
       draft.open = !draft.open;
@@ -21,28 +22,28 @@ export function newTaskForm() {
   const fixed = currentProject();
   if (fixed) draft.project = fixed;
   else if (!draft.project && list.length) draft.project = list[0].id;
-  const title = h("input", { type: "text", class: "new-task-title", placeholder: "Qué hay que hacer", value: draft.title, "aria-label": "Título de la tarea" });
+  const title = h("input", { type: "text", class: "new-task-title", placeholder: t("Qué hay que hacer"), value: draft.title, "aria-label": t("Título de la tarea") });
   title.addEventListener("input", () => (draft.title = title.value));
-  const description = h("textarea", { class: "reply-box", placeholder: "Detalles para la sesión (opcional)", "aria-label": "Detalles" });
+  const description = h("textarea", { class: "reply-box", placeholder: t("Detalles para la sesión (opcional)"), "aria-label": t("Detalles") });
   description.value = draft.description;
   description.addEventListener("input", () => (draft.description = description.value));
   let pick = null;
   if (list.length > 1 && !fixed) {
-    pick = h("select", { class: "new-task-project", "aria-label": "Proyecto" }, list.map((p) => h("option", { value: p.id, text: p.name })));
+    pick = h("select", { class: "new-task-project", "aria-label": t("Proyecto") }, list.map((p) => h("option", { value: p.id, text: p.name })));
     pick.value = draft.project;
     pick.addEventListener("change", () => (draft.project = pick.value));
   }
-  const create = button("Crear en Pendientes", {
+  const create = button(t("Crear en Pendientes"), {
     cls: "primary",
     onClick: async (b) => {
       b.disabled = true;
       try {
         const r = await requestOrFail("/api/task/new", { project: draft.project, title: draft.title, description: draft.description });
         Object.assign(draft, { open: false, title: "", description: "" });
-        toast(`${r.key} creada en Pendientes`);
+        toast(t("{key} creada en Pendientes", { key: r.key }));
         refresh(true);
       } catch (e) {
-        toast(`No se pudo crear: ${e.message}`);
+        toast(t("No se pudo crear: {error}", { error: e.message }));
         b.disabled = false;
       }
     },
@@ -51,5 +52,5 @@ export function newTaskForm() {
     if (!document.activeElement || document.activeElement === document.body) title.focus();
   }, 0);
   const where = fixed ? (list.find((p) => p.id === fixed) || {}).name : "";
-  return h("div", { class: "card new-task" }, [h("strong", { text: where ? `Nueva tarea en ${where}, sin Jira` : "Nueva tarea, sin Jira" }), pick, title, description, h("div", { class: "actions" }, [create])]);
+  return h("div", { class: "card new-task" }, [h("strong", { text: where ? t("Nueva tarea en {project}, sin Jira", { project: where }) : t("Nueva tarea, sin Jira") }), pick, title, description, h("div", { class: "actions" }, [create])]);
 }

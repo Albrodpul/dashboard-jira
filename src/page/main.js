@@ -19,73 +19,74 @@ import { renderMachines } from "./views/machines.js";
 import { renderAppearance, applyTheme } from "./views/appearance.js";
 import { paintTicket } from "./components/ticket.js";
 import { newTaskButton, newTaskForm } from "./components/new-task.js";
+import { t, tn } from "./lib/i18n.js";
 import { projectSwitch, bindProjectKeys, applyProjectFilter, tabVisible, hasModule, mixedProjects, mainProject, projectTitle } from "./components/project-filter.js";
 
 const TASK_TABS = [
-  { id: "pending", label: "Pendientes" },
-  { id: "approved", label: "Por enviar" },
-  { id: "waiting", label: "Te esperan" },
-  { id: "sent", label: "En curso" },
-  { id: "done", label: "Hechas" },
-  { id: "ignored", label: "Ignoradas" },
+  { id: "pending", label: t("Pendientes") },
+  { id: "approved", label: t("Por enviar") },
+  { id: "waiting", label: t("Te esperan") },
+  { id: "sent", label: t("En curso") },
+  { id: "done", label: t("Hechas") },
+  { id: "ignored", label: t("Ignoradas") },
 ];
 const GROUPS = [
   [
-    "Mi día",
+    t("Mi día"),
     [
-      { id: "home", label: "Inicio", hint: "Qué pasa ahora" },
-      { id: "tasks", label: "Tareas", hint: "Lo de Jira y lo que te espera" },
-      { id: "daily", label: "Daily", hint: "El resumen de ayer y el de hoy" },
-      { id: "follow-up", label: "Seguimiento", hint: "Lo que hacen los compañeros" },
+      { id: "home", label: t("Inicio"), hint: t("Qué pasa ahora") },
+      { id: "tasks", label: t("Tareas"), hint: t("Lo de Jira y lo que te espera") },
+      { id: "daily", label: t("Daily"), hint: t("El resumen de ayer y el de hoy") },
+      { id: "follow-up", label: t("Seguimiento"), hint: t("Lo que hacen los compañeros") },
     ],
   ],
   [
-    "Sesiones",
+    t("Sesiones"),
     [
-      { id: "talk", label: "Chats", hint: "Escribir a una sesión" },
-      { id: "sessions", label: "Sesiones", hint: "Quién lleva cada epic" },
-      { id: "context", label: "Contexto", hint: "Lo que aprenden las sesiones y ordenarlo" },
+      { id: "talk", label: t("Chats"), hint: t("Escribir a una sesión") },
+      { id: "sessions", label: t("Sesiones"), hint: t("Quién lleva cada epic") },
+      { id: "context", label: t("Contexto"), hint: t("Lo que aprenden las sesiones y ordenarlo") },
     ],
   ],
   [
-    "Arreglar y entregar",
+    t("Arreglar y entregar"),
     [
-      { id: "sentry", label: "Errores", hint: "Errores de Sentry a una sesión" },
-      { id: "deploy", label: "Desplegar", hint: "Subir a develop o producción" },
-      { id: "projects", label: "Servidores", hint: "Servidores de desarrollo en local" },
+      { id: "sentry", label: t("Errores"), hint: t("Errores de Sentry a una sesión") },
+      { id: "deploy", label: t("Desplegar"), hint: t("Subir a develop o producción") },
+      { id: "projects", label: t("Servidores"), hint: t("Servidores de desarrollo en local") },
     ],
   ],
   [
-    "Ajustes",
+    t("Ajustes"),
     [
-      { id: "workspaces", label: "Proyectos", hint: "Alta y ajustes de cada proyecto" },
-      { id: "machines", label: "Ordenadores", hint: "PC y Mac: quién manda" },
-      { id: "appearance", label: "Apariencia", hint: "Tema claro u oscuro" },
+      { id: "workspaces", label: t("Proyectos"), hint: t("Alta y ajustes de cada proyecto") },
+      { id: "machines", label: t("Ordenadores"), hint: t("PC y Mac: quién manda") },
+      { id: "appearance", label: t("Apariencia"), hint: t("Tema, idioma e inicio") },
     ],
   ],
 ];
 const VIEWS = {
-  home: ["Inicio", "Lo que te necesita y cómo van las sesiones."],
-  daily: ["Daily", "El resumen del último día laborable y el de hoy, agrupado por área: qué se hizo, dónde y cómo. Se redacta solo a la hora de la daily y se puede rehacer con su botón."],
-  pending: ["Pendientes", "Tareas nuevas o devueltas que puedes pasar a la sesión de su epic. Nada se envía hasta que pulsas Hacer."],
-  approved: ["Por enviar", "Aprobadas con Hacer, mientras el tablero las escribe en su sesión. Si no puede, lo dice aquí."],
-  sent: ["En curso", "Lo que ya está en su sesión, con lo que ha contestado."],
-  waiting: ["Te esperan", "Una sesión se ha parado en estas tareas: te pregunta algo o no ha podido terminarlas y dice por qué. Contéstale aquí o devuélvelas a Pendientes."],
-  done: ["Hechas", "La sesión dice que ha terminado: pendientes de que tú las revises. En Jira siguen «En curso»."],
-  ignored: ["Ignoradas", "Descartadas con Ignorar. Se pueden recuperar."],
-  deploy: ["Desplegar", "Sube proyectos a develop, a producción o a los dos. La orden sale de aquí hacia la sesión que despliega; nada se sube hasta que pulsas Desplegar."],
-  sessions: ["Sesiones", "Qué sesión lleva cada epic y en qué está cada una. Las dormidas se despiertan solas cuando les llega algo."],
-  machines: ["Ordenadores", "Quién manda, el horario del Mac y el token de Claude."],
-  appearance: ["Apariencia", "Tema claro u oscuro del tablero."],
-  find: ["Buscar", "Lo que coincide en las tareas del tablero, en las sesiones y en Jira. Lo de Jira se puede traer a Pendientes."],
-  today: ["Hoy", "Lo que necesita algo de ti ahora mismo y, debajo, el último reporte."],
-  more: ["Más", "Errores, despliegues, tu ordenador, lo que hacen los demás y ajustes."],
-  talk: ["Chats", "Las sesiones del tablero en directo: las fijas y cualquier otra que esté abierta. Escríbeles o córtalas, o abre una nueva para hablar."],
-  workspaces: ["Proyectos", "Cada proyecto que lleva el tablero: su carpeta en este ordenador, sus módulos y sus credenciales."],
-  projects: ["Servidores", "Los servidores locales que usan las sesiones: base de datos, API y webs de cada proyecto."],
-  sentry: ["Errores", "Errores sin resolver de los proyectos de Sentry. Elige la sesión y pulsa Enviar: el tablero se lo pasa con el enlace y te cuenta aquí lo que ha encontrado."],
-  context: ["Contexto", "Lo que van guardando las sesiones en context/: si hace que vuelvan menos tareas de revisión y, cuando todo está limpio, la orquestadora para repasarlo y ordenarlo."],
-  "follow-up": ["Seguimiento", "Lo que hace cada uno según sus peticiones a la API, separado por persona: beta se resume sola cada hora y producción cada dos; cualquiera de los dos, también cuando lo pidas."],
+  home: [t("Inicio"), t("Lo que te necesita y cómo van las sesiones.")],
+  daily: [t("Daily"), t("El resumen del último día laborable y el de hoy, agrupado por área: qué se hizo, dónde y cómo. Se redacta solo a la hora de la daily y se puede rehacer con su botón.")],
+  pending: [t("Pendientes"), t("Tareas nuevas o devueltas que puedes pasar a la sesión de su epic. Nada se envía hasta que pulsas Hacer.")],
+  approved: [t("Por enviar"), t("Aprobadas con Hacer, mientras el tablero las escribe en su sesión. Si no puede, lo dice aquí.")],
+  sent: [t("En curso"), t("Lo que ya está en su sesión, con lo que ha contestado.")],
+  waiting: [t("Te esperan"), t("Una sesión se ha parado en estas tareas: te pregunta algo o no ha podido terminarlas y dice por qué. Contéstale aquí o devuélvelas a Pendientes.")],
+  done: [t("Hechas"), t("La sesión dice que ha terminado: pendientes de que tú las revises. En Jira siguen «En curso».")],
+  ignored: [t("Ignoradas"), t("Descartadas con Ignorar. Se pueden recuperar.")],
+  deploy: [t("Desplegar"), t("Sube proyectos a develop, a producción o a los dos. La orden sale de aquí hacia la sesión que despliega; nada se sube hasta que pulsas Desplegar.")],
+  sessions: [t("Sesiones"), t("Qué sesión lleva cada epic y en qué está cada una. Las dormidas se despiertan solas cuando les llega algo.")],
+  machines: [t("Ordenadores"), t("Quién manda, el horario del Mac y el token de Claude.")],
+  appearance: [t("Apariencia"), t("Tema, idioma y pantalla de inicio del tablero.")],
+  find: [t("Buscar"), t("Lo que coincide en las tareas del tablero, en las sesiones y en Jira. Lo de Jira se puede traer a Pendientes.")],
+  today: [t("Hoy"), t("Lo que necesita algo de ti ahora mismo y, debajo, el último reporte.")],
+  more: [t("Más"), t("Errores, despliegues, tu ordenador, lo que hacen los demás y ajustes.")],
+  talk: [t("Chats"), t("Las sesiones del tablero en directo: las fijas y cualquier otra que esté abierta. Escríbeles o córtalas, o abre una nueva para hablar.")],
+  workspaces: [t("Proyectos"), t("Cada proyecto que lleva el tablero: su carpeta en este ordenador, sus módulos y sus credenciales.")],
+  projects: [t("Servidores"), t("Los servidores locales que usan las sesiones: base de datos, API y webs de cada proyecto.")],
+  sentry: [t("Errores"), t("Errores sin resolver de los proyectos de Sentry. Elige la sesión y pulsa Enviar: el tablero se lo pasa con el enlace y te cuenta aquí lo que ha encontrado.")],
+  context: [t("Contexto"), t("Lo que van guardando las sesiones en context/: si hace que vuelvan menos tareas de revisión y, cuando todo está limpio, la orquestadora para repasarlo y ordenarlo.")],
+  "follow-up": [t("Seguimiento"), t("Lo que hace cada uno según sus peticiones a la API, separado por persona: beta se resume sola cada hora y producción cada dos; cualquiera de los dos, también cuando lo pidas.")],
 };
 const mainOnly = (draw) => (root) => {
   if (mixedProjects()) root.appendChild(projectTitle(mainProject()));
@@ -93,20 +94,20 @@ const mainOnly = (draw) => (root) => {
 };
 
 const PAGE_OTTERS = {
-  tasks: ["pending", null, "Ordenando la bandeja"],
-  daily: ["idle", "newspaper", "Leyendo lo que hizo cada uno"],
-  deploy: ["idle", "rocket", "Lista para despegar"],
-  sessions: ["idle", "book", "Pasando lista"],
-  machines: ["working", null, "Vigilando quién manda"],
-  appearance: ["idle", null, "¿Qué tal estoy?"],
-  find: ["idle", "magnifier", "Buscando…"],
-  talk: ["idle", null, "Escribe y se lo paso"],
-  workspaces: ["idle", "box", "Cada proyecto en su caja"],
-  projects: ["working", "helmet", "Manteniendo los servidores en marcha"],
-  sentry: ["idle", "magnifier", "Buscando pistas en los errores"],
-  context: ["idle", "book", "Repasando lo aprendido"],
-  "follow-up": ["idle", "binoculars", "Vigilando beta y producción"],
-  more: ["idle", null, "¿Qué más necesitas?"],
+  tasks: ["pending", null, t("Ordenando la bandeja")],
+  daily: ["idle", "newspaper", t("Leyendo lo que hizo cada uno")],
+  deploy: ["idle", "rocket", t("Lista para despegar")],
+  sessions: ["idle", "book", t("Pasando lista")],
+  machines: ["working", null, t("Vigilando quién manda")],
+  appearance: ["idle", null, t("¿Qué tal estoy?")],
+  find: ["idle", "magnifier", t("Buscando…")],
+  talk: ["idle", null, t("Escribe y se lo paso")],
+  workspaces: ["idle", "box", t("Cada proyecto en su caja")],
+  projects: ["working", "helmet", t("Manteniendo los servidores en marcha")],
+  sentry: ["idle", "magnifier", t("Buscando pistas en los errores")],
+  context: ["idle", "book", t("Repasando lo aprendido")],
+  "follow-up": ["idle", "binoculars", t("Vigilando beta y producción")],
+  more: ["idle", null, t("¿Qué más necesitas?")],
 };
 
 function pageOtter(key) {
@@ -136,8 +137,8 @@ const NON_TASK_VIEWS = {
       root.appendChild(box);
       paint(box);
     };
-    if (hasModule("context")) part("Ordenar contexto", renderContext);
-    if (hasModule("jira")) part("Aprendizaje", mainOnly(renderLearning));
+    if (hasModule("context")) part(t("Ordenar contexto"), renderContext);
+    if (hasModule("jira")) part(t("Aprendizaje"), mainOnly(renderLearning));
   },
   talk: renderTalk,
 };
@@ -168,13 +169,13 @@ const navIcon = (id) => {
   return s;
 };
 const BOTTOM_BAR = [
-  ["today", "Hoy", "today"],
-  ["tasks", "Tareas", "pending"],
-  ["talk", "Chats", "talk"],
-  ["more", "Más", "more"],
+  ["today", t("Hoy"), "today"],
+  ["tasks", t("Tareas"), "pending"],
+  ["talk", t("Chats"), "talk"],
+  ["more", t("Más"), "more"],
 ];
 const MOBILE = window.matchMedia("(max-width: 760px)");
-const isTaskTab = (tab) => TASK_TABS.some((t) => t.id === tab);
+const isTaskTab = (tab) => TASK_TABS.some((x) => x.id === tab);
 const tabOf = (status) => (status === "partial" ? "waiting" : status === "jira" ? "find" : status === "epics" || status === "sessions-new" ? "sessions" : status === "learning" ? "context" : status);
 
 try {
@@ -192,27 +193,27 @@ function paintTabs(counts, waitingDeploys) {
   }
   const HIGHLIGHT = ["pending", "deploy", "waiting"];
   for (const [group, list] of GROUPS) {
-    const shown = list.filter((t) => tabVisible(t.id));
+    const shown = list.filter((x) => tabVisible(x.id));
     if (!shown.length) continue;
     tabs.appendChild(h("div", { class: "tab-group", text: group }));
-    for (const t of shown) {
-      if (t.id === "tasks") {
+    for (const tab of shown) {
+      if (tab.id === "tasks") {
         tabs.appendChild(tasksTab(counts));
         continue;
       }
-      const n = isTaskTab(t.id) ? counts[t.id] : t.id === "deploy" ? waitingDeploys || undefined : undefined;
-      const cls = `tab${n && HIGHLIGHT.includes(t.id) ? " has" : ""}${n && t.id === "waiting" ? " urgent" : ""}`;
-      tabs.appendChild(h("button", { class: cls, role: "tab", "aria-selected": String(state.tab === t.id), type: "button", title: `${t.label}: ${t.hint}`, onclick: () => switchView(t.id) }, [navIcon(t.id), tabText(t), n === undefined ? null : h("span", { class: "n", text: String(n) })]));
+      const n = isTaskTab(tab.id) ? counts[tab.id] : tab.id === "deploy" ? waitingDeploys || undefined : undefined;
+      const cls = `tab${n && HIGHLIGHT.includes(tab.id) ? " has" : ""}${n && tab.id === "waiting" ? " urgent" : ""}`;
+      tabs.appendChild(h("button", { class: cls, role: "tab", "aria-selected": String(state.tab === tab.id), type: "button", title: `${tab.label}: ${tab.hint}`, onclick: () => switchView(tab.id) }, [navIcon(tab.id), tabText(tab), n === undefined ? null : h("span", { class: "n", text: String(n) })]));
     }
   }
 }
 
-const tabText = (t) => h("span", { class: "tab-text" }, [h("span", { class: "tab-long", text: t.label }), h("span", { class: "tab-short", text: t.short || t.label })]);
+const tabText = (tab) => h("span", { class: "tab-text" }, [h("span", { class: "tab-long", text: tab.label }), h("span", { class: "tab-short", text: tab.short || tab.label })]);
 
 function lastTaskTab() {
   try {
-    const t = localStorage.getItem("last-task-tab");
-    return isTaskTab(t) ? t : "pending";
+    const saved = localStorage.getItem("last-task-tab");
+    return isTaskTab(saved) ? saved : "pending";
   } catch (e) {
     return "pending";
   }
@@ -220,10 +221,10 @@ function lastTaskTab() {
 
 function tasksTab(counts) {
   const badges = [];
-  if (counts.pending) badges.push(h("span", { class: "n", title: "Pendientes", text: String(counts.pending) }));
-  if (counts.waiting) badges.push(h("span", { class: "n alert", title: "Te esperan", text: String(counts.waiting) }));
+  if (counts.pending) badges.push(h("span", { class: "n", title: t("Pendientes"), text: String(counts.pending) }));
+  if (counts.waiting) badges.push(h("span", { class: "n alert", title: t("Te esperan"), text: String(counts.waiting) }));
   const cls = `tab${counts.pending ? " has" : ""}`;
-  return h("button", { class: cls, role: "tab", "aria-selected": String(isTaskTab(state.tab)), type: "button", title: "Tareas: lo de Jira y lo que te espera", onclick: () => switchView(lastTaskTab()) }, [navIcon("tasks"), tabText({ label: "Tareas", hint: "Lo de Jira y lo que te espera" }), h("span", { class: "tab-badges" }, badges)]);
+  return h("button", { class: cls, role: "tab", "aria-selected": String(isTaskTab(state.tab)), type: "button", title: t("Tareas: lo de Jira y lo que te espera"), onclick: () => switchView(lastTaskTab()) }, [navIcon("tasks"), tabText({ label: t("Tareas"), hint: t("Lo de Jira y lo que te espera") }), h("span", { class: "tab-badges" }, badges)]);
 }
 
 function paintBottomBar(section, attention) {
@@ -235,7 +236,7 @@ function paintBottomBar(section, attention) {
     b.appendChild(document.createTextNode(label));
     if (attention[id]) {
       const n = attention[id];
-      const what = id === "today" ? `${n} ${n === 1 ? "cosa espera" : "cosas esperan"} tu decisión: tareas por decidir o posibles errores del seguimiento` : `${n} sin terminar`;
+      const what = id === "today" ? tn(n, "{n} cosa espera tu decisión: tareas por decidir o posibles errores del seguimiento", "{n} cosas esperan tu decisión: tareas por decidir o posibles errores del seguimiento") : t("{n} sin terminar", { n });
       b.appendChild(h("span", { class: "badge", text: String(n), title: what, "aria-label": what }));
     }
     b.addEventListener("click", () => switchView(target, true));
@@ -244,22 +245,22 @@ function paintBottomBar(section, attention) {
 }
 
 function statusChips(root, counts, board) {
-  const chips = h("div", { class: "status-chips", role: "group", "aria-label": "Listas de tareas" });
+  const chips = h("div", { class: "status-chips", role: "group", "aria-label": t("Listas de tareas") });
   const open = (id) => () => switchView(id);
-  for (const t of TASK_TABS.filter((x) => !board || x.id === "ignored")) chips.appendChild(h("button", { type: "button", class: `${counts[t.id] ? "" : "zero"}${t.id === "waiting" && counts.waiting ? " alert" : ""}`, "aria-pressed": String(!board && state.tab === t.id), text: t.label + (counts[t.id] ? ` ${counts[t.id]}` : ""), onclick: open(t.id) }));
+  for (const tab of TASK_TABS.filter((x) => !board || x.id === "ignored")) chips.appendChild(h("button", { type: "button", class: `${counts[tab.id] ? "" : "zero"}${tab.id === "waiting" && counts.waiting ? " alert" : ""}`, "aria-pressed": String(!board && state.tab === tab.id), text: tab.label + (counts[tab.id] ? ` ${counts[tab.id]}` : ""), onclick: open(tab.id) }));
   root.appendChild(chips);
   const sel = chips.querySelector('[aria-pressed="true"]');
   if (sel && sel.scrollIntoView) sel.scrollIntoView({ block: "nearest", inline: "center" });
 }
 
 function renderMore(root, waitingDeploys, errors) {
-  const options = GROUPS.flatMap(([, list]) => list).filter((t) => !["home", "tasks", "talk"].includes(t.id) && tabVisible(t.id));
+  const options = GROUPS.flatMap(([, list]) => list).filter((x) => !["home", "tasks", "talk"].includes(x.id) && tabVisible(x.id));
   const menu = h(
     "div",
     { class: "more-menu" },
-    options.map((t) => {
-      const extra = t.id === "deploy" && waitingDeploys ? ` · ${waitingDeploys} esperando` : t.id === "follow-up" && errors ? ` · ${errors} posibles errores` : "";
-      return h("button", { type: "button", onclick: () => switchView(t.id, true) }, [h("strong", { text: t.label + extra }), h("span", { text: VIEWS[t.id][1] })]);
+    options.map((tab) => {
+      const extra = tab.id === "deploy" && waitingDeploys ? ` · ${t("{n} esperando", { n: waitingDeploys })}` : tab.id === "follow-up" && errors ? ` · ${tn(errors, "{n} posible error", "{n} posibles errores")}` : "";
+      return h("button", { type: "button", onclick: () => switchView(tab.id, true) }, [h("strong", { text: tab.label + extra }), h("span", { text: VIEWS[tab.id][1] })]);
     })
   );
   root.appendChild(searchBox());
@@ -270,8 +271,8 @@ function renderMore(root, waitingDeploys, errors) {
 function returnedRule(root) {
   const rule = h("input", { type: "checkbox", id: "auto-returned" });
   rule.checked = !!(state.config && state.config.autoReturned);
-  rule.addEventListener("change", () => post("/api/config", { autoReturned: rule.checked }, rule.checked ? "Las tareas devueltas o comentadas irán solas a la sesión que las hizo (o a la que propone el reporte si el tablero no la envió)." : "Las tareas devueltas o comentadas esperarán aquí a que pulses Hacer."));
-  root.appendChild(h("label", { class: "rule", for: "auto-returned" }, [rule, ` Enviar solas a su sesión las tareas devueltas o comentadas por ${reviewer()}`]));
+  rule.addEventListener("change", () => post("/api/config", { autoReturned: rule.checked }, rule.checked ? t("Las tareas devueltas o comentadas irán solas a la sesión que las hizo (o a la que propone el reporte si el tablero no la envió).") : t("Las tareas devueltas o comentadas esperarán aquí a que pulses Hacer.")));
+  root.appendChild(h("label", { class: "rule", for: "auto-returned" }, [rule, " " + t("Enviar solas a su sesión las tareas devueltas o comentadas por {reviewer}", { reviewer: reviewer() })]));
 }
 
 function paintProjectPicker() {
@@ -346,8 +347,8 @@ function render() {
 
 function paint() {
   state.renderSeq = (state.renderSeq || 0) + 1;
-  const counts = Object.fromEntries(TASK_TABS.map((t) => [t.id, 0]));
-  for (const t of state.tasks) if (counts[tabOf(t.status)] !== undefined) counts[tabOf(t.status)]++;
+  const counts = Object.fromEntries(TASK_TABS.map((x) => [x.id, 0]));
+  for (const task of state.tasks) if (counts[tabOf(task.status)] !== undefined) counts[tabOf(task.status)]++;
   counts.waiting += ((state.permissions && state.permissions.pending) || []).length;
   const waitingDeploys = (state.deployments || []).filter((x) => x.status === "approved").length;
   const errors = (state.followUps || []).flatMap((r) => r.errors || []).filter((e) => e.state === "proposed").length;
@@ -365,7 +366,7 @@ function paint() {
   if (!mobile) right.appendChild(activityButton());
   if (c && c.peer && (viaHeaders[1] || c.role !== "primary")) {
     const stale = viaHeaders[1];
-    right.appendChild(h("span", { class: "commander warn", text: stale ? `${stale}: el otro no responde` : "Sin ordenador al mando" }));
+    right.appendChild(h("span", { class: "commander warn", text: stale ? t("{machine}: el otro no responde", { machine: stale }) : t("Sin ordenador al mando") }));
   }
   const badge = batteryBadge(c && c.macPower && c.macPower.battery, null);
   if (badge) right.appendChild(badge);
@@ -382,7 +383,7 @@ function paint() {
   document.querySelector(".app").setAttribute("data-view", state.tab);
   document.querySelector(".app").setAttribute("data-section", section);
   const board = !mobile && isTaskTab(state.tab) && state.tab !== "ignored";
-  const [title, sub] = board ? ["Tareas", "Todas las tareas por estado. Pulsa una para ver su tarjeta entera."] : VIEWS[state.tab] || VIEWS.pending;
+  const [title, sub] = board ? [t("Tareas"), t("Todas las tareas por estado. Pulsa una para ver su tarjeta entera.")] : VIEWS[state.tab] || VIEWS.pending;
   document.getElementById("view-title").textContent = title;
   document.getElementById("view-sub").textContent = sub;
   pageOtter(board || isTaskTab(state.tab) ? "tasks" : state.tab);
@@ -407,7 +408,7 @@ function paint() {
   const switchable = !mobile && isTaskTab(state.tab);
   if (switchable || state.tab === "pending") {
     const bar = h("div", { class: "task-toolbar" });
-    if (switchable && !board) bar.appendChild(button("← Volver al tablero", { onClick: () => switchView("pending") }));
+    if (switchable && !board) bar.appendChild(button(t("← Volver al tablero"), { onClick: () => switchView("pending") }));
     const chips = !mobile && root.querySelector(".status-chips");
     if (chips) bar.appendChild(chips);
     if (board) bar.appendChild(boardSearch());
@@ -417,7 +418,7 @@ function paint() {
     const form = newTaskForm();
     if (form) root.appendChild(form);
   }
-  if (!state.ok) return root.appendChild(empty("El tablero no responde.", "Arráncalo con: node board.js ensure", "closed"));
+  if (!state.ok) return root.appendChild(empty(t("El tablero no responde."), t("Arráncalo con: {command}", { command: "node board.js ensure" }), "closed"));
   if (board) return renderBoard(root);
   (NON_TASK_VIEWS[state.tab] || renderTasks)(root);
 }
@@ -448,10 +449,10 @@ function showVia(via, stale) {
     el.id = "via";
     document.body.prepend(el);
   }
-  const primary = (c && c.label) || "el ordenador que manda";
+  const primary = (c && c.label) || t("el ordenador que manda");
   el.className = stale ? "via stale" : "via";
-  if (stale) el.textContent = `Estás en el ${stale} y el otro ordenador no responde: ves los últimos datos copiados. Si sigue así, en un minuto manda el ${stale}.`;
-  else el.textContent = `Estás en el ${via}: lo que ves es el tablero del ${primary}, que es el que manda.`;
+  if (stale) el.textContent = t("Estás en el {machine} y el otro ordenador no responde: ves los últimos datos copiados. Si sigue así, en un minuto manda el {machine}.", { machine: stale });
+  else el.textContent = t("Estás en el {machine}: lo que ves es el tablero del {primary}, que es el que manda.", { machine: via, primary });
 }
 
 function apply(d) {
@@ -557,8 +558,8 @@ function activityButton() {
     type: "button",
     "aria-controls": "report",
     "aria-pressed": String(!reportHidden),
-    title: reportHidden ? "Enseñar la última actividad de Jira y GitHub" : "Ocultar la última actividad",
-    text: "Actividad",
+    title: reportHidden ? t("Enseñar la última actividad de Jira y GitHub") : t("Ocultar la última actividad"),
+    text: t("Actividad"),
     onclick: () => setReportHidden(!reportHidden),
   });
 }
