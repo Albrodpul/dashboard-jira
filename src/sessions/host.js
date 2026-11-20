@@ -49,12 +49,37 @@ const readable = (s) =>
     .trim();
 const STUCK_MS = 15000;
 const UNANSWERED = /Enter ?to ?confirm|Esc ?to ?cancel/i;
+const SCROLLBACK = 200;
+let Headless;
+
+function emulator(cols, rows) {
+  if (Headless === undefined) {
+    try {
+      Headless = require("@xterm/headless").Terminal;
+    } catch (e) {
+      Headless = null;
+      log(`sin @xterm/headless, las preguntas se buscan en el texto: ${e.message}`);
+    }
+  }
+  return Headless ? new Headless({ cols, rows, scrollback: SCROLLBACK, allowProposedApi: true }) : null;
+}
+
+function screenLines(term) {
+  const b = term.buffer.active;
+  const out = [];
+  for (let i = b.baseY; i < b.baseY + term.rows; i++) {
+    const line = b.getLine(i);
+    out.push(line ? line.translateToString(true) : "");
+  }
+  return out;
+}
 
 function stuckCheck(s) {
   if (!s.pty || s.stuck) return;
-  const fresh = plain(s.buffer.slice(Math.min(s.dialogMark, s.buffer.length)));
+  const screen = s.term ? screenLines(s.term) : null;
+  const fresh = screen ? screen.join("\n") : plain(s.buffer.slice(Math.min(s.dialogMark, s.buffer.length)));
   if (!UNANSWERED.test(fresh) || PROMPT.test(fresh) || (s.lastInput && s.lastInput > s.stuckSince)) return;
-  const text = readable(s.buffer.slice(-3000)).split("\n").slice(-14).join("\n").slice(-900);
+  const text = (screen ? screen.map((l) => l.replace(/[─━╌│╭╮╰╯▔▁]+/g, " ").trim()).filter(Boolean).join("\n") : readable(s.buffer.slice(-3000))).split("\n").slice(-14).join("\n").slice(-900);
   s.stuck = { at: new Date().toISOString() };
   log(`stuck ${s.name}: ${JSON.stringify(text.slice(-200))}`);
   postBoard("/api/host/stuck", { conversation: s.conversation, name: s.name, text });
@@ -98,6 +123,8 @@ function serve() {
     s.stopping = false;
     s.startedAt = new Date().toISOString();
     s.dialogMark = s.buffer.length;
+    if (s.term) s.term.dispose();
+    s.term = emulator(s.cols, s.rows);
     const args = agent().hostedArgs({ conversation: entry.conversation, fresh: entry.fresh, name: entry.name, permissionMode: PERMISSION_MODE, profile: require("./profiles").profileArgs(entry.conversation) });
     if (entry.fresh) {
       const list = readConfig();
@@ -113,6 +140,7 @@ function serve() {
       s.buffer += d;
       s.total = (s.total || 0) + d.length;
       if (s.buffer.length > BUFFER_BYTES) s.buffer = s.buffer.slice(-BUFFER_BYTES);
+      if (s.term) s.term.write(d);
       for (const ws of s.clients) if (ws.readyState === 1) ws.send(d);
       clearTimeout(s.promptTimer);
       s.promptTimer = setTimeout(() => checkPrompt(s), 900);
@@ -141,6 +169,8 @@ function serve() {
     s.pty.onExit(({ exitCode }) => {
       log(`exit ${entry.name} code ${exitCode}: ${JSON.stringify(plain(s.buffer.slice(-600)))}`);
       s.pty = null;
+      if (s.term) s.term.dispose();
+      s.term = null;
       unstuck(s);
       s.exitedAt = new Date().toISOString();
       for (const ws of s.clients) if (ws.readyState === 1) ws.send(`\r\n\x1b[33m[La sesión se ha cerrado (código ${exitCode}).${s.stopping ? "" : " Se reabre sola en unos segundos."}]\x1b[0m\r\n`);
@@ -256,6 +286,7 @@ function serve() {
           try {
             s.pty.resize(s.cols, s.rows);
           } catch (e) {}
+          if (s.term) s.term.resize(s.cols, s.rows);
           for (const c of s.clients) if (c.readyState === 1) c.send(sizeFrame(s));
         }
       });
@@ -359,9 +390,38 @@ function promptIn(raw) {
   return { question: last[0], text: question };
 }
 
+const PROMPT_ON_SCREEN = /Do\s+you\s+want\s+to\s[^?]{1,160}\?/gi;
+const FIRST_OPTION = /^[❯>›]?\s*1\.\s*Yes\b/i;
+const FOOTER = /Esc ?to ?cancel/i;
+const RULE = /^[─━╌▔▁ ]*[─━╌▔▁][─━╌▔▁ ]*$/;
+
+function promptOnScreen(lines) {
+  const rows = lines.map((l) => l.replace(/[│╭╮╰╯]/g, " ").trim());
+  let footer = -1;
+  for (let i = rows.length - 1; i >= 0 && footer < 0; i--) if (FOOTER.test(rows[i])) footer = i;
+  let option = -1;
+  for (let i = footer - 1; i >= Math.max(0, footer - 20) && option < 0; i--) if (FIRST_OPTION.test(rows[i])) option = i;
+  if (option < 0) return null;
+  const from = Math.max(0, option - 6);
+  const above = rows.slice(from, option).join("\n");
+  let last = null;
+  for (let m = PROMPT_ON_SCREEN.exec(above); m; m = PROMPT_ON_SCREEN.exec(above)) last = m;
+  if (!last) return null;
+  const qRow = from + above.slice(0, last.index).split("\n").length - 1;
+  let start = Math.max(0, qRow - 25);
+  for (let i = qRow - 1; i >= start; i--) {
+    if (RULE.test(rows[i])) {
+      start = i + 1;
+      break;
+    }
+  }
+  const text = rows.slice(start, footer + 1).join(" ").replace(/[─━╌▔▁]+/g, " ").replace(/\s+/g, " ").trim();
+  return { question: last[0].replace(/\s+/g, " "), text };
+}
+
 function checkPrompt(s) {
   if (lateDialog(s)) return;
-  const found = promptIn(s.buffer);
+  const found = s.term ? promptOnScreen(screenLines(s.term)) : promptIn(s.buffer);
   if (found) {
     const key = found.question + found.text.slice(0, 200);
     if (s.promptKey === key) return;
@@ -471,4 +531,4 @@ function markWaiting(conversation, name) {
   writeConfig(list);
 }
 
-module.exports = { DIALOGS, readable, lateDialog, promptIn, serve, hostRequest, ensureHost, hostedConversations, markWaiting, adopt, markOnDemand, vsCodeHas, HOST_PORT, readConfig };
+module.exports = { DIALOGS, readable, lateDialog, promptIn, promptOnScreen, screenLines, emulator, serve, hostRequest, ensureHost, hostedConversations, markWaiting, adopt, markOnDemand, vsCodeHas, HOST_PORT, readConfig };
