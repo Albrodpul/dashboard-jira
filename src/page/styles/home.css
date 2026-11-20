@@ -502,24 +502,26 @@
 }
 @media (max-width: 1100px) { .office-plan.wide-rest .r-work, .office-plan.wide-rest .r-sofa { grid-column: 1 / -1; } }
 
-.nutria .aura, .nutria .ki, .nutria .o-spikes { display: none; }
-.nutria .spk { fill: #f4c430; stroke: #b9800f; stroke-width: .3; paint-order: stroke; }
-.nutria .spk.light { fill: #fff1a8; stroke: none; }
-.yolo .nutria .o-spikes { display: inline; }
+.nutria .ki, .nutria .o-spikes, .nutria .o-aura { display: none; }
+.nutria .spk { fill: #f6c832; }
+.nutria .spk.light { fill: #fff0a0; }
+.nutria .spk.dark { fill: #d9951a; }
+.yolo .nutria .o-spikes, .yolo .nutria .o-aura { display: inline; }
 .yolo .nutria .o-hat { display: none; }
-.yolo .nutria svg { position: relative; z-index: 1; filter: drop-shadow(0 0 3px rgba(255, 196, 40, .55)); }
-.yolo .nutria .aura { display: block; position: absolute; left: 4%; right: 4%; top: -18%; bottom: 0; border-radius: 50% 50% 42% 42% / 64% 64% 36% 36%; background: radial-gradient(ellipse at 50% 88%, rgba(255, 246, 190, .95), rgba(255, 200, 50, .75) 30%, rgba(255, 140, 20, .35) 55%, transparent 72%); transform-origin: 50% 100%; animation: aura-burn .28s ease-in-out infinite alternate; animation-delay: var(--nd, 0s); pointer-events: none; }
-.yolo .nutria .aura::before, .yolo .nutria .aura::after { content: ""; position: absolute; inset: -14% 6% 30%; background: linear-gradient(to top, rgba(255, 210, 60, .85), rgba(255, 150, 30, 0)); clip-path: polygon(0 100%, 8% 38%, 18% 70%, 28% 8%, 40% 60%, 50% 0, 60% 60%, 72% 8%, 82% 70%, 92% 38%, 100% 100%); animation: aura-lick .36s steps(3) infinite; }
-.yolo .nutria .aura::after { inset: -4% 14% 36%; opacity: .7; clip-path: polygon(0 100%, 12% 30%, 26% 72%, 38% 4%, 50% 58%, 62% 4%, 74% 72%, 88% 30%, 100% 100%); animation-duration: .44s; animation-direction: reverse; }
+.nutria .au-e { fill: #ffb800; fill-opacity: .85; }
+.nutria .au-i { fill: #ffd84a; fill-opacity: .4; }
+.nutria .au-c { fill: #fff3b0; fill-opacity: .14; }
+.nutria .o-aura g { opacity: 0; animation: aura-frame .42s steps(1) infinite; animation-delay: var(--nd, 0s); }
+.nutria .o-aura .f2 { animation-name: aura-frame-2; }
+.nutria .o-aura .f3 { animation-name: aura-frame-3; }
+@keyframes aura-frame { 0% { opacity: 1; } 33.33% { opacity: 0; } }
+@keyframes aura-frame-2 { 0% { opacity: 0; } 33.33% { opacity: 1; } 66.66% { opacity: 0; } }
+@keyframes aura-frame-3 { 0% { opacity: 0; } 66.66% { opacity: 1; } }
 .yolo .nutria .ki { display: block; position: absolute; inset: 0; z-index: 2; pointer-events: none; }
-.yolo .nutria .ki::before, .yolo .nutria .ki::after { content: ""; position: absolute; bottom: 20%; left: 18%; width: 3px; height: 3px; background: #fff3a0; box-shadow: 0 0 4px #ffd23c, 30px 6px 0 -0.5px #ffe066, 46px -4px 0 #fff3a0; animation: ki-rise 1.1s linear infinite; animation-delay: var(--nd, 0s); }
-.yolo .nutria .ki::after { left: 30%; box-shadow: 0 0 4px #ffb22c, 22px 10px 0 #ffe066, -10px 4px 0 -0.5px #fff3a0; animation-duration: 1.5s; }
-.yolo .nutria.free .aura, .yolo .nutria.idle .aura, .yolo .nutria.closed .aura { opacity: .45; animation-duration: .6s; }
+.yolo .nutria .ki::before, .yolo .nutria .ki::after { content: ""; position: absolute; bottom: 18%; left: 14%; width: 4%; aspect-ratio: 1; background: #fff3a0; box-shadow: 30px 6px 0 #ffd84a, 44px -6px 0 #fff3a0; animation: ki-rise 1.1s steps(6) infinite; animation-delay: var(--nd, 0s); }
+.yolo .nutria .ki::after { left: 26%; box-shadow: 22px 10px 0 #ffd84a, -8px 4px 0 #fff3a0; animation-duration: 1.5s; }
+.yolo .nutria.free .o-aura, .yolo .nutria.idle .o-aura, .yolo .nutria.closed .o-aura { opacity: .5; }
 .yolo .nutria.free .ki, .yolo .nutria.closed .ki { display: none; }
-.yolo .nutria.working .aura { top: -30%; left: -4%; right: -4%; }
-.yolo .nutria.working .o-all { animation-duration: .5s; }
-@keyframes aura-burn { from { transform: scale(.94, .9); opacity: .8; } to { transform: scale(1.04, 1.08); opacity: 1; } }
-@keyframes aura-lick { 0% { transform: translateY(0) scaleY(1); } 50% { transform: translateY(-6%) scaleY(1.12); } 100% { transform: translateY(2%) scaleY(.92); } }
 @keyframes ki-rise { from { transform: translateY(0); opacity: 0; } 20% { opacity: 1; } to { transform: translateY(-46px); opacity: 0; } }
 
 .yolo .office-plan { position: relative; }
@@ -531,11 +533,14 @@
 .yolo-banner strong { color: #9a4a00; letter-spacing: .02em; text-transform: uppercase; }
 .yolo-banner .power { display: flex; flex-direction: column; align-items: flex-end; margin-left: auto; padding: 0 10px; line-height: 1.1; }
 .yolo-banner .power small { font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: #9a4a00; }
+.note.yolo-banner { flex-wrap: wrap; }
+.note.yolo-banner .power { align-items: flex-start; margin: 4px 0 0; padding: 0; }
 .yolo-banner .power b { font: 800 20px/1.1 var(--mono); color: #c2410c; text-shadow: 0 0 6px rgba(255, 190, 40, .8); animation: power-flash 1s ease-in-out infinite alternate; }
 @keyframes power-flash { from { text-shadow: 0 0 3px rgba(255, 190, 40, .5); } to { text-shadow: 0 0 10px rgba(255, 170, 20, 1); } }
 :root[data-theme="dark"] .yolo-banner { background: linear-gradient(100deg, #3a2410, #4a2a0c 55%, #5a300a) !important; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .yolo-banner { background: linear-gradient(100deg, #3a2410, #4a2a0c 55%, #5a300a) !important; } }
 :root[data-theme="dark"] .yolo-banner strong, :root[data-theme="dark"] .yolo-banner .power small { color: #ffc46b; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .yolo-banner strong, :root:not([data-theme="light"]) .yolo-banner .power small { color: #ffc46b; } }
-html.yolo { --accent: #d9730d; --accent-soft: #fdebd3; }
-@media (prefers-reduced-motion: reduce) { .yolo .nutria .aura, .yolo .nutria .aura::before, .yolo .nutria .aura::after, .yolo .nutria .ki::before, .yolo .nutria .ki::after, .yolo .office-plan::before, .yolo-banner .power b { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .nutria .o-aura g { animation: none; } .nutria .o-aura .f1 { opacity: 1; } .yolo .nutria .ki::before, .yolo .nutria .ki::after, .yolo .office-plan::before, .note.yolo-banner { flex-wrap: wrap; }
+.note.yolo-banner .power { align-items: flex-start; margin: 4px 0 0; padding: 0; }
+.yolo-banner .power b { animation: none; } }

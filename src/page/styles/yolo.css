@@ -1,0 +1,37 @@
+html.yolo { --accent: #e0700b; --accent-ink: #ffffff; --accent-soft: #ffe8c7; --surface-2: #fff6e6; --line: #f0d6a8; --mute-soft: #ffeccc; --ki: #ffc21f; --ki-2: #ff8a00; --ki-glow: rgba(255, 176, 32, .45); }
+@media (prefers-color-scheme: dark) { html.yolo:not([data-theme="light"]) { --bg: #17130e; --surface: #1d1811; --surface-2: #261d12; --line: #4a3518; --mute-soft: #33250f; --accent: #ffa33a; --accent-ink: #2a1500; --accent-soft: #3d2710; --ki-glow: rgba(255, 160, 30, .35); } }
+html.yolo[data-theme="dark"] { --bg: #17130e; --surface: #1d1811; --surface-2: #261d12; --line: #4a3518; --mute-soft: #33250f; --accent: #ffa33a; --accent-ink: #2a1500; --accent-soft: #3d2710; --ki-glow: rgba(255, 160, 30, .35); }
+
+html.yolo body { background: radial-gradient(ellipse 80% 40% at 50% -10%, var(--ki-glow), transparent 70%), var(--bg); background-attachment: fixed; }
+html.yolo body::before { content: ""; position: fixed; left: 0; right: 0; top: 0; height: 3px; z-index: 1000; background: linear-gradient(90deg, transparent, var(--ki) 20%, #fff3a0 50%, var(--ki-2) 80%, transparent); background-size: 200% 100%; animation: ki-scan 1.6s linear infinite; pointer-events: none; }
+@keyframes ki-scan { from { background-position: 200% 0; } to { background-position: 0 0; } }
+
+html.yolo .nav, html.yolo .topbar { background: linear-gradient(180deg, var(--surface-2), var(--surface)); border-color: var(--line); }
+html.yolo .nav { box-shadow: inset -2px 0 0 rgba(255, 160, 30, .25); }
+html.yolo .logo-img { filter: drop-shadow(0 0 6px var(--ki-glow)); animation: logo-charge 1.4s ease-in-out infinite alternate; }
+@keyframes logo-charge { from { filter: drop-shadow(0 0 3px var(--ki-glow)); } to { filter: drop-shadow(0 0 9px var(--ki)); } }
+html.yolo .tab[aria-selected="true"] { background: linear-gradient(90deg, var(--ki), var(--ki-2)); color: #2a1500; box-shadow: 0 0 10px var(--ki-glow); }
+html.yolo .tab[aria-selected="true"] .tab-icon, html.yolo .tab[aria-selected="true"] .n { color: #2a1500; }
+@media (max-width: 760px) { html.yolo .tab[aria-selected="true"] { background: transparent; box-shadow: none; } html.yolo .tab[aria-selected="true"] .tab-icon { background: linear-gradient(135deg, var(--ki), var(--ki-2)); color: #2a1500; box-shadow: 0 0 8px var(--ki-glow); } }
+html.yolo .bottom { border-top: 2px solid var(--ki); }
+
+html.yolo .main-head h2 { background: linear-gradient(90deg, var(--ki-2), #d93a00 45%, var(--ki-2)); -webkit-background-clip: text; background-clip: text; color: transparent; font-weight: 800; letter-spacing: .01em; text-transform: uppercase; }
+html.yolo .report { border-left: 2px solid transparent; border-image: linear-gradient(180deg, var(--ki), var(--ki-2), transparent) 1; }
+
+html.yolo .btn.primary, html.yolo button.primary { background: linear-gradient(180deg, #ffb830, var(--ki-2)); border-color: #d96a00; color: #2a1500; font-weight: 700; box-shadow: 0 0 0 0 var(--ki-glow); transition: box-shadow .15s, transform .15s; }
+html.yolo .btn.primary:hover:not(:disabled), html.yolo button.primary:hover:not(:disabled) { box-shadow: 0 0 12px 2px var(--ki-glow); animation: power-up .18s linear 3; }
+@keyframes power-up { 0%, 100% { transform: translate(0, 0); } 25% { transform: translate(-1px, 1px); } 75% { transform: translate(1px, -1px); } }
+html.yolo .btn:not(.primary):hover:not(:disabled) { border-color: var(--ki); }
+
+html.yolo .card, html.yolo .board-card, html.yolo .board-col, html.yolo .setting-card, html.yolo .token-banner { border-color: var(--line); }
+html.yolo .card, html.yolo .board-card { transition: box-shadow .15s, transform .15s; }
+html.yolo .card:hover, html.yolo .board-card:hover { box-shadow: 0 0 0 1px var(--ki), 0 0 14px var(--ki-glow); transform: translateY(-1px); }
+html.yolo .board-head { border-bottom: 2px solid var(--ki); }
+html.yolo .chip, html.yolo .board-tag { border-color: var(--line); }
+html.yolo .key, html.yolo a { color: var(--accent); }
+html.yolo .rule input:checked, html.yolo input[type="checkbox"], html.yolo input[type="radio"] { accent-color: var(--ki-2); }
+html.yolo label[for="yolo-mode"] { font-weight: 800; color: var(--ki-2); text-transform: uppercase; letter-spacing: .04em; }
+html.yolo :focus-visible { outline-color: var(--ki-2); }
+html.yolo ::selection { background: var(--ki); color: #2a1500; }
+
+@media (prefers-reduced-motion: reduce) { html.yolo body::before, html.yolo .logo-img, html.yolo .btn.primary:hover, html.yolo button.primary:hover { animation: none; } html.yolo .card:hover, html.yolo .board-card:hover { transform: none; } }
