@@ -340,8 +340,9 @@ function answeredAfter(before, after) {
   const seen = letters(before);
   const re = new RegExp(AFTER_ANSWER.source, "g");
   for (let m = re.exec(after); m; m = re.exec(after)) {
-    const key = letters(after.slice(m.index + 1, m.index + 60)).slice(0, 10);
-    if (key.length >= 4 && !seen.includes(key)) return true;
+    const tail = letters(after.slice(m.index + 1, m.index + 60));
+    const keys = [tail, tail.replace(/^(\p{L}+?)ing/u, "$1"), tail.replace(/^(\p{L}+?)(\p{L})\2ing/u, "$1$2")].map((k) => k.slice(0, 10));
+    if (keys[0].length >= 4 && keys.every((k) => !seen.includes(k))) return true;
   }
   return false;
 }

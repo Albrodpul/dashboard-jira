@@ -78,6 +78,16 @@ test("a native prompt is still found after a resize repaints the screen and the 
   assert.equal(promptIn(before + dialog + "⎿ Interrupted · What should Claude do instead?\r"), null);
 });
 
+test("a native prompt is still found when the repaint names the pending tool in its running form", () => {
+  const { promptIn } = require("../src/sessions/host");
+  const before = "⏺ Running the read-only daily review\r⎿ $ npx tsx scripts/daily-review.ts\r";
+  const dialog = "Bash command\r set -a && q 'select status from public.remittances'\r List pending/credited remittances, new movements and errors\r Do you want to proceed?\r ❯ 1. Yes\r 2. Yes, and switch to auto mode\r 3. No\r Esc to cancel · Tab to amend\r";
+  const repaint = "Investigación inicial ⏺ Listing pending/credited remittances, new movements and errors\r⎿ $ set -a && q 'select status from public.remittances'\r" + "⏺ ".repeat(40);
+  const found = promptIn(before + dialog + repaint);
+  assert.equal(found && found.question, "Do you want to proceed?");
+  assert.equal(promptIn(before + dialog + repaint + "⏺ Si alguna parte la devuelve el banco, la factura sale como devuelta\r"), null);
+});
+
 test("the new project trust dialog is accepted", () => {
   assert.equal(answer("Is this a project you trust? ❯ 1. Yes, proceed 2. No, exit"), "\r");
 });
