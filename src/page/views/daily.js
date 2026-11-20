@@ -2,6 +2,7 @@ import { state, h, when, button, post, toast } from "../lib/base.js";
 
 const asked = {};
 import { currentProject } from "../components/project-filter.js";
+import { t as tr, LOCALE } from "../lib/i18n.js";
 
 function dailyLines(text) {
   const raw = String(text).split("\n");
@@ -51,7 +52,7 @@ function copyDaily(text) {
   const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   const html = `${title ? `<p>${esc(title)}</p>` : ""}${toHtml(items, esc)}`;
   const plain = [title, ...toPlain(items, 0)].filter(Boolean).join("\n");
-  const done = () => toast("Copiado.");
+  const done = () => toast(tr("Copiado."));
   if (window.ClipboardItem && navigator.clipboard.write)
     return navigator.clipboard
       .write([new ClipboardItem({ "text/html": new Blob([html], { type: "text/html" }), "text/plain": new Blob([plain], { type: "text/plain" }) })])
@@ -64,23 +65,23 @@ function currentDaily() {
   return (p && state.dailies && state.dailies[p]) || state.daily || {};
 }
 
-const fmt = (day) => (day ? new Date(`${day}T12:00:00`).toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" }) : "");
+const fmt = (day) => (day ? new Date(`${day}T12:00:00`).toLocaleDateString(LOCALE, { weekday: "long", day: "numeric", month: "long" }) : "");
 
 function dayCard({ title, day, entry, today }) {
   const d = currentDaily();
   const busy = !!(d.busy && asked[day] && (!entry || entry.at < asked[day]));
-  const actions = entry && entry.text ? [button("Copiar", { onClick: () => copyDaily(entry.text) })] : [];
+  const actions = entry && entry.text ? [button(tr("Copiar"), { onClick: () => copyDaily(entry.text) })] : [];
   const redo = () => {
     asked[day] = new Date().toISOString();
-    post("/api/daily", { today, project: d.project }, "Redactando…");
+    post("/api/daily", { today, project: d.project }, tr("Redactando…"));
   };
-  actions.push(button(busy ? "Redactando…" : entry ? "Redactar de nuevo" : "Redactarlo", { cls: "subtle", disabled: busy || d.busy, title: "Lo escribe Claude con lo de ese día: gasta un poco de cuota", onClick: redo }));
+  actions.push(button(busy ? tr("Redactando…") : entry ? tr("Redactar de nuevo") : tr("Redactarlo"), { cls: "subtle", disabled: busy || d.busy, title: tr("Lo escribe Claude con lo de ese día: gasta un poco de cuota"), onClick: redo }));
   const kids = [h("div", { class: "daily-head" }, [h("div", {}, [h("h3", { text: title }), h("span", { class: "meta", text: fmt(day) })]), h("div", { class: "actions" }, actions)])];
   if (entry && entry.text) {
     kids.push(dailyBody(entry.text));
-    kids.push(h("p", { class: "meta daily-at", text: `Redactado a las ${when(entry.at)}` }));
-  } else if (entry && entry.empty) kids.push(h("p", { class: "daily-text", text: "Ese día no hay tareas mandadas, commits ni errores arreglados." }));
-  else kids.push(h("p", { class: "daily-text meta", text: today ? `Se redacta solo a las ${draftAt()}; antes, con «Redactarlo».` : `Se redacta solo a las ${draftAt()} de ese día; si no se pudo, a la mañana siguiente.` }));
+    kids.push(h("p", { class: "meta daily-at", text: tr("Redactado a las {time}", { time: when(entry.at) }) }));
+  } else if (entry && entry.empty) kids.push(h("p", { class: "daily-text", text: tr("Ese día no hay tareas mandadas, commits ni errores arreglados.") }));
+  else kids.push(h("p", { class: "daily-text meta", text: today ? tr("Se redacta solo a las {time}; antes, con «Redactarlo».", { time: draftAt() }) : tr("Se redacta solo a las {time} de ese día; si no se pudo, a la mañana siguiente.", { time: draftAt() }) }));
   return h("section", { class: `card daily-day${today ? " today" : ""}` }, kids);
 }
 
@@ -92,8 +93,8 @@ export function renderDaily(root) {
   const d = currentDaily();
   root.appendChild(
     h("div", { class: "daily-days" }, [
-      dayCard({ title: "Último día laborable", day: d.prevDay, entry: d.prev, today: false }),
-      dayCard({ title: "Hoy", day: d.today, entry: d.todayText, today: true }),
+      dayCard({ title: tr("Último día laborable"), day: d.prevDay, entry: d.prev, today: false }),
+      dayCard({ title: tr("Hoy"), day: d.today, entry: d.todayText, today: true }),
     ])
   );
 }
