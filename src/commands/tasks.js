@@ -80,14 +80,14 @@ const commands = {
         if (comesBack) {
           task.proposedArea = fields.proposedArea || previous.area || previous.proposedArea || "";
           task.rounds = (previous.rounds || 0) + 1;
-          const held = d.config && d.config.autoReturned && previous.area ? holds.checkTask(d, task, previous.area) : "";
+          const held = previous.area ? holds.checkTask(d, task, previous.area) : "";
           if (held) out.push(`${t.key}: ya estaba ${previous.status}; tu regla de devueltas la mandaría sola, pero ${held} Queda en Pendientes.`);
-          else if (d.config && d.config.autoReturned && previous.area) {
+          else if (previous.area) {
             Object.assign(task, { status: "approved", area: previous.area, decidedAt: now(), approvedVia: "rule" });
             auto++;
             out.push(`${t.key}: ya estaba ${previous.status}; vuelve sola a su sesión (${previous.area}) por la regla de devueltas de ${ME}`);
           } else out.push(`${t.key}: ya estaba ${previous.status}; vuelve a Pendientes como ${t.kind}`);
-        } else if (!previous && ["returned", "comment"].includes(task.kind) && d.config && d.config.autoReturned && task.proposedArea && routes().areas[task.proposedArea]) {
+        } else if (!previous && ["returned", "comment"].includes(task.kind) && task.proposedArea && routes().areas[task.proposedArea]) {
           const held = holds.checkTask(d, task, task.proposedArea);
           if (held) out.push(`${t.key}: el tablero no la había enviado; tu regla de devueltas la mandaría a ${task.proposedArea}, pero ${held} Queda en Pendientes.`);
           else {

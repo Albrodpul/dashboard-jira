@@ -204,8 +204,20 @@ export function overtimeBanner() {
     post("/api/overtime", { on: !ot }, ot ? t("Fuera de horario terminado: todo vuelve a dormirse.") : t("Arrancando todo: el reporte, el seguimiento y los servidores, en un par de minutos.")).then(() => (btn.disabled = false));
   };
   const head = ot ? t("Fuera de horario activado desde las {time}", { time: when(ot.since) }) : t("Fuera de horario: el tablero está en reposo");
-  const text = ot ? t("El Mac no se duerme, las sesiones no se duermen solas y el reporte revisa Jira cada 5 minutos. Termínalo cuando acabes; si se te olvida, se apaga solo al empezar la jornada.") : t("Si necesitas trabajar ahora, actívalo todo: arranca el reporte, el seguimiento y los servidores, y nada se duerme hasta que lo termines.");
+  const text = ot ? t("El Mac no se duerme, las sesiones no se duermen solas y el reporte sigue revisando Jira. Termínalo cuando acabes; si se te olvida, se apaga solo al empezar la jornada.") : t("Si necesitas trabajar ahora, actívalo todo: arranca el reporte, el seguimiento y los servidores, y nada se duerme hasta que lo termines.");
   return h("div", { class: `token-banner overtime-banner${ot ? " on" : ""}`, role: "status" }, [h("div", {}, [h("strong", { text: head }), h("span", { text })]), btn]);
+}
+
+export function yoloBanner() {
+  const y = state.config && state.config.yolo;
+  if (!y) return null;
+  const btn = h("button", { type: "button", class: "btn", text: t("Apagar") });
+  btn.onclick = () => {
+    btn.disabled = true;
+    post("/api/config", { yolo: false }, t("Modo YOLO apagado: las tareas nuevas esperan a que pulses Hacer."));
+  };
+  const since = state.config.yoloAt ? t("Modo YOLO activo desde las {time}", { time: when(state.config.yoloAt) }) : t("Modo YOLO activo");
+  return h("div", { class: "token-banner overtime-banner on", role: "status" }, [h("div", {}, [h("strong", { text: since }), h("span", { text: t("Las tareas pendientes van solas a su sesión, y si no tienen, el tablero crea una con el nombre del epic.") })]), btn]);
 }
 
 export function tokenBanner(goTo) {

@@ -32,7 +32,7 @@ function watchMessages(to) {
 }
 
 function watchReports() {
-  console.log(`RETIRED: el servidor del tablero mira Jira cada minuto y te escribe «Tablero: hay novedades en Jira…» cuando hay algo (o «${ME} ha pulsado Refrescar»). Este Monitor no dará más eventos: páralo, no lo vuelvas a armar y relee ${config.commandsDir}/resumen-jira.md.`);
+  console.log(`RETIRED: el servidor del tablero mira Jira cada 15 segundos y te escribe «Tablero: hay novedades en Jira…» cuando hay algo (o «${ME} ha pulsado Refrescar»). Este Monitor no dará más eventos: páralo, no lo vuelvas a armar y relee ${config.commandsDir}/resumen-jira.md.`);
   setInterval(() => {}, 1 << 30);
 }
 

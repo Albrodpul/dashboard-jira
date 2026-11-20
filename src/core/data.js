@@ -21,7 +21,7 @@ const TO_COUNT_FILE = path.join(DATA_DIR, "jira-to-count.json");
 
 const STATUSES = ["pending", "approved", "sent", "waiting", "partial", "done", "ignored"];
 const IN_SESSION = ["sent", "waiting", "partial", "done"];
-const HUMAN_APPROVALS = ["board", "chat", "rule"];
+const HUMAN_APPROVALS = ["board", "chat", "rule", "yolo"];
 const UUID = /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/;
 
 const isEmptyReport = (text) => /sin novedades/i.test(String(text || "").split("\n")[0]) && !/^\s*[-*] \d{1,2}:\d{2} · /m.test(String(text || ""));

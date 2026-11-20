@@ -7,6 +7,7 @@ const hours = require("../core/hours");
 const ME = config.jira.me.name;
 const DOC = ".claude/commands/resumen-jira.md";
 const WAIT_MS = 5 * 60000;
+const CHECK_MS = 15000;
 const madrid = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Madrid", weekday: "short", hour: "2-digit", minute: "2-digit", hour12: false });
 
 const reviewHours = (t = hours.clock()) => !t.weekend && t.min >= hours.startMin() && t.min <= hours.endMin();
@@ -51,11 +52,13 @@ function deps() {
       clock: () => hours.clock(),
       overtime: () => hours.overtime(),
       parts: () => Object.fromEntries(madrid.formatToParts(new Date()).map((x) => [x.type, x.value])),
+      ms: () => Date.now(),
     }
   );
 }
 
-let lastMinute = "";
+let lastQuiet = "";
+let lastCheck = 0;
 let waiting = null;
 let running = false;
 
@@ -65,7 +68,7 @@ function refresh() {
   if (!p || p.handled || p.notifiedAt) return false;
   mutate((x) => x.refreshRequest && x.refreshRequest.id === p.id && (x.refreshRequest.notifiedAt = now()));
   deps().notify(refreshText());
-  waiting = { last: lastOf(d), at: Date.now() };
+  waiting = { last: lastOf(d), at: deps().ms() };
   return true;
 }
 
@@ -76,19 +79,22 @@ async function tick() {
   if (!reviewHours(e.clock()) && !e.overtime()) return;
   const d = load();
   if (d.config && d.config.paused) return;
-  const p = e.parts();
-  const minute = `${p.weekday}${p.hour}${p.minute}`;
-  if (minute === lastMinute) return;
-  lastMinute = minute;
+  const t = e.ms();
+  if (t - lastCheck < CHECK_MS) return;
   const last = lastOf(d);
-  if (last && Date.now() - Date.parse(last) < 50000) return;
-  if (waiting && waiting.last === last && Date.now() - waiting.at < WAIT_MS) return;
+  if (waiting && waiting.last === last && t - waiting.at < WAIT_MS) return;
   waiting = null;
+  lastCheck = t;
   running = true;
   try {
     const n = await e.fresh();
-    if (n === 0 && e.quiet(`${p.hour}:${p.minute}`, last)) return;
-    waiting = { last, at: Date.now() };
+    if (n === 0) {
+      const p = e.parts();
+      const minute = `${p.weekday}${p.hour}${p.minute}`;
+      if (minute !== lastQuiet && e.quiet(`${p.hour}:${p.minute}`, last)) lastQuiet = minute;
+      return;
+    }
+    waiting = { last, at: e.ms() };
     e.notify(reviewText(n));
   } finally {
     running = false;
@@ -97,7 +103,7 @@ async function tick() {
 
 const _test = {
   setDeps: (x) => (E = x),
-  reset: () => ((lastMinute = ""), (waiting = null), (running = false), (E = null)),
+  reset: () => ((lastQuiet = ""), (lastCheck = 0), (waiting = null), (running = false), (E = null)),
 };
 
 module.exports = { tick, reviewHours, freshInJira, _test };

@@ -290,7 +290,58 @@ test("a returned task the board never sent goes to the proposed session when the
   assert.equal(t.area, "cat");
   assert.equal(t.approvedVia, "rule");
   assert.equal(load().tasks["WEB-12"].status, "pending");
-  reset({}, { config: { autoReturned: false } });
+  reset({}, { config: {} });
   cli("add", JSON.stringify([{ key: "WEB-13", title: "Tarea WEB-13", kind: "returned", proposedArea: "cat", event: "ev-13" }]));
-  assert.equal(load().tasks["WEB-13"].status, "pending");
+  assert.equal(load().tasks["WEB-13"].status, "approved");
+});
+
+test("YOLO mode off: pending tasks wait for Hacer", async () => {
+  const yolo = require("../src/features/yolo");
+  yolo._test.reset();
+  reset({ "WEB-20": task("WEB-20") });
+  await yolo.tick();
+  assert.equal(load().tasks["WEB-20"].status, "pending");
+});
+
+test("YOLO mode sends pending tasks to their session and creates one per epic name when missing", async () => {
+  const yolo = require("../src/features/yolo");
+  yolo._test.reset();
+  const created = [];
+  yolo._test.setCreate(async (name, t) => {
+    created.push([name, t.key]);
+    const file = path.join(box.data, "sessions.json");
+    const r = JSON.parse(fs.readFileSync(file, "utf8"));
+    r.areas.pepe = { title: name, epics: { [t.epicKey]: t.epicName } };
+    fs.writeFileSync(file, JSON.stringify(r));
+    return { code: 200, body: { area: "pepe" } };
+  });
+  reset(
+    {
+      "WEB-21": task("WEB-21", { proposedArea: "" }),
+      "WEB-22": task("WEB-22", { epicKey: "WEB-50", epicName: "Pepe", proposedArea: "" }),
+      "API-23": task("API-23", { epicKey: "API-60", epicName: "Pepe", proposedArea: "" }),
+      "WEB-24": task("WEB-24", { proposedArea: "cat" }),
+    },
+    { config: { yolo: true } }
+  );
+  await yolo.tick();
+  await yolo._test.idle();
+  let d = load();
+  assert.equal(d.tasks["WEB-21"].area, "pay");
+  assert.equal(d.tasks["WEB-21"].approvedVia, "yolo");
+  assert.equal(d.tasks["WEB-24"].area, "cat");
+  assert.deepEqual(created, [["Pepe", "WEB-22"]]);
+  await yolo.tick();
+  d = load();
+  assert.equal(d.tasks["WEB-22"].area, "pepe");
+  assert.equal(d.tasks["API-23"].area, "pepe");
+  assert.equal(created.length, 1);
+});
+
+test("YOLO mode keeps a restricted task in Pendientes", async () => {
+  const yolo = require("../src/features/yolo");
+  yolo._test.reset();
+  reset({ "WEB-30": task("WEB-30") }, { config: { yolo: true }, restrictions: [{ id: "R9", scope: { tasks: ["WEB-30"], epics: [], areas: [] }, mode: "hold", reason: "espera", until: null, createdAt: new Date().toISOString(), releasedAt: null }] });
+  await yolo.tick();
+  assert.equal(load().tasks["WEB-30"].status, "pending");
 });

@@ -6,7 +6,7 @@ import { renderDeploy } from "./views/deploy.js";
 import { renderTalk } from "./views/talk.js";
 import { renderContext } from "./views/context.js";
 import { renderFollowUp } from "./views/follow-up.js";
-import { renderReport, updateStamp, mountHeader, quotaBlock, tokenBanner, overtimeBanner } from "./components/report.js";
+import { renderReport, updateStamp, mountHeader, quotaBlock, tokenBanner, overtimeBanner, yoloBanner } from "./components/report.js";
 import { renderHome, homeAlerts, stuckBanners, watchdogBanners } from "./views/home.js";
 import { renderDaily } from "./views/daily.js";
 import { batteryBadge } from "./components/battery.js";
@@ -268,11 +268,18 @@ function renderMore(root, waitingDeploys, errors) {
   root.appendChild(quotaBlock());
 }
 
-function returnedRule(root) {
-  const rule = h("input", { type: "checkbox", id: "auto-returned" });
-  rule.checked = !!(state.config && state.config.autoReturned);
-  rule.addEventListener("change", () => post("/api/config", { autoReturned: rule.checked }, rule.checked ? t("Las tareas devueltas o comentadas irán solas a la sesión que las hizo (o a la que propone el reporte si el tablero no la envió).") : t("Las tareas devueltas o comentadas esperarán aquí a que pulses Hacer.")));
-  root.appendChild(h("label", { class: "rule", for: "auto-returned" }, [rule, " " + t("Enviar solas a su sesión las tareas devueltas o comentadas por {reviewer}", { reviewer: reviewer() })]));
+function yoloRule(root) {
+  const rule = h("input", { type: "checkbox", id: "yolo-mode" });
+  rule.checked = !!(state.config && state.config.yolo);
+  rule.addEventListener("change", () => {
+    const pending = (state.tasks || []).filter((x) => x.status === "pending").length;
+    if (rule.checked && pending && !window.confirm(tn(pending, "Hay {n} tarea en Pendientes: se enviará ya. ¿Activar el modo YOLO?", "Hay {n} tareas en Pendientes: se enviarán ya. ¿Activar el modo YOLO?"))) {
+      rule.checked = false;
+      return;
+    }
+    post("/api/config", { yolo: rule.checked }, rule.checked ? t("Modo YOLO activo: cada tarea pendiente va sola a su sesión, y si no tiene, el tablero la crea.") : t("Modo YOLO apagado: las tareas nuevas esperan a que pulses Hacer."));
+  });
+  root.appendChild(h("label", { class: "rule", for: "yolo-mode", title: t("Todo automático: las tareas pendientes van solas a su sesión; si no tienen, el tablero crea una con el nombre del epic. Las restricciones siguen mandando.") }, [rule, " " + t("Modo YOLO")]));
 }
 
 function paintProjectPicker() {
@@ -391,7 +398,7 @@ function paint() {
   const root = document.getElementById("groups");
   root.textContent = "";
   if (["home", "today"].includes(state.tab)) {
-    const alerts = homeAlerts([...stuckBanners(), ...watchdogBanners(), overtimeBanner(), tokenBanner(() => switchView("machines", true))]);
+    const alerts = homeAlerts([...stuckBanners(), ...watchdogBanners(), overtimeBanner(), yoloBanner(), tokenBanner(() => switchView("machines", true))]);
     if (alerts) root.appendChild(alerts);
   }
   if (section === "tasks") {
@@ -413,7 +420,7 @@ function paint() {
     if (chips) bar.appendChild(chips);
     if (board) bar.appendChild(boardSearch());
     bar.appendChild(newTaskButton());
-    if ((state.tab === "pending" || switchable) && hasModule("jira")) returnedRule(bar);
+    if ((state.tab === "pending" || switchable) && hasModule("jira")) yoloRule(bar);
     root.appendChild(bar);
     const form = newTaskForm();
     if (form) root.appendChild(form);

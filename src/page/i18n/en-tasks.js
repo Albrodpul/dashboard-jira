@@ -127,6 +127,8 @@ export default {
   "Aprobada por chat.": "Approved by chat.",
   "Aprobada sola, por tu regla de devueltas, a las {time}.": "Approved automatically by your returned-tasks rule at {time}.",
   "Aprobada sola, por tu regla de devueltas.": "Approved automatically by your returned-tasks rule.",
+  "Aprobada sola, por el modo YOLO, a las {time}.": "Approved automatically by YOLO mode at {time}.",
+  "Aprobada sola, por el modo YOLO.": "Approved automatically by YOLO mode.",
   "Aprobada a las {time}.": "Approved at {time}.",
   "Aprobada.": "Approved.",
   "{who} la escribe en {area} y la da por enviada cuando aparece en su conversación.": "{who} writes it into {area} and marks it sent once it appears in its conversation.",

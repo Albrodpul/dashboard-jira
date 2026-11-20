@@ -379,12 +379,13 @@ export function card(t, bare) {
   if (pending) kids.push(pendingActions(t));
   else if (t.status === "approved") {
     const waited = t.decidedAt ? minutesSince(t.decidedAt) : 0;
-    const via = t.approvedVia === "chat" ? "chat" : t.approvedVia === "rule" ? "rule" : "";
+    const via = ["chat", "rule", "yolo"].includes(t.approvedVia) ? t.approvedVia : "";
     const d = t.delivery;
     const at = t.decidedAt ? when(t.decidedAt) : "";
     const approved = {
       chat: at ? tr("Aprobada por chat a las {time}.", { time: at }) : tr("Aprobada por chat."),
       rule: at ? tr("Aprobada sola, por tu regla de devueltas, a las {time}.", { time: at }) : tr("Aprobada sola, por tu regla de devueltas."),
+      yolo: at ? tr("Aprobada sola, por el modo YOLO, a las {time}.", { time: at }) : tr("Aprobada sola, por el modo YOLO."),
       "": at ? tr("Aprobada a las {time}.", { time: at }) : tr("Aprobada."),
     }[via];
     const writes = tr("{who} la escribe en {area} y la da por enviada cuando aparece en su conversación.", { who: whoSends(true), area: areaName(t.area) || t.area });

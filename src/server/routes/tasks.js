@@ -80,11 +80,7 @@ function handleTask(res, { key, patch }, send) {
   send(res, 200);
 }
 
-function handleBatch(res, { items }, send) {
-  if (!Array.isArray(items) || !items.length) return send(res, 400, { error: "faltan las tareas" });
-  const routes = loadRoutes();
-  const pairs = items.map((i) => ({ key: String(i.key), area: realArea(i.area), extra: String(i.extraContext || "").trim().slice(0, 4000), skip: (Array.isArray(i.skipAttachments) ? i.skipAttachments : []).map(String).filter(Boolean).slice(0, 100) }));
-  if (pairs.some((p) => !p.area || !routes.areas[p.area])) return send(res, 400, { error: "todas las tareas necesitan una sesión" });
+function approveMany(pairs, via) {
   const held = [];
   const approved = mutate((d) => {
     const at = now();
@@ -97,10 +93,10 @@ function handleBatch(res, { items }, send) {
         held.push({ key: p.key, error });
         continue;
       }
-      Object.assign(task, { status: "approved", area: p.area, decidedAt: at, approvedVia: "board" });
+      Object.assign(task, { status: "approved", area: p.area, decidedAt: at, approvedVia: via });
       if (p.extra) task.extraContext = p.extra;
       else delete task.extraContext;
-      if (p.skip.length) task.skipAttachments = p.skip;
+      if (p.skip && p.skip.length) task.skipAttachments = p.skip;
       else delete task.skipAttachments;
       delete task.delivery;
       delete task.heldBack;
@@ -117,6 +113,15 @@ function handleBatch(res, { items }, send) {
     routeEpic(t);
   }
   if (approved.length) kickMailman();
+  return { approved, held };
+}
+
+function handleBatch(res, { items }, send) {
+  if (!Array.isArray(items) || !items.length) return send(res, 400, { error: "faltan las tareas" });
+  const routes = loadRoutes();
+  const pairs = items.map((i) => ({ key: String(i.key), area: realArea(i.area), extra: String(i.extraContext || "").trim().slice(0, 4000), skip: (Array.isArray(i.skipAttachments) ? i.skipAttachments : []).map(String).filter(Boolean).slice(0, 100) }));
+  if (pairs.some((p) => !p.area || !routes.areas[p.area])) return send(res, 400, { error: "todas las tareas necesitan una sesión" });
+  const { approved, held } = approveMany(pairs, "board");
   if (held.length && !approved.length) return send(res, 409, { error: held.map((x) => x.error).join(" "), held });
   send(res, 200, { approved: approved.length, held });
 }
@@ -257,12 +262,16 @@ function handleComment(res, { key, text }, send) {
 function handleConfig(res, input, send) {
   mutate((d) => {
     d.config = d.config || {};
-    if ("autoReturned" in input) d.config.autoReturned = !!input.autoReturned;
+    if ("yolo" in input) {
+      d.config.yolo = !!input.yolo;
+      d.config.yoloAt = input.yolo ? now() : null;
+    }
     if ("paused" in input) {
       d.config.paused = !!input.paused;
       d.config.pausedAt = input.paused ? now() : null;
     }
   });
+  if (input.yolo) require("../../features/yolo").kick();
   if (input.paused === false) {
     require("../startup").wakeFollowUp().catch(() => {});
   }
@@ -393,4 +402,4 @@ function handleRestriction(res, input, send) {
   send(res, 200, r);
 }
 
-module.exports = { handleNewTask, handleRestriction, handleTask, handleBatch, handleDelete, archiveDone, handleAnswer, handleReviewed, handleReviewedAll, reviewJobState, handleComment, handleConfig, handleRefresh, handleSearch, handleTicket, handleImport };
+module.exports = { handleNewTask, handleRestriction, handleTask, handleBatch, approveMany, handleDelete, archiveDone, handleAnswer, handleReviewed, handleReviewedAll, reviewJobState, handleComment, handleConfig, handleRefresh, handleSearch, handleTicket, handleImport };

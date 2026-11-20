@@ -4,21 +4,24 @@ const assert = require("node:assert/strict");
 const { mutate, load } = require("../src/core/data");
 const watch = require("../src/features/jira-watch");
 
-let notes, quiets, fresh, minute;
+let notes, quiets, fresh, minute, ms, checks;
 function setup({ primary = true, n = 0, clockMin = 10 * 60, weekend = false, overtime = null } = {}) {
   watch._test.reset();
   notes = [];
   quiets = [];
   fresh = n;
   minute = 0;
+  ms = 1e12;
+  checks = 0;
   watch._test.setDeps({
     primary: () => primary,
-    fresh: async () => fresh,
+    fresh: async () => (checks++, fresh),
     quiet: (label, last) => (quiets.push(label), mutate((d) => (d.lastReview = { at: new Date(Date.now() - 120000).toISOString(), text: "sin novedades", empty: true })), true),
     notify: (text) => notes.push(text),
     clock: () => ({ weekend, min: clockMin }),
     overtime: () => overtime,
     parts: () => ({ weekday: "Mon", hour: "10", minute: String(minute).padStart(2, "0") }),
+    ms: () => ms,
   });
   mutate((d) => {
     d.config = {};
@@ -40,6 +43,23 @@ test("news: the reporter is told once and not again while it works", async () =>
   assert.equal(notes.length, 1);
   assert.match(notes[0], /^Tablero: hay 3 novedades sin contar en Jira/);
   minute = 1;
+  ms += 60000;
+  await watch.tick();
+  assert.equal(notes.length, 1);
+});
+
+test("Jira is checked every 15 seconds, the quiet review is written once a minute", async () => {
+  setup({ n: 0 });
+  await watch.tick();
+  ms += 5000;
+  await watch.tick();
+  assert.equal(checks, 1);
+  ms += 10000;
+  await watch.tick();
+  assert.equal(checks, 2);
+  assert.deepEqual(quiets, ["10:00"]);
+  fresh = 2;
+  ms += 15000;
   await watch.tick();
   assert.equal(notes.length, 1);
 });
