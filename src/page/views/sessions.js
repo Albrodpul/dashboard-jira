@@ -2,25 +2,26 @@ import { state, h, button, when, toast, requestOrFail, post, areaName, taskAreaS
 import { sessionNutria } from "../components/nutria.js";
 import { currentProject, hasModule, mixedProjects, mainProject, projectTitle, inProjectOrder, workspacesWith, projectName } from "../components/project-filter.js";
 import { openTalk } from "./talk.js";
+import { t, tn, LOCALE } from "../lib/i18n.js";
 
 export function createSession(name, epic, btn) {
   const clean = String(name || "").trim();
   if (!clean) {
-    toast("Escribe un nombre para la sesión.");
+    toast(t("Escribe un nombre para la sesión."));
     return Promise.resolve(null);
   }
   const label = btn ? btn.textContent : "";
   let created = null;
   if (btn) {
     btn.disabled = true;
-    btn.textContent = "Creando…";
+    btn.textContent = t("Creando…");
   }
   return requestOrFail("/api/new-session", { title: clean, epicKey: epic ? epic.key : undefined, epicName: epic ? epic.name : undefined, project: currentProject() || undefined })
     .then((d) => {
       created = d.area;
-      toast(d.open ? `Sesión «${clean}» creada y en marcha.` : `Sesión «${clean}» creada, pero todavía no ha arrancado. Ábrela desde su fila.`);
+      toast(d.open ? t("Sesión «{name}» creada y en marcha.", { name: clean }) : t("Sesión «{name}» creada, pero todavía no ha arrancado. Ábrela desde su fila.", { name: clean }));
     })
-    .catch(() => toast("No se pudo crear la sesión."))
+    .catch(() => toast(t("No se pudo crear la sesión.")))
     .then(() => {
       if (btn) {
         btn.disabled = false;
@@ -37,13 +38,13 @@ let epicQuery = "";
 const freeEpics = () => state.epics.filter((e) => !e.area).sort((a, b) => a.key.localeCompare(b.key, "es", { numeric: true }));
 const liveOf = (conversation) => ((state.allSessions || state.sessions || {}).list || []).find((s) => s.conversation === conversation) || null;
 
-const EFFORT = { low: "bajo", medium: "medio", high: "alto", xhigh: "muy alto", max: "máximo" };
+const EFFORT = { low: t("bajo"), medium: t("medio"), high: t("alto"), xhigh: t("muy alto"), max: t("máximo") };
 
 function profileText(role) {
   const p = (state.sessionProfiles || {})[role];
   if (!p) return "";
   const model = String(p.model || "").replace(/^claude-/, "").split("-")[0];
-  return `${model.charAt(0).toUpperCase()}${model.slice(1)} · esfuerzo ${EFFORT[p.effort] || p.effort}`;
+  return t("{model} · esfuerzo {effort}", { model: `${model.charAt(0).toUpperCase()}${model.slice(1)}`, effort: EFFORT[p.effort] || p.effort });
 }
 
 function hostAction(action, conversation, name, b, okText) {
@@ -55,19 +56,19 @@ function hostAction(action, conversation, name, b, okText) {
     })
     .catch((e) => {
       if (b) b.disabled = false;
-      toast(`No se pudo: ${e.message}`);
+      toast(t("No se pudo: {error}", { error: e.message }));
     });
 }
 
 function nameInput(a) {
-  const input = h("input", { class: "srow-name", type: "text", maxlength: "60", value: a.name, "aria-label": `Nombre de ${a.name}` });
+  const input = h("input", { class: "srow-name", type: "text", maxlength: "60", value: a.name, "aria-label": t("Nombre de {name}", { name: a.name }) });
   input.addEventListener("change", () => {
     const v = input.value.trim();
     if (!v) {
-      toast("El nombre no puede quedar vacío.");
+      toast(t("El nombre no puede quedar vacío."));
       return refresh(true);
     }
-    post("/api/session", { name: a.sessionName || a.name, ref: a.ref || "", title: v, conversation: a.conversation, areaId: a.id }, "Nombre guardado.");
+    post("/api/session", { name: a.sessionName || a.name, ref: a.ref || "", title: v, conversation: a.conversation, areaId: a.id }, t("Nombre guardado."));
   });
   input.addEventListener("keydown", (e) => e.key === "Enter" && input.blur());
   return input;
@@ -76,31 +77,31 @@ function nameInput(a) {
 function epicChips(a) {
   const keys = Object.keys(a.epics || {}).sort();
   const chips = keys.map((k) => {
-    const x = h("button", { class: "epic-x", type: "button", title: `Quitar ${k} de esta sesión`, "aria-label": `Quitar ${k} de ${a.name}`, text: "×" });
+    const x = h("button", { class: "epic-x", type: "button", title: t("Quitar {key} de esta sesión", { key: k }), "aria-label": t("Quitar {key} de {name}", { key: k, name: a.name }), text: "×" });
     x.addEventListener("click", () => {
       x.disabled = true;
-      post("/api/epic", { key: k, name: a.epics[k], area: "" }, `${k} ya no tiene sesión.`);
+      post("/api/epic", { key: k, name: a.epics[k], area: "" }, t("{key} ya no tiene sesión.", { key: k }));
     });
     return h("span", { class: "epic-chip", title: a.epics[k] }, [h("b", { text: k }), h("span", { class: "epic-name", text: a.epics[k] }), x]);
   });
   const free = freeEpics();
   if (free.length) {
-    const add = h("select", { class: "srow-add", "aria-label": `Añadir un epic a ${a.name}` }, [h("option", { value: "", text: "+" })]);
+    const add = h("select", { class: "srow-add", "aria-label": t("Añadir un epic a {name}", { name: a.name }) }, [h("option", { value: "", text: "+" })]);
     free.forEach((e) => add.appendChild(h("option", { value: e.key, text: `${e.key} ${e.name}` })));
     add.addEventListener("change", () => {
       const e = free.find((y) => y.key === add.value);
-      if (e) post("/api/epic", { key: e.key, name: e.name, area: a.id }, `${e.key} va a la sesión «${a.name}».`);
+      if (e) post("/api/epic", { key: e.key, name: e.name, area: a.id }, t("{key} va a la sesión «{name}».", { key: e.key, name: a.name }));
     });
     chips.push(add);
   }
-  if (!keys.length) chips.unshift(h("span", { class: "meta", text: "Sin epics" }));
+  if (!keys.length) chips.unshift(h("span", { class: "meta", text: t("Sin epics") }));
   return h("div", { class: "srow-epics" }, chips);
 }
 
 function moreMenu(items) {
   const list = items.filter(Boolean);
   if (!list.length) return null;
-  const d = h("details", { class: "srow-more" }, [h("summary", { class: "btn subtle", title: "Más acciones", "aria-label": "Más acciones", text: "⋯" }), h("div", { class: "srow-more-menu" }, list)]);
+  const d = h("details", { class: "srow-more" }, [h("summary", { class: "btn subtle", title: t("Más acciones"), "aria-label": t("Más acciones"), text: "⋯" }), h("div", { class: "srow-more-menu" }, list)]);
   d.addEventListener("toggle", () => {
     if (!d.open) return;
     const close = (e) => {
@@ -120,30 +121,30 @@ function actions(a, fixed) {
   const hosted = conv && hostedOf(conv);
   const live = conv && liveOf(conv);
   const name = a.sessionName || a.name;
-  if (conv && !hosted && !live && !fixed) main.push(button("Al tablero", { title: "La lleva al tablero para poder hablarle y mandarle tareas desde aquí", onClick: (b) => hostAction("move", conv, name, b, `«${a.name}» ya vive en el tablero.`) }));
-  if (hosted) main.push(button("Chat", { onClick: () => openTalk(conv) }));
-  if (hosted && !live) more.push(button("Abrir", { cls: "subtle", onClick: (b) => hostAction("open", conv, name, b, `Abriendo «${a.name}»…`) }));
+  if (conv && !hosted && !live && !fixed) main.push(button(t("Al tablero"), { title: t("La lleva al tablero para poder hablarle y mandarle tareas desde aquí"), onClick: (b) => hostAction("move", conv, name, b, t("«{name}» ya vive en el tablero.", { name: a.name })) }));
+  if (hosted) main.push(button(t("Chat"), { onClick: () => openTalk(conv) }));
+  if (hosted && !live) more.push(button(t("Abrir"), { cls: "subtle", onClick: (b) => hostAction("open", conv, name, b, t("Abriendo «{name}»…", { name: a.name })) }));
   if (conv && !fixed && a.id)
     more.push(
-      button(a.keepOpen ? "Quitar fijada" : "Fijar", {
+      button(a.keepOpen ? t("Quitar fijada") : t("Fijar"), {
         cls: "subtle",
-        title: a.keepOpen ? "Vuelve a dormirse sola cuando esté parada" : "Que no se duerma sola aunque esté parada (por ejemplo, si tiene una revisión programada)",
+        title: a.keepOpen ? t("Vuelve a dormirse sola cuando esté parada") : t("Que no se duerma sola aunque esté parada (por ejemplo, si tiene una revisión programada)"),
         onClick: (b) => {
           b.disabled = true;
-          post("/api/session", { name, areaId: a.id, keepOpen: !a.keepOpen }, a.keepOpen ? `«${a.name}» vuelve a dormirse sola.` : `«${a.name}» fijada: no se duerme sola.`);
+          post("/api/session", { name, areaId: a.id, keepOpen: !a.keepOpen }, a.keepOpen ? t("«{name}» vuelve a dormirse sola.", { name: a.name }) : t("«{name}» fijada: no se duerme sola.", { name: a.name }));
         },
       })
     );
-  if (hosted && live && !fixed && !a.keepOpen) more.push(button("Dormir", { cls: "subtle", title: "La cierra; se despierta sola cuando le llegue algo", onClick: (b) => hostAction("sleep", conv, name, b, `«${a.name}» dormida.`) }));
+  if (hosted && live && !fixed && !a.keepOpen) more.push(button(t("Dormir"), { cls: "subtle", title: t("La cierra; se despierta sola cuando le llegue algo"), onClick: (b) => hostAction("sleep", conv, name, b, t("«{name}» dormida.", { name: a.name })) }));
   if (!fixed && !Object.keys(a.epics || {}).length)
     more.push(
-      button("Quitar del tablero", {
+      button(t("Quitar del tablero"), {
         cls: "subtle",
-        title: "La quita del tablero; su conversación no se borra",
+        title: t("La quita del tablero; su conversación no se borra"),
         onClick: (b) => {
-          if (!window.confirm(`¿Quitar «${a.name}» del tablero? Su conversación no se borra.`)) return;
+          if (!window.confirm(t("¿Quitar «{name}» del tablero? Su conversación no se borra.", { name: a.name }))) return;
           b.disabled = true;
-          post("/api/session", { name, areaId: a.id, remove: true }, `«${a.name}» quitada del tablero.`);
+          post("/api/session", { name, areaId: a.id, remove: true }, t("«{name}» quitada del tablero.", { name: a.name }));
         },
       })
     );
@@ -161,31 +162,31 @@ function phaseOf(a) {
 }
 
 const PHASES = [
-  ["waiting", "Te esperan", "Tienen una pregunta o un permiso pendiente."],
-  ["busy", "Trabajando", ""],
-  ["open", "Abiertas", "En marcha y paradas."],
-  ["sleeping", "Dormidas", "Se despiertan solas cuando les llega algo."],
+  ["waiting", t("Te esperan"), t("Tienen una pregunta o un permiso pendiente.")],
+  ["busy", t("Trabajando"), ""],
+  ["open", t("Abiertas"), t("En marcha y paradas.")],
+  ["sleeping", t("Dormidas"), t("Se despiertan solas cuando les llega algo.")],
 ];
 
 function currentTask(a) {
-  const mine = (state.allTasks || state.tasks || []).filter((t) => t.area === a.id && ["sent", "waiting", "partial"].includes(t.status));
+  const mine = (state.allTasks || state.tasks || []).filter((x) => x.area === a.id && ["sent", "waiting", "partial"].includes(x.status));
   mine.sort((x, y) => String(y.sentAt || "").localeCompare(String(x.sentAt || "")));
   return mine[0] || null;
 }
 
-const hhmm = (iso) => (iso ? new Date(iso).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" }) : "");
+const hhmm = (iso) => (iso ? new Date(iso).toLocaleTimeString(LOCALE, { hour: "2-digit", minute: "2-digit" }) : "");
 
 function rowFacts(a) {
   const parts = [];
   if (mixedProjects()) parts.push(projectName(a.project || mainProject()));
-  const t = currentTask(a);
-  if (t) parts.push(`${t.key} ${t.title || ""}`.trim());
+  const task = currentTask(a);
+  if (task) parts.push(`${task.key} ${task.title || ""}`.trim());
   const live = a.conversation && liveOf(a.conversation);
-  if (live && live.statusSince) parts.push(`${live.status === "busy" ? "trabajando" : "parada"} desde las ${hhmm(live.statusSince)}`);
-  if (live && live.subagents) parts.push(`${live.subagents} ${live.subagents === 1 ? "agente" : "agentes"}`);
+  if (live && live.statusSince) parts.push(live.status === "busy" ? t("trabajando desde las {time}", { time: hhmm(live.statusSince) }) : t("parada desde las {time}", { time: hhmm(live.statusSince) }));
+  if (live && live.subagents) parts.push(tn(live.subagents, "{n} agente", "{n} agentes"));
   const rem = (state.reminders || []).filter((r) => r.area === a.id).map((r) => r.time);
-  if (rem.length) parts.push(`aviso diario a las ${rem.join(", ")}`);
-  if (a.keepOpen) parts.push("fijada");
+  if (rem.length) parts.push(t("aviso diario a las {times}", { times: rem.join(", ") }));
+  if (a.keepOpen) parts.push(t("fijada"));
   return parts.length ? h("span", { class: "meta srow-facts", text: parts.join(" · ") }) : null;
 }
 
@@ -195,7 +196,7 @@ function epicToggle(a) {
   const keys = Object.keys(a.epics || {});
   if (!(hasModule("jira") && workspacesWith("jira").includes(a.project || mainProject()))) return null;
   const isOpen = openEpics.has(a.id);
-  const label = keys.length ? `${keys.length} ${keys.length === 1 ? "epic" : "epics"}` : "Sin epics";
+  const label = keys.length ? tn(keys.length, "{n} epic", "{n} epics") : t("Sin epics");
   return h("button", { type: "button", class: "srow-epic-toggle", "aria-expanded": String(isOpen), onclick: () => (isOpen ? openEpics.delete(a.id) : openEpics.add(a.id), render()) }, [label, h("span", { class: "ps-chev", "aria-hidden": "true", text: isOpen ? "▴" : "▾" })]);
 }
 
@@ -219,18 +220,18 @@ function row(a) {
 function fixedCard(name, role, conversation, profile) {
   const live = conversation && liveOf(conversation);
   const ph = !conversation ? "sleeping" : pendingConvs().has(conversation) ? "waiting" : !live ? "sleeping" : live.status === "busy" ? "busy" : "open";
-  const text = { waiting: "te espera", busy: "trabajando", open: "abierta", sleeping: conversation ? "dormida" : "sin registrar" }[ph];
+  const text = { waiting: t("te espera"), busy: t("trabajando"), open: t("abierta"), sleeping: conversation ? t("dormida") : t("sin registrar") }[ph];
   const dot = { waiting: "wait", busy: "busy", open: "on", sleeping: "off" }[ph];
-  const a = { name, conversation, epics: {} };
+  const a = { name: t(name), sessionName: name, conversation, epics: {} };
   return h("div", { class: `fcard ${ph}`, title: [role, profileText(profile)].filter(Boolean).join(" · ") }, [
-    h("div", { class: "fcard-head" }, [sessionNutria(name, dot), h("strong", { text: name })]),
+    h("div", { class: "fcard-head" }, [sessionNutria(name, dot), h("strong", { text: t(name) })]),
     h("span", { class: "meta", text: text }),
     actions(a, true),
   ]);
 }
 
 const STOP = new Set(["super", "backoffice", "landing", "para", "con", "sin", "entre", "desde"]);
-const wordsOf = (t) => new Set(String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length > 3 && !STOP.has(w)));
+const wordsOf = (s) => new Set(String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length > 3 && !STOP.has(w)));
 
 function suggestFor(e, areas) {
   const mine = wordsOf(e.name);
@@ -248,12 +249,12 @@ function suggestFor(e, areas) {
 }
 
 function epicRow(e, suggestion) {
-  const sel = taskAreaSelect(`ep2-${e.key}`, e.area || "", "Sin sesión", (v) => post("/api/epic", { key: e.key, name: e.name, area: v }, v ? `${e.key} va a la sesión «${areaName(v)}».` : `${e.key} ya no tiene sesión.`));
+  const sel = taskAreaSelect(`ep2-${e.key}`, e.area || "", t("Sin sesión"), (v) => post("/api/epic", { key: e.key, name: e.name, area: v }, v ? t("{key} va a la sesión «{name}».", { key: e.key, name: areaName(v) }) : t("{key} ya no tiene sesión.", { key: e.key })));
   const extra = e.area
     ? null
     : suggestion
-      ? button(`→ ${suggestion.name}`, { title: `Propuesta: la sesión «${suggestion.name}»`, onClick: (b) => ((b.disabled = true), post("/api/epic", { key: e.key, name: e.name, area: suggestion.id }, `${e.key} va a la sesión «${suggestion.name}».`)) })
-      : button("Sesión nueva", { cls: "subtle", onClick: (b) => { const n = window.prompt(`Nombre de la sesión nueva para ${e.key} ${e.name}`, e.name); if (n) createSession(n, e, b); } });
+      ? button(`→ ${suggestion.name}`, { title: t("Propuesta: la sesión «{name}»", { name: suggestion.name }), onClick: (b) => ((b.disabled = true), post("/api/epic", { key: e.key, name: e.name, area: suggestion.id }, t("{key} va a la sesión «{name}».", { key: e.key, name: suggestion.name }))) })
+      : button(t("Sesión nueva"), { cls: "subtle", onClick: (b) => { const n = window.prompt(t("Nombre de la sesión nueva para {key} {name}", { key: e.key, name: e.name }), e.name); if (n) createSession(n, e, b); } });
   return h("div", { class: "erow" }, [h("a", { class: "key jira-link", href: ticketUrl(e.key), target: "_blank", rel: "noopener noreferrer", text: e.key }), h("span", { class: "erow-name", text: e.name }), sel, extra]);
 }
 
@@ -271,10 +272,10 @@ function epicSearch(root) {
     for (const e of state.allEpics || []) byKey[e.key] = e;
     for (const e of state.epics) byKey[e.key] = e;
     const list = Object.values(byKey).filter((e) => `${e.key} ${e.name}`.toLowerCase().includes(q)).slice(0, 20);
-    if (!list.length) return box.appendChild(h("p", { class: "meta", text: "Ningún epic coincide." }));
+    if (!list.length) return box.appendChild(h("p", { class: "meta", text: t("Ningún epic coincide.") }));
     list.forEach((e) => box.appendChild(epicRow(e)));
   };
-  const input = h("input", { type: "search", class: "find-input", placeholder: `Buscar un epic de Jira para darle sesión (${(state.allEpics || []).length} abiertos)`, value: epicQuery, "aria-label": "Buscar epic" });
+  const input = h("input", { type: "search", class: "find-input", placeholder: t("Buscar un epic de Jira para darle sesión ({n} abiertos)", { n: (state.allEpics || []).length }), value: epicQuery, "aria-label": t("Buscar epic") });
   input.addEventListener("input", () => {
     epicQuery = input.value;
     paint();
@@ -291,20 +292,20 @@ const shortDate = (d) => d.split("-").reverse().slice(0, 2).join("/");
 
 function reminderRow(r) {
   const a = state.areas.find((x) => x.id === r.area);
-  const when2 = `Cada día${r.weekdays ? " de lunes a viernes" : ""} a las ${r.time}, del ${shortDate(r.from)} al ${shortDate(r.until)}`;
-  const last = r.delivery && r.delivery.error ? `No se pudo entregar: ${r.delivery.error}` : r.lastSentAt ? `Último enviado: ${when(r.lastSentAt)}` : "Todavía no se ha enviado";
-  const remove = button("Quitar", {
+  const when2 = t(r.weekdays ? "Cada día de lunes a viernes a las {time}, del {from} al {until}" : "Cada día a las {time}, del {from} al {until}", { time: r.time, from: shortDate(r.from), until: shortDate(r.until) });
+  const last = r.delivery && r.delivery.error ? t("No se pudo entregar: {error}", { error: r.delivery.error }) : r.lastSentAt ? t("Último enviado: {when}", { when: when(r.lastSentAt) }) : t("Todavía no se ha enviado");
+  const remove = button(t("Quitar"), {
     cls: "subtle",
     onClick: (b) => {
-      if (!window.confirm("¿Quitar este aviso programado?")) return;
+      if (!window.confirm(t("¿Quitar este aviso programado?"))) return;
       b.disabled = true;
-      post("/api/reminder", { remove: r.id }, "Aviso quitado.");
+      post("/api/reminder", { remove: r.id }, t("Aviso quitado."));
     },
   });
   if (editingReminder === r.id) return reminderForm(r);
-  const edit = button("Editar", { onClick: () => ((editingReminder = r.id), render()) });
+  const edit = button(t("Editar"), { onClick: () => ((editingReminder = r.id), render()) });
   return h("div", { class: "rem-row" }, [
-    h("div", { class: "rem-main" }, [h("strong", { text: a ? areaLabel(a) : r.area }), h("span", { class: "meta", text: `${when2} · ${last}` }), h("details", { class: "rem-text" }, [h("summary", { text: "Texto" }), h("p", { text: r.text })])]),
+    h("div", { class: "rem-main" }, [h("strong", { text: a ? areaLabel(a) : r.area }), h("span", { class: "meta", text: `${when2} · ${last}` }), h("details", { class: "rem-text" }, [h("summary", { text: t("Texto") }), h("p", { text: r.text })])]),
     h("div", { class: "actions" }, [edit, remove]),
   ]);
 }
@@ -312,12 +313,12 @@ function reminderRow(r) {
 function reminderForm(r) {
   const areas = state.areas.filter((a) => a.conversation && !a.unnamed);
   if (!areas.length) return null;
-  const sel = h("select", { "aria-label": "Sesión" }, areas.map((a) => h("option", { value: a.id, text: areaLabel(a) })));
-  const time = h("input", { type: "time", value: r ? r.time : "08:30", "aria-label": "Hora" });
-  const from = h("input", { type: "date", "aria-label": "Primer día" });
-  const until = h("input", { type: "date", "aria-label": "Último día" });
+  const sel = h("select", { "aria-label": t("Sesión") }, areas.map((a) => h("option", { value: a.id, text: areaLabel(a) })));
+  const time = h("input", { type: "time", value: r ? r.time : "08:30", "aria-label": t("Hora") });
+  const from = h("input", { type: "date", "aria-label": t("Primer día") });
+  const until = h("input", { type: "date", "aria-label": t("Último día") });
   const weekdays = h("input", { type: "checkbox" });
-  const text = h("textarea", { rows: r ? "8" : "3", placeholder: "Qué tiene que hacer la sesión cada día", "aria-label": "Texto del aviso" });
+  const text = h("textarea", { rows: r ? "8" : "3", placeholder: t("Qué tiene que hacer la sesión cada día"), "aria-label": t("Texto del aviso") });
   if (r) {
     sel.value = r.area;
     from.value = r.from;
@@ -325,28 +326,28 @@ function reminderForm(r) {
     weekdays.checked = !!r.weekdays;
     text.value = r.text;
   } else until.value = new Date(Date.now() + 6 * 86400000).toISOString().slice(0, 10);
-  const save = button(r ? "Guardar" : "Programar", {
+  const save = button(r ? t("Guardar") : t("Programar"), {
     cls: "primary",
     onClick: (b) => {
       b.disabled = true;
       requestOrFail("/api/reminder", { ...(r ? { id: r.id, from: from.value } : {}), area: sel.value, time: time.value, until: until.value, weekdays: weekdays.checked, text: text.value })
         .then(() => {
-          toast(r ? "Aviso guardado." : "Aviso programado.");
+          toast(r ? t("Aviso guardado.") : t("Aviso programado."));
           editingReminder = null;
         })
-        .catch((e) => toast(`No se pudo: ${e.message}`))
+        .catch((e) => toast(t("No se pudo: {error}", { error: e.message })))
         .finally(() => ((b.disabled = false), refresh(true)));
     },
   });
   const fields = h("div", { class: "rem-fields" }, [
-    h("label", {}, [h("span", { text: "Sesión" }), sel]),
-    h("label", {}, [h("span", { text: "Hora" }), time]),
-    r ? h("label", {}, [h("span", { text: "Desde el" }), from]) : null,
-    h("label", {}, [h("span", { text: "Hasta el" }), until]),
-    h("label", { class: "rem-check" }, [weekdays, h("span", { text: "Solo de lunes a viernes" })]),
+    h("label", {}, [h("span", { text: t("Sesión") }), sel]),
+    h("label", {}, [h("span", { text: t("Hora") }), time]),
+    r ? h("label", {}, [h("span", { text: t("Desde el") }), from]) : null,
+    h("label", {}, [h("span", { text: t("Hasta el") }), until]),
+    h("label", { class: "rem-check" }, [weekdays, h("span", { text: t("Solo de lunes a viernes") })]),
   ]);
-  if (r) return h("div", { class: "rem-form rem-editing" }, [fields, text, h("div", { class: "actions" }, [save, button("Cancelar", { cls: "subtle", onClick: () => ((editingReminder = null), render()) })])]);
-  const box = h("details", { class: "rem-form" }, [h("summary", { text: "Programar un aviso" }), fields, text, h("div", { class: "actions" }, [save])]);
+  if (r) return h("div", { class: "rem-form rem-editing" }, [fields, text, h("div", { class: "actions" }, [save, button(t("Cancelar"), { cls: "subtle", onClick: () => ((editingReminder = null), render()) })])]);
+  const box = h("details", { class: "rem-form" }, [h("summary", { text: t("Programar un aviso") }), fields, text, h("div", { class: "actions" }, [save])]);
   box.open = formOpen;
   box.addEventListener("toggle", () => (formOpen = box.open));
   return box;
@@ -355,7 +356,7 @@ function reminderForm(r) {
 export function remindersSection(root) {
   const visible = new Set(state.areas.map((a) => a.id));
   const list = (state.reminders || []).filter((r) => visible.has(r.area));
-  const sec = h("section", { class: "s2-section" }, [head("Avisos programados", list.length, "El tablero se los manda a la sesión cada día a su hora, aunque se haya dormido o reiniciado.")]);
+  const sec = h("section", { class: "s2-section" }, [head(t("Avisos programados"), list.length, t("El tablero se los manda a la sesión cada día a su hora, aunque se haya dormido o reiniciado."))]);
   if (list.length) sec.appendChild(h("div", { class: "srows" }, list.map(reminderRow)));
   const form = reminderForm();
   if (form) sec.appendChild(form);
@@ -367,7 +368,7 @@ let freeOpen = false;
 let sleepingOpen = false;
 
 function newSessionButton() {
-  return button("Nueva sesión", { cls: "primary", onClick: (b) => { const n = window.prompt("Nombre de la sesión nueva"); if (n && n.trim()) createSession(n.trim(), null, b); } });
+  return button(t("Nueva sesión"), { cls: "primary", onClick: (b) => { const n = window.prompt(t("Nombre de la sesión nueva")); if (n && n.trim()) createSession(n.trim(), null, b); } });
 }
 
 function applySearch(root) {
@@ -389,19 +390,19 @@ function epicsBlock(root, areas) {
   const box = h("details", { class: `s2-free${free.length ? " warn" : ""}` });
   box.open = freeOpen;
   box.addEventListener("toggle", () => (freeOpen = box.open));
-  const summary = free.length ? `${free.length} ${free.length === 1 ? "epic sin sesión" : "epics sin sesión"}` : "Epics";
-  box.appendChild(h("summary", {}, [h("strong", { text: summary }), h("span", { class: "meta", text: free.length ? ` · sus tareas llegan a Pendientes sin sesión propuesta · ${ready.length ? `${ready.length} con propuesta` : "repartir"}` : " · buscar uno para darle sesión" })]));
+  const summary = free.length ? tn(free.length, "{n} epic sin sesión", "{n} epics sin sesión") : t("Epics");
+  box.appendChild(h("summary", {}, [h("strong", { text: summary }), h("span", { class: "meta", text: free.length ? ` · ${t("sus tareas llegan a Pendientes sin sesión propuesta")} · ${ready.length ? t("{n} con propuesta", { n: ready.length }) : t("repartir")}` : ` · ${t("buscar uno para darle sesión")}` })]));
   if (ready.length > 1) {
     box.appendChild(
       h("div", { class: "s2-free-bar" }, [
-        h("span", { class: "meta", text: `El tablero propone sesión para ${ready.length} por su nombre.` }),
-        button(`Aceptar las ${ready.length} propuestas`, {
+        h("span", { class: "meta", text: t("El tablero propone sesión para {n} por su nombre.", { n: ready.length }) }),
+        button(t("Aceptar las {n} propuestas", { n: ready.length }), {
           cls: "primary",
           onClick: async (b) => {
             b.disabled = true;
             let ok = 0;
             for (const { e, s } of ready) await requestOrFail("/api/epic", { key: e.key, name: e.name, area: s.id }).then(() => ok++, () => {});
-            toast(`${ok} epics repartidos.`);
+            toast(tn(ok, "{n} epic repartido.", "{n} epics repartidos."));
             refresh(true);
           },
         }),
@@ -416,7 +417,7 @@ function epicsBlock(root, areas) {
 }
 
 export function renderSessions(root) {
-  const find = h("input", { type: "search", class: "find-input", placeholder: "Buscar una sesión o un epic", value: sessionQuery, "aria-label": "Buscar una sesión" });
+  const find = h("input", { type: "search", class: "find-input", placeholder: t("Buscar una sesión o un epic"), value: sessionQuery, "aria-label": t("Buscar una sesión") });
   find.addEventListener("input", () => ((sessionQuery = find.value), applySearch(root)));
   root.appendChild(h("div", { class: "s2-toolbar" }, [find, newSessionButton()]));
 
@@ -425,15 +426,15 @@ export function renderSessions(root) {
   const mainId = ((state.jiraSetup && state.jiraSetup.workspaces) || [])[0];
   const onlyOther = currentProject() && mainId && currentProject() !== mainId.id;
   if (!onlyOther) {
-    if (state.reporterRoute) fixed.push(fixedCard("Reporte de Jira", "Lee Jira y publica el reporte", state.reporterRoute.conversation, "reporter"));
-    if (state.orchestrator) fixed.push(fixedCard("Orquestadora", "Habla contigo de tareas, aprobaciones y restricciones", state.orchestrator.conversation, "orchestrator"));
-    if (state.followUpStatus) fixed.push(fixedCard("Seguimiento", "Lo que hace cada uno en beta y producción", state.followUpStatus.conversation, "followUp"));
-    if (area(state.deployerArea)) fixed.push(fixedCard("Despliegue", "Despliegues de la pestaña Desplegar", area(state.deployerArea).conversation, "deploy"));
+    if (state.reporterRoute) fixed.push(fixedCard("Reporte de Jira", t("Lee Jira y publica el reporte"), state.reporterRoute.conversation, "reporter"));
+    if (state.orchestrator) fixed.push(fixedCard("Orquestadora", t("Habla contigo de tareas, aprobaciones y restricciones"), state.orchestrator.conversation, "orchestrator"));
+    if (state.followUpStatus) fixed.push(fixedCard("Seguimiento", t("Lo que hace cada uno en beta y producción"), state.followUpStatus.conversation, "followUp"));
+    if (area(state.deployerArea)) fixed.push(fixedCard("Despliegue", t("Despliegues de la pestaña Desplegar"), area(state.deployerArea).conversation, "deploy"));
     const err = state.sentry && area(state.sentry.errorsArea);
-    if (err) fixed.push(fixedCard("Errores sentry", "Errores de Sentry y del seguimiento", err.conversation, "errors"));
+    if (err) fixed.push(fixedCard("Errores sentry", t("Errores de Sentry y del seguimiento"), err.conversation, "errors"));
   }
-  if (state.boardStatus) fixed.push(fixedCard("Tablero", "Mejoras del propio tablero, común a todos los proyectos", state.boardStatus.conversation, "board"));
-  if (fixed.length) root.appendChild(h("section", { class: "s2-section" }, [head("Fijas", null, "Las que hacen funcionar el tablero."), h("div", { class: "fcards" }, fixed)]));
+  if (state.boardStatus) fixed.push(fixedCard("Tablero", t("Mejoras del propio tablero, común a todos los proyectos"), state.boardStatus.conversation, "board"));
+  if (fixed.length) root.appendChild(h("section", { class: "s2-section" }, [head(t("Fijas"), null, t("Las que hacen funcionar el tablero.")), h("div", { class: "fcards" }, fixed)]));
 
   const fixedIds = new Set([state.deployerArea, state.sentry && state.sentry.errorsArea].filter(Boolean));
   const followUp = state.followUpStatus && state.followUpStatus.conversation;
@@ -441,7 +442,7 @@ export function renderSessions(root) {
   const jira = hasModule("jira");
   if (jira) epicsBlock(root, areas);
 
-  if (!areas.length) root.appendChild(empty("Sin sesiones.", "Crea una con «Nueva sesión»."));
+  if (!areas.length) root.appendChild(empty(t("Sin sesiones."), t("Crea una con «Nueva sesión».")));
   for (const [id, title, note] of PHASES) {
     const order = inProjectOrder(areas.map((a) => a.project || mainProject()));
     const at = (a) => order.indexOf(a.project || mainProject());
@@ -456,6 +457,6 @@ export function renderSessions(root) {
       root.appendChild(d);
     } else root.appendChild(h("section", { class: `s2-section phase ${id}` }, [headEl, rows]));
   }
-  root.appendChild(h("p", { class: "meta", text: `${jira ? "Las sesiones reciben las tareas de sus epics" : "Las sesiones reciben las tareas que les mandes desde el tablero"} · ${profileText("area")} · los avisos programados están en Ajustes → Proyectos.` }));
+  root.appendChild(h("p", { class: "meta", text: `${jira ? t("Las sesiones reciben las tareas de sus epics") : t("Las sesiones reciben las tareas que les mandes desde el tablero")} · ${profileText("area")} · ${t("los avisos programados están en Ajustes → Proyectos.")}` }));
   applySearch(root);
 }

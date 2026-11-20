@@ -1,11 +1,12 @@
 import { h, toast, state, requestOrFail } from "../lib/base.js";
+import { t } from "../lib/i18n.js";
 
 const KEYS = [
-  ["Esc", "\x1b", "Interrumpe lo que esté haciendo (como Escape en VS Code)"],
-  ["Ctrl+C", "\x03", "Cancela"],
-  ["⇧Tab", "\x1b[Z", "Cambia de modo (plan, aceptar ediciones…)"],
-  ["↑", "\x1b[A", "Arriba"],
-  ["↓", "\x1b[B", "Abajo"],
+  ["Esc", "\x1b", t("Interrumpe lo que esté haciendo (como Escape en VS Code)")],
+  ["Ctrl+C", "\x03", t("Cancela")],
+  ["⇧Tab", "\x1b[Z", t("Cambia de modo (plan, aceptar ediciones…)")],
+  ["↑", "\x1b[A", t("Arriba")],
+  ["↓", "\x1b[B", t("Abajo")],
   ["Tab", "\t", "Tab"],
   ["Enter", "\r", "Enter"],
 ];
@@ -38,7 +39,7 @@ function loadXterm() {
 }
 
 const MODEL_NAMES = { fable: "Fable", opus: "Opus", sonnet: "Sonnet", haiku: "Haiku" };
-const EFFORT_NAMES = { low: "bajo", medium: "medio", high: "alto", xhigh: "muy alto", max: "máximo" };
+const EFFORT_NAMES = { low: t("bajo"), medium: t("medio"), high: t("alto"), xhigh: t("muy alto"), max: t("máximo") };
 
 function profileControls(conversation, name) {
   const p = (state.convProfiles || {})[conversation];
@@ -47,7 +48,7 @@ function profileControls(conversation, name) {
   let repaint = () => {};
   const pick = (kind, names, label) => {
     const def = p.defaults[kind];
-    const sel = h("select", { class: "term-profile", "aria-label": `${label} de ${name}`, title: `${label}. El primero es el de serie de este tipo de sesión; en color, uno cambiado a mano.` }, [
+    const sel = h("select", { class: "term-profile", "aria-label": t("{label} de {name}", { label, name }), title: t("{label}. El primero es el de serie de este tipo de sesión; en color, uno cambiado a mano.", { label }) }, [
       h("option", { value: "", text: `${label}: ${names[def] || def || "—"}` }),
       ...Object.entries(names).filter(([k]) => k !== def).map(([k, v]) => h("option", { value: k, text: `${label}: ${v}` })),
     ]);
@@ -56,7 +57,7 @@ function profileControls(conversation, name) {
     mark();
     sel.addEventListener("change", () => {
       const next = { ...current, [kind]: sel.value };
-      if (!window.confirm(`Para aplicarlo se reinicia «${name}». La conversación sigue igual, pero si está trabajando ahora mismo se corta. ¿Seguimos?`)) {
+      if (!window.confirm(t("Para aplicarlo se reinicia «{name}». La conversación sigue igual, pero si está trabajando ahora mismo se corta. ¿Seguimos?", { name }))) {
         sel.value = current[kind];
         return;
       }
@@ -66,19 +67,19 @@ function profileControls(conversation, name) {
           Object.assign(current, next);
           mark();
           repaint();
-          toast(`«${name}» ahora con ${MODEL_NAMES[d.profile.model] || d.profile.model} y esfuerzo ${EFFORT_NAMES[d.profile.effort] || d.profile.effort}${d.restarted ? ". Reiniciada." : "; se aplica al abrirla."}`);
+          toast(t(d.restarted ? "«{name}» ahora con {model} y esfuerzo {effort}. Reiniciada." : "«{name}» ahora con {model} y esfuerzo {effort}; se aplica al abrirla.", { name, model: MODEL_NAMES[d.profile.model] || d.profile.model, effort: EFFORT_NAMES[d.profile.effort] || d.profile.effort }));
         })
         .catch((e) => {
           sel.value = current[kind];
-          toast(`No se pudo cambiar: ${e.message}`);
+          toast(t("No se pudo cambiar: {error}", { error: e.message }));
         })
         .finally(() => (sel.disabled = false));
     });
     return sel;
   };
-  const model = pick("model", MODEL_NAMES, "Modelo");
-  const effort = pick("effort", EFFORT_NAMES, "Esfuerzo");
-  const chip = h("button", { type: "button", class: "term-profile-chip", "aria-expanded": "false", title: "Modelo y esfuerzo de esta sesión" });
+  const model = pick("model", MODEL_NAMES, t("Modelo"));
+  const effort = pick("effort", EFFORT_NAMES, t("Esfuerzo"));
+  const chip = h("button", { type: "button", class: "term-profile-chip", "aria-expanded": "false", title: t("Modelo y esfuerzo de esta sesión") });
   const paint = () => {
     chip.textContent = `${MODEL_NAMES[current.model || p.defaults.model] || "—"} · ${EFFORT_NAMES[current.effort || p.defaults.effort] || "—"}`;
     chip.classList.toggle("custom", !!(current.model || current.effort));
@@ -93,13 +94,13 @@ function profileControls(conversation, name) {
   return h("span", { class: "term-profile-wrap" }, [chip, box]);
 }
 
-const ACTIVITY = { busy: ["busy", "Trabajando"], idle: ["on", "Esperando"] };
+const ACTIVITY = { busy: ["busy", t("Trabajando")], idle: ["on", t("Esperando")] };
 
 function activityOf(conversation) {
   const live = ((state.sessions && state.sessions.list) || []).find((x) => x.conversation === conversation);
-  if (!live) return ["", "Dormida"];
-  if (live.status === "idle" && live.background) return ["on", "Esperando · con proceso de fondo"];
-  return ACTIVITY[live.status] || ["bad", live.status ? `Estado «${live.status}»` : "Abierta"];
+  if (!live) return ["", t("Dormida")];
+  if (live.status === "idle" && live.background) return ["on", t("Esperando · con proceso de fondo")];
+  return ACTIVITY[live.status] || ["bad", live.status ? t("Estado «{status}»", { status: live.status }) : t("Abierta")];
 }
 
 function autoGrow(input) {
@@ -109,23 +110,23 @@ function autoGrow(input) {
 
 function createPanel(conversation, name, onClose) {
   const screen = h("div", { class: "term-screen" });
-  const status = h("span", { class: "meta term-status", text: "Conectando…" });
+  const status = h("span", { class: "meta term-status", text: t("Conectando…") });
   const dot = h("span", { class: "dot", "aria-hidden": "true" });
   const activity = h("span", { class: "term-activity" });
-  const adjust = h("button", { class: "btn subtle term-adjust", type: "button", hidden: true, text: "Ajustar a esta pantalla", title: "Otro dispositivo tiene la sesión a su tamaño. Pulsa para ponerla al de esta pantalla." });
+  const adjust = h("button", { class: "btn subtle term-adjust", type: "button", hidden: true, text: t("Ajustar a esta pantalla"), title: t("Otro dispositivo tiene la sesión a su tamaño. Pulsa para ponerla al de esta pantalla.") });
   const head = [h("span", { class: "term-title" }, [dot, h("strong", { text: name }), h("span", { class: "term-sub" }, [activity, status])]), adjust, profileControls(conversation, name)];
-  if (onClose) head.push(h("button", { class: "btn subtle", type: "button", text: "Cerrar", onclick: onClose }));
-  const input = h("textarea", { class: "term-input", rows: "1", placeholder: "Escribe aquí y pulsa Enviar", "aria-label": `Escribir a ${name}` });
-  const sendBtn = h("button", { class: "btn primary", type: "button", text: "Enviar" });
+  if (onClose) head.push(h("button", { class: "btn subtle", type: "button", text: t("Cerrar"), onclick: onClose }));
+  const input = h("textarea", { class: "term-input", rows: "1", placeholder: t("Escribe aquí y pulsa Enviar"), "aria-label": t("Escribir a {name}", { name }) });
+  const sendBtn = h("button", { class: "btn primary", type: "button", text: t("Enviar") });
   const keys = h(
     "div",
-    { class: "term-keys", role: "group", "aria-label": "Teclas" },
+    { class: "term-keys", role: "group", "aria-label": t("Teclas") },
     KEYS.map(([label, seq, title]) => h("button", { type: "button", class: "term-key", title, text: label, onclick: () => panel.send(seq) }))
   );
   const scrollBtns = h("div", { class: "term-scroll" }, [
-    h("button", { type: "button", title: "Subir (Re Pág)", "aria-label": "Subir", text: "⇞", onclick: () => panel.send("[5~") }),
-    h("button", { type: "button", title: "Bajar (Av Pág)", "aria-label": "Bajar", text: "⇟", onclick: () => panel.send("[6~") }),
-    h("button", { type: "button", title: "Ir al final (Ctrl+Fin)", "aria-label": "Ir al final", text: "⤓", onclick: () => panel.send("[1;5F") }),
+    h("button", { type: "button", title: t("Subir (Re Pág)"), "aria-label": t("Subir"), text: "⇞", onclick: () => panel.send("[5~") }),
+    h("button", { type: "button", title: t("Bajar (Av Pág)"), "aria-label": t("Bajar"), text: "⇟", onclick: () => panel.send("[6~") }),
+    h("button", { type: "button", title: t("Ir al final (Ctrl+Fin)"), "aria-label": t("Ir al final"), text: "⤓", onclick: () => panel.send("[1;5F") }),
   ]);
   const root = h("div", { class: "term-panel" }, [h("div", { class: "term-head" }, head), h("div", { class: "term-wrap" }, [screen, scrollBtns]), keys, h("div", { class: "term-compose" }, [attachButton(input, conversation), input, sendBtn, mentions(input)])]);
   const panel = { root, conversation, ws: null, term: null, fit: null, closed: false, pending: [], pendingBytes: 0, overflowed: false, replaying: false };
@@ -261,7 +262,7 @@ function createPanel(conversation, name, onClose) {
         panel.ws = ws;
         ws.onopen = () => {
           panel.openedAt = Date.now();
-          status.textContent = "En directo";
+          status.textContent = t("En directo");
           term.reset();
           if (!document.hidden && !panel.replaying) setTimeout(() => panel.claim("conectar"), 400);
           panel.replaying = false;
@@ -288,14 +289,14 @@ function createPanel(conversation, name, onClose) {
         };
         ws.onclose = () => {
           if (panel.closed) return;
-          status.textContent = "Reconectando…";
+          status.textContent = t("Reconectando…");
           setTimeout(connect, panel.replaying ? 0 : 3000);
         };
       };
       connect();
       setTimeout(panel.resize, 100);
     },
-    () => toast("No se pudo cargar el visor de terminal.")
+    () => toast(t("No se pudo cargar el visor de terminal."))
   );
   return panel;
 }
@@ -315,19 +316,19 @@ function uploadFiles(input, files, conversation) {
   const list = [...files].filter(Boolean);
   if (!list.length) return;
   const big = list.find((f) => f.size > UPLOAD_MAX_MB * 1024 * 1024);
-  if (big) return toast(`«${big.name}» pasa de ${UPLOAD_MAX_MB} MB: no se puede subir.`);
-  toast(list.length === 1 ? "Subiendo el fichero…" : `Subiendo ${list.length} ficheros…`);
+  if (big) return toast(t("«{name}» pasa de {max} MB: no se puede subir.", { name: big.name, max: UPLOAD_MAX_MB }));
+  toast(list.length === 1 ? t("Subiendo el fichero…") : t("Subiendo {n} ficheros…", { n: list.length }));
   list
     .reduce(
       (chain, file, i) =>
         chain.then(() =>
           fetch("/api/upload", { method: "POST", headers: { "content-type": "application/octet-stream", "x-file-name": encodeURIComponent(file.name || `captura-${i + 1}.png`), "x-conversation": conversation || "" }, body: file })
-            .then(async (r) => (r.ok ? r.json() : Promise.reject(new Error(r.status === 413 ? `pasa de ${UPLOAD_MAX_MB} MB` : (await r.json().catch(() => ({}))).error || `error ${r.status}`))))
+            .then(async (r) => (r.ok ? r.json() : Promise.reject(new Error(r.status === 413 ? t("pasa de {max} MB", { max: UPLOAD_MAX_MB }) : (await r.json().catch(() => ({}))).error || `error ${r.status}`))))
             .then((d) => insertAtCaret(input, `@${d.path} `))
         ),
       Promise.resolve()
     )
-    .catch((e) => toast(`No se pudo subir: ${e.message}`));
+    .catch((e) => toast(t("No se pudo subir: {error}", { error: e.message })));
 }
 
 function attachButton(input, conversation) {
@@ -348,7 +349,7 @@ function attachButton(input, conversation) {
     e.preventDefault();
     uploadFiles(input, e.dataTransfer.files, conversation);
   });
-  const b = h("button", { class: "btn term-attach", type: "button", title: "Adjuntar ficheros o imágenes (también puedes pegarlos o arrastrarlos al cuadro)", "aria-label": "Adjuntar", text: "📎", onclick: () => picker.click() });
+  const b = h("button", { class: "btn term-attach", type: "button", title: t("Adjuntar ficheros o imágenes (también puedes pegarlos o arrastrarlos al cuadro)"), "aria-label": t("Adjuntar"), text: "📎", onclick: () => picker.click() });
   return h("span", { class: "term-attach-wrap" }, [b, picker]);
 }
 
@@ -488,18 +489,18 @@ export function livePanel(conversation, name) {
 function copyText(text) {
   if (!text) return;
   const fallback = () => {
-    const t = document.createElement("textarea");
-    t.value = text;
-    t.style.position = "fixed";
-    t.style.opacity = "0";
-    document.body.appendChild(t);
-    t.select();
+    const area = document.createElement("textarea");
+    area.value = text;
+    area.style.position = "fixed";
+    area.style.opacity = "0";
+    document.body.appendChild(area);
+    area.select();
     try {
       document.execCommand("copy");
     } catch (x) {}
-    t.remove();
+    area.remove();
   };
-  (navigator.clipboard && window.isSecureContext ? navigator.clipboard.writeText(text) : Promise.reject()).then(() => toast("Copiado."), () => (fallback(), toast("Copiado.")));
+  (navigator.clipboard && window.isSecureContext ? navigator.clipboard.writeText(text) : Promise.reject()).then(() => toast(t("Copiado.")), () => (fallback(), toast(t("Copiado."))));
 }
 
 let overlayFocus = null;
@@ -520,7 +521,7 @@ export function openTerminal(conversation, name) {
   overlay = createPanel(conversation, name, closeTerminal);
   overlay.root.classList.add("term-inline", "term-overlay");
   overlay.root.setAttribute("role", "dialog");
-  overlay.root.setAttribute("aria-label", `${name} en directo`);
+  overlay.root.setAttribute("aria-label", t("{name} en directo", { name }));
   document.body.appendChild(overlay.root);
   document.body.classList.add("term-open");
   requestAnimationFrame(() => {
