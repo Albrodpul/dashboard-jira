@@ -1,4 +1,5 @@
-import { state, h, button, when, toast, requestOrFail, refresh } from "../lib/base.js";
+import { state, h, button, when, toast, requestOrFail, refresh, openSettings } from "../lib/base.js";
+import { group, row } from "./settings-ui.js";
 import { t } from "../lib/i18n.js";
 
 export const pendingPermissions = () => (state.permissions && state.permissions.pending) || [];
@@ -39,22 +40,26 @@ export function renderPermissions(root, compact, onlyPending) {
   if (list.length) root.appendChild(h("section", { class: compact ? "today-group" : onlyPending ? "perm-pending" : "" }, [h(compact ? "h3" : "div", { class: compact ? "" : "group-head" }, compact ? t("Permisos ({n})", { n: list.length }) : [h("span", { class: "group-name", text: t("Permisos que esperan ({n})", { n: list.length }) })]), h("div", { class: "cards" }, list.map(permissionCard))]));
   if (compact || onlyPending) return list.length;
   const rules = (state.permissions && state.permissions.rules) || [];
-  if (rules.length) {
-    const det = h("details", { class: "perm-rules" }, [h("summary", { class: "meta", text: t("Aprobados siempre ({n})", { n: rules.length }) })]);
-    for (const r of rules)
-      det.appendChild(
-        h("div", { class: "perm-rule" }, [
-          h("span", { text: r.label }),
-          button(t("Quitar"), {
-            cls: "subtle",
-            onClick: (b) => {
-              b.disabled = true;
-              requestOrFail("/api/permission/rule-remove", { key: r.key }).then(() => refresh(true));
-            },
-          }),
-        ])
-      );
-    root.appendChild(det);
-  }
+  if (rules.length) root.appendChild(h("p", { class: "perm-rules meta" }, [h("button", { type: "button", class: "linkish", text: t("Aprobados siempre ({n}): en Ajustes → Permisos", { n: rules.length }), onclick: () => openSettings("permissions") })]));
   return list.length;
+}
+
+export function renderPermissionRules(root) {
+  const rules = (state.permissions && state.permissions.rules) || [];
+  const rows = rules.length
+    ? rules.map((r) =>
+        row(r.label, null, button(t("Quitar"), {
+          cls: "subtle",
+          onClick: (b) => {
+            b.disabled = true;
+            requestOrFail("/api/permission/rule-remove", { key: r.key })
+              .then(() => toast(t("Ya no se aprueba solo: la próxima vez te lo preguntará.")))
+              .then(() => refresh(true))
+              .catch((e) => ((b.disabled = false), toast(t("No se pudo: {error}", { error: e.message }))));
+          },
+        }))
+      )
+    : [row(t("Ninguno todavía"), t("Cuando pulses «Permitir siempre» en una petición, sale aquí y deja de preguntarse."), null)];
+  root.appendChild(group(t("Aprobados siempre"), rows, { foot: t("Valen para todas las sesiones. Al quitar uno, la próxima vez que una sesión lo pida te llega a Te esperan.") }));
+  root.appendChild(group(t("Lo que se aprueba solo"), [row(t("Lectura y edición dentro del workspace"), t("Los comandos que solo leen y las ediciones de ficheros dentro de la carpeta de trabajo no preguntan. El resto espera tu respuesta en Te esperan o en el móvil."), null)]));
 }

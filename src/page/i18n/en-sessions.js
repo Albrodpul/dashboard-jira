@@ -118,7 +118,7 @@ export default {
   "Crea una con «Nueva sesión».": "Create one with “New session”.",
   "Las sesiones reciben las tareas de sus epics": "Sessions receive the tasks of their epics",
   "Las sesiones reciben las tareas que les mandes desde el tablero": "Sessions receive the tasks you send them from the board",
-  "los avisos programados están en Ajustes → Proyectos.": "scheduled reminders are in Settings → Projects.",
+  "los avisos programados están en Ajustes → Avisos.": "scheduled reminders are in Settings → Reminders.",
   "{n} agente": "{n} agent",
   "{n} agentes": "{n} agents",
   "{n} epic": "{n} epic",

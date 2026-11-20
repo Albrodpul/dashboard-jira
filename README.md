@@ -26,8 +26,8 @@ It also has:
 - **Servidores** (in Ajustes): start and stop the local dev servers (database, API, frontends) and see if they answer;
 - one-click deploy orders, with the live state of GitHub Actions and AWS CodeDeploy;
 - Sentry errors sent to a session with one click;
-- push notifications;
-- a **work schedule** (Ajustes → Ordenadores → Horario de trabajo, Monday to Friday): it sets when the fixed sessions start, when Jira is watched and follow-ups run, when the projects stop, and the time the daily is drafted (inside the workday; by default 90 minutes before it ends);
+- push notifications, switched on per device and chosen per kind of event (Ajustes → Notificaciones);
+- a **work schedule** (Ajustes → Horario, Monday to Friday): it sets when the fixed sessions start, when Jira is watched and follow-ups run, when the projects stop, and the time the daily is drafted (inside the workday; by default 90 minutes before it ends);
 - a daily summary of the day's work per project, and an activity summary of beta and production split by person;
 - a "Learning" tab that tracks how often work comes back from review;
 - the shared `context/` folder kept in sync through git.

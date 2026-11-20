@@ -140,7 +140,7 @@ export const fixedAreaIds = () => new Set([state.deployerArea, state.sentry && s
 
 export const taskAreaSelect = (id, current, emptyLabel, onChange, project) => areaSelectFrom(state.areas.filter((a) => !a.unnamed && !fixedAreaIds().has(a.id) && (!project || !a.project || a.project === project)), id, current, emptyLabel, onChange);
 
-export const SETTINGS = ["workspaces", "machines", "appearance", "projects"];
+export const SETTINGS = ["workspaces", "reminders", "projects", "machines", "schedule", "claude", "notifications", "permissions", "appearance"];
 export const showing = (id) => state.tab === id || state.settings === id;
 
 export function openSettings(section) {

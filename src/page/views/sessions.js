@@ -2,6 +2,7 @@ import { state, h, button, when, toast, requestOrFail, post, areaName, taskAreaS
 import { sessionNutria } from "../components/nutria.js";
 import { currentProject, hasModule, mixedProjects, mainProject, projectTitle, inProjectOrder, workspacesWith, projectName } from "../components/project-filter.js";
 import { openTalk } from "./talk.js";
+import { group } from "../components/settings-ui.js";
 import { t, tn, LOCALE } from "../lib/i18n.js";
 
 export function createSession(name, epic, btn) {
@@ -353,14 +354,12 @@ function reminderForm(r) {
   return box;
 }
 
-export function remindersSection(root) {
+export function renderReminders(root) {
   const visible = new Set(state.areas.map((a) => a.id));
   const list = (state.reminders || []).filter((r) => visible.has(r.area));
-  const sec = h("section", { class: "s2-section" }, [head(t("Avisos programados"), list.length, t("El tablero se los manda a la sesión cada día a su hora, aunque se haya dormido o reiniciado."))]);
-  if (list.length) sec.appendChild(h("div", { class: "srows" }, list.map(reminderRow)));
+  const rows = list.length ? list.map(reminderRow) : [h("div", { class: "sg-row" }, [h("div", { class: "sg-text" }, [h("strong", { text: t("Ninguno todavía") }), h("span", { class: "sg-desc", text: t("Un aviso es un texto que el tablero escribe cada día a su hora en la sesión que elijas.") })])])];
   const form = reminderForm();
-  if (form) sec.appendChild(form);
-  root.appendChild(sec);
+  root.appendChild(group(t("Avisos programados"), rows, { foot: form ? [h("p", { class: "meta", text: t("El tablero se los manda a la sesión cada día a su hora, aunque se haya dormido o reiniciado.") }), form] : t("Hace falta al menos una sesión abierta para programar un aviso.") }));
 }
 
 let sessionQuery = "";
@@ -457,6 +456,6 @@ export function renderSessions(root) {
       root.appendChild(d);
     } else root.appendChild(h("section", { class: `s2-section phase ${id}` }, [headEl, rows]));
   }
-  root.appendChild(h("p", { class: "meta", text: `${jira ? t("Las sesiones reciben las tareas de sus epics") : t("Las sesiones reciben las tareas que les mandes desde el tablero")} · ${profileText("area")} · ${t("los avisos programados están en Ajustes → Proyectos.")}` }));
+  root.appendChild(h("p", { class: "meta", text: `${jira ? t("Las sesiones reciben las tareas de sus epics") : t("Las sesiones reciben las tareas que les mandes desde el tablero")} · ${profileText("area")} · ${t("los avisos programados están en Ajustes → Avisos.")}` }));
   applySearch(root);
 }

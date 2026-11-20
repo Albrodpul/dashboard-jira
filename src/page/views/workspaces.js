@@ -1,6 +1,6 @@
 import { state, h, button, toast, requestOrFail, render, refresh, empty, areaSelectFrom } from "../lib/base.js";
-import { remindersSection } from "./sessions.js";
-import { t } from "../lib/i18n.js";
+import { t, tn } from "../lib/i18n.js";
+import { group, row, note } from "../components/settings-ui.js";
 
 const base = () => (state.jiraSetup && state.jiraSetup.workspaceBase) || "";
 function relative(root) {
@@ -97,7 +97,7 @@ function form(draft) {
     },
   });
   const cancel = button(t("Cancelar"), { cls: "subtle", onClick: () => ((editing = null), render()) });
-  return h("section", { class: "card setting-card ws-form" }, [
+  return h("section", { class: "sg ws-form" }, [
     h("h3", { text: isNew ? t("Nuevo proyecto") : t("Editar {name}", { name: draft.name }) }),
     field(t("Nombre"), null, text(draft, "name", { placeholder: t("Cuentas personales") })),
     field(t("Prefijo de las tareas"), t("De 2 a 10 letras. Las tareas que crees a mano se llamarán así: PREFIJO-1, PREFIJO-2…"), text(draft, "taskPrefix", { placeholder: t("CUENTAS") })),
@@ -235,22 +235,20 @@ function card(p) {
   ];
   if (p.jira) facts.splice(4, 0, [t("Proyectos de Jira"), p.jira.join(", ")]);
   if (p.sentryConfig) facts.splice(4, 0, ["Sentry", `${p.sentryConfig.org}: ${p.sentryConfig.projects.join(", ")}`]);
-  const kids = [
-    h("div", { class: "ws-head" }, [h("h3", { text: p.name }), h("span", { class: "chip", text: p.main ? t("Principal") : p.fromFile ? t("En board.config.json") : t("Desde el panel") })]),
-    h("dl", { class: "ws-facts" }, facts.flatMap(([k, v]) => [h("dt", { text: k }), h("dd", { text: v })])),
+  const rows = facts.map(([k, v]) => row(k, null, h("span", { class: "ws-value", text: v }), { cls: "ws-fact" }));
+  const foot = [];
+  if (!p.root || !p.rootExists) foot.push(note(p.root ? t("Esa carpeta no existe en este ordenador: sus sesiones no se reconocerán aquí.") : t("Este ordenador no tiene carpeta para el proyecto: pon la suya en Editar."), true));
+  if (p.fromFile) foot.push(h("p", { class: "meta", text: t("Su Jira, su Sentry, sus servidores, sus credenciales y su carpeta van en board.config.json y el .env de cada ordenador; el nombre, el prefijo, la daily, Ordenar contexto y la guía se editan aquí y valen para los dos.") }));
+  if (p.messages) foot.push(h("p", { class: "meta", text: t("Tiene guía propia para las sesiones.") }));
+  if (!p.main) foot.push(credentials(p));
+  if (!p.fromFile && p.jiraConfig) foot.push(jiraConnect(p));
+  const actions = [
+    button(t("Editar"), { onClick: () => ((editing = { id: p.id, fromFile: p.fromFile, name: p.name, taskPrefix: p.taskPrefix, root: p.fromFile ? p.root || "" : relative(p.root), daily: p.modules.daily, contextTidy: p.modules.context, devServers: p.devServers.map((x) => ({ ...x })), jiraOn: !!p.jiraConfig, jiraProjects: p.jiraConfig ? p.jiraConfig.projects.join(", ") : "", sentryOn: !!p.sentryConfig, sentryOrg: p.sentryConfig ? p.sentryConfig.org : "", sentryProjects: p.sentryConfig ? p.sentryConfig.projects.join(", ") : "", errorsArea: p.sentryConfig ? p.sentryConfig.errorsArea : "", ...(p.messages || {}) }), render()) }),
   ];
-  if (!p.root || !p.rootExists) kids.push(h("div", { class: "setup-note warn" }, [h("p", { text: p.root ? t("Esa carpeta no existe en este ordenador: sus sesiones no se reconocerán aquí.") : t("Este ordenador no tiene carpeta para el proyecto: pon la suya en Editar.") })]));
-  if (p.fromFile) kids.push(h("p", { class: "meta", text: t("Su Jira, su Sentry, sus servidores, sus credenciales y su carpeta van en board.config.json y el .env de cada ordenador; el nombre, el prefijo, la daily, Ordenar contexto y la guía se editan aquí y valen para los dos.") }));
-  if (p.messages) kids.push(h("p", { class: "meta", text: t("Tiene guía propia para las sesiones.") }));
-  if (!p.main) kids.push(credentials(p));
-  if (!p.fromFile && p.jiraConfig) kids.push(jiraConnect(p));
-  kids.push(
-    h("div", { class: "actions" }, [
-      button(t("Editar"), { onClick: () => ((editing = { id: p.id, fromFile: p.fromFile, name: p.name, taskPrefix: p.taskPrefix, root: p.fromFile ? p.root || "" : relative(p.root), daily: p.modules.daily, contextTidy: p.modules.context, devServers: p.devServers.map((x) => ({ ...x })), jiraOn: !!p.jiraConfig, jiraProjects: p.jiraConfig ? p.jiraConfig.projects.join(", ") : "", sentryOn: !!p.sentryConfig, sentryOrg: p.sentryConfig ? p.sentryConfig.org : "", sentryProjects: p.sentryConfig ? p.sentryConfig.projects.join(", ") : "", errorsArea: p.sentryConfig ? p.sentryConfig.errorsArea : "", ...(p.messages || {}) }), render()) }),
+  if (!p.main)
+    actions.push(
       button(t("Borrar"), {
         cls: "subtle",
-        disabled: p.main,
-        title: p.main ? t("Es el proyecto principal: la vigilancia de Jira, el reporte, el seguimiento, los despliegues y Sentry funcionan sobre él.") : undefined,
         onClick: async (b) => {
           if (!window.confirm(t("¿Borrar el proyecto «{name}» del tablero? Su carpeta y su repo no se tocan.", { name: p.name }))) return;
           b.disabled = true;
@@ -263,10 +261,10 @@ function card(p) {
             b.disabled = false;
           }
         },
-      }),
-    ])
-  );
-  return h("section", { class: "card setting-card" }, kids);
+      })
+    );
+  const title = h("span", { class: "ws-title" }, [p.name, h("span", { class: "chip", text: p.main ? t("Principal") : p.fromFile ? t("En board.config.json") : t("Desde el panel") })]);
+  return group(title, rows, { actions, foot: foot.length ? foot : null, cls: "ws-group" });
 }
 
 export function renderWorkspaces(root) {
@@ -274,8 +272,7 @@ export function renderWorkspaces(root) {
     load();
     return root.appendChild(failed ? empty(t("No se pudieron leer los proyectos."), failed) : empty(t("Cargando proyectos…"), ""));
   }
-  root.appendChild(h("div", { class: "actions ws-top" }, [button(t("Nuevo proyecto"), { cls: "primary", onClick: () => ((editing = { name: "", taskPrefix: "", root: "" }), render()) })]));
+  root.appendChild(h("div", { class: "sg-bar" }, [h("span", { class: "meta", text: tn(list.length, "{n} proyecto en el tablero", "{n} proyectos en el tablero") }), button(t("Nuevo proyecto"), { cls: "primary", onClick: () => ((editing = { name: "", taskPrefix: "", root: "" }), render()) })]));
   if (editing && !editing.id) root.appendChild(form(editing));
   for (const p of list) root.appendChild(editing && editing.id === p.id ? form(editing) : card(p));
-  remindersSection(root);
 }

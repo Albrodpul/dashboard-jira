@@ -1,5 +1,6 @@
 import { state, h, when, minutesSince, toast, request, post, refresh, renderMd, fmtDay, switchView } from "../lib/base.js";
 import { t, tn, LOCALE } from "../lib/i18n.js";
+import { row } from "./settings-ui.js";
 
 const weekday = new Intl.DateTimeFormat(LOCALE, { timeZone: "Europe/Madrid", weekday: "long" });
 
@@ -191,7 +192,7 @@ function tokenWarning() {
   const days = Math.ceil((new Date(state.claudeTokenExpires + "T00:00:00") - Date.now()) / 86400000);
   if (days > 30) return null;
   const text = days <= 0 ? t("Token de Claude caducado") : tn(days, "Token de Claude: caduca en {n} día", "Token de Claude: caduca en {n} días");
-  return h("span", { class: `token-warn${days <= 7 ? " high" : ""}`, title: t("Las sesiones del tablero usan un token de larga duración que caduca el {date}. Renuévalo con el botón de Ajustes → Ordenadores.", { date: state.claudeTokenExpires }), text });
+  return h("span", { class: `token-warn${days <= 7 ? " high" : ""}`, title: t("Las sesiones del tablero usan un token de larga duración que caduca el {date}. Renuévalo con el botón de Ajustes → Cuenta de Claude.", { date: state.claudeTokenExpires }), text });
 }
 
 export function overtimeBanner() {
@@ -229,7 +230,7 @@ export function tokenBanner(goTo) {
   if (days > 30) return null;
   const head = days <= 0 ? t("El token de Claude ha caducado") : tn(days, "El token de Claude caduca en {n} día", "El token de Claude caduca en {n} días");
   const text = days <= 0 ? t("Las sesiones del tablero y VS Code dejan de funcionar hasta que lo renueves.") : t("Renuévalo ahora, mientras tu navegador siga dentro de claude.ai con la cuenta de empresa: así lo autorizas tú solo, sin pedir nada a nadie.");
-  const go = h("button", { type: "button", class: "btn primary", text: t("Renovar en Ordenadores"), onclick: goTo });
+  const go = h("button", { type: "button", class: "btn primary", text: t("Renovar en Ajustes"), onclick: goTo });
   return h("div", { class: `token-banner${days <= 7 ? " high" : ""}`, role: "status" }, [h("div", {}, [h("strong", { text: head }), h("span", { text })]), go]);
 }
 
@@ -270,40 +271,19 @@ function quotaBlockInner() {
   return box;
 }
 
-const BELL = '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>';
-
-function serverKey(b64) {
-  const s = (b64 + "===".slice((b64.length + 3) % 4)).replace(/-/g, "+").replace(/_/g, "/");
-  return Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
-}
-
-function paintBell(btn, active) {
-  btn.className = `btn bell ${active ? "on" : "off"}`;
-  btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${BELL}${active ? "" : '<path d="M3 3l18 18"/>'}</svg>`;
-  const txt = active ? t("Avisos activados en este dispositivo. Pulsa para desactivarlos.") : t("Avisos desactivados en este dispositivo. Pulsa para activarlos.");
-  btn.title = txt;
-  btn.setAttribute("aria-label", txt);
-  btn.setAttribute("aria-pressed", active ? "true" : "false");
-}
-
-async function toggleNotifications(btn) {
-  const reg = await navigator.serviceWorker.ready;
-  const current = await reg.pushManager.getSubscription();
-  if (current && Notification.permission === "granted") {
-    const endpoint = current.endpoint;
-    await current.unsubscribe();
-    await request("/api/push/unsubscribe", { endpoint });
-    paintBell(btn, false);
-    toast(t("Avisos desactivados en este dispositivo."));
-    return;
-  }
-  if ((await Notification.requestPermission()) !== "granted") throw new Error("permission");
-  const { key } = await (await fetch("/api/push/key")).json();
-  const created = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: serverKey(key) });
-  await request("/api/push/subscribe", { subscription: created.toJSON(), device: navigator.userAgent });
-  paintBell(btn, true);
-  toast(t("Avisos activados en este dispositivo. Te llega uno de prueba."));
-  await request("/api/push/test");
+export function quotaRows() {
+  const c = state.quota;
+  const meter = (k, label, desc) => {
+    const w = c && c[k];
+    const live = w && !(w.resetsAt && new Date(w.resetsAt) < new Date());
+    const used = live ? Math.round(w.used) : 0;
+    const level = used >= 90 ? " high" : used >= 70 ? " medium" : "";
+    const bar = h("span", { class: `sg-meter${level}`, role: "meter", "aria-valuemin": "0", "aria-valuemax": "100", "aria-valuenow": String(used), "aria-label": label }, [h("i", { style: `width:${used}%` })]);
+    return row(label, live ? `${desc} · ${resets(w.resetsAt)}` : c ? t("Recién renovada") : t("Aún sin datos"), [bar, h("b", { class: "sg-meter-n", text: `${used}%` })]);
+  };
+  const rows = [meter("seven_day", t("Semana"), t("El límite que manda")), meter("five_hour", t("Últimas 5 horas"), t("Ventana corta"))];
+  if (c && c.at && minutesSince(c.at) > 30) rows.push(row(t("Dato de las {time}", { time: when(c.at) }), t("Se actualiza cuando alguna sesión habla con Claude."), null));
+  return rows;
 }
 
 export function mountHeader() {
@@ -322,22 +302,4 @@ export function mountHeader() {
       .catch(() => toast(t("No se pudo pedir la revisión.")));
   });
   setInterval(updateStamp, 30000);
-
-  const btn = document.getElementById("notifications");
-  if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) return;
-  btn.hidden = false;
-  paintBell(btn, false);
-  navigator.serviceWorker.ready
-    .then((reg) => reg.pushManager.getSubscription())
-    .then((s) => {
-      const active = !!s && Notification.permission === "granted";
-      paintBell(btn, active);
-      if (active) request("/api/push/subscribe", { subscription: s.toJSON(), device: navigator.userAgent });
-    });
-  btn.addEventListener("click", () => {
-    btn.disabled = true;
-    toggleNotifications(btn)
-      .catch((e) => toast(String(e && e.message) === "permission" ? t("El navegador no ha dado permiso para avisos: actívalo en los ajustes del sitio.") : t("No se pudieron activar los avisos en este dispositivo.")))
-      .then(() => (btn.disabled = false));
-  });
 }

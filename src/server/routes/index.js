@@ -271,6 +271,7 @@ const POST_ROUTES = {
   "/api/push/subscribe": (res, input, send) => handlePush(res, "/api/push/subscribe", input, send),
   "/api/push/unsubscribe": (res, input, send) => handlePush(res, "/api/push/unsubscribe", input, send),
   "/api/push/test": (res, input, send) => handlePush(res, "/api/push/test", input, send),
+  "/api/push/prefs": (res, input, send) => handlePush(res, "/api/push/prefs", input, send),
 };
 
 function handleGet(req, res, url) {

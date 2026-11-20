@@ -1,6 +1,7 @@
 import { h, render } from "../lib/base.js";
 import { t, LANGS, currentLang, setLang } from "../lib/i18n.js";
 import { HOME_LAYOUTS, homeLayout, setHomeLayout } from "./home.js";
+import { group, row, segmented } from "../components/settings-ui.js";
 
 const THEME_KEY = "tower-theme";
 const THEMES = [
@@ -50,36 +51,26 @@ function homePreview(id) {
   return h("span", { class: `look-home ${id}` }, id === "office" ? [h("i"), h("i"), h("i"), h("i")] : [h("i"), h("i"), h("i")]);
 }
 
-function card(title, note, body) {
-  return h("section", { class: "card setting-card" }, [h("h3", { text: t(title) }), h("p", { class: "meta", text: t(note) }), body]);
-}
-
 export function renderAppearance(root) {
   root.appendChild(
-    card(
-      "Tema",
-      "Se guarda en este navegador: el móvil y el Mac pueden llevar uno distinto.",
-      choices(THEMES, currentTheme(), (id) => {
+    group(t("Tema"), [
+      row(t("Colores del tablero"), t("Se guarda en este navegador: el móvil y el Mac pueden llevar uno distinto."), choices(THEMES, currentTheme(), (id) => {
         setTheme(id);
         render();
-      }, themePreview)
-    )
+      }, themePreview), { stack: true }),
+    ])
   );
   root.appendChild(
-    card(
-      "Idioma",
-      "Los textos del tablero. Lo que escriben las sesiones y Jira sigue en su idioma.",
-      choices(LANGS, currentLang(), (id) => id !== currentLang() && setLang(id), null, false)
-    )
+    group(t("Idioma"), [
+      row(t("Textos del tablero"), t("Lo que escriben las sesiones y Jira sigue en su idioma."), segmented(LANGS, currentLang(), (id) => setLang(id), t("Idioma"))),
+    ])
   );
   root.appendChild(
-    card(
-      "Pantalla de inicio",
-      "La oficina con las nutrias o la vista clásica: contadores, sesiones en columnas y tarjetas.",
-      choices(HOME_LAYOUTS, homeLayout(), (id) => {
+    group(t("Pantalla de inicio"), [
+      row(t("Cómo se ve Inicio"), t("La oficina con las nutrias o la vista clásica: contadores, sesiones en columnas y tarjetas."), choices(HOME_LAYOUTS, homeLayout(), (id) => {
         setHomeLayout(id);
         render();
-      }, homePreview)
-    )
+      }, homePreview), { stack: true }),
+    ])
   );
 }

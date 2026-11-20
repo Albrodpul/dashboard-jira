@@ -16,7 +16,7 @@ const REASONS = {
   sentry: { title: "Sentry", text: "Una sesión ha contestado sobre un error de Sentry", tab: "sentry" },
   test: { title: "Prueba", text: "Aviso de prueba del tablero", tab: "home" },
   board: { title: "Tablero", text: "El tablero no responde", tab: "home" },
-  token: { title: "Token de Claude", text: "El token de Claude caduca pronto: renuévalo en Ajustes → Ordenadores", tab: "machines" },
+  token: { title: "Token de Claude", text: "El token de Claude caduca pronto: renuévalo en Ajustes → Cuenta de Claude", tab: "claude" },
 };
 
 const b64url = (buf) => Buffer.from(buf).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
@@ -95,6 +95,7 @@ async function sendPush(type, force, text) {
   const dead = [];
   let sent = 0;
   for (const s of subs) {
+    if (Array.isArray(s.muted) && s.muted.includes(type)) continue;
     try {
       const aud = new URL(s.endpoint).origin;
       const header = b64url(JSON.stringify({ typ: "JWT", alg: "ES256" }));
@@ -123,9 +124,24 @@ function handlePush(res, route, input, send) {
     const host = new URL(s.endpoint).host;
     const subs = subscriptions().filter((x) => x.endpoint !== s.endpoint && !(device && x.device === device && new URL(x.endpoint).host === host));
     const keys = s.keys && typeof s.keys.p256dh === "string" && typeof s.keys.auth === "string" ? { p256dh: s.keys.p256dh, auth: s.keys.auth } : null;
-    subs.push({ endpoint: s.endpoint, keys, device, at: new Date().toISOString() });
+    const prev = subscriptions().find((x) => x.endpoint === s.endpoint) || subscriptions().find((x) => device && x.device === device && new URL(x.endpoint).host === host);
+    const muted = (prev && prev.muted) || [];
+    subs.push({ endpoint: s.endpoint, keys, device, at: new Date().toISOString(), ...(muted.length ? { muted } : {}) });
     saveSubscriptions(subs);
-    return send(res, 200, { ok: true });
+    return send(res, 200, { ok: true, muted });
+  }
+  if (route === "/api/push/prefs") {
+    const endpoint = input && input.endpoint;
+    const subs = subscriptions();
+    const s = subs.find((x) => x.endpoint === endpoint);
+    if (!s) return send(res, 404, { error: "este dispositivo no tiene avisos" });
+    if (Array.isArray(input.muted)) {
+      const muted = [...new Set(input.muted.filter((x) => REASONS[x] && x !== "test"))];
+      if (muted.length) s.muted = muted;
+      else delete s.muted;
+      saveSubscriptions(subs);
+    }
+    return send(res, 200, { muted: s.muted || [] });
   }
   if (route === "/api/push/unsubscribe") {
     const endpoint = input && input.endpoint;

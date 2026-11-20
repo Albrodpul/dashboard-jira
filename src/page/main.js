@@ -1,5 +1,6 @@
 import { state, h, post, switchView, setRender, setRefresh, empty, reviewer, button, SETTINGS, openSettings } from "./lib/base.js";
 import { paintSettings, settingsButton, lastSection } from "./components/settings.js";
+import { syncPush } from "./views/notifications.js";
 import { renderTasks, renderToday, renderBoard, boardSearch } from "./views/tasks.js";
 import { nutria, paint as paintOtter } from "./components/nutria.js";
 import { renderSessions } from "./views/sessions.js";
@@ -241,7 +242,7 @@ function renderMore(root, waitingDeploys, errors) {
       return h("button", { type: "button", onclick: () => switchView(tab.id, true) }, [h("strong", { text: tab.label + extra }), h("span", { text: VIEWS[tab.id][1] })]);
     })
   );
-  menu.appendChild(h("button", { type: "button", class: "more-settings", onclick: () => openSettings(lastSection()) }, [h("strong", { text: t("Ajustes") }), h("span", { text: t("Proyectos, ordenadores, apariencia y servidores.") })]));
+  menu.appendChild(h("button", { type: "button", class: "more-settings", onclick: () => openSettings(lastSection()) }, [h("strong", { text: t("Ajustes") }), h("span", { text: t("Proyectos, ordenadores, avisos, permisos y apariencia.") })]));
   root.appendChild(searchBox());
   root.appendChild(menu);
   root.appendChild(quotaBlock());
@@ -379,7 +380,7 @@ function paint() {
   const root = document.getElementById("groups");
   root.textContent = "";
   if (["home", "today"].includes(state.tab)) {
-    const alerts = homeAlerts([...stuckBanners(), ...watchdogBanners(), overtimeBanner(), yoloBanner(), tokenBanner(() => switchView("machines", true))]);
+    const alerts = homeAlerts([...stuckBanners(), ...watchdogBanners(), overtimeBanner(), yoloBanner(), tokenBanner(() => switchView("claude", true))]);
     if (alerts) root.appendChild(alerts);
   }
   if (section === "tasks") {
@@ -516,6 +517,7 @@ setRender(() => {
 });
 setRefresh(reload);
 mountHeader();
+syncPush();
 document.addEventListener("focusout", () =>
   setTimeout(() => {
     if (!deferred || editing()) return;

@@ -273,7 +273,7 @@ async function warnExpiry() {
     saved = JSON.parse(fs.readFileSync(file, "utf8"));
   } catch (e) {}
   if (saved.expires === expires && saved.step <= step) return;
-  const text = days <= 0 ? "El token de Claude ha caducado: renuévalo en Ajustes → Ordenadores." : `El token de Claude caduca en ${days} ${days === 1 ? "día" : "días"}. Renuévalo en Ajustes → Ordenadores mientras tu navegador siga dentro de claude.ai.`;
+  const text = days <= 0 ? "El token de Claude ha caducado: renuévalo en Ajustes → Cuenta de Claude." : `El token de Claude caduca en ${days} ${days === 1 ? "día" : "días"}. Renuévalo en Ajustes → Cuenta de Claude mientras tu navegador siga dentro de claude.ai.`;
   await require("../server/push").sendPush("token", true, text);
   fs.writeFileSync(file, JSON.stringify({ expires, step, at: new Date().toISOString() }));
 }
