@@ -2,15 +2,37 @@ import { decide } from "../components/permissions.js";
 import { state, h, when, minutesSince, switchView, empty, fixedAreaIds, button, post, toast } from "../lib/base.js";
 import { currentProject, mixedProjects, projectName } from "../components/project-filter.js";
 import { nutria, paint, CLAYS } from "../components/nutria.js";
+import { t as tr } from "../lib/i18n.js";
 
 
 const GROUPS = [
-  ["working", "Trabajando", "Tienen un turno en marcha."],
-  ["blocked", "Bloqueadas", "Paradas con algo pendiente: te esperan, a medias o sin avisar de una tarea enviada."],
-  ["free", "Libres", "Abiertas y sin nada entre manos."],
+  ["working", tr("Trabajando"), tr("Tienen un turno en marcha.")],
+  ["blocked", tr("Bloqueadas"), tr("Paradas con algo pendiente: te esperan, a medias o sin avisar de una tarea enviada.")],
+  ["free", tr("Libres"), tr("Abiertas y sin nada entre manos.")],
 ];
 const BOARD = ["working", "blocked", "free"];
 const SILENT_MIN = 5;
+const DOTS = { working: "busy", blocked: "bad", free: "on" };
+const LAYOUT_KEY = "tower-home";
+export const HOME_LAYOUTS = [
+  { id: "office", label: "Oficina de nutrias" },
+  { id: "columns", label: "Columnas y tarjetas" },
+];
+
+export function homeLayout() {
+  try {
+    return localStorage.getItem(LAYOUT_KEY) === "columns" ? "columns" : "office";
+  } catch (e) {
+    return "office";
+  }
+}
+
+export function setHomeLayout(id) {
+  try {
+    if (id === "office") localStorage.removeItem(LAYOUT_KEY);
+    else localStorage.setItem(LAYOUT_KEY, id);
+  } catch (e) {}
+}
 
 function liveOf(conversation, sessionName, everywhere) {
   const list = (everywhere && state.allSessions ? state.allSessions.list : state.sessions.list) || [];
@@ -19,13 +41,13 @@ function liveOf(conversation, sessionName, everywhere) {
 
 function blockReason(live, tasks) {
   const waiting = tasks.find((t) => t.status === "waiting");
-  if (waiting) return { text: "Te espera", task: waiting, view: "waiting" };
+  if (waiting) return { text: tr("Te espera"), task: waiting, view: "waiting" };
   const partial = tasks.find((t) => t.status === "partial");
-  if (partial) return { text: "A medias", task: partial, view: "waiting" };
+  if (partial) return { text: tr("A medias"), task: partial, view: "waiting" };
   const silent = tasks.find((t) => t.status === "sent" && !t.manual && (!t.sentAt || minutesSince(t.sentAt) >= SILENT_MIN));
-  if (silent) return { text: "Parada sin avisar de", task: silent, view: "sent" };
-  if (live.status === "waiting") return { text: "Espera tu respuesta en su sesión" };
-  if (live.status && !["busy", "idle"].includes(live.status)) return { text: `Estado «${live.status}»` };
+  if (silent) return { text: tr("Parada sin avisar de"), task: silent, view: "sent" };
+  if (live.status === "waiting") return { text: tr("Espera tu respuesta en su sesión") };
+  if (live.status && !["busy", "idle"].includes(live.status)) return { text: tr("Estado «{status}»", { status: live.status }) };
   return null;
 }
 
@@ -43,9 +65,9 @@ export function sessionSituation() {
     const live = liveOf(a.conversation, a.sessionName);
     if (!live) continue;
     const tasks = state.tasks.filter((t) => t.area === a.id && ["sent", "waiting", "partial"].includes(t.status));
-    const row = { id: a.id, name: a.unnamed ? a.vsCodeTitle || `${a.sessionName} (sin nombre)` : a.name, sessionName: a.sessionName, conversation: a.conversation, project: a.project || live.project, since: live.statusSince, subagents: live.subagents || 0, tasks };
+    const row = { id: a.id, name: a.unnamed ? a.vsCodeTitle || tr("{name} (sin nombre)", { name: a.sessionName }) : a.name, sessionName: a.sessionName, conversation: a.conversation, project: a.project || live.project, since: live.statusSince, subagents: live.subagents || 0, tasks };
     const asking = ((state.permissions && state.permissions.pending) || []).find((p) => p.conversation === a.conversation);
-    if (asking) out.blocked.push({ ...row, reason: { text: `Espera tu permiso: ${asking.label}`, view: "waiting", at: asking.at } });
+    if (asking) out.blocked.push({ ...row, reason: { text: tr("Espera tu permiso: {what}", { what: asking.label }), view: "waiting", at: asking.at } });
     else if (live.status === "busy") out.working.push(row);
     else {
       const reason = blockReason(live, tasks);
@@ -67,7 +89,7 @@ export function sessionSituation() {
   for (const [name, r] of roles) {
     if (!r || !r.conversation || (otherProject && name !== "Tablero")) continue;
     const live = liveOf(r.conversation, r.session, true);
-    out.system.push({ name, open: !!live, working: !!live && live.status === "busy", conversation: r.conversation, session: live ? live.name : r.session || name });
+    out.system.push({ name: tr(name), open: !!live, working: !!live && live.status === "busy", conversation: r.conversation, session: live ? live.name : r.session || name });
   }
   return out;
 }
@@ -84,11 +106,11 @@ export function stuckBanners() {
   return (state.stuckDialogs || []).map((x) =>
     h("div", { class: "token-banner high stuck-banner" }, [
       h("div", {}, [
-        h("strong", { text: `«${x.name}» está parada en una pregunta al arrancar` }),
-        h("span", { text: "El tablero no sabe contestarla sola. Ábrela, elige la opción y sigue." }),
+        h("strong", { text: tr("«{name}» está parada en una pregunta al arrancar", { name: x.name }) }),
+        h("span", { text: tr("El tablero no sabe contestarla sola. Ábrela, elige la opción y sigue.") }),
         x.text ? h("pre", { class: "stuck-text", text: x.text }) : null,
       ]),
-      h("button", { class: "btn primary", type: "button", text: "Ver en directo", onclick: () => import("../components/terminal.js").then((m) => m.openTerminal(x.conversation, x.name)) }),
+      h("button", { class: "btn primary", type: "button", text: tr("Ver en directo"), onclick: () => import("../components/terminal.js").then((m) => m.openTerminal(x.conversation, x.name)) }),
     ])
   );
 }
@@ -96,10 +118,10 @@ export function stuckBanners() {
 export function watchdogBanners() {
   return (state.watchdog || []).map((x) =>
     h("div", { class: "token-banner high" }, [
-      h("div", {}, [h("strong", { text: x.title }), h("span", { text: `${x.detail} Visto a las ${when(x.at)}.` })]),
+      h("div", {}, [h("strong", { text: x.title }), h("span", { text: tr("{detail} Visto a las {time}.", { detail: x.detail, time: when(x.at) }) })]),
       h("div", { class: "banner-actions" }, [
-        x.conversation && x.kind !== "typing" ? h("button", { class: "btn", type: "button", text: "Ver en directo", onclick: () => import("../components/terminal.js").then((m) => m.openTerminal(x.conversation, x.name)) }) : null,
-        x.key ? h("button", { class: "btn", type: "button", text: "Quitar", onclick: () => post("/api/watchdog/dismiss", { key: x.key }) }) : null,
+        x.conversation && x.kind !== "typing" ? h("button", { class: "btn", type: "button", text: tr("Ver en directo"), onclick: () => import("../components/terminal.js").then((m) => m.openTerminal(x.conversation, x.name)) }) : null,
+        x.key ? h("button", { class: "btn", type: "button", text: tr("Quitar"), onclick: () => post("/api/watchdog/dismiss", { key: x.key }) }) : null,
       ]),
     ])
   );
@@ -111,26 +133,27 @@ const ALERT_MOOD = (el) => (el.classList.contains("overtime-banner") ? (el.class
 export function homeAlerts(items) {
   const cs = state.contextSync;
   const rows = [];
-  if (cs && cs.state === "conflict") rows.push(h("div", { class: "token-banner high" }, [h("div", {}, [h("strong", { text: "El contexto compartido no se sincroniza" }), h("span", { text: "Hay un choque entre los dos ordenadores: hay que resolverlo a mano en la carpeta del contexto (git status)." })])]));
-  else if (cs && cs.state === "error") rows.push(h("div", { class: "token-banner high" }, [h("div", {}, [h("strong", { text: "El contexto compartido no se sincroniza" }), h("span", { text: String(cs.error || "").split(/\r?\n/)[0] })])]));
+  if (cs && cs.state === "conflict") rows.push(h("div", { class: "token-banner high" }, [h("div", {}, [h("strong", { text: tr("El contexto compartido no se sincroniza") }), h("span", { text: tr("Hay un choque entre los dos ordenadores: hay que resolverlo a mano en la carpeta del contexto (git status).") })])]));
+  else if (cs && cs.state === "error") rows.push(h("div", { class: "token-banner high" }, [h("div", {}, [h("strong", { text: tr("El contexto compartido no se sincroniza") }), h("span", { text: String(cs.error || "").split(/\r?\n/)[0] })])]));
   rows.push(...items.filter(Boolean));
   if (!rows.length) return null;
+  if (homeLayout() === "columns") return h("div", { class: "alerts" }, rows);
   rows.forEach((el, i) => {
     el.classList.add("note", `tilt-${i % 3}`);
     el.prepend(nutria(ALERT_MOOD(el), "note-who"));
   });
-  return room("cork", "Tablón de avisos", rows.length === 1 ? "1 aviso" : `${rows.length} avisos`, [h("div", { class: "cork-board" }, rows)], { decor: [pin()] });
+  return room("cork", "Tablón de avisos", plural(rows.length, "aviso", "avisos"), [h("div", { class: "cork-board" }, rows)], { decor: [pin()] });
 }
 
 const waited = (at) => (at ? Math.max(0, minutesSince(at)) : 0);
 const waitClass = (at) => (waited(at) >= 15 ? "wait-long" : waited(at) >= 5 ? "wait-some" : "");
 const waitLabel = (at) => {
   const m = waited(at);
-  return m < 1 ? "" : m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${m % 60} min`;
+  return m < 1 ? "" : m < 60 ? tr("{m} min", { m }) : tr("{h} h {m} min", { h: Math.floor(m / 60), m: m % 60 });
 };
 
-const MOOD_TEXT = { working: "trabajando", blocked: "bloqueada", free: "libre" };
-const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+const MOOD_TEXT = { working: tr("trabajando"), blocked: tr("bloqueada"), free: tr("libre") };
+const plural = (n, one, many) => tr(`{n} ${n === 1 ? one : many}`, { n });
 
 function madridNow() {
   const p = Object.fromEntries(new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Madrid", hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(new Date()).map((x) => [x.type, x.value]));
@@ -140,7 +163,7 @@ function madridNow() {
 function windowDecor() {
   const { h: hour } = madridNow();
   const night = hour < 8 || hour >= 20;
-  return h("span", { class: `win${night ? " night" : ""}`, title: night ? "De noche" : "De día" }, [h("span", { class: night ? "moon" : "sun" })]);
+  return h("span", { class: `win${night ? " night" : ""}`, title: night ? tr("De noche") : tr("De día") }, [h("span", { class: night ? "moon" : "sun" })]);
 }
 
 function clockDecor() {
@@ -154,7 +177,7 @@ const pin = () => h("span", { class: "pinned-paper" });
 const poster = (text) => h("span", { class: "poster", text });
 
 function room(kind, name, count, body, { decor = [], onclick, title, nested = false } = {}) {
-  const wall = h("header", { class: "room-wall" }, [h("span", { class: "room-sign" }, [h("strong", { text: name }), count ? h("span", { text: count }) : null]), h("span", { class: "room-decor" }, decor)]);
+  const wall = h("header", { class: "room-wall" }, [h("span", { class: "room-sign" }, [h("strong", { text: tr(name) }), count ? h("span", { text: count }) : null]), h("span", { class: "room-decor" }, decor)]);
   const floor = h("div", { class: "room-floor" }, body);
   if (onclick && nested) {
     const el = h("section", { class: `room r-${kind} go`, role: "button", tabindex: "0", title }, [wall, floor]);
@@ -189,7 +212,7 @@ const pick = (key, n) => [...String(key || "")].reduce((v, ch) => (v * 33 + ch.c
 
 function actor(x, id, fig, extra = "") {
   const helpers = x.subagents ? h("span", { class: "helpers" }, Array.from({ length: Math.min(x.subagents, 3) }, () => paint(nutria(id === "working" ? "working" : "relax", "tiny"), x.name))) : null;
-  return h("button", { class: `seat ${id} ${extra}`.trim(), type: "button", "data-conv": x.conversation, title: `${x.name}: ${MOOD_TEXT[id]}${x.since ? ` desde ${when(x.since)}` : ""}. Pulsa para verla en directo.`, onclick: () => openLive(x.conversation, x.sessionName || x.name) }, [
+  return h("button", { class: `seat ${id} ${extra}`.trim(), type: "button", "data-conv": x.conversation, title: x.since ? tr("{name}: {mood} desde {time}. Pulsa para verla en directo.", { name: x.name, mood: MOOD_TEXT[id], time: when(x.since) }) : tr("{name}: {mood}. Pulsa para verla en directo.", { name: x.name, mood: MOOD_TEXT[id] }), onclick: () => openLive(x.conversation, x.sessionName || x.name) }, [
     h("span", { class: "seat-scene" }, [...fig, helpers]),
     h("span", { class: "plate" }, [h("strong", { text: x.name }), deskLine(x, id), mixedProjects() && x.project ? h("span", { class: "plate-project", text: projectName(x.project) }) : null]),
   ]);
@@ -222,7 +245,7 @@ const REST = [
 ];
 
 const PAIRS = [
-  (a, b) => ({ cls: "coffee", left: [otter(a, "idle", "mug"), h("b", { class: "say one", text: "…" })], middle: h("span", { class: "coffee-table" }), right: [otter(b, "idle", "mug", "mirror"), h("b", { class: "say two", text: "jaja" })] }),
+  (a, b) => ({ cls: "coffee", left: [otter(a, "idle", "mug"), h("b", { class: "say one", text: "…" })], middle: h("span", { class: "coffee-table" }), right: [otter(b, "idle", "mug", "mirror"), h("b", { class: "say two", text: tr("jaja") })] }),
   (a, b) => ({ cls: "pingpong", left: [otter(a, "idle", "paddle")], middle: h("span", { class: "pp-table" }, [h("i", { class: "net" }), h("i", { class: "ball" })]), right: [otter(b, "idle", "paddle", "mirror")] }),
   (a, b) => ({ cls: "chess", left: [otter(a, "idle"), h("b", { class: "say one", text: "?" })], middle: h("span", { class: "chess-table" }), right: [otter(b, "idle", null, "mirror")] }),
 ];
@@ -262,8 +285,8 @@ function shelf(n) {
 }
 
 function permButtons(p) {
-  const yes = h("button", { class: "perm-mini yes", type: "button", title: `Permitir: ${p.label}`, "aria-label": `Permitir ${p.label}`, text: "✓" });
-  const no = h("button", { class: "perm-mini no", type: "button", title: `Denegar: ${p.label}`, "aria-label": `Denegar ${p.label}`, text: "✕" });
+  const yes = h("button", { class: "perm-mini yes", type: "button", title: tr("Permitir: {what}", { what: p.label }), "aria-label": tr("Permitir: {what}", { what: p.label }), text: "✓" });
+  const no = h("button", { class: "perm-mini no", type: "button", title: tr("Denegar: {what}", { what: p.label }), "aria-label": tr("Denegar: {what}", { what: p.label }), text: "✕" });
   yes.addEventListener("click", () => decide(p, "allow", yes));
   no.addEventListener("click", () => decide(p, "deny", no));
   return h("span", { class: "perm-minis" }, [yes, no]);
@@ -277,7 +300,7 @@ function askedFor(p) {
 
 function permPeeks(perms) {
   if (!perms.length) return null;
-  return h("span", { class: "perm-peeks" }, perms.slice(0, 3).map((p) => h("span", { class: "perm-peek", title: askedFor(p) }, [h("strong", { text: p.areaName || "Una sesión" }), h("code", { text: askedFor(p) })])));
+  return h("span", { class: "perm-peeks" }, perms.slice(0, 3).map((p) => h("span", { class: "perm-peek", title: askedFor(p) }, [h("strong", { text: p.areaName || tr("Una sesión") }), h("code", { text: askedFor(p) })])));
 }
 
 function queue(items) {
@@ -287,13 +310,67 @@ function queue(items) {
       const who = paint(nutria(x.mood || "waiting", "mid"), x.label);
       if (waitClass(x.at)) who.classList.add(waitClass(x.at));
       const late = waited(x.at) >= 5 ? h("span", { class: `wait-min ${waitClass(x.at)}`, text: waitLabel(x.at) }) : null;
-      return h("span", { class: "queuer", title: `${x.title}${waitLabel(x.at) ? ` · lleva ${waitLabel(x.at)}` : ""}` }, [h("span", { class: "sign", text: x.label }), who, late, x.permission ? permButtons(x.permission) : null]);
+      return h("span", { class: "queuer", title: waitLabel(x.at) ? tr("{what} · lleva {time}", { what: x.title, time: waitLabel(x.at) }) : x.title }, [h("span", { class: "sign", text: x.label }), who, late, x.permission ? permButtons(x.permission) : null]);
     }),
     items.length > shown.length ? h("span", { class: "queue-more", text: `+${items.length - shown.length}` }) : null,
   ]);
 }
 
+function liveButton(x) {
+  if (!x.conversation) return null;
+  return h("button", { class: "btn link", type: "button", text: tr("Ver en directo"), onclick: () => openLive(x.conversation, x.sessionName || x.name) });
+}
+
+function shortcuts() {
+  const count = (statuses) => state.tasks.filter((t) => statuses.includes(t.status)).length;
+  const perms = ((state.permissions && state.permissions.pending) || []).length;
+  const data = [
+    ["pending", tr("Pendientes"), count(["pending"])],
+    ["waiting", tr("Te esperan"), count(["waiting", "partial"]) + perms],
+    ["sent", tr("En curso"), count(["sent"])],
+    ["done", tr("Hechas"), count(["done"])],
+  ];
+  return h("div", { class: "shortcuts" }, data.map(([id, label, n]) => h("button", { type: "button", class: `shortcut${n ? " filled" : ""}${id === "waiting" && n ? " urgent" : ""}`, onclick: () => switchView(id) }, [h("strong", { text: String(n) }), h("span", { text: label })])));
+}
+
+function sessionCard(x, group) {
+  const kids = [h("div", { class: "top" }, [h("span", { class: `dot ${DOTS[group]}` }), h("strong", { class: "session-title", text: x.name }), h("span", { class: "time", text: x.since ? tr("desde {time}", { time: when(x.since) }) : "" })])];
+  if (x.reason) {
+    const task = x.reason.task;
+    const late = waitLabel(x.reason.at);
+    kids.push(h("div", { class: "reason" }, [h("b", { text: x.reason.text + (task ? " " : "") }), task ? h("button", { class: "task-link", type: "button", text: task.key, title: task.title, onclick: () => switchView(x.reason.view) }) : null, late ? h("span", { class: `wait-min ${waitClass(x.reason.at)}`, text: late }) : null]));
+  }
+  if (x.subagents) kids.push(h("div", { class: "meta", text: x.subagents === 1 ? tr("Con un ayudante en marcha") : tr("Con {n} ayudantes en marcha", { n: x.subagents }) }));
+  const others = x.tasks.filter((task) => !x.reason || task !== x.reason.task);
+  if (others.length) kids.push(h("div", { class: "meta", text: tr("Con {keys}", { keys: others.map((task) => task.key).join(", ") }) }));
+  const where = mixedProjects() && x.project ? h("span", { class: "chip session-project", text: projectName(x.project) }) : null;
+  kids.push(h("div", { class: "home-footer" }, [h("span", { class: "home-footer-who" }, [where]), liveButton(x)]));
+  return h("article", { class: `card home-session ${group}` }, kids);
+}
+
+function renderColumns(root) {
+  const s = sessionSituation();
+  root.appendChild(shortcuts());
+  const perms = (state.permissions && state.permissions.pending) || [];
+  if (perms.length) root.appendChild(h("div", { class: "perm-peeks columns" }, perms.map((p) => h("span", { class: "perm-peek", title: askedFor(p) }, [h("strong", { text: p.areaName || tr("Una sesión") }), h("code", { text: askedFor(p) }), waitLabel(p.at) ? h("span", { class: `wait-min ${waitClass(p.at)}`, text: waitLabel(p.at) }) : null, permButtons(p)]))));
+  const columns = BOARD.map((id) => {
+    const [, title, note] = GROUPS.find((g) => g[0] === id);
+    const head = h("div", { class: "board-head", title: note }, [h("span", { class: `dot ${DOTS[id]}` }), h("span", { text: title }), h("span", { class: "n", text: String(s[id].length) })]);
+    const cards = s[id].length ? s[id].map((x) => sessionCard(x, id)) : [h("div", { class: "board-empty", text: tr("Ninguna") })];
+    return h("section", { class: "board-col" }, [head, ...cards]);
+  });
+  root.appendChild(h("div", { class: "board" }, columns));
+  if (s.system.length)
+    root.appendChild(
+      h("div", { class: "system-chips" }, [
+        h("span", { class: "meta", text: tr("Del tablero") }),
+        ...s.system.map((x) => h("button", { class: "system-chip", type: "button", title: x.working ? tr("Trabajando") : x.open ? tr("Abierta") : tr("Cerrada"), onclick: () => openLive(x.conversation, x.session) }, [h("span", { class: `dot ${x.working ? "busy" : x.open ? "on" : ""}` }), x.name])),
+      ])
+    );
+}
+
 export function renderHome(root) {
+  if (homeLayout() === "columns") return renderColumns(root);
   const s = sessionSituation();
   const count = (st) => state.tasks.filter((t) => st.includes(t.status));
   const waiting = count(["waiting", "partial"]);
@@ -306,20 +383,20 @@ export function renderHome(root) {
 
   const plan = h("div", { class: `office-plan${resting.length >= 2 ? " wide-rest" : ""}${state.workHours === false && !(state.config && state.config.overtime) ? " lights-off" : ""}` });
 
-  const yours = [...perms.map((p) => ({ label: p.areaName || "Permiso", title: `${p.areaName || "Una sesión"} quiere: ${p.label}`, mood: "blocked", permission: p, at: p.at })), ...waiting.map((t) => ({ label: t.key, title: `${t.status === "partial" ? "A medias" : "Te espera"}: ${t.title}`, mood: t.status === "partial" ? "blocked" : "waiting", at: (t.notice && t.notice.at) || t.sentAt }))];
+  const yours = [...perms.map((p) => ({ label: p.areaName || tr("Permiso"), title: tr("{who} quiere: {what}", { who: p.areaName || tr("Una sesión"), what: p.label }), mood: "blocked", permission: p, at: p.at })), ...waiting.map((t) => ({ label: t.key, title: `${t.status === "partial" ? tr("A medias") : tr("Te espera")}: ${t.title}`, mood: t.status === "partial" ? "blocked" : "waiting", at: (t.notice && t.notice.at) || t.sentAt }))];
   const yourN = yours.length;
   plan.append(
-    room(`desk${yourN ? "" : " is-empty"}`, "Tu mesa", yourN ? `${plural(yourN, "cosa te espera", "cosas te esperan")}` : "Nadie te espera", [yourN ? queue(yours) : h("span", { class: "calm" }, [h("span", { class: "chair pushed" })]), h("span", { class: "big-desk" }, yourN ? [] : [deskItems()]), permPeeks(perms)], { decor: [windowDecor(), plant()], onclick: () => switchView("waiting"), title: "Ver lo que te espera", nested: perms.length > 0 }),
-    room("inbox", "Bandeja de entrada", pending.length ? plural(pending.length, "pendiente", "pendientes") : "Vacía", [h("span", { class: "inbox-scene" }, [pending.length ? paint(nutria("pending", "mid"), "bandeja") : null, inboxPile(pending.length)]), h("strong", { class: "big-n", text: String(pending.length) })], { decor: [poster("IN")], onclick: () => switchView("pending"), title: "Ver las pendientes" }),
-    room(`work${atDesk.length ? "" : " is-empty"}`, "Sala de trabajo", `${atDesk.length ? plural(atDesk.length, "sesión", "sesiones") : "Vacía"} · ${plural(sent, "tarea en curso", "tareas en curso")}`, atDesk.length ? atDesk.map(({ x, id }) => workScene(x, id)) : [h("span", { class: "still-row" }, [0, 1, 2].map(emptyStation))], { decor: [clockDecor(), plant()] }),
-    room(`sofa${resting.length ? "" : " is-empty"}`, "Sala de descanso", resting.length ? plural(resting.length, "libre", "libres") : "Vacía", resting.length ? restScenes(resting) : [emptyLounge()], { decor: [h("span", { class: "lamp" })] }),
-    room("archive", "Archivo", done ? plural(done, "hecha", "hechas") : "Nada archivado", [h("span", { class: "archive-scene" }, [shelf(done), done ? paint(nutria("done", "mid"), "archivo") : lonelyBox()]), h("strong", { class: "big-n", text: String(done) })], { decor: [poster("✓")], onclick: () => switchView("done"), title: "Ver las hechas" }),
+    room(`desk${yourN ? "" : " is-empty"}`, "Tu mesa", yourN ? plural(yourN, "cosa te espera", "cosas te esperan") : tr("Nadie te espera"), [yourN ? queue(yours) : h("span", { class: "calm" }, [h("span", { class: "chair pushed" })]), h("span", { class: "big-desk" }, yourN ? [] : [deskItems()]), permPeeks(perms)], { decor: [windowDecor(), plant()], onclick: () => switchView("waiting"), title: tr("Ver lo que te espera"), nested: perms.length > 0 }),
+    room("inbox", "Bandeja de entrada", pending.length ? plural(pending.length, "pendiente", "pendientes") : tr("Vacía"), [h("span", { class: "inbox-scene" }, [pending.length ? paint(nutria("pending", "mid"), "bandeja") : null, inboxPile(pending.length)]), h("strong", { class: "big-n", text: String(pending.length) })], { decor: [poster("IN")], onclick: () => switchView("pending"), title: tr("Ver las pendientes") }),
+    room(`work${atDesk.length ? "" : " is-empty"}`, "Sala de trabajo", `${atDesk.length ? plural(atDesk.length, "sesión", "sesiones") : tr("Vacía")} · ${plural(sent, "tarea en curso", "tareas en curso")}`, atDesk.length ? atDesk.map(({ x, id }) => workScene(x, id)) : [h("span", { class: "still-row" }, [0, 1, 2].map(emptyStation))], { decor: [clockDecor(), plant()] }),
+    room(`sofa${resting.length ? "" : " is-empty"}`, "Sala de descanso", resting.length ? plural(resting.length, "libre", "libres") : tr("Vacía"), resting.length ? restScenes(resting) : [emptyLounge()], { decor: [h("span", { class: "lamp" })] }),
+    room("archive", "Archivo", done ? plural(done, "hecha", "hechas") : tr("Nada archivado"), [h("span", { class: "archive-scene" }, [shelf(done), done ? paint(nutria("done", "mid"), "archivo") : lonelyBox()]), h("strong", { class: "big-n", text: String(done) })], { decor: [poster("✓")], onclick: () => switchView("done"), title: tr("Ver las hechas") }),
   );
   if (s.system.length) {
     plan.append(
       room("control", "Sala de control", plural(s.system.filter((x) => x.open).length, "abierta", "abiertas"), s.system.map((x) => {
         const mood = x.working ? "working" : x.open ? "free" : "closed";
-        return h("button", { class: `console ${mood}`, type: "button", title: `${x.name}: ${x.working ? "trabajando" : x.open ? "abierta" : "cerrada"}. Pulsa para verla en directo.`, onclick: () => openLive(x.conversation, x.session) }, [h("span", { class: "screen-wall" }), paint(nutria(mood, "mid"), x.name), h("span", { class: "plate small" }, [h("strong", { text: x.name })])]);
+        return h("button", { class: `console ${mood}`, type: "button", title: tr("{name}: {mood}. Pulsa para verla en directo.", { name: x.name, mood: x.working ? tr("trabajando") : x.open ? tr("abierta") : tr("cerrada") }), onclick: () => openLive(x.conversation, x.session) }, [h("span", { class: "screen-wall" }), paint(nutria(mood, "mid"), x.name), h("span", { class: "plate small" }, [h("strong", { text: x.name })])]);
       }), { decor: [h("span", { class: "radar" })] })
     );
   }

@@ -1,3 +1,22 @@
+.shortcuts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.shortcut { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink-3); font: inherit; text-align: left; cursor: pointer; }
+.shortcut strong { font-size: 22px; font-weight: 600; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.shortcut.filled strong { color: var(--ink); }
+.shortcut.urgent { border-color: var(--danger); }
+.shortcut.urgent strong { color: var(--danger); }
+.system-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; font-size: 13px; color: var(--ink-2); }
+.system-chip { display: inline-flex; align-items: center; gap: 6px; padding: 0; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; }
+.home-footer > .btn { flex: none; white-space: nowrap; }
+.perm-peeks.columns .perm-peek { align-items: center; background: var(--surface); border: 1px solid var(--line); box-shadow: none; }
+.perm-peeks.columns .perm-peek code { flex: 1; }
+.perm-peeks.columns .perm-minis { margin: 0; flex: none; }
+.reason .wait-min { margin-left: 6px; }
+@media (max-width: 760px) {
+  .shortcuts { gap: 6px; }
+  .shortcut { padding: 8px; gap: 0; }
+  .shortcut strong { font-size: 19px; }
+  .shortcut span { font-size: 11.5px; line-height: 1.25; }
+}
 .reason { font-size: 14px; }
 .task-link { padding: 0; border: 0; background: none; color: var(--accent); font: inherit; font-family: var(--mono); font-size: 13px; text-decoration: underline; cursor: pointer; }
 .board { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; align-items: start; }

@@ -171,4 +171,9 @@
 .look-theme.light i { background: #f6f6f3; } .look-theme.light i + i { background: #ffffff; } .look-theme.light i:last-child { background: #0b6e8a; }
 .look-theme.dark i { background: #161619; } .look-theme.dark i + i { background: #242429; } .look-theme.dark i:last-child { background: #4cb4d1; }
 .look-theme.system i:first-child { background: #f6f6f3; } .look-theme.system i:nth-child(2) { background: linear-gradient(90deg, #ffffff 50%, #242429 50%); } .look-theme.system i:last-child { background: #161619; }
+.look-home { display: grid; width: 72px; height: 44px; padding: 3px; gap: 3px; border-radius: 4px; border: 1px solid var(--line); background: var(--surface-2); box-sizing: border-box; }
+.look-home.office { grid-template-columns: 2fr 1fr; grid-template-rows: 1fr 1fr; }
+.look-home.office i { border-radius: 2px; background: #f3e3c4; } .look-home.office i:nth-child(2) { background: #dbe8f4; } .look-home.office i:nth-child(3) { background: #d8eedd; } .look-home.office i:nth-child(4) { background: #e6dcf3; }
+.look-home.columns { grid-template-columns: repeat(3, 1fr); }
+.look-home.columns i { border-radius: 2px; background: linear-gradient(var(--surface) 0 30%, transparent 30% 38%, var(--surface) 38% 68%, transparent 68%); border-top: 3px solid var(--ink-3); }
 @media (max-width: 760px) { .look-choice { flex: 1 1 30%; min-width: 0; padding: 10px 6px; } }
