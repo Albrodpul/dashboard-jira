@@ -99,4 +99,9 @@ export default {
   "Los textos del tablero. Lo que escriben las sesiones y Jira sigue en su idioma.": "The board's own texts. What sessions and Jira write stays in its language.",
   "Pantalla de inicio": "Home screen",
   "La oficina con las nutrias o la vista clásica: contadores, sesiones en columnas y tarjetas.": "The otter office or the classic view: counters, sessions in columns and cards.",
+  "Jira, sesiones y despliegues": "Jira, sessions and deploys",
+  "Última actividad": "Latest activity",
+  "Revisar Jira ahora": "Check Jira now",
+  "Qué actividad ver": "Which activity to show",
+  "Secciones": "Sections",
 };

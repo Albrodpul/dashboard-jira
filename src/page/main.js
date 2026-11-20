@@ -19,7 +19,7 @@ import { renderMachines } from "./views/machines.js";
 import { renderAppearance, applyTheme } from "./views/appearance.js";
 import { paintTicket } from "./components/ticket.js";
 import { newTaskButton, newTaskForm } from "./components/new-task.js";
-import { t, tn } from "./lib/i18n.js";
+import { t, tn, translateStatic } from "./lib/i18n.js";
 import { projectSwitch, bindProjectKeys, applyProjectFilter, tabVisible, hasModule, mixedProjects, mainProject, projectTitle } from "./components/project-filter.js";
 
 const TASK_TABS = [
@@ -518,6 +518,7 @@ function reload(force) {
 }
 
 applyTheme();
+translateStatic();
 
 setRender(() => {
   const started = performance.now();

@@ -32,7 +32,7 @@
     <img class="logo-img" src="/icon-192.png" alt="" width="30" height="30">
     <div>
       <h1>NutrIA</h1>
-      <p class="sub">Jira, sesiones y despliegues</p>
+      <p class="sub" data-t>Jira, sesiones y despliegues</p>
     </div>
   </div>
   <div class="top-search" id="top-search"></div>
@@ -44,25 +44,25 @@
       <img class="logo-img" src="/icon-192.png" alt="" width="30" height="30">
       <div>
         <h1>NutrIA</h1>
-        <p class="sub">Jira, sesiones y despliegues</p>
+        <p class="sub" data-t>Jira, sesiones y despliegues</p>
       </div>
       <div class="brand-project"></div>
     </div>
     <div class="nav-project" id="nav-project"></div>
     <nav class="tabs" role="tablist" aria-orientation="vertical" id="tabs"></nav>
   </aside>
-  <aside class="report" id="report" aria-label="Última actividad">
+  <aside class="report" id="report" aria-label="Última actividad" data-t-aria>
     <div class="report-head">
-      <strong>Última actividad</strong>
+      <strong data-t>Última actividad</strong>
       <span class="report-tools">
         <button class="btn bell" type="button" id="pause"></button>
         <button class="btn bell" type="button" id="notifications" hidden></button>
-        <button class="btn bell" type="button" id="refresh" title="Revisar Jira ahora" aria-label="Revisar Jira ahora">
+        <button class="btn bell" type="button" id="refresh" title="Revisar Jira ahora" aria-label="Revisar Jira ahora" data-t-title data-t-aria>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.6-6.4L21 8"/><path d="M21 3v5h-5"/></svg>
         </button>
       </span>
     </div>
-    <div class="act-tabs" id="act-tabs" role="tablist" aria-label="Qué actividad ver"></div>
+    <div class="act-tabs" id="act-tabs" role="tablist" aria-label="Qué actividad ver" data-t-aria></div>
     <span class="meta" id="stamp"></span>
     <span class="meta" id="gh-stamp"></span>
     <section class="jira" id="report-body" hidden></section>
@@ -76,7 +76,7 @@
     <div class="groups" id="groups" aria-live="polite"></div>
   </main>
 </div>
-<nav class="bottom" id="bottom" aria-label="Secciones"></nav>
+<nav class="bottom" id="bottom" aria-label="Secciones" data-t-aria></nav>
 <div class="toast" id="toast" hidden></div>
 <script>
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});

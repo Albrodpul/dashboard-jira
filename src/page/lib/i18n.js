@@ -25,6 +25,13 @@ export function t(text, vars) {
 
 export const tn = (n, one, many, vars = {}) => t(n === 1 ? one : many, { n, ...vars });
 
+export function translateStatic(root = document) {
+  if (LANG === "es") return;
+  root.querySelectorAll("[data-t]").forEach((el) => (el.textContent = t(el.textContent.trim())));
+  root.querySelectorAll("[data-t-title]").forEach((el) => el.setAttribute("title", t(el.getAttribute("title"))));
+  root.querySelectorAll("[data-t-aria]").forEach((el) => el.setAttribute("aria-label", t(el.getAttribute("aria-label"))));
+}
+
 export function setLang(id) {
   try {
     if (id === "es") localStorage.removeItem(KEY);
