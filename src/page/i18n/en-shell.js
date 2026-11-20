@@ -84,6 +84,8 @@ export default {
   "Modo YOLO apagado: las tareas nuevas esperan a que pulses Hacer.": "YOLO mode off: new tasks wait until you press Do.",
   "Todo automático: las tareas pendientes van solas a su sesión; si no tienen, el tablero crea una con el nombre del epic. Las restricciones siguen mandando.": "Fully automatic: pending tasks go straight to their session; if they have none, the board creates one named after the epic. Restrictions still apply.",
   "Modo YOLO": "YOLO mode",
+  "Nivel de poder": "Power level",
+  "Tareas enviadas solas desde que lo encendiste: {n}": "Tasks sent by themselves since you turned it on: {n}",
   "Apagar": "Turn off",
   "Modo YOLO activo desde las {time}": "YOLO mode on since {time}",
   "Modo YOLO activo": "YOLO mode on",

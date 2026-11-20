@@ -65,6 +65,8 @@ const LAYERS = {
 };
 const HEAD_PROPS = new Set(["helmet", "binoculars"]);
 
+const SPIKES = '<path class="spk" d="M3.6 3.2L1.2 1.6L3.4 1.2L1.6 -1.2L4.4 -0.4L3.8 -3.4L6.4 -1L7.2 -4.4L8.6 -1.2L10.6 -3.8L10.6 -0.6L13.4 -2.2L12.4 0.6L15 0.8L12.6 3.2Z"/><path class="spk light" d="M4.6 1.4L3.4 -1.6L5.8 0.2L7.2 -3.2L7.8 0.4L6 1.6Z"/><path class="spk" d="M5 3L6 1.6L6.6 2.7L7.8 1.4L8.4 2.7L9.6 1.5L10.2 2.8L11.2 1.8L11.4 3.2Z"/>';
+
 export function nutria(mood, size = "", prop = null) {
   const m = MOODS[mood] || MOODS.free;
   const el = document.createElement("span");
@@ -74,7 +76,7 @@ export function nutria(mood, size = "", prop = null) {
   if (extra) el.dataset.prop = extra;
   const head = extra && HEAD_PROPS.has(extra) ? PROPS[extra] : "";
   const held = extra && !HEAD_PROPS.has(extra) ? PROPS[extra] : "";
-  el.innerHTML = `<svg viewBox="0 -1 17 15" shape-rendering="crispEdges"><g class="o-all"><g class="o-tail">${LAYERS.tail}</g><g class="o-torso">${LAYERS.body}</g>${LAYERS.feet}<g class="o-neck"><g class="o-head">${LAYERS.head}<g class="o-eyes"><g class="o-blink">${EYES[m.eyes]}</g></g><g class="o-hat"></g>${head}</g></g><g class="o-torso"><g class="wear">${OUTFITS.scarf}</g>${ARMS[m.arms]}</g>${held}</g></svg>${m.bubble ? `<b class="bubble ${m.bubble[1]}">${m.bubble[0]}</b>` : ""}${m.zz ? '<i class="zz">z<span>z</span></i>' : ""}`;
+  el.innerHTML = `<i class="aura"></i><i class="ki"></i><svg viewBox="0 -1 17 15" shape-rendering="crispEdges"><g class="o-all"><g class="o-tail">${LAYERS.tail}</g><g class="o-torso">${LAYERS.body}</g>${LAYERS.feet}<g class="o-neck"><g class="o-head">${LAYERS.head}<g class="o-eyes"><g class="o-blink">${EYES[m.eyes]}</g></g><g class="o-hat"></g><g class="o-spikes">${SPIKES}</g>${head}</g></g><g class="o-torso"><g class="wear">${OUTFITS.scarf}</g>${ARMS[m.arms]}</g>${held}</g></svg>${m.bubble ? `<b class="bubble ${m.bubble[1]}">${m.bubble[0]}</b>` : ""}${m.zz ? '<i class="zz">z<span>z</span></i>' : ""}`;
   return el;
 }
 

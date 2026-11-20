@@ -337,6 +337,7 @@ function restoreScrolls(saved) {
 }
 
 function render() {
+  document.documentElement.classList.toggle("yolo", !!(state.config && state.config.yolo));
   const keepY = renderedTab === state.tab ? window.scrollY : null;
   const inner = keepY !== null ? innerScrolls() : new Map();
   const groups = document.getElementById("groups");
