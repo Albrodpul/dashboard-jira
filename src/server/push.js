@@ -16,7 +16,7 @@ const REASONS = {
   sentry: { title: "Sentry", text: "Una sesión ha contestado sobre un error de Sentry", tab: "sentry" },
   test: { title: "Prueba", text: "Aviso de prueba del tablero", tab: "home" },
   board: { title: "Tablero", text: "El tablero no responde", tab: "home" },
-  token: { title: "Token de Claude", text: "El token de Claude caduca pronto: renuévalo en Ordenadores", tab: "machines" },
+  token: { title: "Token de Claude", text: "El token de Claude caduca pronto: renuévalo en Ajustes → Ordenadores", tab: "machines" },
 };
 
 const b64url = (buf) => Buffer.from(buf).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");

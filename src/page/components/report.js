@@ -191,7 +191,7 @@ function tokenWarning() {
   const days = Math.ceil((new Date(state.claudeTokenExpires + "T00:00:00") - Date.now()) / 86400000);
   if (days > 30) return null;
   const text = days <= 0 ? t("Token de Claude caducado") : tn(days, "Token de Claude: caduca en {n} día", "Token de Claude: caduca en {n} días");
-  return h("span", { class: `token-warn${days <= 7 ? " high" : ""}`, title: t("Las sesiones del tablero usan un token de larga duración que caduca el {date}. Renuévalo con el botón de la pestaña Ordenadores.", { date: state.claudeTokenExpires }), text });
+  return h("span", { class: `token-warn${days <= 7 ? " high" : ""}`, title: t("Las sesiones del tablero usan un token de larga duración que caduca el {date}. Renuévalo con el botón de Ajustes → Ordenadores.", { date: state.claudeTokenExpires }), text });
 }
 
 export function overtimeBanner() {

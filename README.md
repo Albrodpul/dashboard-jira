@@ -23,11 +23,11 @@ It also has:
 - **permissions**: a `PreToolUse` hook sends each permission request to the board. Read-only commands and edits inside the workspace are approved on their own, and the rest wait for you on the board;
 - **two machines** (optional): a PC and a Mac run the board together. One is in command (it hosts the sessions and talks to Jira) and the other mirrors it. See [Two machines](#two-machines);
 - **several projects in one board**: your own and clients', with or without Jira, each with its folder, credentials, task prefix and optional modules. A picker in the top bar filters the whole board; with "Todos los proyectos", Home and Talk show which project each session belongs to (see [Projects and root](#3-projects-and-root-boardconfigjson));
-- **Servidores**: start and stop the local dev servers (database, API, frontends) and see if they answer;
+- **Servidores** (in Ajustes): start and stop the local dev servers (database, API, frontends) and see if they answer;
 - one-click deploy orders, with the live state of GitHub Actions and AWS CodeDeploy;
 - Sentry errors sent to a session with one click;
 - push notifications;
-- a **work schedule** (Ordenadores → Horario de trabajo, Monday to Friday): it sets when the fixed sessions start, when Jira is watched and follow-ups run, when the projects stop, and the time the daily is drafted (inside the workday; by default 90 minutes before it ends);
+- a **work schedule** (Ajustes → Ordenadores → Horario de trabajo, Monday to Friday): it sets when the fixed sessions start, when Jira is watched and follow-ups run, when the projects stop, and the time the daily is drafted (inside the workday; by default 90 minutes before it ends);
 - a daily summary of the day's work per project, and an activity summary of beta and production split by person;
 - a "Learning" tab that tracks how often work comes back from review;
 - the shared `context/` folder kept in sync through git.
@@ -194,7 +194,7 @@ With `cluster` set on both machines (for example a PC and a Mac on the same netw
 The servers still listen only on `127.0.0.1`: each one is reached by the other through `tailscale serve` (see [Using the board from your phone](#using-the-board-from-your-phone)).
 
 - **Only one is in command.** That one hosts the sessions, reads Jira and writes the data. The other is on standby: it copies the commanding machine's data every minute, and its page shows the commanding machine's board.
-- **Command changes in two ways.** You can press "Que mande …" in Configurar → Ordenadores. Or, if the machine in command stops answering for a minute (switched off or asleep), the other takes command and keeps it when the first comes back. The one that wakes up yields, and its conversations are merged into the ones in command.
+- **Command changes in two ways.** You can press "Que mande …" in Ajustes → Ordenadores. Or, if the machine in command stops answering for a minute (switched off or asleep), the other takes command and keeps it when the first comes back. The one that wakes up yields, and its conversations are merged into the ones in command.
 - **At boot**, a machine takes command only if no machine is in command. If both are waiting, the label that sorts first takes it at once and the other after a minute, so they never both take it.
 - Both host names go in `data/board-hosts.txt` on both machines.
 - **The standby machine keeps its dev servers stopped**: it does not start them at boot or on schedule, refuses manual starts, and stops them when it hands over command. To use the projects from it, Servidores opens a compressed SSH tunnel (`ssh -C -L`) to the machine in command for every dev server with a `url`, so admin panels, frontends and API are `localhost` on both machines and logins work. Compression matters: a Nuxt dev page is tens of megabytes of uncompressed JS.

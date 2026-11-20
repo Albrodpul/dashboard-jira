@@ -1,4 +1,4 @@
-import { state, h, button, when, toast, requestOrFail, render, empty } from "../lib/base.js";
+import { state, h, button, when, toast, requestOrFail, render, empty, showing } from "../lib/base.js";
 import { currentProject, mixedProjects, projectName, inProjectOrder } from "../components/project-filter.js";
 import { t } from "../lib/i18n.js";
 
@@ -18,11 +18,11 @@ function load() {
     .catch(() => (data = { servers: [], error: t("No se pudo leer el estado de los proyectos.") }))
     .finally(() => {
       loading = false;
-      if (state.tab === "projects") render();
+      if (showing("projects")) render();
     });
 }
 
-setInterval(() => state.tab === "projects" && !document.hidden && load(), 4000);
+setInterval(() => showing("projects") && !document.hidden && load(), 4000);
 
 function act(action, id, label, b) {
   const key = id || action;

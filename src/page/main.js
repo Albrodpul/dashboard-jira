@@ -1,4 +1,5 @@
-import { state, h, post, switchView, setRender, setRefresh, empty, reviewer, button } from "./lib/base.js";
+import { state, h, post, switchView, setRender, setRefresh, empty, reviewer, button, SETTINGS, openSettings } from "./lib/base.js";
+import { paintSettings, settingsButton, lastSection } from "./components/settings.js";
 import { renderTasks, renderToday, renderBoard, boardSearch } from "./views/tasks.js";
 import { nutria, paint as paintOtter } from "./components/nutria.js";
 import { renderSessions } from "./views/sessions.js";
@@ -12,11 +13,8 @@ import { renderDaily } from "./views/daily.js";
 import { batteryBadge } from "./components/battery.js";
 import { renderLearning } from "./views/learning.js";
 import { renderSentry } from "./views/sentry.js";
-import { renderProjects } from "./views/projects.js";
-import { renderWorkspaces } from "./views/workspaces.js";
 import { renderFind, searchBox } from "./views/find.js";
-import { renderMachines } from "./views/machines.js";
-import { renderAppearance, applyTheme } from "./views/appearance.js";
+import { applyTheme } from "./views/appearance.js";
 import { paintTicket } from "./components/ticket.js";
 import { newTaskButton, newTaskForm } from "./components/new-task.js";
 import { t, tn, translateStatic } from "./lib/i18n.js";
@@ -53,15 +51,6 @@ const GROUPS = [
     [
       { id: "sentry", label: t("Errores"), hint: t("Errores de Sentry a una sesión") },
       { id: "deploy", label: t("Desplegar"), hint: t("Subir a develop o producción") },
-      { id: "projects", label: t("Servidores"), hint: t("Servidores de desarrollo en local") },
-    ],
-  ],
-  [
-    t("Ajustes"),
-    [
-      { id: "workspaces", label: t("Proyectos"), hint: t("Alta y ajustes de cada proyecto") },
-      { id: "machines", label: t("Ordenadores"), hint: t("PC y Mac: quién manda") },
-      { id: "appearance", label: t("Apariencia"), hint: t("Tema, idioma e inicio") },
     ],
   ],
 ];
@@ -76,14 +65,10 @@ const VIEWS = {
   ignored: [t("Ignoradas"), t("Descartadas con Ignorar. Se pueden recuperar.")],
   deploy: [t("Desplegar"), t("Sube proyectos a develop, a producción o a los dos. La orden sale de aquí hacia la sesión que despliega; nada se sube hasta que pulsas Desplegar.")],
   sessions: [t("Sesiones"), t("Qué sesión lleva cada epic y en qué está cada una. Las dormidas se despiertan solas cuando les llega algo.")],
-  machines: [t("Ordenadores"), t("Quién manda, el horario del Mac y el token de Claude.")],
-  appearance: [t("Apariencia"), t("Tema, idioma y pantalla de inicio del tablero.")],
   find: [t("Buscar"), t("Lo que coincide en las tareas del tablero, en las sesiones y en Jira. Lo de Jira se puede traer a Pendientes.")],
   today: [t("Hoy"), t("Lo que necesita algo de ti ahora mismo y, debajo, el último reporte.")],
-  more: [t("Más"), t("Errores, despliegues, tu ordenador, lo que hacen los demás y ajustes.")],
+  more: [t("Más"), t("Errores, despliegues, lo que hacen los demás y ajustes.")],
   talk: [t("Chats"), t("Las sesiones del tablero en directo: las fijas y cualquier otra que esté abierta. Escríbeles o córtalas, o abre una nueva para hablar.")],
-  workspaces: [t("Proyectos"), t("Cada proyecto que lleva el tablero: su carpeta en este ordenador, sus módulos y sus credenciales.")],
-  projects: [t("Servidores"), t("Los servidores locales que usan las sesiones: base de datos, API y webs de cada proyecto.")],
   sentry: [t("Errores"), t("Errores sin resolver de los proyectos de Sentry. Elige la sesión y pulsa Enviar: el tablero se lo pasa con el enlace y te cuenta aquí lo que ha encontrado.")],
   context: [t("Contexto"), t("Lo que van guardando las sesiones en context/: si hace que vuelvan menos tareas de revisión y, cuando todo está limpio, la orquestadora para repasarlo y ordenarlo.")],
   "follow-up": [t("Seguimiento"), t("Lo que hace cada uno según sus peticiones a la API, separado por persona: beta se resume sola cada hora y producción cada dos; cualquiera de los dos, también cuando lo pidas.")],
@@ -98,12 +83,8 @@ const PAGE_OTTERS = {
   daily: ["idle", "newspaper", t("Leyendo lo que hizo cada uno")],
   deploy: ["idle", "rocket", t("Lista para despegar")],
   sessions: ["idle", "book", t("Pasando lista")],
-  machines: ["working", null, t("Vigilando quién manda")],
-  appearance: ["idle", null, t("¿Qué tal estoy?")],
   find: ["idle", "magnifier", t("Buscando…")],
   talk: ["idle", null, t("Escribe y se lo paso")],
-  workspaces: ["idle", "box", t("Cada proyecto en su caja")],
-  projects: ["working", "helmet", t("Manteniendo los servidores en marcha")],
   sentry: ["idle", "magnifier", t("Buscando pistas en los errores")],
   context: ["idle", "book", t("Repasando lo aprendido")],
   "follow-up": ["idle", "binoculars", t("Vigilando beta y producción")],
@@ -124,12 +105,8 @@ const NON_TASK_VIEWS = {
   daily: renderDaily,
   sessions: renderSessions,
   find: renderFind,
-  machines: renderMachines,
-  appearance: renderAppearance,
   deploy: mainOnly(renderDeploy),
   sentry: mainOnly(renderSentry),
-  projects: renderProjects,
-  workspaces: renderWorkspaces,
   "follow-up": mainOnly(renderFollowUp),
   context: (root) => {
     const part = (title, paint) => {
@@ -155,10 +132,6 @@ const NAV_ICONS = {
   talk: ICONS.talk,
   sentry: '<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/>',
   deploy: '<path d="M12 19V5M5 12l7-7 7 7"/><path d="M5 21h14"/>',
-  projects: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="m7 10 3 2-3 2M13 15h4"/>',
-  machines: '<rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/>',
-  appearance: '<circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18z" fill="currentColor"/>',
-  workspaces: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
   "follow-up": '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
   sessions: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18.5 20a6.5 6.5 0 0 0-3-5.5"/>',
   context: '<path d="M22 10 12 5 2 10l10 5 10-5z"/><path d="M6 12v5c3 2 9 2 12 0v-5"/>',
@@ -180,7 +153,7 @@ const tabOf = (status) => (status === "partial" ? "waiting" : status === "jira" 
 
 try {
   const saved = localStorage.getItem("board-tab");
-  state.tab = tabOf(saved || "home");
+  state.tab = SETTINGS.includes(saved) ? "home" : tabOf(saved || "home");
 } catch (e) {}
 
 function paintTabs(counts, waitingDeploys) {
@@ -205,6 +178,11 @@ function paintTabs(counts, waitingDeploys) {
       const cls = `tab${n && HIGHLIGHT.includes(tab.id) ? " has" : ""}${n && tab.id === "waiting" ? " urgent" : ""}`;
       tabs.appendChild(h("button", { class: cls, role: "tab", "aria-selected": String(state.tab === tab.id), type: "button", title: `${tab.label}: ${tab.hint}`, onclick: () => switchView(tab.id) }, [navIcon(tab.id), tabText(tab), n === undefined ? null : h("span", { class: "n", text: String(n) })]));
     }
+  }
+  const foot = document.getElementById("nav-foot");
+  if (foot) {
+    foot.textContent = "";
+    foot.appendChild(settingsButton("tab settings-tab"));
   }
 }
 
@@ -263,6 +241,7 @@ function renderMore(root, waitingDeploys, errors) {
       return h("button", { type: "button", onclick: () => switchView(tab.id, true) }, [h("strong", { text: tab.label + extra }), h("span", { text: VIEWS[tab.id][1] })]);
     })
   );
+  menu.appendChild(h("button", { type: "button", class: "more-settings", onclick: () => openSettings(lastSection()) }, [h("strong", { text: t("Ajustes") }), h("span", { text: t("Proyectos, ordenadores, apariencia y servidores.") })]));
   root.appendChild(searchBox());
   root.appendChild(menu);
   root.appendChild(quotaBlock());
@@ -322,13 +301,13 @@ function scrollKey(el) {
 
 function innerScrolls() {
   const out = new Map();
-  for (const el of document.querySelectorAll("main *, .drawer, .drawer *")) if (el.scrollTop > 0 || el.scrollLeft > 0) out.set(scrollKey(el), [el.scrollTop, el.scrollLeft]);
+  for (const el of document.querySelectorAll("main *, .drawer, .drawer *, #settings-body *")) if (el.scrollTop > 0 || el.scrollLeft > 0) out.set(scrollKey(el), [el.scrollTop, el.scrollLeft]);
   return out;
 }
 
 function restoreScrolls(saved) {
   if (!saved.size) return;
-  for (const el of document.querySelectorAll("main *, .drawer, .drawer *")) {
+  for (const el of document.querySelectorAll("main *, .drawer, .drawer *, #settings-body *")) {
     const at = saved.get(scrollKey(el));
     if (!at) continue;
     if (el.scrollTop !== at[0]) el.scrollTop = at[0];
@@ -344,6 +323,7 @@ function render() {
   if (keepY !== null && groups) groups.style.minHeight = groups.offsetHeight + "px";
   try {
     paint();
+    paintSettings();
     paintTicket();
   } finally {
     renderedTab = state.tab;
@@ -435,7 +415,7 @@ const FIELDS = ["cluster", "daily", "dailies", "tidies", "sessionProfiles", "ses
 const withoutReadTime = (d) => JSON.stringify(d, (k, v) => (k === "syncedAt" ? undefined : v));
 const editing = () => {
   const a = document.activeElement;
-  return !!a && ["INPUT", "SELECT", "TEXTAREA"].includes(a.tagName) && !!a.closest("#groups");
+  return !!a && ["INPUT", "SELECT", "TEXTAREA"].includes(a.tagName) && !!a.closest("#groups, #settings-body");
 };
 const liveFocus = () => {
   const a = document.activeElement;
@@ -575,8 +555,9 @@ function activityButton() {
 render();
 const askedTab = new URLSearchParams(location.search).get("tab");
 if (askedTab) {
-  state.tab = askedTab;
   history.replaceState(null, "", "/");
+  if (SETTINGS.includes(askedTab)) openSettings(askedTab);
+  else state.tab = askedTab;
 }
 if ("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("message", (e) => e.data && e.data.tab && switchView(e.data.tab, true));
 const pageErrors = [];

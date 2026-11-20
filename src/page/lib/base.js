@@ -140,7 +140,25 @@ export const fixedAreaIds = () => new Set([state.deployerArea, state.sentry && s
 
 export const taskAreaSelect = (id, current, emptyLabel, onChange, project) => areaSelectFrom(state.areas.filter((a) => !a.unnamed && !fixedAreaIds().has(a.id) && (!project || !a.project || a.project === project)), id, current, emptyLabel, onChange);
 
+export const SETTINGS = ["workspaces", "machines", "appearance", "projects"];
+export const showing = (id) => state.tab === id || state.settings === id;
+
+export function openSettings(section) {
+  state.settings = SETTINGS.includes(section) ? section : state.settings || SETTINGS[0];
+  try {
+    localStorage.setItem("settings-section", state.settings);
+  } catch (e) {}
+  render();
+}
+
+export function closeSettings() {
+  state.settings = null;
+  render();
+}
+
 export function switchView(tab, toTop) {
+  if (SETTINGS.includes(tab)) return openSettings(tab);
+  state.settings = null;
   state.tab = tab;
   try {
     localStorage.setItem("board-tab", tab);

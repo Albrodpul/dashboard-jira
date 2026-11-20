@@ -1,4 +1,4 @@
-import { state, h, button, when, toast, requestOrFail, render, empty } from "../lib/base.js";
+import { state, h, button, when, toast, requestOrFail, render, empty, showing } from "../lib/base.js";
 import { batteryIcon, batteryText } from "../components/battery.js";
 import { t } from "../lib/i18n.js";
 
@@ -15,11 +15,11 @@ function load() {
     .catch(() => (data = { error: t("No se pudo leer el estado de los equipos.") }))
     .finally(() => {
       loading = false;
-      if (state.tab === "machines") render();
+      if (showing("machines")) render();
     });
 }
 
-setInterval(() => state.tab === "machines" && !document.hidden && load(), 5000);
+setInterval(() => showing("machines") && !document.hidden && load(), 5000);
 
 function act(target, action, label) {
   busy = true;
@@ -96,7 +96,7 @@ function pollJob() {
       job = j;
       jobLoaded = true;
       const typing = document.activeElement && document.activeElement.classList.contains("token-code");
-      if (changed && !typing && state.tab === "machines") render();
+      if (changed && !typing && showing("machines")) render();
       clearTimeout(jobTimer);
       if (j.state === "running") jobTimer = setTimeout(pollJob, 2000);
       if (j.state === "done") setTimeout(load, 1500);
