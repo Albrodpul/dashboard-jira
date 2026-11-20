@@ -89,7 +89,7 @@ export function sessionSituation() {
   for (const [name, r] of roles) {
     if (!r || !r.conversation || (otherProject && name !== "Tablero")) continue;
     const live = liveOf(r.conversation, r.session, true);
-    out.system.push({ name: tr(name), open: !!live, working: !!live && live.status === "busy", conversation: r.conversation, session: live ? live.name : r.session || name });
+    out.system.push({ name, label: tr(name), open: !!live, working: !!live && live.status === "busy", conversation: r.conversation, session: live ? live.name : r.session || name });
   }
   return out;
 }
@@ -364,7 +364,7 @@ function renderColumns(root) {
     root.appendChild(
       h("div", { class: "system-chips" }, [
         h("span", { class: "meta", text: tr("Del tablero") }),
-        ...s.system.map((x) => h("button", { class: "system-chip", type: "button", title: x.working ? tr("Trabajando") : x.open ? tr("Abierta") : tr("Cerrada"), onclick: () => openLive(x.conversation, x.session) }, [h("span", { class: `dot ${x.working ? "busy" : x.open ? "on" : ""}` }), x.name])),
+        ...s.system.map((x) => h("button", { class: "system-chip", type: "button", title: x.working ? tr("Trabajando") : x.open ? tr("Abierta") : tr("Cerrada"), onclick: () => openLive(x.conversation, x.session) }, [h("span", { class: `dot ${x.working ? "busy" : x.open ? "on" : ""}` }), x.label])),
       ])
     );
 }
@@ -396,7 +396,7 @@ export function renderHome(root) {
     plan.append(
       room("control", "Sala de control", plural(s.system.filter((x) => x.open).length, "abierta", "abiertas"), s.system.map((x) => {
         const mood = x.working ? "working" : x.open ? "free" : "closed";
-        return h("button", { class: `console ${mood}`, type: "button", title: tr("{name}: {mood}. Pulsa para verla en directo.", { name: x.name, mood: x.working ? tr("trabajando") : x.open ? tr("abierta") : tr("cerrada") }), onclick: () => openLive(x.conversation, x.session) }, [h("span", { class: "screen-wall" }), paint(nutria(mood, "mid"), x.name), h("span", { class: "plate small" }, [h("strong", { text: x.name })])]);
+        return h("button", { class: `console ${mood}`, type: "button", title: tr("{name}: {mood}. Pulsa para verla en directo.", { name: x.label, mood: x.working ? tr("trabajando") : x.open ? tr("abierta") : tr("cerrada") }), onclick: () => openLive(x.conversation, x.session) }, [h("span", { class: "screen-wall" }), paint(nutria(mood, "mid"), x.name), h("span", { class: "plate small" }, [h("strong", { text: x.label })])]);
       }), { decor: [h("span", { class: "radar" })] })
     );
   }
