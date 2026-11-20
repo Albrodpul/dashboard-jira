@@ -1,5 +1,6 @@
 import { state, h, button, when, toast, requestOrFail, render, empty } from "../lib/base.js";
 import { batteryIcon, batteryText } from "../components/battery.js";
+import { t } from "../lib/i18n.js";
 
 let data = null;
 let loading = false;
@@ -11,7 +12,7 @@ function load() {
   fetch("/api/cluster/machines", { cache: "no-store" })
     .then((r) => r.json())
     .then((d) => (data = d))
-    .catch(() => (data = { error: "No se pudo leer el estado de los equipos." }))
+    .catch(() => (data = { error: t("No se pudo leer el estado de los equipos.") }))
     .finally(() => {
       loading = false;
       if (state.tab === "machines") render();
@@ -25,7 +26,7 @@ function act(target, action, label) {
   render();
   requestOrFail("/api/cluster/command", { target, action })
     .then(() => toast(label))
-    .catch((e) => toast(`No se pudo: ${e.message}`))
+    .catch((e) => toast(t("No se pudo: {error}", { error: e.message })))
     .finally(() => {
       busy = false;
       setTimeout(load, 1500);
@@ -61,7 +62,7 @@ function card(device) {
   const b = boardOf(device);
   const commander = b && b.role === "primary";
   const isMac = device.os === "macOS";
-  const status = !device.online ? ["off", "Desconectado"] : !b ? ["warn", data.self && hostOf(data.self.peer) === device.dns ? "Su tablero no responde" : "Sin tablero"] : commander ? ["on", "Manda"] : ["idle", "En espera"];
+  const status = !device.online ? ["off", t("Desconectado")] : !b ? ["warn", data.self && hostOf(data.self.peer) === device.dns ? t("Su tablero no responde") : t("Sin tablero")] : commander ? ["on", t("Manda")] : ["idle", t("En espera")];
   const head = h("div", { class: "dev-head" }, [
     deviceIcon(device.os),
     h("div", { class: "dev-title" }, [h("strong", { text: (b && b.label) || device.name }), h("span", { class: "meta", text: [device.name, device.ip].filter(Boolean).join(" · ") })]),
@@ -69,14 +70,14 @@ function card(device) {
   ]);
   const rows = [];
   const mp = state.cluster && state.cluster.macPower;
-  if (isMac && mp && mp.battery) rows.push(row("Batería", h("span", { class: "dev-battery" }, [batteryIcon(mp.battery, 30), `${mp.battery.percent} % · ${batteryText(mp.battery).toLowerCase()}`])));
-  if (!device.online && device.lastSeen) rows.push(row("Visto", when(device.lastSeen)));
-  if (b && commander) rows.push(row("Manda desde", when(b.since)));
-  if (b && !commander && device.online) rows.push(row("Copia", `datos ${b.lastSnapshot ? when(b.lastSnapshot) : "nunca"} · conversaciones ${b.lastTranscripts ? when(b.lastTranscripts) : "nunca"}`));
-  if (b && b.claudeToken && !b.claudeToken.sessions) rows.push(row("Token", "no tiene; cópialo desde «Token de Claude»"));
-  if (b && b.claudeToken && b.claudeToken.sessions && !b.claudeToken.vscode) rows.push(row("VS Code", "aún con /login"));
+  if (isMac && mp && mp.battery) rows.push(row(t("Batería"), h("span", { class: "dev-battery" }, [batteryIcon(mp.battery, 30), `${mp.battery.percent} % · ${batteryText(mp.battery).toLowerCase()}`])));
+  if (!device.online && device.lastSeen) rows.push(row(t("Visto"), when(device.lastSeen)));
+  if (b && commander) rows.push(row(t("Manda desde"), when(b.since)));
+  if (b && !commander && device.online) rows.push(row(t("Copia"), t("datos {data} · conversaciones {chats}", { data: b.lastSnapshot ? when(b.lastSnapshot) : t("nunca"), chats: b.lastTranscripts ? when(b.lastTranscripts) : t("nunca") })));
+  if (b && b.claudeToken && !b.claudeToken.sessions) rows.push(row("Token", t("no tiene; cópialo desde «Token de Claude»")));
+  if (b && b.claudeToken && b.claudeToken.sessions && !b.claudeToken.vscode) rows.push(row("VS Code", t("aún con /login")));
   const actions = [];
-  if (b && device.online && !commander) actions.push(button(`Que mande el ${b.label}`, { cls: "primary", disabled: busy, onClick: () => window.confirm(`¿Pasar el mando al ${b.label}? El otro ordenador para sus sesiones y este las retoma.`) && act(b.label, "take", `Pasando el mando al ${b.label}…`) }));
+  if (b && device.online && !commander) actions.push(button(t("Que mande el {label}", { label: b.label }), { cls: "primary", disabled: busy, onClick: () => window.confirm(t("¿Pasar el mando al {label}? El otro ordenador para sus sesiones y este las retoma.", { label: b.label })) && act(b.label, "take", t("Pasando el mando al {label}…", { label: b.label })) }));
   return h("article", { class: `card dev-card${commander ? " is-commander" : ""}${device.online ? "" : " offline"}` }, [head, rows.length ? h("div", { class: "dev-rows" }, rows) : null, actions.length ? h("div", { class: "actions" }, actions) : null]);
 }
 
@@ -111,7 +112,7 @@ function jobAction(body, label) {
       job = j;
       if (label) toast(label);
     })
-    .catch((e) => toast(`No se pudo: ${e.message}`))
+    .catch((e) => toast(t("No se pudo: {error}", { error: e.message })))
     .finally(() => {
       jobBusy = false;
       render();
@@ -125,49 +126,49 @@ function tokenRenew() {
     button(label, {
       cls: "primary",
       disabled: jobBusy,
-      onClick: () => window.confirm("Se abrirá el navegador en este ordenador para autorizar con la cuenta de empresa. El token se guardará aquí y en el otro ordenador, y también para VS Code. ¿Seguir?") && jobAction({ action: "start" }),
+      onClick: () => window.confirm(t("Se abrirá el navegador en este ordenador para autorizar con la cuenta de empresa. El token se guardará aquí y en el otro ordenador, y también para VS Code. ¿Seguir?")) && jobAction({ action: "start" }),
     });
   if (job.state === "running") {
-    box.appendChild(h("p", { class: "setup-note", text: "Se ha abierto el navegador en este ordenador: quien tenga la cuenta de empresa tiene que autorizar. Si no está delante, cópiale el enlace y mándaselo." }));
+    box.appendChild(h("p", { class: "setup-note", text: t("Se ha abierto el navegador en este ordenador: quien tenga la cuenta de empresa tiene que autorizar. Si no está delante, cópiale el enlace y mándaselo.") }));
     if (job.url)
       box.appendChild(
         h("div", { class: "actions" }, [
-          h("a", { class: "btn link", href: job.url, target: "_blank", rel: "noopener noreferrer", text: "Abrir el enlace de autorización" }),
-          button("Copiar el enlace", { onClick: () => navigator.clipboard.writeText(job.url).then(() => toast("Enlace copiado."), () => toast("No se pudo copiar.")) }),
+          h("a", { class: "btn link", href: job.url, target: "_blank", rel: "noopener noreferrer", text: t("Abrir el enlace de autorización") }),
+          button(t("Copiar el enlace"), { onClick: () => navigator.clipboard.writeText(job.url).then(() => toast(t("Enlace copiado.")), () => toast(t("No se pudo copiar."))) }),
         ])
       );
     if (job.asksCode) {
-      const input = h("input", { type: "text", class: "token-code", placeholder: "Código que da la página al autorizar", "aria-label": "Código de autorización", oninput: (e) => (codeDraft = e.target.value) });
+      const input = h("input", { type: "text", class: "token-code", placeholder: t("Código que da la página al autorizar"), "aria-label": t("Código de autorización"), oninput: (e) => (codeDraft = e.target.value) });
       input.value = codeDraft;
-      box.appendChild(h("div", { class: "actions" }, [input, button("Enviar el código", { cls: "primary", disabled: jobBusy, onClick: () => input.value.trim() && (jobAction({ action: "code", code: input.value.trim() }, "Código enviado."), (codeDraft = "")) })]));
+      box.appendChild(h("div", { class: "actions" }, [input, button(t("Enviar el código"), { cls: "primary", disabled: jobBusy, onClick: () => input.value.trim() && (jobAction({ action: "code", code: input.value.trim() }, t("Código enviado.")), (codeDraft = "")) })]));
     }
     if (job.tail) box.appendChild(h("pre", { class: "token-tail", text: job.tail }));
-    box.appendChild(h("div", { class: "actions" }, [button("Cancelar", { cls: "subtle", disabled: jobBusy, onClick: () => jobAction({ action: "cancel" }) })]));
+    box.appendChild(h("div", { class: "actions" }, [button(t("Cancelar"), { cls: "subtle", disabled: jobBusy, onClick: () => jobAction({ action: "cancel" }) })]));
     return box;
   }
   if (job.state === "done") {
-    const peer = job.peer === true ? "y copiado al otro ordenador" : job.peer === false ? "pero el otro ordenador no responde" : "";
-    box.appendChild(h("p", { class: "setup-note", text: `Listo: token guardado en este ordenador ${peer}, caduca hacia el ${(job.expires || "").split("-").reverse().join("/")}. Ya vale también para VS Code: ciérralo del todo y ábrelo de nuevo en los dos ordenadores.` }));
-    const acts = [startButton("Renovar otra vez")];
-    if (job.peer === false) acts.unshift(button("Copiar al otro ordenador", { cls: "primary", disabled: jobBusy, onClick: () => jobAction({ action: "copy" }) }));
+    const peer = job.peer === true ? t("y copiado al otro ordenador") : job.peer === false ? t("pero el otro ordenador no responde") : "";
+    box.appendChild(h("p", { class: "setup-note", text: t("Listo: token guardado en este ordenador {peer}, caduca hacia el {date}. Ya vale también para VS Code: ciérralo del todo y ábrelo de nuevo en los dos ordenadores.", { peer, date: (job.expires || "").split("-").reverse().join("/") }) }));
+    const acts = [startButton(t("Renovar otra vez"))];
+    if (job.peer === false) acts.unshift(button(t("Copiar al otro ordenador"), { cls: "primary", disabled: jobBusy, onClick: () => jobAction({ action: "copy" }) }));
     box.appendChild(h("div", { class: "actions" }, acts));
     return box;
   }
   const mine = data.self && data.self.claudeToken, theirs = data.peer && data.peer.claudeToken;
   if (mine && mine.sessions && theirs && !theirs.sessions) {
-    box.appendChild(h("p", { class: "setup-note warn", text: "Este ordenador tiene el token y el otro no (estaría apagado al renovarlo)." }));
-    box.appendChild(h("div", { class: "actions" }, [button("Copiar al otro ordenador", { cls: "primary", disabled: jobBusy, onClick: () => jobAction({ action: "copy" }, "Token copiado al otro ordenador.") })]));
+    box.appendChild(h("p", { class: "setup-note warn", text: t("Este ordenador tiene el token y el otro no (estaría apagado al renovarlo).") }));
+    box.appendChild(h("div", { class: "actions" }, [button(t("Copiar al otro ordenador"), { cls: "primary", disabled: jobBusy, onClick: () => jobAction({ action: "copy" }, t("Token copiado al otro ordenador.")) })]));
   }
-  if (job.state === "failed") box.appendChild(h("p", { class: "setup-note warn", text: `No se ha renovado: ${job.error || "error desconocido"}` }));
+  if (job.state === "failed") box.appendChild(h("p", { class: "setup-note warn", text: t("No se ha renovado: {error}", { error: job.error || t("error desconocido") }) }));
   if (job.state === "failed" && job.tail) box.appendChild(h("pre", { class: "token-tail", text: job.tail }));
   const exp = (mine && mine.expires) || (theirs && theirs.expires);
   box.appendChild(
     h("div", { class: "token-line" }, [
       h("div", {}, [
-        h("p", { class: "token-exp" }, [h("strong", { text: exp ? `Caduca el ${fmtDate(exp)}` : "Sin token" }), h("span", { class: "meta", text: " · sesiones y VS Code, en los dos ordenadores" })]),
-        h("p", { class: "meta", text: "Renuévalo si caduca o si todas las sesiones caen con «Failed to authenticate». Con claude.ai abierto en la cuenta de empresa, lo autorizas tú solo." }),
+        h("p", { class: "token-exp" }, [h("strong", { text: exp ? t("Caduca el {date}", { date: fmtDate(exp) }) : t("Sin token") }), h("span", { class: "meta", text: ` · ${t("sesiones y VS Code, en los dos ordenadores")}` })]),
+        h("p", { class: "meta", text: t("Renuévalo si caduca o si todas las sesiones caen con «Failed to authenticate». Con claude.ai abierto en la cuenta de empresa, lo autorizas tú solo.") }),
       ]),
-      startButton("Renovar"),
+      startButton(t("Renovar")),
     ])
   );
   return box;
@@ -176,21 +177,21 @@ function tokenRenew() {
 export function renderMachines(root) {
   if (!data) {
     load();
-    return root.appendChild(empty("Mirando los equipos…", ""));
+    return root.appendChild(empty(t("Mirando los equipos…"), ""));
   }
   if (data.error) return root.appendChild(h("div", { class: "setup-note warn", text: data.error }));
-  if (!data.devices) return root.appendChild(empty("No se pudo leer Tailscale en este ordenador.", ""));
-  root.appendChild(h("h3", { class: "dev-section", text: "Equipos" }));
+  if (!data.devices) return root.appendChild(empty(t("No se pudo leer Tailscale en este ordenador."), ""));
+  root.appendChild(h("h3", { class: "dev-section", text: t("Equipos") }));
   root.appendChild(h("div", { class: "dev-grid" }, data.devices.map(card)));
   root.appendChild(
     h("details", { class: "dev-help" }, [
-      h("summary", { text: "¿Cuándo cambia el mando?" }),
-      h("p", { text: "Solo cuando tú lo pasas con el botón, o si el que manda deja de responder (apagado o suspendido): entonces el otro lo toma al minuto y lo conserva cuando el primero vuelve. Al encender por la mañana, un ordenador solo coge el mando si no manda ninguno." }),
+      h("summary", { text: t("¿Cuándo cambia el mando?") }),
+      h("p", { text: t("Solo cuando tú lo pasas con el botón, o si el que manda deja de responder (apagado o suspendido): entonces el otro lo toma al minuto y lo conserva cuando el primero vuelve. Al encender por la mañana, un ordenador solo coge el mando si no manda ninguno.") }),
     ])
   );
-  root.appendChild(h("h3", { class: "dev-section", text: "Horarios" }));
+  root.appendChild(h("h3", { class: "dev-section", text: t("Horarios") }));
   root.appendChild(h("div", { class: "settings-grid" }, [workSchedule(), macSchedule()]));
-  root.appendChild(h("h3", { class: "dev-section", text: "Token de Claude" }));
+  root.appendChild(h("h3", { class: "dev-section", text: t("Token de Claude") }));
   root.appendChild(tokenRenew());
   if (!jobLoaded) pollJob();
 }
@@ -226,26 +227,26 @@ function workSchedule() {
   const start = timeInput("work", "start", v.start);
   const end = timeInput("work", "end", v.end);
   const daily = timeInput("work", "daily", v.daily || "17:00");
-  const save = button("Guardar", {
+  const save = button(t("Guardar"), {
     onClick: (b) => {
       b.disabled = true;
       requestOrFail("/api/work-hours", { start: start.value, end: end.value, daily: daily.value })
         .then(() => {
           scheduleDrafts.work = { start: start.value, end: end.value, daily: daily.value, saved: true };
-          toast(`Jornada de ${start.value} a ${end.value}, de lunes a viernes; la daily se redacta a las ${daily.value}.`);
+          toast(t("Jornada de {start} a {end}, de lunes a viernes; la daily se redacta a las {daily}.", { start: start.value, end: end.value, daily: daily.value }));
         })
-        .catch((e) => toast(`No se pudo guardar: ${e.message}`))
+        .catch((e) => toast(t("No se pudo guardar: {error}", { error: e.message })))
         .finally(() => (b.disabled = false));
     },
   });
   const kids = [
-    h("h3", { text: "Jornada" }),
-    h("p", { class: "meta", text: "De lunes a viernes. Dentro arrancan las sesiones fijas, se vigila Jira y salen los seguimientos; al acabar se paran los proyectos. Fuera, solo con «Activarlo todo»." }),
-    h("div", { class: "schedule-row" }, [h("label", {}, [h("span", { text: "Empieza" }), start]), h("label", {}, [h("span", { text: "Acaba" }), end]), h("label", {}, [h("span", { text: "Daily" }), daily]), save]),
+    h("h3", { text: t("Jornada") }),
+    h("p", { class: "meta", text: t("De lunes a viernes. Dentro arrancan las sesiones fijas, se vigila Jira y salen los seguimientos; al acabar se paran los proyectos. Fuera, solo con «Activarlo todo».") }),
+    h("div", { class: "schedule-row" }, [h("label", {}, [h("span", { text: t("Empieza") }), start]), h("label", {}, [h("span", { text: t("Acaba") }), end]), h("label", {}, [h("span", { text: "Daily" }), daily]), save]),
   ];
   const mp = (state.cluster && state.cluster.macPower) || null;
-  const toMin = (t) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3));
-  if (mp && mp.schedule && (toMin(mp.schedule.wake) > toMin(s.start) || toMin(mp.schedule.sleep) < toMin(s.end))) kids.push(h("div", { class: "setup-note warn" }, [h("p", { text: `El Mac está despierto de ${mp.schedule.wake} a ${mp.schedule.sleep}: no cubre toda la jornada.` })]));
+  const toMin = (x) => Number(x.slice(0, 2)) * 60 + Number(x.slice(3));
+  if (mp && mp.schedule && (toMin(mp.schedule.wake) > toMin(s.start) || toMin(mp.schedule.sleep) < toMin(s.end))) kids.push(h("div", { class: "setup-note warn" }, [h("p", { text: t("El Mac está despierto de {wake} a {sleep}: no cubre toda la jornada.", { wake: mp.schedule.wake, sleep: mp.schedule.sleep }) })]));
   return h("section", { class: "card setting-card work-schedule" }, kids);
 }
 
@@ -256,18 +257,18 @@ function weeklyOffRow(mp, s) {
   box.addEventListener("change", () => {
     box.disabled = true;
     requestOrFail("/api/mac-power", { weeklyOff: box.checked })
-      .then(() => toast(box.checked ? `Se apagará los viernes a las ${s.sleep} y se encenderá el lunes a las ${s.wake}.` : "Ya no se apaga los viernes: el fin de semana se queda dormido."))
+      .then(() => toast(box.checked ? t("Se apagará los viernes a las {sleep} y se encenderá el lunes a las {wake}.", { sleep: s.sleep, wake: s.wake }) : t("Ya no se apaga los viernes: el fin de semana se queda dormido.")))
       .finally(() => (box.disabled = false));
   });
   const kids = [
-    h("label", { class: "check-row" }, [box, h("span", { text: `Apagarlo el viernes a las ${s.sleep} y encenderlo el lunes a las ${s.wake}` })]),
-    h("p", { class: "meta", text: "Un reinicio a la semana limpia memoria y procesos atascados; apagado o dormido gasta lo mismo de batería." }),
+    h("label", { class: "check-row" }, [box, h("span", { text: t("Apagarlo el viernes a las {sleep} y encenderlo el lunes a las {wake}", { sleep: s.sleep, wake: s.wake }) })]),
+    h("p", { class: "meta", text: t("Un reinicio a la semana limpia memoria y procesos atascados; apagado o dormido gasta lo mismo de batería.") }),
   ];
   if (on && mp && mp.autoLogin === false)
     kids.push(
       h("div", { class: "setup-note warn" }, [
-        h("p", { text: "Falta activar el inicio de sesión automático: sin él, el lunes se encenderá pero se quedará en la pantalla de contraseña y no arrancará nada hasta que entres." }),
-        h("p", { class: "meta", text: "Ajustes del Sistema → Usuarios y grupos → «Iniciar sesión automáticamente como» → tu usuario." }),
+        h("p", { text: t("Falta activar el inicio de sesión automático: sin él, el lunes se encenderá pero se quedará en la pantalla de contraseña y no arrancará nada hasta que entres.") }),
+        h("p", { class: "meta", text: t("Ajustes del Sistema → Usuarios y grupos → «Iniciar sesión automáticamente como» → tu usuario.") }),
       ])
     );
   return h("div", { class: "weekly-off" }, kids);
@@ -279,27 +280,27 @@ function macSchedule() {
   const v = keepDraft("mac", s);
   const wake = timeInput("mac", "wake", v.wake);
   const sleep = timeInput("mac", "sleep", v.sleep);
-  const save = button("Guardar", {
+  const save = button(t("Guardar"), {
     onClick: (b) => {
       b.disabled = true;
       requestOrFail("/api/mac-power", { wake: wake.value, sleep: sleep.value })
         .then(() => (scheduleDrafts.mac = { wake: wake.value, sleep: sleep.value, saved: true }))
-        .then(() => toast(`El Mac se despertará a las ${wake.value} y se dormirá a las ${sleep.value}, de lunes a viernes.`))
+        .then(() => toast(t("El Mac se despertará a las {wake} y se dormirá a las {sleep}, de lunes a viernes.", { wake: wake.value, sleep: sleep.value })))
         .finally(() => (b.disabled = false));
     },
   });
   const kids = [
-    h("h3", { text: "Mac despierto" }),
-    h("p", { class: "meta", text: "De lunes a viernes. No se duerme ni con la tapa cerrada; solo si baja del 10 % sin cargador." }),
-    h("div", { class: "schedule-row" }, [h("label", {}, [h("span", { text: "Se despierta" }), wake]), h("label", {}, [h("span", { text: "Se duerme" }), sleep]), save]),
+    h("h3", { text: t("Mac despierto") }),
+    h("p", { class: "meta", text: t("De lunes a viernes. No se duerme ni con la tapa cerrada; solo si baja del 10 % sin cargador.") }),
+    h("div", { class: "schedule-row" }, [h("label", {}, [h("span", { text: t("Se despierta") }), wake]), h("label", {}, [h("span", { text: t("Se duerme") }), sleep]), save]),
     weeklyOffRow(mp, s),
   ];
   if (mp && mp.allowed === false)
     kids.push(
       h("div", { class: "setup-note warn" }, [
-        h("p", { text: "Falta un permiso para que el Mac pueda programar su despertar y quedarse despierto con la tapa cerrada. Ejecuta esto una vez en la terminal del Mac (te pedirá tu contraseña):" }),
+        h("p", { text: t("Falta un permiso para que el Mac pueda programar su despertar y quedarse despierto con la tapa cerrada. Ejecuta esto una vez en la terminal del Mac (te pedirá tu contraseña):") }),
         h("code", { class: "cmd", text: "echo \"$(whoami) ALL=(root) NOPASSWD: /usr/bin/pmset\" | sudo tee /etc/sudoers.d/nutria-pmset" }),
-        h("p", { class: "meta", text: "Solo permite al tablero usar pmset, el ajuste de energía del Mac; nada más." }),
+        h("p", { class: "meta", text: t("Solo permite al tablero usar pmset, el ajuste de energía del Mac; nada más.") }),
       ])
     );
   return h("section", { class: "card setting-card mac-schedule" }, kids);

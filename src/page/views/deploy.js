@@ -1,24 +1,25 @@
 import { state, h, button, when, toast, requestOrFail, post, whoSends, areaName, areaSelect, render, refresh, empty, deployProjects } from "../lib/base.js";
+import { t } from "../lib/i18n.js";
 
 const VERSIONS = [
-  { id: "z", label: "Parche", note: "x.y.Z, lo normal" },
-  { id: "y", label: "Menor", note: "x.Y.0" },
-  { id: "x", label: "Mayor", note: "X.0.0" },
+  { id: "z", label: t("Parche"), note: t("x.y.Z, lo normal") },
+  { id: "y", label: t("Menor"), note: "x.Y.0" },
+  { id: "x", label: t("Mayor"), note: "X.0.0" },
 ];
-const ENVIRONMENT_NAME = { develop: "develop (beta)", production: "producción", both: "develop y producción" };
+const ENVIRONMENT_NAME = { develop: t("develop (beta)"), production: t("producción"), both: t("develop y producción") };
 const deploy = { picked: {}, environment: "both", version: "z", area: undefined, busy: false };
 const touchesProd = (e) => e === "production" || e === "both";
-const humanList = (xs) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} y ${xs[xs.length - 1]}`);
+const humanList = (xs) => (xs.length < 2 ? xs.join("") : t("{list} y {last}", { list: xs.slice(0, -1).join(", "), last: xs[xs.length - 1] }));
 
-const DS_STATE = { success: "Desplegado", running: "En curso", failed: "Falló", cancelled: "Cancelado", unknown: "Sin datos" };
-const DS_ENV = { develop: "Develop", production: "Producción" };
+const DS_STATE = { success: t("Desplegado"), running: t("En curso"), failed: t("Falló"), cancelled: t("Cancelado"), unknown: t("Sin datos") };
+const DS_ENV = { develop: "Develop", production: t("Producción") };
 let dsBusy = false;
 
 function ago(iso) {
   if (!iso) return "";
   const m = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
-  if (m < 1) return "ahora mismo";
-  if (m < 60) return `hace ${m} min`;
+  if (m < 1) return t("ahora mismo");
+  if (m < 60) return t("hace {m} min", { m });
   return when(iso);
 }
 
@@ -39,32 +40,33 @@ function nextVersion(id, level) {
 
 const ACTIONS_RUNNING = ["queued", "in_progress", "waiting", "requested", "pending"];
 const CODEDEPLOY_RUNNING = ["Created", "Queued", "InProgress", "Baking", "Ready"];
-const minutes = (from, to) => {
-  const m = Math.round((new Date(to) - new Date(from)) / 60000);
-  return m < 1 ? "menos de 1 min" : `${m} min`;
-};
+const minutes = (from, to) => Math.round((new Date(to) - new Date(from)) / 60000);
+const longMinutes = (m) => (m < 1 ? t("menos de 1 min") : `${m} min`);
+const shortMinutes = (m) => (m < 1 ? "<1 min" : `${m} min`);
+const stepsText = (p) => (p ? t("{done} de {total} pasos", { done: p.done, total: p.total }) : t("En curso"));
+const doneIn = (m) => ({ state: "success", text: t("Hecho en {time}", { time: longMinutes(m) }), took: m });
 
 function actionsPhase(a) {
   if (!a) return null;
-  if (ACTIONS_RUNNING.includes(a.status)) return { state: "running", text: a.progress ? `${a.progress.done} de ${a.progress.total} pasos` : "En curso", progress: a.progress };
-  if (a.conclusion === "success") return { state: "success", text: `Hecho en ${minutes(a.startedAt, a.updatedAt)}` };
-  return { state: a.conclusion === "cancelled" ? "cancelled" : "failed", text: a.conclusion === "cancelled" ? "Cancelado" : "Ha fallado" };
+  if (ACTIONS_RUNNING.includes(a.status)) return { state: "running", text: stepsText(a.progress), progress: a.progress };
+  if (a.conclusion === "success") return doneIn(minutes(a.startedAt, a.updatedAt));
+  return { state: a.conclusion === "cancelled" ? "cancelled" : "failed", text: a.conclusion === "cancelled" ? t("Cancelado") : t("Ha fallado") };
 }
 
 function codedeployPhase(e, first) {
   if (!e.hasCodedeploy) return null;
   const cd = e.codedeploy;
   if (!e.codedeployCurrent) {
-    if (first && first.state === "running") return { state: "waiting", text: "Empieza cuando acaben las Actions" };
-    if (first && first.state !== "success") return { state: "waiting", text: "No se lanza" };
-    if (e.state === "unknown") return { state: "unknown", text: "No aparece en CodeDeploy" };
-    return { state: "running", text: "Esperando a que arranque" };
+    if (first && first.state === "running") return { state: "waiting", text: t("Empieza cuando acaben las Actions") };
+    if (first && first.state !== "success") return { state: "waiting", text: t("No se lanza") };
+    if (e.state === "unknown") return { state: "unknown", text: t("No aparece en CodeDeploy") };
+    return { state: "running", text: t("Esperando a que arranque") };
   }
   if (CODEDEPLOY_RUNNING.includes(cd.status)) {
-    const machines = cd.total ? ` · ${cd.done} de ${cd.total} máquinas` : "";
-    return { state: "running", text: (cd.progress ? `${cd.progress.done} de ${cd.progress.total} pasos` : "En curso") + machines, progress: cd.progress || (cd.total ? { done: cd.done, total: cd.total } : null) };
+    const machines = cd.total ? ` · ${t("{done} de {total} máquinas", { done: cd.done, total: cd.total })}` : "";
+    return { state: "running", text: stepsText(cd.progress) + machines, progress: cd.progress || (cd.total ? { done: cd.done, total: cd.total } : null) };
   }
-  if (cd.status === "Succeeded") return { state: "success", text: `Hecho en ${minutes(cd.startedAt, cd.finishedAt)}` };
+  if (cd.status === "Succeeded") return doneIn(minutes(cd.startedAt, cd.finishedAt));
   return { state: cd.status === "Stopped" ? "cancelled" : "failed", text: `${cd.status}${cd.error ? ` · ${cd.error}` : ""}` };
 }
 
@@ -87,14 +89,14 @@ function statusRow(env, e, earlier) {
   const details = !named.length
     ? [h("div", { class: "meta", text: e.step })]
     : allDone
-      ? [h("div", { class: "meta ds-summary", text: named.map(([n, p]) => `${PHASE_SHORT[n]} ${p.text.replace(/^Hecho en /, "").replace("menos de 1 min", "<1 min")}`).join(" · ") })]
+      ? [h("div", { class: "meta ds-summary", text: named.map(([n, p]) => `${PHASE_SHORT[n]} ${p.took != null ? shortMinutes(p.took) : p.text}`).join(" · ") })]
       : [h("div", { class: "ds-phases" }, named.map(([n, p], i) => phaseRow(i + 1, n, p)))];
   const kids = [
     h("span", { class: `ds-dot ${e.state}`, title: DS_STATE[e.state] || e.state, "aria-hidden": "true" }),
     h("div", { class: "ds-main" }, [
       h("div", { class: "ds-line" }, [
         h("strong", { text: DS_ENV[env] }),
-        earlier ? h("span", { class: "meta", text: "· el anterior, aún en marcha" }) : null,
+        earlier ? h("span", { class: "meta", text: `· ${t("el anterior, aún en marcha")}` }) : null,
         ref ? h("code", { class: "ds-ref", text: ref, title: a.ref }) : null,
         e.state === "success" ? h("span", { class: "visually-hidden", text: DS_STATE.success }) : h("span", { class: `chip ds-${e.state}`, text: DS_STATE[e.state] || e.state }),
         a ? h("span", { class: "meta ds-ago", text: ago(e.state === "running" ? a.startedAt : (e.codedeployCurrent && cd && cd.finishedAt) || a.updatedAt) }) : null,
@@ -102,20 +104,20 @@ function statusRow(env, e, earlier) {
       ...details,
     ]),
   ];
-  if (a && a.url) kids.push(h("a", { class: "ds-link", href: a.url, target: "_blank", rel: "noopener", title: "Ver en GitHub Actions", "aria-label": `Ver ${DS_ENV[env].toLowerCase()} en GitHub Actions`, text: "↗" }));
+  if (a && a.url) kids.push(h("a", { class: "ds-link", href: a.url, target: "_blank", rel: "noopener", title: t("Ver en GitHub Actions"), "aria-label": t("Ver {env} en GitHub Actions", { env: DS_ENV[env].toLowerCase() }), text: "↗" }));
   return h("div", { class: `ds-row ${e.state}${earlier ? " ds-parallel" : ""}` }, kids);
 }
 
 function deployStatusPanel(root) {
   const st = state.deployStatus;
-  const refreshBtn = button(dsBusy ? "Comprobando…" : "Comprobar ahora", {
+  const refreshBtn = button(dsBusy ? t("Comprobando…") : t("Comprobar ahora"), {
     cls: "subtle",
     disabled: dsBusy,
     onClick: () => {
       dsBusy = true;
       render();
       requestOrFail("/api/deploy-status/refresh", {})
-        .catch(() => toast("No se pudo comprobar el estado de los despliegues."))
+        .catch(() => toast(t("No se pudo comprobar el estado de los despliegues.")))
         .then(() => {
           dsBusy = false;
           return refresh(true);
@@ -124,15 +126,15 @@ function deployStatusPanel(root) {
   });
   root.appendChild(
     h("div", { class: "issues-bar" }, [
-      h("div", { class: "proj-count" }, [h("strong", { text: "Estado ahora" })]),
-      h("div", { class: "issues-read" }, [h("span", { class: "meta", text: st ? `Comprobado ${ago(st.at)}` : "Sin comprobar todavía" }), refreshBtn]),
+      h("div", { class: "proj-count" }, [h("strong", { text: t("Estado ahora") })]),
+      h("div", { class: "issues-read" }, [h("span", { class: "meta", text: st ? t("Comprobado {when}", { when: ago(st.at) }) : t("Sin comprobar todavía") }), refreshBtn]),
     ])
   );
-  if (!st) return root.appendChild(empty("Todavía no hay estado.", "Añade el repo de cada proyecto en deployProjects de board.config.json para seguir sus despliegues."));
+  if (!st) return root.appendChild(empty(t("Todavía no hay estado."), t("Añade el repo de cada proyecto en deployProjects de board.config.json para seguir sus despliegues.")));
   const list = h("div", { class: "ds-list" });
   for (const item of st.items) {
     const envs = h("div", { class: "ds-envs" });
-    if (item.error) envs.appendChild(h("div", { class: "meta", text: `No se pudo leer: ${item.error}` }));
+    if (item.error) envs.appendChild(h("div", { class: "meta", text: t("No se pudo leer: {error}", { error: item.error }) }));
     for (const env of ["develop", "production"]) {
       const e = item.envs[env];
       if (!e) continue;
@@ -155,12 +157,13 @@ function orderRow(label, kids, note) {
 
 function waitingOrder(x) {
   const target = areaName(x.area) || x.area;
-  const where = x.environment === "both" ? "develop y producción" : x.environment === "production" ? "producción" : "develop";
+  const where = x.environment === "both" ? t("develop y producción") : x.environment === "production" ? t("producción") : "develop";
+  const tag = x.version && touchesProd(x.environment) ? x.version.toUpperCase() : "";
   return h("div", { class: "notice waiting do-waiting" }, [
-    h("b", { text: `Esperando envío · ${when(x.at)}` }),
-    h("div", { text: `${humanList(x.projects)} a ${where}${x.version && touchesProd(x.environment) ? ` (tag ${x.version.toUpperCase()})` : ""}. ${whoSends(true)} la escribe en ${target} en unos segundos.` }),
-    x.delivery ? h("div", { class: x.delivery.soft ? "meta" : "delivery-error", text: x.delivery.soft ? `Esperando: ${x.delivery.error}.` : `No se pudo entregar (${x.delivery.attempts} de 3 intentos): ${x.delivery.error}.` }) : null,
-    h("div", { class: "actions" }, [button("Cancelar", { onClick: (b) => ((b.disabled = true), post("/api/deploy", { cancel: x.id }, "Despliegue cancelado.")) })]),
+    h("b", { text: t("Esperando envío · {time}", { time: when(x.at) }) }),
+    h("div", { text: t(tag ? "{projects} a {env} (tag {tag}). {who} la escribe en {target} en unos segundos." : "{projects} a {env}. {who} la escribe en {target} en unos segundos.", { projects: humanList(x.projects), env: where, tag, who: whoSends(true), target }) }),
+    x.delivery ? h("div", { class: x.delivery.soft ? "meta" : "delivery-error", text: x.delivery.soft ? t("Esperando: {error}.", { error: x.delivery.error }) : t("No se pudo entregar ({n} de 3 intentos): {error}.", { n: x.delivery.attempts, error: x.delivery.error }) }) : null,
+    h("div", { class: "actions" }, [button(t("Cancelar"), { onClick: (b) => ((b.disabled = true), post("/api/deploy", { cancel: x.id }, t("Despliegue cancelado."))) })]),
   ]);
 }
 
@@ -169,36 +172,36 @@ function deployOrder(root) {
   const chosen = projects.filter((p) => deploy.picked[p]);
   const area = deploy.area !== undefined ? deploy.area : state.deployerArea || "";
   const waiting = (state.deployments || []).find((x) => x.status === "approved");
-  const box = h("section", { class: "deploy-order" }, [h("div", { class: "do-head" }, [h("strong", { text: "Nueva orden" })])]);
+  const box = h("section", { class: "deploy-order" }, [h("div", { class: "do-head" }, [h("strong", { text: t("Nueva orden") })])]);
   if (waiting) box.appendChild(waitingOrder(waiting));
   const all = projects.length > 0 && chosen.length === projects.length;
   const prod = touchesProd(deploy.environment);
-  box.appendChild(orderRow("Qué", [...projects.map((p) => pill(p, prod ? nextVersion(p, deploy.version) : "", !!deploy.picked[p], () => (deploy.picked[p] = !deploy.picked[p]))), button(all ? "Ninguno" : "Todos", { cls: "subtle", onClick: () => (projects.forEach((p) => (deploy.picked[p] = !all)), render()) })]));
+  box.appendChild(orderRow(t("Qué"), [...projects.map((p) => pill(p, prod ? nextVersion(p, deploy.version) : "", !!deploy.picked[p], () => (deploy.picked[p] = !deploy.picked[p]))), button(all ? t("Ninguno") : t("Todos"), { cls: "subtle", onClick: () => (projects.forEach((p) => (deploy.picked[p] = !all)), render()) })]));
   box.appendChild(
     orderRow(
-      "A dónde",
+      t("A dónde"),
       [
-        pill("Develop y producción", "", deploy.environment === "both", () => (deploy.environment = "both"), "prod"),
-        pill("Solo develop", "", deploy.environment === "develop", () => (deploy.environment = "develop")),
-        pill("Solo producción", "", deploy.environment === "production", () => (deploy.environment = "production"), "prod"),
+        pill(t("Develop y producción"), "", deploy.environment === "both", () => (deploy.environment = "both"), "prod"),
+        pill(t("Solo develop"), "", deploy.environment === "develop", () => (deploy.environment = "develop")),
+        pill(t("Solo producción"), "", deploy.environment === "production", () => (deploy.environment = "production"), "prod"),
       ],
-      deploy.environment === "both" ? "Primero develop; luego merge a master y tag." : deploy.environment === "production" ? "Merge de develop a master y tag nuevo." : "Commit y push a develop (beta)."
+      deploy.environment === "both" ? t("Primero develop; luego merge a master y tag.") : deploy.environment === "production" ? t("Merge de develop a master y tag nuevo.") : t("Commit y push a develop (beta).")
     )
   );
-  if (prod) box.appendChild(orderRow("Versión", VERSIONS.map((v) => pill(v.label, v.note, deploy.version === v.id, () => (deploy.version = v.id)))));
-  const sel = areaSelect("deploy-area", area, "Elige sesión…", (v) => {
+  if (prod) box.appendChild(orderRow(t("Versión"), VERSIONS.map((v) => pill(v.label, v.note, deploy.version === v.id, () => (deploy.version = v.id)))));
+  const sel = areaSelect("deploy-area", area, t("Elige sesión…"), (v) => {
     deploy.area = v;
     render();
   });
-  sel.setAttribute("aria-label", "Sesión que despliega");
+  sel.setAttribute("aria-label", t("Sesión que despliega"));
   const target = state.areas.find((a) => a.id === area);
-  const targetNote = !target ? "Ponle nombre en Sesiones a la conversación que despliega y elígela aquí." : target.open ? "Abierta: la recibe en unos segundos." : "Cerrada: el tablero la abre al desplegar.";
-  box.appendChild(orderRow("Quién", [sel], targetNote));
+  const targetNote = !target ? t("Ponle nombre en Sesiones a la conversación que despliega y elígela aquí.") : target.open ? t("Abierta: la recibe en unos segundos.") : t("Cerrada: el tablero la abre al desplegar.");
+  box.appendChild(orderRow(t("Quién"), [sel], targetNote));
 
   const ready = chosen.length && deploy.environment && target && !waiting && !deploy.busy;
   const version = VERSIONS.find((v) => v.id === deploy.version);
-  const summary = waiting ? "Hay una orden esperando envío: cuando salga podrás dar otra." : !chosen.length ? "Elige al menos un proyecto." : `${humanList(chosen)} a ${ENVIRONMENT_NAME[deploy.environment]}${prod ? ` (tag de ${version.label.toLowerCase()})` : ""}.`;
-  const label = deploy.environment === "both" ? "Desplegar a develop y producción" : deploy.environment === "production" ? "Desplegar a producción" : "Desplegar a develop";
+  const summary = waiting ? t("Hay una orden esperando envío: cuando salga podrás dar otra.") : !chosen.length ? t("Elige al menos un proyecto.") : t(prod ? "{projects} a {env} (tag de {level})." : "{projects} a {env}.", { projects: humanList(chosen), env: ENVIRONMENT_NAME[deploy.environment], level: version.label.toLowerCase() });
+  const label = deploy.environment === "both" ? t("Desplegar a develop y producción") : deploy.environment === "production" ? t("Desplegar a producción") : t("Desplegar a develop");
   const go = button(label, {
     cls: prod ? "danger" : "primary",
     disabled: !ready,
@@ -208,9 +211,9 @@ function deployOrder(root) {
       requestOrFail("/api/deploy", { projects: chosen, environment: deploy.environment, version: deploy.version, area })
         .then(() => {
           Object.assign(deploy, { picked: {}, environment: "both", version: "z" });
-          toast(`Despliegue ordenado: ${whoSends()} se lo pasa a «${target.name}» en unos segundos.`);
+          toast(t("Despliegue ordenado: {who} se lo pasa a «{target}» en unos segundos.", { who: whoSends(), target: target.name }));
         })
-        .catch((e) => toast(`No se pudo ordenar el despliegue: ${e.message}.`))
+        .catch((e) => toast(t("No se pudo ordenar el despliegue: {error}.", { error: e.message })))
         .then(() => {
           deploy.busy = false;
           return refresh(true);

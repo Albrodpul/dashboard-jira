@@ -1,6 +1,7 @@
 import { state, h, button, when, minutesSince, toast, request, requestOrFail, post, render, refresh, renderMd, empty } from "../lib/base.js";
+import { t } from "../lib/i18n.js";
 
-const ERROR_CHIP = { proposed: ["returned", "Por decidir"], approved: ["approved", "Enviándolo"], sent: ["sent", "Enviado a la sesión de errores"], discarded: ["ignored", "Descartado"] };
+const ERROR_CHIP = { proposed: ["returned", t("Por decidir")], approved: ["approved", t("Enviándolo")], sent: ["sent", t("Enviado a la sesión de errores")], discarded: ["ignored", t("Descartado")] };
 const olderOpen = new Set();
 const OLDER_SHOWN = 10;
 let olderAll = false;
@@ -10,8 +11,8 @@ function headlineOf(text) {
   const bold = /^\*\*(.+)\*\*\s*$/.exec(first.trim());
   const line = bold ? bold[1] : first.replace(/\*\*/g, "");
   const m = /^(.{3,80}?):\s+(.+)$/.exec(line);
-  const t = (m ? m[2] : line).trim();
-  return t.charAt(0).toUpperCase() + t.slice(1);
+  const s = (m ? m[2] : line).trim();
+  return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
 function olderRow(x) {
@@ -29,18 +30,18 @@ function summaryActions(r, latest) {
   if (!String(r.text || "").trim().includes("\n")) return null;
   const live = (r.errors || []).filter((x) => x.state !== "discarded");
   const whole = live.find((x) => x.wholeSummary);
-  if (whole) return latest ? null : h("div", { class: "actions fu-latest-actions meta", text: `Enviado entero a la sesión de errores a las ${when(whole.at)}.` });
+  if (whole) return latest ? null : h("div", { class: "actions fu-latest-actions meta", text: t("Enviado entero a la sesión de errores a las {time}.", { time: when(whole.at) }) });
   if (live.length) return null;
-  const sendAll = button("Enviar este resumen a la sesión de errores", {
+  const sendAll = button(t("Enviar este resumen a la sesión de errores"), {
     cls: "subtle",
-    title: "Para cuando ves un fallo que la sesión no ha apuntado como posible error. Se manda el resumen entero.",
+    title: t("Para cuando ves un fallo que la sesión no ha apuntado como posible error. Se manda el resumen entero."),
     onClick: (b) => {
       b.disabled = true;
       requestOrFail("/api/followup-error", { at: r.at, action: "summary" })
-        .then(() => toast("Enviado: el tablero se lo pasa a la sesión de errores."))
+        .then(() => toast(t("Enviado: el tablero se lo pasa a la sesión de errores.")))
         .catch((x) => {
           b.disabled = false;
-          toast(`No se pudo enviar: ${x.message}`);
+          toast(t("No se pudo enviar: {error}", { error: x.message }));
         })
         .then(() => refresh(true));
     },
@@ -52,8 +53,8 @@ function errorCard(e) {
   const [cls, label] = ERROR_CHIP[e.state];
   const kids = [h("div", { class: "top" }, [e.person ? h("strong", { text: e.person }) : null, h("span", { class: `chip ${cls}`, text: label }), h("span", { class: "time", text: when(e.at) })]), h("div", { class: "note", text: e.text })];
   if (e.result) {
-    kids.push(h("div", { class: "reply" }, [h("b", { text: `Resultado · ${when(e.result.at)}: ` }), e.result.text]));
-    kids[0].querySelector(".chip").textContent = "Contestado por la sesión de errores";
+    kids.push(h("div", { class: "reply" }, [h("b", { text: t("Resultado · {time}: ", { time: when(e.result.at) }) }), e.result.text]));
+    kids[0].querySelector(".chip").textContent = t("Contestado por la sesión de errores");
   }
   if (e.state === "proposed") {
     const buttons = [];
@@ -63,12 +64,12 @@ function errorCard(e) {
         .then(() => toast(msg))
         .catch(() => {
           buttons.forEach((b) => (b.disabled = false));
-          toast("No se pudo guardar.");
+          toast(t("No se pudo guardar."));
         })
         .then(() => refresh(true));
     };
-    buttons.push(button("Enviar a la sesión de errores", { cls: "primary", onClick: () => act("send", "Enviado: el tablero se lo pasa a la sesión de errores.") }));
-    buttons.push(button("Descartar", { onClick: () => act("discard", "Descartado.") }));
+    buttons.push(button(t("Enviar a la sesión de errores"), { cls: "primary", onClick: () => act("send", t("Enviado: el tablero se lo pasa a la sesión de errores.")) }));
+    buttons.push(button(t("Descartar"), { onClick: () => act("discard", t("Descartado.")) }));
     kids.push(h("div", { class: "actions" }, buttons));
   }
   return h("div", { class: "fu-error" }, kids);
@@ -76,10 +77,12 @@ function errorCard(e) {
 
 const FOLLOW_UP_ENVIRONMENTS = [
   { id: "beta", name: "Beta", everyHours: 1 },
-  { id: "production", name: "Producción", everyHours: 2 },
+  { id: "production", name: t("Producción"), everyHours: 2 },
 ];
 const environmentOf = (r) => r.environment || "beta";
-const everyText = (n) => (n === 1 ? "cada hora" : `cada ${n} horas`);
+const everyText = (n) => (n === 1 ? t("cada hora") : t("cada {n} horas", { n }));
+const envName = (id) => (id === "production" ? t("Producción") : "Beta");
+const envLower = (id) => (id === "production" ? t("producción") : "beta");
 
 let selectedEnvironment = "beta";
 try {
@@ -96,11 +99,11 @@ function pickEnvironment(id) {
 }
 
 function environmentPicker(root, envs, summaries) {
-  const chips = h("div", { class: "people-chips", role: "group", "aria-label": "Entorno" });
+  const chips = h("div", { class: "people-chips", role: "group", "aria-label": t("Entorno") });
   for (const env of envs) {
     const pending = summaries.filter((r) => environmentOf(r) === env.id).flatMap((r) => r.errors || []).filter((x) => x.state === "proposed").length;
     chips.appendChild(
-      h("button", { type: "button", "aria-pressed": String(env.id === selectedEnvironment), onclick: () => pickEnvironment(env.id), title: `Resumen automático ${everyText(env.everyHours)}, de lunes a viernes` }, [
+      h("button", { type: "button", "aria-pressed": String(env.id === selectedEnvironment), onclick: () => pickEnvironment(env.id), title: t("Resumen automático {every}, de lunes a viernes", { every: everyText(env.everyHours) }) }, [
         env.name,
         h("span", { class: "meta", text: ` · ${everyText(env.everyHours)}` }),
         pending ? h("span", { class: "error-count", text: String(pending) }) : null,
@@ -111,17 +114,17 @@ function environmentPicker(root, envs, summaries) {
 }
 
 function requestButton(env, req) {
-  return button("Pedir resumen ahora", {
+  return button(t("Pedir resumen ahora"), {
     cls: "primary",
     disabled: !!req,
-    title: req ? "Hay otro resumen pedido: espera a que salga." : `La sesión de seguimiento mira lo que ha hecho cada uno en ${env.name.toLowerCase()} desde el último resumen y lo publica aquí.`,
+    title: req ? t("Hay otro resumen pedido: espera a que salga.") : t("La sesión de seguimiento mira lo que ha hecho cada uno en {env} desde el último resumen y lo publica aquí.", { env: envLower(env.id) }),
     onClick: (b) => {
       b.disabled = true;
       requestOrFail("/api/followup-request", { environment: env.id })
-        .then(() => toast(`Pedido: el resumen de ${env.name.toLowerCase()} sale en unos minutos.`))
+        .then(() => toast(t("Pedido: el resumen de {env} sale en unos minutos.", { env: envLower(env.id) })))
         .catch(() => {
           b.disabled = false;
-          toast("No se pudo pedir el resumen.");
+          toast(t("No se pudo pedir el resumen."));
         })
         .then(() => refresh(true));
     },
@@ -194,34 +197,34 @@ function nextRun(cron, from = new Date()) {
 function nextText(env) {
   const n = nextRun(env.cron);
   if (!n) return "";
-  return n.day === 0 ? `el siguiente sale a las ${n.time}` : n.day === 1 ? `el siguiente sale mañana a las ${n.time}` : `el siguiente sale el próximo día laborable a las ${n.time}`;
+  return t(n.day === 0 ? "el siguiente sale a las {time}" : n.day === 1 ? "el siguiente sale mañana a las {time}" : "el siguiente sale el próximo día laborable a las {time}", { time: n.time });
 }
 
 function directory(root, people) {
-  const det = h("details", { class: "dev-help people-directory" }, [h("summary", { text: `Personas conocidas (${people.length}): con sus cuentas se separa lo que hace cada uno` })]);
+  const det = h("details", { class: "dev-help people-directory" }, [h("summary", { text: t("Personas conocidas ({n}): con sus cuentas se separa lo que hace cada uno", { n: people.length }) })]);
   det.open = directoryOpen;
   det.addEventListener("toggle", () => (directoryOpen = det.open));
   const rows = [];
   for (const p of people) {
-    const remove = button("Quitar", {
+    const remove = button(t("Quitar"), {
       cls: "subtle",
-      title: `Quitar a ${p.name}: su actividad saldrá como cuenta desconocida`,
+      title: t("Quitar a {name}: su actividad saldrá como cuenta desconocida", { name: p.name }),
       onClick: () => {
-        if (!window.confirm(`¿Quitar a ${p.name} de las personas conocidas? Su actividad saldrá como cuenta desconocida.`)) return;
-        post("/api/people", { action: "remove", id: p.id }, `${p.name} quitada.`);
+        if (!window.confirm(t("¿Quitar a {name} de las personas conocidas? Su actividad saldrá como cuenta desconocida.", { name: p.name }))) return;
+        post("/api/people", { action: "remove", id: p.id }, t("{name} quitada.", { name: p.name }));
       },
     });
-    rows.push(h("div", { class: "person-row" }, [h("strong", { text: p.name }), h("span", { class: "person-accounts", text: (p.accounts || []).join(", ") || "cuentas sin buscar todavía" }), remove]));
+    rows.push(h("div", { class: "person-row" }, [h("strong", { text: p.name }), h("span", { class: "person-accounts", text: (p.accounts || []).join(", ") || t("cuentas sin buscar todavía") }), remove]));
   }
   if (rows.length) det.appendChild(h("div", { class: "fu-people" }, rows));
-  const name = h("input", { type: "text", maxlength: "80", placeholder: "Nombre", "aria-label": "Nombre" });
-  const accounts = h("input", { type: "text", maxlength: "400", placeholder: "Correos, separados por comas (opcional)", "aria-label": "Correos de sus cuentas" });
-  const add = button("Añadir", {
+  const name = h("input", { type: "text", maxlength: "80", placeholder: t("Nombre"), "aria-label": t("Nombre") });
+  const accounts = h("input", { type: "text", maxlength: "400", placeholder: t("Correos, separados por comas (opcional)"), "aria-label": t("Correos de sus cuentas") });
+  const add = button(t("Añadir"), {
     cls: "primary",
     onClick: (b) => {
       b.disabled = true;
       requestOrFail("/api/people", { action: "add", name: name.value, accounts: accounts.value })
-        .then(() => toast("Añadida. Sale con su nombre en el próximo resumen."))
+        .then(() => toast(t("Añadida. Sale con su nombre en el próximo resumen.")))
         .catch((e) => {
           b.disabled = false;
           toast(e.message);
@@ -239,21 +242,21 @@ export function renderFollowUp(root) {
   const envs = (e && e.environments) || FOLLOW_UP_ENVIRONMENTS;
   if (!envs.some((x) => x.id === selectedEnvironment)) selectedEnvironment = envs[0].id;
   const env = Object.assign({}, FOLLOW_UP_ENVIRONMENTS.find((x) => x.id === selectedEnvironment), envs.find((x) => x.id === selectedEnvironment));
-  env.name = env.id === "production" ? "Producción" : "Beta";
+  env.name = envName(env.id);
   const list = all.filter((r) => environmentOf(r) === env.id);
-  environmentPicker(root, envs.map((x) => ({ ...x, name: x.id === "production" ? "Producción" : "Beta" })), all);
-  const session = !e ? "La sesión de seguimiento no está registrada." : e.open ? "" : `La sesión «${e.title}» está cerrada.`;
+  environmentPicker(root, envs.map((x) => ({ ...x, name: envName(x.id) })), all);
+  const session = !e ? t("La sesión de seguimiento no está registrada.") : e.open ? "" : t("La sesión «{title}» está cerrada.", { title: e.title });
   const req = e && e.request;
   const asked = req && (req.environment || "beta") === env.id;
   const line = asked
-    ? `Resumen pedido a las ${when(req.at)}. ${minutesSince(req.at) >= 6 ? "Tarda más de lo normal: la sesión de seguimiento puede estar ocupada o cerrada." : "Se está preparando."}`
-    : [list.length ? `Último resumen a las ${when(list[0].at)}` : "", nextText(env)].filter(Boolean).join("; ") + "." + (session ? ` ${session}` : "");
+    ? `${t("Resumen pedido a las {time}.", { time: when(req.at) })} ${minutesSince(req.at) >= 6 ? t("Tarda más de lo normal: la sesión de seguimiento puede estar ocupada o cerrada.") : t("Se está preparando.")}`
+    : [list.length ? t("Último resumen a las {time}", { time: when(list[0].at) }) : "", nextText(env)].filter(Boolean).join("; ") + "." + (session ? ` ${session}` : "");
   root.appendChild(h("div", { class: "issues-bar follow-up-bar" }, [h("span", { class: "meta", text: line.replace(/^\./, "") }), !asked && e ? requestButton(env, req) : null]));
   if (!list.length) {
-    root.appendChild(empty(`Todavía no hay resúmenes de ${env.name.toLowerCase()}.`, `Sale uno ${everyText(env.everyHours)} en horario de trabajo, de lunes a viernes, o cuando lo pidas.`));
+    root.appendChild(empty(t("Todavía no hay resúmenes de {env}.", { env: envLower(env.id) }), t("Sale uno {every} en horario de trabajo, de lunes a viernes, o cuando lo pidas.", { every: everyText(env.everyHours) })));
     return directory(root, state.people || []);
   }
-  const latest = h("section", { class: "card fu-latest" }, [h("div", { class: "fu-latest-head meta", text: `Resumen de las ${when(list[0].at)}${list[0].manual ? " (pedido a mano)" : ""}` }), followUpText(list[0].text)]);
+  const latest = h("section", { class: "card fu-latest" }, [h("div", { class: "fu-latest-head meta", text: t(list[0].manual ? "Resumen de las {time} (pedido a mano)" : "Resumen de las {time}", { time: when(list[0].at) }) }), followUpText(list[0].text)]);
   const actions = summaryActions(list[0], true);
   if (actions) latest.appendChild(actions);
   root.appendChild(latest);
@@ -261,7 +264,7 @@ export function renderFollowUp(root) {
   if (errors.length) {
     root.appendChild(
       h("section", { class: "list-section" }, [
-        h("div", { class: "group-head" }, [h("span", { class: "group-name", text: `Posibles errores vistos en ${env.name.toLowerCase()}` }), h("span", { class: "group-key", text: String(errors.length) })]),
+        h("div", { class: "group-head" }, [h("span", { class: "group-name", text: t("Posibles errores vistos en {env}", { env: envLower(env.id) }) }), h("span", { class: "group-key", text: String(errors.length) })]),
         h("div", { class: "issue-list" }, errors.map(errorCard)),
       ])
     );
@@ -269,9 +272,9 @@ export function renderFollowUp(root) {
   if (list.length > 1)
     root.appendChild(
       h("section", { class: "list-section" }, [
-        h("div", { class: "group-head" }, [h("span", { class: "group-name", text: "Resúmenes anteriores" }), h("span", { class: "group-key", text: String(list.length - 1) })]),
+        h("div", { class: "group-head" }, [h("span", { class: "group-name", text: t("Resúmenes anteriores") }), h("span", { class: "group-key", text: String(list.length - 1) })]),
         h("div", { class: "issue-list fu-older" }, list.slice(1, olderAll ? undefined : OLDER_SHOWN + 1).map(olderRow)),
-        list.length - 1 > OLDER_SHOWN ? h("div", { class: "fu-more" }, [button(olderAll ? "Ver menos" : `Ver todos (${list.length - 1})`, { cls: "subtle", onClick: () => ((olderAll = !olderAll), render()) })]) : null,
+        list.length - 1 > OLDER_SHOWN ? h("div", { class: "fu-more" }, [button(olderAll ? t("Ver menos") : t("Ver todos ({n})", { n: list.length - 1 }), { cls: "subtle", onClick: () => ((olderAll = !olderAll), render()) })]) : null,
       ])
     );
   directory(root, state.people || []);
