@@ -104,4 +104,8 @@ export default {
   "Revisar Jira ahora": "Check Jira now",
   "Qué actividad ver": "Which activity to show",
   "Secciones": "Sections",
+  "{n} trabajando": "{n} working",
+  "{n} bloqueada": "{n} blocked",
+  "{n} bloqueadas": "{n} blocked",
+  "Sesiones abiertas:": "Open sessions:",
 };

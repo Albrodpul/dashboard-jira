@@ -348,11 +348,42 @@ function sessionCard(x, group) {
   return h("article", { class: `card home-session ${group}` }, kids);
 }
 
+function sessionStrip(s) {
+  const total = s.working.length + s.blocked.length + s.free.length;
+  if (!total) return null;
+  const parts = [
+    ["working", tr("{n} trabajando", { n: s.working.length })],
+    ["blocked", plural(s.blocked.length, "bloqueada", "bloqueadas")],
+    ["free", plural(s.free.length, "libre", "libres")],
+  ].filter(([id]) => s[id].length);
+  const summary = h("summary", { class: "strip-summary" }, [h("span", { class: "strip-title", text: tr("Sesiones abiertas:") }), ...parts.flatMap(([id, label], i) => [i ? " · " : null, h("span", { class: "strip-part" }, [h("span", { class: `dot ${DOTS[id]}` }), ` ${label}`])]).filter(Boolean)]);
+  const row = (x, id) => {
+    const why = x.reason ? `${x.reason.text}${x.reason.task ? " " + x.reason.task.key : ""}${waitLabel(x.reason.at) ? " · " + waitLabel(x.reason.at) : ""}` : x.tasks.map((task) => task.key).join(", ");
+    return h("button", { class: "strip-row", type: "button", onclick: () => openLive(x.conversation, x.sessionName || x.name) }, [h("span", { class: `dot ${DOTS[id]}` }), h("span", { class: "strip-name", text: x.name }), why ? h("span", { class: "meta", text: why }) : null]);
+  };
+  const det = h("details", { class: "session-strip" }, [summary, h("div", { class: "strip-list" }, BOARD.flatMap((id) => s[id].map((x) => row(x, id))))]);
+  try {
+    const saved = sessionStorage.getItem("strip-open");
+    det.open = saved ? saved === "1" : s.blocked.length > 0;
+  } catch (e) {}
+  det.addEventListener("toggle", () => {
+    try {
+      sessionStorage.setItem("strip-open", det.open ? "1" : "0");
+    } catch (e) {}
+  });
+  return det;
+}
+
 function renderColumns(root) {
   const s = sessionSituation();
   root.appendChild(shortcuts());
   const perms = (state.permissions && state.permissions.pending) || [];
   if (perms.length) root.appendChild(h("div", { class: "perm-peeks columns" }, perms.map((p) => h("span", { class: "perm-peek", title: askedFor(p) }, [h("strong", { text: p.areaName || tr("Una sesión") }), h("code", { text: askedFor(p) }), waitLabel(p.at) ? h("span", { class: `wait-min ${waitClass(p.at)}`, text: waitLabel(p.at) }) : null, permButtons(p)]))));
+  if (window.matchMedia("(max-width: 760px)").matches) {
+    const strip = sessionStrip(s);
+    if (strip) root.appendChild(strip);
+    return;
+  }
   const columns = BOARD.map((id) => {
     const [, title, note] = GROUPS.find((g) => g[0] === id);
     const head = h("div", { class: "board-head", title: note }, [h("span", { class: `dot ${DOTS[id]}` }), h("span", { text: title }), h("span", { class: "n", text: String(s[id].length) })]);
