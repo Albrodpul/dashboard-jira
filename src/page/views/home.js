@@ -45,11 +45,11 @@ export function sessionSituation() {
     const tasks = state.tasks.filter((t) => t.area === a.id && ["sent", "waiting", "partial"].includes(t.status));
     const row = { id: a.id, name: a.unnamed ? a.vsCodeTitle || `${a.sessionName} (sin nombre)` : a.name, sessionName: a.sessionName, conversation: a.conversation, project: a.project || live.project, since: live.statusSince, subagents: live.subagents || 0, tasks };
     const asking = ((state.permissions && state.permissions.pending) || []).find((p) => p.conversation === a.conversation);
-    if (asking) out.blocked.push({ ...row, reason: { text: `Espera tu permiso: ${asking.label}`, view: "waiting" } });
+    if (asking) out.blocked.push({ ...row, reason: { text: `Espera tu permiso: ${asking.label}`, view: "waiting", at: asking.at } });
     else if (live.status === "busy") out.working.push(row);
     else {
       const reason = blockReason(live, tasks);
-      if (reason) out.blocked.push({ ...row, reason });
+      if (reason) out.blocked.push({ ...row, reason: { ...reason, at: (reason.task && reason.task.notice && reason.task.notice.at) || (reason.task && reason.task.sentAt) || live.statusSince } });
       else out.free.push(row);
     }
   }
@@ -122,6 +122,13 @@ export function homeAlerts(items) {
   return room("cork", "Tablón de avisos", rows.length === 1 ? "1 aviso" : `${rows.length} avisos`, [h("div", { class: "cork-board" }, rows)], { decor: [pin()] });
 }
 
+const waited = (at) => (at ? Math.max(0, minutesSince(at)) : 0);
+const waitClass = (at) => (waited(at) >= 15 ? "wait-long" : waited(at) >= 5 ? "wait-some" : "");
+const waitLabel = (at) => {
+  const m = waited(at);
+  return m < 1 ? "" : m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${m % 60} min`;
+};
+
 const MOOD_TEXT = { working: "trabajando", blocked: "bloqueada", free: "libre" };
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 
@@ -160,7 +167,7 @@ function room(kind, name, count, body, { decor = [], onclick, title, nested = fa
 }
 
 function deskLine(s, group) {
-  if (group === "blocked" && s.reason) return h("span", { class: "plate-why", text: s.reason.text + (s.reason.task ? ` ${s.reason.task.key}` : "") });
+  if (group === "blocked" && s.reason) return h("span", { class: "plate-why", text: s.reason.text + (s.reason.task ? ` ${s.reason.task.key}` : "") + (waitLabel(s.reason.at) ? ` · ${waitLabel(s.reason.at)}` : "") });
   const bits = [s.tasks.length ? plural(s.tasks.length, "tarea", "tareas") : null, s.subagents ? plural(s.subagents, "ayudante", "ayudantes") : null].filter(Boolean);
   return bits.length ? h("span", { class: "plate-meta", text: bits.join(" · ") }) : null;
 }
@@ -190,7 +197,7 @@ function actor(x, id, fig, extra = "") {
 
 const otter = (x, mood, prop, cls = "") => {
   const el = paint(nutria(mood, "", prop), x.name);
-  if (cls) el.classList.add(...cls.split(" "));
+  if (cls) el.classList.add(...cls.split(" ").filter(Boolean));
   return el;
 };
 
@@ -201,7 +208,7 @@ const WORK = [
 ];
 
 function workScene(x, id) {
-  if (id === "blocked") return actor(x, id, [otter(x, "blocked"), h("span", { class: "desk-top" })]);
+  if (id === "blocked") return actor(x, id, [otter(x, "blocked", null, waitClass(x.reason && x.reason.at)), h("span", { class: "desk-top" })]);
   const v = pick(x.name, WORK.length);
   return actor(x, id, WORK[v](x), `work-v${v}`);
 }
@@ -262,10 +269,26 @@ function permButtons(p) {
   return h("span", { class: "perm-minis" }, [yes, no]);
 }
 
+function askedFor(p) {
+  if (!p.native) return p.label;
+  const body = String(p.detail || "").split(/Do you want/i)[0].replace(/^\s*(Bash command|Edit file|Write file|Read file|Fetch|Tool use)\s*/i, "");
+  return body.replace(/\s+/g, " ").trim() || p.label;
+}
+
+function permPeeks(perms) {
+  if (!perms.length) return null;
+  return h("span", { class: "perm-peeks" }, perms.slice(0, 3).map((p) => h("span", { class: "perm-peek", title: askedFor(p) }, [h("strong", { text: p.areaName || "Una sesión" }), h("code", { text: askedFor(p) })])));
+}
+
 function queue(items) {
   const shown = items.slice(0, 5);
   return h("span", { class: "queue" }, [
-    ...shown.map((x) => h("span", { class: "queuer", title: x.title }, [h("span", { class: "sign", text: x.label }), paint(nutria(x.mood || "waiting", "mid"), x.label), x.permission ? permButtons(x.permission) : null])),
+    ...shown.map((x) => {
+      const who = paint(nutria(x.mood || "waiting", "mid"), x.label);
+      if (waitClass(x.at)) who.classList.add(waitClass(x.at));
+      const late = waited(x.at) >= 5 ? h("span", { class: `wait-min ${waitClass(x.at)}`, text: waitLabel(x.at) }) : null;
+      return h("span", { class: "queuer", title: `${x.title}${waitLabel(x.at) ? ` · lleva ${waitLabel(x.at)}` : ""}` }, [h("span", { class: "sign", text: x.label }), who, late, x.permission ? permButtons(x.permission) : null]);
+    }),
     items.length > shown.length ? h("span", { class: "queue-more", text: `+${items.length - shown.length}` }) : null,
   ]);
 }
@@ -283,13 +306,13 @@ export function renderHome(root) {
 
   const plan = h("div", { class: `office-plan${resting.length >= 2 ? " wide-rest" : ""}${state.workHours === false && !(state.config && state.config.overtime) ? " lights-off" : ""}` });
 
-  const yours = [...perms.map((p) => ({ label: p.areaName || "Permiso", title: `${p.areaName || "Una sesión"} quiere: ${p.label}`, mood: "blocked", permission: p })), ...waiting.map((t) => ({ label: t.key, title: `${t.status === "partial" ? "A medias" : "Te espera"}: ${t.title}`, mood: t.status === "partial" ? "blocked" : "waiting" }))];
+  const yours = [...perms.map((p) => ({ label: p.areaName || "Permiso", title: `${p.areaName || "Una sesión"} quiere: ${p.label}`, mood: "blocked", permission: p, at: p.at })), ...waiting.map((t) => ({ label: t.key, title: `${t.status === "partial" ? "A medias" : "Te espera"}: ${t.title}`, mood: t.status === "partial" ? "blocked" : "waiting", at: (t.notice && t.notice.at) || t.sentAt }))];
   const yourN = yours.length;
   plan.append(
-    room("desk", "Tu mesa", yourN ? `${plural(yourN, "cosa te espera", "cosas te esperan")}` : "Nadie te espera", [yourN ? queue(yours) : h("span", { class: "calm" }, [h("span", { class: "chair pushed" })]), h("span", { class: "big-desk" }, yourN ? [] : [deskItems()])], { decor: [windowDecor(), plant()], onclick: () => switchView("waiting"), title: "Ver lo que te espera", nested: perms.length > 0 }),
+    room(`desk${yourN ? "" : " is-empty"}`, "Tu mesa", yourN ? `${plural(yourN, "cosa te espera", "cosas te esperan")}` : "Nadie te espera", [yourN ? queue(yours) : h("span", { class: "calm" }, [h("span", { class: "chair pushed" })]), h("span", { class: "big-desk" }, yourN ? [] : [deskItems()]), permPeeks(perms)], { decor: [windowDecor(), plant()], onclick: () => switchView("waiting"), title: "Ver lo que te espera", nested: perms.length > 0 }),
     room("inbox", "Bandeja de entrada", pending.length ? plural(pending.length, "pendiente", "pendientes") : "Vacía", [h("span", { class: "inbox-scene" }, [pending.length ? paint(nutria("pending", "mid"), "bandeja") : null, inboxPile(pending.length)]), h("strong", { class: "big-n", text: String(pending.length) })], { decor: [poster("IN")], onclick: () => switchView("pending"), title: "Ver las pendientes" }),
-    room("work", "Sala de trabajo", `${atDesk.length ? plural(atDesk.length, "sesión", "sesiones") : "Vacía"} · ${plural(sent, "tarea en curso", "tareas en curso")}`, atDesk.length ? atDesk.map(({ x, id }) => workScene(x, id)) : [h("span", { class: "still-row" }, [0, 1, 2].map(emptyStation))], { decor: [clockDecor(), plant()] }),
-    room("sofa", "Sala de descanso", resting.length ? plural(resting.length, "libre", "libres") : "Vacía", resting.length ? restScenes(resting) : [emptyLounge()], { decor: [h("span", { class: "lamp" })] }),
+    room(`work${atDesk.length ? "" : " is-empty"}`, "Sala de trabajo", `${atDesk.length ? plural(atDesk.length, "sesión", "sesiones") : "Vacía"} · ${plural(sent, "tarea en curso", "tareas en curso")}`, atDesk.length ? atDesk.map(({ x, id }) => workScene(x, id)) : [h("span", { class: "still-row" }, [0, 1, 2].map(emptyStation))], { decor: [clockDecor(), plant()] }),
+    room(`sofa${resting.length ? "" : " is-empty"}`, "Sala de descanso", resting.length ? plural(resting.length, "libre", "libres") : "Vacía", resting.length ? restScenes(resting) : [emptyLounge()], { decor: [h("span", { class: "lamp" })] }),
     room("archive", "Archivo", done ? plural(done, "hecha", "hechas") : "Nada archivado", [h("span", { class: "archive-scene" }, [shelf(done), done ? paint(nutria("done", "mid"), "archivo") : lonelyBox()]), h("strong", { class: "big-n", text: String(done) })], { decor: [poster("✓")], onclick: () => switchView("done"), title: "Ver las hechas" }),
   );
   if (s.system.length) {
