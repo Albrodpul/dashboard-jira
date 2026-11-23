@@ -103,7 +103,9 @@ fn update_board() {
     if changed.out.split('\n').any(|f| f.starts_with("rust/")) {
         let candidates = [crate::core::platform::home_dir().join(".cargo").join("bin").join(if cfg!(windows) { "cargo.exe" } else { "cargo" }), std::path::PathBuf::from("/opt/homebrew/opt/rustup/bin/cargo")];
         let cargo = candidates.iter().find(|c| c.exists()).map(|c| c.to_string_lossy().to_string()).unwrap_or_else(|| "cargo".to_string());
-        let built = crate::core::platform::run_output(&cargo, &["build".into(), "--release".into()], 900_000, Some(&repo.join("rust")), &[]);
+        let dir = std::path::Path::new(&cargo).parent().map(|d| d.to_string_lossy().to_string()).unwrap_or_default();
+        let path = format!("{dir}{}{}", if cfg!(windows) { ";" } else { ":" }, std::env::var("PATH").unwrap_or_default());
+        let built = crate::core::platform::run_output(&cargo, &["build".into(), "--release".into()], 900_000, Some(&repo.join("rust")), &[("PATH", path.as_str())]);
         if !built.ok {
             push_later(format!("El tablero de {} no se puede poner al día solo: no compila ({})", crate::core::platform::hostname(), cut(built.stderr.trim().split('\n').last().unwrap_or(""), 120)));
             return;
