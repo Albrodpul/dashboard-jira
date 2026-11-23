@@ -169,7 +169,7 @@ function classifySegment(segment, cwd) {
     const m = /jira-write(?:\.js)?["']?\s+["']?([\w-]+)["']?(?:\s+["']?([A-Z][A-Z0-9]*(?:-\d+)?)\b)?/.exec(rest);
     const action = m ? m[1] : "";
     const target = m && m[2] ? ` ${m[2]}` : "";
-    if (JIRA_WRITE_FREE.has(action)) return { kind: "allow" };
+    if (JIRA_WRITE_FREE.has(action) || loopOfFreeActions(rest, WHOLE.text)) return { kind: "allow" };
     const label = /comment|mention/.test(action) ? `comentar en${target} en Jira` : action === "create" ? `crear una tarea en Jira${target ? ` (${m[2]})` : ""}` : action === "assign" ? `asignar${target} en Jira` : action === "sprint" ? `mover${target} al sprint en Jira` : `escribir en Jira (${action || "sin acción"}${target})`;
     return { kind: "protected", key: "jira-write", label };
   }
@@ -237,6 +237,15 @@ function devLoginGrep(input) {
   if (keys.some((k) => !["pattern", "path", "output_mode", "-n", "head_limit"].includes(k))) return false;
   if (input.output_mode && !["content", "files_with_matches", "count"].includes(input.output_mode)) return false;
   return input.pattern === "^DEV_LOGIN_CODE=" && /^(?:[\w.~:\\/-]*[\\/])?super-app[\\/]\.env$/.test(String(input.path || ""));
+}
+
+function loopOfFreeActions(rest, whole) {
+  const v = /jira-write(?:\.js)?["']?\s+["']?\$\{?(\w+)\}?/.exec(rest);
+  if (!v) return false;
+  const m = new RegExp(`(?:^|[;&|(\\s])for\\s+${v[1]}\\s+in\\s+([^;\\n]*?)\\s*(?:;|\\n)\\s*do\\b`).exec(String(whole || ""));
+  if (!m) return false;
+  const words = m[1].split(/\s+/).filter(Boolean).map((w) => w.replace(/^["']|["']$/g, ""));
+  return words.length > 0 && words.every((w) => JIRA_WRITE_FREE.has(w));
 }
 
 function startsOrClaims(op, input) {

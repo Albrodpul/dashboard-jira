@@ -416,6 +416,16 @@ fn ssh_remote(rest: &str) -> String {
     strip(&SSH_PREFIX, rest)
 }
 
+static JIRA_WRITE_VAR: LazyLock<Regex> = LazyLock::new(|| re(r#"jira-write(?:\.js)?["']?\s+["']?\$\{?(\w+)\}?"#));
+
+fn loop_of_free_actions(rest: &str, whole: &str) -> bool {
+    let Some(var) = JIRA_WRITE_VAR.captures(rest).map(|m| m[1].to_string()) else { return false };
+    let Ok(each) = Regex::new(&format!(r"(?:^|[;&|(\s])for\s+{}\s+in\s+([^;\n]*?)\s*(?:;|\n)\s*do\b", regex::escape(&var))) else { return false };
+    let Some(m) = each.captures(whole) else { return false };
+    let words: Vec<String> = m[1].split_whitespace().map(|w| w.trim_matches(|c| c == '"' || c == '\'').to_string()).collect();
+    !words.is_empty() && words.iter().all(|w| JIRA_WRITE_FREE.contains(&w.as_str()))
+}
+
 fn classify_segment(segment: &str, cwd: Option<&str>) -> Verdict {
     let Words { rest, cmd, raw } = words(segment);
     if cmd.is_empty() {
@@ -498,7 +508,7 @@ fn classify_segment(segment: &str, cwd: Option<&str>) -> Verdict {
         let action = m.as_ref().map(|m| m[1].to_string()).unwrap_or_default();
         let key = m.as_ref().and_then(|m| m.get(2)).map(|x| x.as_str().to_string());
         let target = key.as_ref().map(|k| format!(" {k}")).unwrap_or_default();
-        if JIRA_WRITE_FREE.contains(&action.as_str()) {
+        if JIRA_WRITE_FREE.contains(&action.as_str()) || loop_of_free_actions(&rest, &whole) {
             return Verdict::allow();
         }
         let label = if COMMENT_OR_MENTION.is_match(&action) {
@@ -1147,6 +1157,12 @@ mod tests {
             assert_eq!(bash(c), "protected", "{c}");
         }
         assert_eq!(classify("Bash", &json!({ "command": "node scripts/jira-write.js create WEB task.md" }), None).label.as_deref(), Some("crear una tarea en Jira (WEB)"));
+        for c in ["for k in FRON-1 FRON-2; do for c in assign sprint start; do node scripts/jira-write.js $c $k 2>&1 | tail -1; done; done", "for c in assign sprint start; do node scripts/jira-write.js \"$c\" FRON-3; done"] {
+            assert_eq!(classify("Bash", &json!({ "command": c }), None).kind, "allow", "{c}");
+        }
+        for c in ["for c in assign comment; do node scripts/jira-write.js $c FRON-3 x; done", "node scripts/jira-write.js $c FRON-3"] {
+            assert_eq!(classify("Bash", &json!({ "command": c }), None).kind, "protected", "{c}");
+        }
         assert_eq!(classify("Bash", &json!({ "command": "node scripts/jira-write.js comment WEB-7 hola" }), None).label.as_deref(), Some("comentar en WEB-7 en Jira"));
     }
 
