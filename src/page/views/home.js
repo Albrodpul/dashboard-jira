@@ -68,6 +68,7 @@ export function sessionSituation() {
     const row = { id: a.id, name: a.unnamed ? a.vsCodeTitle || tr("{name} (sin nombre)", { name: a.sessionName }) : a.name, sessionName: a.sessionName, conversation: a.conversation, project: a.project || live.project, since: live.statusSince, subagents: live.subagents || 0, tasks };
     const asking = ((state.permissions && state.permissions.pending) || []).find((p) => p.conversation === a.conversation);
     if (asking) out.blocked.push({ ...row, reason: { text: tr("Espera tu permiso: {what}", { what: asking.label }), view: "waiting", at: asking.at } });
+    else if ((state.testWaits || {})[a.conversation] && live.status !== "busy") out.blocked.push({ ...row, reason: { text: tr("Esperando hueco para los tests"), at: state.testWaits[a.conversation].at } });
     else if (live.status === "busy") out.working.push(row);
     else {
       const reason = blockReason(live, tasks);

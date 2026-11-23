@@ -62,6 +62,7 @@ pub fn post_route(url: &str) -> Option<PostHandler> {
         "/api/cluster/yield" => Some(cluster_yield),
         "/api/cluster/take" => Some(cluster_take),
         "/api/watchdog/dismiss" => Some(watchdog_dismiss),
+        "/api/test-wait" => Some(test_wait),
         "/api/cluster/auto" => Some(cluster_auto),
         "/api/cluster/command" => Some(cluster_command),
         "/api/host/respawned" => Some(host_respawned),
@@ -251,6 +252,31 @@ fn cluster_yield(input: &Value) -> Res {
 
 fn cluster_take(_input: &Value) -> Res {
     status_by_ok(cluster::take_here())
+}
+
+fn test_wait(input: &Value) -> Res {
+    let conversation = js_string(input.get("conversation"));
+    if !crate::core::data::is_uuid(&conversation) {
+        return error_res(400, "falta la conversación");
+    }
+    let waiting = input.get("waiting").and_then(Value::as_bool).unwrap_or(false);
+    crate::core::data::mutate(|d| {
+        let mut waits = d.get("testWaits").and_then(Value::as_object).cloned().unwrap_or_default();
+        let cutoff = crate::core::time::now_ms() - 3600_000;
+        waits.retain(|_, v| v.get("at").and_then(Value::as_str).and_then(crate::core::time::parse).is_some_and(|t| t > cutoff));
+        if waiting {
+            let since = waits.get(&conversation).and_then(|v| v.get("at")).cloned().unwrap_or_else(|| Value::from(crate::core::time::now()));
+            waits.insert(conversation.clone(), serde_json::json!({ "at": since }));
+        } else {
+            waits.remove(&conversation);
+        }
+        if waits.is_empty() {
+            d.remove("testWaits");
+        } else {
+            d.insert("testWaits".into(), Value::Object(waits));
+        }
+    });
+    ok()
 }
 
 fn watchdog_dismiss(input: &Value) -> Res {

@@ -73,6 +73,15 @@ impl Hook {
         0
     }
 
+    fn tell_test_wait(&self, waiting: bool) {
+        let session = text(self.event.get("session_id"));
+        if session.is_empty() {
+            return;
+        }
+        let agent: ureq::Agent = ureq::Agent::config_builder().timeout_global(Some(Duration::from_millis(1500))).http_status_as_error(false).build().into();
+        let _ = agent.post(&format!("{}/api/test-wait", *BASE)).header("origin", BASE.as_str()).header("content-type", "application/json").send(stringify(&json!({ "conversation": session, "waiting": waiting })));
+    }
+
     fn test_turn(&mut self) -> Option<i32> {
         if self.event.get("tool_name").and_then(Value::as_str) != Some("Bash") {
             return None;
@@ -85,9 +94,11 @@ impl Hook {
         let options = crate::sessions::test_turn::DecideOptions { list: None, file: Some(file), now_ms: None };
         let plan = std::panic::catch_unwind(|| crate::sessions::test_turn::decide(&command, &options)).ok()?;
         if plan.kind == "wait" {
+            self.tell_test_wait(true);
             return Some(self.decide("deny", plan.reason.as_deref().unwrap_or("")));
         }
         if plan.kind == "go" {
+            self.tell_test_wait(false);
             if let Some(new_command) = plan.command.filter(|c| !c.is_empty()) {
                 let mut rewritten = self.event["tool_input"].clone();
                 rewritten["command"] = Value::from(new_command.as_str());

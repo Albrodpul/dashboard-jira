@@ -387,6 +387,12 @@ pub fn state() -> Value {
     put("cluster", crate::cluster::cluster::info());
     put("hosted", Value::Array(hosted));
     put("stuckDialogs", Value::Array(crate::features::stuck::list()));
+    put("testWaits", {
+        let cutoff = crate::core::time::now_ms() - 3600_000;
+        let mut waits = d.get("testWaits").and_then(Value::as_object).cloned().unwrap_or_default();
+        waits.retain(|_, v| v.get("at").and_then(Value::as_str).and_then(crate::core::time::parse).is_some_and(|t| t > cutoff));
+        Value::Object(waits)
+    });
     put("watchdog", crate::features::watchdog::for_page(&d));
     put("convProfiles", Value::Object(conv_profiles));
     put(

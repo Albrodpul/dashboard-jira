@@ -118,4 +118,5 @@ export default {
   "A por galletas": "Getting some cookies",
   "Mirando por la ventana": "Looking out of the window",
   "Una partidita": "Just one game",
+  "Esperando hueco para los tests": "Waiting for a free test slot",
 };
