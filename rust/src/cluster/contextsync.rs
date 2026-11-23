@@ -106,8 +106,17 @@ fn update_board() {
         let dir = std::path::Path::new(&cargo).parent().map(|d| d.to_string_lossy().to_string()).unwrap_or_default();
         let path = format!("{dir}{}{}", if cfg!(windows) { ";" } else { ":" }, std::env::var("PATH").unwrap_or_default());
         let staging = repo.join("rust").join("target-next");
-        let target_dir = if cfg!(windows) { staging.to_string_lossy().to_string() } else { repo.join("rust").join("target").to_string_lossy().to_string() };
+        let target_dir = staging.to_string_lossy().to_string();
         let built = crate::core::platform::run_output(&cargo, &["build".into(), "--release".into()], 900_000, Some(&repo.join("rust")), &[("PATH", path.as_str()), ("CARGO_TARGET_DIR", target_dir.as_str())]);
+        if built.ok && !cfg!(windows) {
+            let live = repo.join("rust").join("target").join("release").join("tower");
+            let next = live.with_extension("next");
+            let _ = std::fs::create_dir_all(live.parent().unwrap());
+            if std::fs::copy(staging.join("release").join("tower"), &next).is_err() || std::fs::rename(&next, &live).is_err() {
+                push_later(format!("El tablero de {} no se puede poner al día solo: no se pudo cambiar el binario", crate::core::platform::hostname()));
+                return;
+            }
+        }
         if built.ok && cfg!(windows) {
             let live = repo.join("rust").join("target").join("release").join("tower.exe");
             let old = live.with_extension("exe.old");
