@@ -205,7 +205,6 @@ function art(cls, markup) {
 }
 const cobweb = (cls = "") => art(`cobweb ${cls}`.trim(), '<svg viewBox="0 0 30 30"><g fill="none" stroke="currentColor" stroke-width=".9" stroke-linecap="round"><path d="M0 0L29 29M0 0L29 11M0 0L11 29M0 0L29 1M0 0L1 29"/><path d="M9 0Q8 4 7 7Q4 8 0 9M17 0Q16 8 14 14Q8 16 0 17M26 0Q24 12 21 21Q12 24 0 26"/></g><circle cx="15" cy="15" r="1.8" fill="currentColor"/></svg>');
 const deskItems = () => h("span", { class: "desk-items" }, [h("i", { class: "laptop-shut" }), h("i", { class: "postit" }), h("i", { class: "cup" }, [h("b"), h("b")])]);
-const emptyStation = (i) => h("span", { class: `ws-empty tilt-${i}` }, [h("i", { class: "mon-off" }), h("i", { class: "ws-desk" }), h("span", { class: "chair" })]);
 const emptyLounge = () => h("span", { class: "still-row" }, [h("span", { class: "couch-empty seat-scene" }, [h("i", { class: "rug" }), h("i", { class: "sofa-back" }), sofaFront(), h("i", { class: "cushion" })]), h("span", { class: "side-table" }, [h("i", { class: "magazine" })])]);
 const lonelyBox = () => h("span", { class: "lonely-box" }, [h("i")]);
 const pick = (key, n) => [...String(key || "")].reduce((v, ch) => (v * 33 + ch.charCodeAt(0)) >>> 0, 11) % n;
@@ -224,17 +223,109 @@ const otter = (x, mood, prop, cls = "") => {
   return el;
 };
 
-const WORK = [
-  (x) => [otter(x, "working"), h("span", { class: "desk-top" })],
-  (x) => [h("span", { class: "monitor" }, [h("i"), h("i"), h("i")]), otter(x, "typing", null, "working-arms"), h("span", { class: "desk-top keyboard" })],
-  (x) => [h("span", { class: "whiteboard" }, [h("i"), h("i"), h("i")]), otter(x, "drawing")],
+
+const OFFICE_TRIPS = [
+  { spot: ".ow-cooler", mood: "idle", prop: "mug", say: "Voy a por agua" },
+  { spot: ".ow-counter", mood: "idle", prop: "mug", say: "Un café y vuelvo" },
+  { spot: ".ow-printer", mood: "idle", prop: "paper", say: "A la impresora" },
+  { spot: ".ow-cabinet", mood: "idle", prop: "paper", say: "Al cajón a por papeles" },
+  { spot: ".ow-board", mood: "drawing", prop: null, say: "Apunto en la pizarra" },
+  { spot: ".ow-shelf", mood: "idle", prop: "book", say: "Busco un libro" },
+];
+const REST_TRIPS = [
+  { spot: ".rb-fridge", mood: "idle", prop: "mug", say: "A por un zumo" },
+  { spot: ".rb-vending", mood: "idle", prop: "box", say: "A por galletas" },
+  { spot: ".rb-window", mood: "relax", prop: null, say: "Mirando por la ventana" },
+  { spot: ".rb-arcade", mood: "idle", prop: "controller", say: "Una partidita" },
+  { spot: ".rb-cooler", mood: "idle", prop: "mug", say: "Voy a por agua" },
 ];
 
-function workScene(x, id) {
-  if (id === "blocked") return actor(x, id, [otter(x, "blocked", null, waitClass(x.reason && x.reason.at)), h("span", { class: "desk-top" })]);
-  const v = pick(x.name, WORK.length);
-  return actor(x, id, WORK[v](x), `work-v${v}`);
+function trip(x, trips, salt) {
+  const now = Date.now() / 1000;
+  const dur = 70 + pick(x.name + salt + "pace", 45);
+  const offset = pick(x.name + salt, 997);
+  const lap = Math.floor((now + offset) / dur);
+  const t = trips[(pick(x.name + salt + "route", trips.length) + lap) % trips.length];
+  const delay = -((now + offset) % dur);
+  return { ...t, timing: `--od-d:${dur}s;--od-dl:${delay.toFixed(2)}s`, key: `${salt}-${pick(x.conversation || x.name, 1e9)}` };
 }
+
+function walker(x, t) {
+  return h("span", { class: "od-walker", "aria-hidden": "true", "data-from": `[data-walk="${t.key}"]`, "data-spot": t.spot, style: t.timing }, [h("b", { class: "od-say", text: tr(t.say) }), otter(x, t.mood, t.prop, "mid")]);
+}
+
+function sitStill(sprite, t) {
+  sprite.classList.add("walks");
+  sprite.dataset.walk = t.key;
+  sprite.setAttribute("style", `${sprite.getAttribute("style") || ""};${t.timing}`);
+}
+
+function officeWall() {
+  return h("span", { class: "ow-wall", "aria-hidden": "true" }, [
+    h("span", { class: "ow-window" }),
+    h("span", { class: "ow-board" }, [h("i"), h("i"), h("i"), h("b")]),
+    h("span", { class: "ow-shelf" }, [h("i"), h("i"), h("i")]),
+    h("span", { class: "ow-art" }),
+  ]);
+}
+
+function deskFurniture(on) {
+  return [h("span", { class: "od-chair" }), h("span", { class: "od-top" }, [h("span", { class: `od-monitor${on ? "" : " off"}` }, on ? [h("i"), h("i"), h("i")] : []), h("i", { class: "od-keys" }), h("i", { class: "od-mug" })]), h("span", { class: "od-front" })];
+}
+
+function placeWalkers(room) {
+  if (!room.isConnected) return;
+  const box = room.getBoundingClientRect();
+  room.querySelectorAll(".od-walker").forEach((w) => {
+    const from = room.querySelector(w.dataset.from);
+    const spot = room.querySelector(w.dataset.spot);
+    if (!from || !spot) return;
+    const f = from.getBoundingClientRect();
+    const t = spot.getBoundingClientRect();
+    const wall = spot.closest(".ow-wall, .rb-wall");
+    const ty = wall ? wall.getBoundingClientRect().bottom + 6 : t.bottom - 4;
+    w.style.setProperty("--dx", `${f.left + f.width / 2 - box.left}px`);
+    w.style.setProperty("--dy", `${box.bottom - f.bottom}px`);
+    w.style.setProperty("--tx", `${t.left + t.width / 2 - box.left}px`);
+    w.style.setProperty("--ty", `${Math.max(4, box.bottom - ty)}px`);
+  });
+}
+
+function officeRoom(list) {
+  const walkers = [];
+  const desks = list.length
+    ? list.map(({ x, id }) => {
+        const sit = otter(x, id === "blocked" ? "blocked" : "typing", null, `mid od-seated ${id === "blocked" ? waitClass(x.reason && x.reason.at) : ""}`.trim());
+        if (id === "working") {
+          const t = trip(x, OFFICE_TRIPS, "office");
+          sitStill(sit, t);
+          walkers.push(walker(x, t));
+        }
+        const helpers = x.subagents ? h("span", { class: "helpers" }, Array.from({ length: Math.min(x.subagents, 3) }, () => paint(nutria("working", "tiny"), x.name))) : null;
+        const [chair, top, front] = deskFurniture(true);
+        return h("button", {
+          class: `od-desk ${id}`,
+          type: "button",
+          "data-conv": x.conversation,
+          title: x.since ? tr("{name}: {mood} desde {time}. Pulsa para verla en directo.", { name: x.name, mood: MOOD_TEXT[id], time: when(x.since) }) : tr("{name}: {mood}. Pulsa para verla en directo.", { name: x.name, mood: MOOD_TEXT[id] }),
+          onclick: () => openLive(x.conversation, x.sessionName || x.name),
+        }, [chair, sit, top, front, helpers, h("span", { class: "plate small" }, [h("strong", { text: x.name }), deskLine(x, id), mixedProjects() && x.project ? h("span", { class: "plate-project", text: projectName(x.project) }) : null])]);
+      })
+    : [0, 1, 2].map(() => h("span", { class: "od-desk empty" }, deskFurniture(false)));
+  const room = h("div", { class: "office-room" }, [
+    officeWall(),
+    h("span", { class: "ow-printer", "aria-hidden": "true" }, [h("i"), h("b")]),
+    h("span", { class: "ow-cabinet", "aria-hidden": "true" }, [h("i"), h("i"), h("i")]),
+    h("div", { class: "ow-floor" }, [
+      h("div", { class: "od-grid" }, desks),
+      h("span", { class: "ow-kitchen", "aria-hidden": "true" }, [h("span", { class: "ow-cooler" }, [h("i")]), h("span", { class: "ow-counter" }, [h("span", { class: "ow-coffee" }, [h("i")]), h("i", { class: "ow-cups" })]), h("span", { class: "ow-plant" }, [h("i"), h("i"), h("i")])]),
+    ]),
+    ...walkers,
+  ]);
+  if (walkers.length) requestAnimationFrame(() => placeWalkers(room));
+  return room;
+}
+
 
 const REST = [
   (x) => [h("i", { class: "sofa-back" }), otter(x, "free"), sofaFront()],
@@ -249,6 +340,25 @@ const PAIRS = [
   (a, b) => ({ cls: "pingpong", left: [otter(a, "idle", "paddle")], middle: h("span", { class: "pp-table" }, [h("i", { class: "net" }), h("i", { class: "ball" })]), right: [otter(b, "idle", "paddle", "mirror")] }),
   (a, b) => ({ cls: "chess", left: [otter(a, "idle"), h("b", { class: "say one", text: "?" })], middle: h("span", { class: "chess-table" }), right: [otter(b, "idle", null, "mirror")] }),
 ];
+
+function restRoom(list) {
+  const scenes = restScenes(list);
+  const walkers = [];
+  const box = h("div", { class: `rest-room${list.length ? "" : " is-empty"}` }, [
+    h("span", { class: "rb-wall", "aria-hidden": "true" }, [h("span", { class: "rb-window" }), h("span", { class: "rb-fridge" }, [h("i")]), h("span", { class: "rb-vending" }, [h("i"), h("i"), h("i")]), h("span", { class: "rb-cooler" }, [h("i")]), h("span", { class: "rb-arcade" }, [h("i")])]),
+    h("div", { class: "rest-floor" }, list.length ? scenes : [emptyLounge()]),
+  ]);
+  for (const { x } of list) {
+    const seat = box.querySelector(`.seat[data-conv="${CSS.escape(x.conversation || "")}"] .nutria`);
+    if (!seat || !x.conversation) continue;
+    const t = trip(x, REST_TRIPS, "rest");
+    sitStill(seat, t);
+    walkers.push(walker(x, t));
+  }
+  box.append(...walkers);
+  if (walkers.length) requestAnimationFrame(() => placeWalkers(box));
+  return box;
+}
 
 function restScenes(list) {
   const sorted = [...list].sort((p, q) => p.x.name.localeCompare(q.x.name));
@@ -412,15 +522,15 @@ export function renderHome(root) {
   const atDesk = [...s.working.map((x) => ({ x, id: "working" })), ...s.blocked.map((x) => ({ x, id: "blocked" }))];
   const resting = s.free.map((x) => ({ x, id: "free" }));
 
-  const plan = h("div", { class: `office-plan${resting.length >= 2 ? " wide-rest" : ""}${state.workHours === false && !(state.config && state.config.overtime) ? " lights-off" : ""}` });
+  const plan = h("div", { class: `office-plan${resting.length >= 2 ? " wide-rest" : ""}${atDesk.length > 6 ? " crowded" : ""}${state.workHours === false && !(state.config && state.config.overtime) ? " lights-off" : ""}` });
 
   const yours = [...perms.map((p) => ({ label: p.areaName || tr("Permiso"), title: tr("{who} quiere: {what}", { who: p.areaName || tr("Una sesión"), what: p.label }), mood: "blocked", permission: p, at: p.at })), ...waiting.map((t) => ({ label: t.key, title: `${t.status === "partial" ? tr("A medias") : tr("Te espera")}: ${t.title}`, mood: t.status === "partial" ? "blocked" : "waiting", at: (t.notice && t.notice.at) || t.sentAt }))];
   const yourN = yours.length;
   plan.append(
     room(`desk${yourN ? "" : " is-empty"}`, "Tu mesa", yourN ? plural(yourN, "cosa te espera", "cosas te esperan") : tr("Nadie te espera"), [yourN ? queue(yours) : h("span", { class: "calm" }, [h("span", { class: "chair pushed" })]), h("span", { class: "big-desk" }, yourN ? [] : [deskItems()]), permPeeks(perms)], { decor: [windowDecor(), plant()], onclick: () => switchView("waiting"), title: tr("Ver lo que te espera"), nested: perms.length > 0 }),
     room("inbox", "Bandeja de entrada", pending.length ? plural(pending.length, "pendiente", "pendientes") : tr("Vacía"), [h("span", { class: "inbox-scene" }, [pending.length ? paint(nutria("pending", "mid"), "bandeja") : null, inboxPile(pending.length)]), h("strong", { class: "big-n", text: String(pending.length) })], { decor: [poster("IN")], onclick: () => switchView("pending"), title: tr("Ver las pendientes") }),
-    room(`work${atDesk.length ? "" : " is-empty"}`, "Sala de trabajo", `${atDesk.length ? plural(atDesk.length, "sesión", "sesiones") : tr("Vacía")} · ${plural(sent, "tarea en curso", "tareas en curso")}`, atDesk.length ? atDesk.map(({ x, id }) => workScene(x, id)) : [h("span", { class: "still-row" }, [0, 1, 2].map(emptyStation))], { decor: [clockDecor(), plant()] }),
-    room(`sofa${resting.length ? "" : " is-empty"}`, "Sala de descanso", resting.length ? plural(resting.length, "libre", "libres") : tr("Vacía"), resting.length ? restScenes(resting) : [emptyLounge()], { decor: [h("span", { class: "lamp" })] }),
+    room(`work${atDesk.length ? "" : " is-empty"}`, "Sala de trabajo", `${atDesk.length ? plural(atDesk.length, "sesión", "sesiones") : tr("Vacía")} · ${plural(sent, "tarea en curso", "tareas en curso")}`, [officeRoom(atDesk)], { decor: [clockDecor(), plant()] }),
+    room(`sofa${resting.length ? "" : " is-empty"}`, "Sala de descanso", resting.length ? plural(resting.length, "libre", "libres") : tr("Vacía"), [restRoom(resting.length ? resting : [])], { decor: [h("span", { class: "lamp" })] }),
     room("archive", "Archivo", done ? plural(done, "hecha", "hechas") : tr("Nada archivado"), [h("span", { class: "archive-scene" }, [shelf(done), done ? paint(nutria("done", "mid"), "archivo") : lonelyBox()]), h("strong", { class: "big-n", text: String(done) })], { decor: [poster("✓")], onclick: () => switchView("done"), title: tr("Ver las hechas") }),
   );
   if (s.system.length) {
