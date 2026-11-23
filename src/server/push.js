@@ -83,7 +83,7 @@ function notificationFor(type, text) {
 
 async function sendPush(type, force, text) {
   const subs = subscriptions();
-  if (!subs.length) return 0;
+  if (!subs.length || (type !== "test" && require("../core/hours").resting())) return 0;
   let last = readJson(LAST_FILE, {});
   const prev = entryOf(last[type]);
   if (!force && prev.at && Date.now() - new Date(prev.at).getTime() < 60000) return 0;

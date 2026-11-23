@@ -141,7 +141,8 @@ function tick() {
     require("../cluster/cluster").letSleep();
     if (sleepDisabled()) sudoPmset(["-a", "disablesleep", "0"]);
     if (s.weeklyOff && clock.weekday === "Fri") {
-      log(`son las ${s.sleep} del viernes: se apaga hasta el lunes a las ${s.wake}`);
+      log(`son las ${s.sleep} del viernes: se apaga hasta el lunes a las ${s.wake}; si algo frena el apagado, se duerme y el tablero no manda nada hasta el lunes`);
+      setTimeout(() => cp.execFile("/usr/bin/pmset", ["sleepnow"], () => {}), 3 * 60000).unref();
       return;
     }
     log(`son las ${s.sleep}: a dormir`);

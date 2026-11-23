@@ -69,3 +69,17 @@ test("overtime() drops an expired flag from the stored config and keeps a fresh 
   assert.equal(hours.setOvertime(false), null);
   assert.equal(load().config.overtime, undefined);
 });
+
+test("with the weekend off the board rests on Saturday and Sunday unless there is overtime", () => {
+  const r = (s) => hours.resting(hours.clock(at(s)));
+  const macPower = require("../src/features/mac-power");
+  assert.equal(r("2026-11-21T09:00:00"), true);
+  assert.equal(r("2026-11-22T23:00:00"), true);
+  assert.equal(r("2026-11-23T03:00:00"), false);
+  hours.setOvertime(true);
+  assert.equal(r("2026-11-21T09:00:00"), false);
+  hours.setOvertime(false);
+  macPower.setSchedule({ weeklyOff: false });
+  assert.equal(r("2026-11-21T09:00:00"), false);
+  macPower.setSchedule({ weeklyOff: true });
+});

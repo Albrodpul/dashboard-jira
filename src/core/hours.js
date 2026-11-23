@@ -76,4 +76,6 @@ function setOvertime(on) {
   return overtime();
 }
 
-module.exports = { clock, workHours, overtime, setOvertime, expired, schedule, setSchedule, startMin, endMin, dailyMin, toMin };
+const resting = (t = clock()) => t.weekend && require("../features/mac-power").schedule().weeklyOff && !overtime();
+
+module.exports = { clock, workHours, overtime, resting, setOvertime, expired, schedule, setSchedule, startMin, endMin, dailyMin, toMin };

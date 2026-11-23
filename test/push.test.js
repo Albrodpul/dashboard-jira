@@ -32,7 +32,7 @@ test("a muted reason is not sent to that device", async () => {
     assert.ok(!hits.includes("https://push.example/mac"));
     hits.length = 0;
     await push.sendPush("deploys", true);
-    assert.ok(hits.includes("https://push.example/mac"));
+    assert.equal(hits.includes("https://push.example/mac"), !require("../src/core/hours").resting());
   } finally {
     global.fetch = real;
   }

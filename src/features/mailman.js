@@ -376,6 +376,7 @@ function defaultEnv() {
   const deliver = require("../sessions/deliver");
   return {
     primary: () => require("../cluster/cluster").primaryNow(),
+    resting: () => require("../core/hours").resting(),
     state: () => require("../server/state").state(),
     live: () => registry.liveSessions() || [],
     open: (conversation) => registry.openInVsCode(conversation),
@@ -554,7 +555,7 @@ const destKey = (job) => job.role || job.area || (job.project ? `project:${job.p
 
 async function tick() {
   const e = E();
-  if (!e.primary()) return;
+  if (!e.primary() || (e.resting && e.resting())) return;
   if (!recovered) {
     recovered = true;
     recover();

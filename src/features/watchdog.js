@@ -113,7 +113,7 @@ function dismiss(key) {
 }
 
 function tick() {
-  if (!require("../cluster/cluster").isPrimary()) return;
+  if (!require("../cluster/cluster").isPrimary() || require("../core/hours").resting()) return;
   const s = require("../server/state").state();
   const fresh = apply(findings(s, load()));
   for (const f of fresh) {
