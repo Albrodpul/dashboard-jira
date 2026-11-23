@@ -1,30 +1,30 @@
+
+!.env.example
 # Credentials and per-machine config: only the examples are committed
+# Downloaded Jira attachments and local tooling
+# Launchers written by install.js into a workspace
+# Runtime data (SQLite, push keys, logs, Jira caches)
+*.db
+*.db-shm
+*.db-wal
+*.log
+*.migrated
+.attachments/
+.claude/
 .env
 .env.*
-!.env.example
-board.config.json*
-tablero.config.json
-*.migrated
-
-# Runtime data (SQLite, push keys, logs, Jira caches)
-data/
-datos/
-*.db
-*.db-wal
-*.db-shm
-*.log
-push-*.json
-
-# Launchers written by install.js into a workspace
+.mcp.json
+.vscode/
 /board.js
-/sessions.js
 /jira-window.js
 /jira-write.js
 /jira.sh
-
-# Downloaded Jira attachments and local tooling
-.attachments/
+/node_modules
+/sessions.js
+board.config.json*
+data/
+datos/
 node_modules/
-.claude/
-.mcp.json
-.vscode/
+push-*.json
+rust/target/
+tablero.config.json

@@ -284,3 +284,11 @@ Not to be offered again without a new reason:
 - **Child sessions that save nothing.** A `claude` launched from another session inherits `CLAUDE_CODE_*` variables (`CLAUDE_CODE_CHILD_SESSION`, among others) and does not write its conversation: later `--resume` says "No conversation found". The host and its sessions start with `cleanEnv()`, as do wake-ups with `claude -p`.
 - **Folder trust is per exact path.** On Windows a drive-letter path in upper case and the same in lower case with forward slashes are different projects for Claude Code. Starting with the other spelling asked again, and the automatic answer ended in "No, exit". The host uses the same spelling as VS Code.
 - **`jira-window.js` shows the current assignee**, not the one at the time of the event: an "unassigned" ticket can appear already assigned if a session took it.
+
+## Moving the server to Rust (branch `rust`)
+
+- **Why.** The owner wants the board to take as little memory as possible so sessions, servers and test browsers have more room. Measured on 2026-11-23: the Node processes of the board take about 310 MB; the first Rust step serving the same page takes about 3 MB. The page stays in JavaScript: it runs in the browser.
+- **Step by step, never a big switch.** A Rust server (`rust/`, binary `tower`) sits on the public port (4747), checks the host like Node did, serves the page, the service worker, the manifest, the icons and xterm, and forwards everything else, terminal WebSockets included, to Node on an internal port (`TOWER_LISTEN_PORT` for Node, `TOWER_NODE_PORT` for Rust, public port + 10 by default). Node keeps checking the origin and keeps `TOWER_PORT` as the public port, so its own calls to `BASE_URL` go through Rust. Each route or timer moved to Rust is removed from Node; when nothing is left, Node goes. Both read the same SQLite file (`documents` table, one JSON document per key, `BEGIN IMMEDIATE` to write), so data and API do not change.
+- **The service worker lives in `src/page/sw.js`** so both servers serve the same file instead of two copies of the text.
+- **While both run, memory goes up, not down**: the saving only comes when Node is gone.
+
