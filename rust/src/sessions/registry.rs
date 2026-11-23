@@ -321,6 +321,37 @@ fn running_subagents(session_id: &str) -> usize {
     n
 }
 
+pub fn background_what(conversation: &str) -> Option<Value> {
+    let file = transcript_of(conversation)?;
+    let size = std::fs::metadata(&file).ok()?.len();
+    let mut f = std::fs::File::open(&file).ok()?;
+    let start = size.saturating_sub(512 * 1024);
+    std::io::Seek::seek(&mut f, std::io::SeekFrom::Start(start)).ok()?;
+    let mut buf = Vec::new();
+    std::io::Read::read_to_end(&mut f, &mut buf).ok()?;
+    let body = String::from_utf8_lossy(&buf);
+    let mut last: Option<Value> = None;
+    for line in body.split('\n') {
+        if !line.contains("run_in_background") && !line.contains("\"Monitor\"") {
+            continue;
+        }
+        let Some(j) = json::parse(line) else { continue };
+        for c in j.get("message").and_then(|m| m.get("content")).and_then(|x| x.as_array()).into_iter().flatten() {
+            if c.get("type").and_then(|x| x.as_str()) != Some("tool_use") {
+                continue;
+            }
+            let Some(input) = c.get("input") else { continue };
+            if c.get("name").and_then(|x| x.as_str()) != Some("Monitor") && !truthy(input.get("run_in_background")) {
+                continue;
+            }
+            let command: String = input.get("command").map(text).unwrap_or_default().chars().take(400).collect();
+            let description: String = input.get("description").map(text).unwrap_or_default().chars().take(120).collect();
+            last = Some(json!({ "command": command, "description": description }));
+        }
+    }
+    last
+}
+
 pub fn live_status(status: Option<&str>, subagents: usize) -> String {
     if subagents > 0 {
         return "busy".into();
@@ -353,6 +384,7 @@ pub fn live_sessions() -> Option<Vec<Value>> {
             "status": status,
             "subagents": subagents,
             "background": e.get("background").cloned().unwrap_or(Value::Null),
+            "backgroundWhat": if truthy(e.get("background")) { background_what(&conversation).unwrap_or(Value::Null) } else { Value::Null },
             "project": project.id,
             "statusSince": status_since,
             "title": title,

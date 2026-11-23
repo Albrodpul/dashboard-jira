@@ -119,4 +119,7 @@ export default {
   "Mirando por la ventana": "Looking out of the window",
   "Una partidita": "Just one game",
   "Esperando hueco para los tests": "Waiting for a free test slot",
+  "Esperando a que acaben sus tests": "Waiting for its tests to finish",
+  "Esperando: {what}": "Waiting: {what}",
+  "Esperando a un proceso en segundo plano": "Waiting for a background process",
 };
