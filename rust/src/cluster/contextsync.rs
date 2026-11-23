@@ -98,7 +98,16 @@ fn update_board() {
     }
     if TEMPLATES.is_match(&changed.out) {
         let workspace = crate::core::config::workspace().to_string_lossy().to_string();
-        crate::core::platform::run_output("node", &[repo.join("install.js").to_string_lossy().to_string(), workspace], 60_000, None, &[]);
+        crate::core::platform::run_output("node", &[repo.join("install.js").to_string_lossy().to_string(), workspace, "--rust".into()], 60_000, None, &[]);
+    }
+    if changed.out.split('\n').any(|f| f.starts_with("rust/")) {
+        let candidates = [crate::core::platform::home_dir().join(".cargo/bin/cargo"), std::path::PathBuf::from("/opt/homebrew/opt/rustup/bin/cargo")];
+        let cargo = candidates.iter().find(|c| c.exists()).map(|c| c.to_string_lossy().to_string()).unwrap_or_else(|| "cargo".to_string());
+        let built = crate::core::platform::run_output(&cargo, &["build".into(), "--release".into()], 900_000, Some(&repo.join("rust")), &[]);
+        if !built.ok {
+            push_later(format!("El tablero de {} no se puede poner al día solo: no compila ({})", crate::core::platform::hostname(), cut(built.stderr.trim().split('\n').last().unwrap_or(""), 120)));
+            return;
+        }
     }
     if let Ok(exe) = crate::core::platform::self_exe() {
         let mut env: std::collections::HashMap<String, String> = std::env::vars().collect();

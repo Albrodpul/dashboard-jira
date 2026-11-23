@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Installs Dashboard Jira into a workspace folder:
-//   node install.js <workspace folder> [--legacy-launchers]
+//   node install.js <workspace folder> [--legacy-launchers] [--rust]
 // The workspace keeps what belongs to that machine and that company: board.config.json, .env and data/.
 // The installer writes there the launchers (board.js, sessions.js, jira-window.js…) that call this repo's code,
 // and renders the Claude Code slash commands from templates/ into <root>/.claude/commands.
@@ -33,12 +33,20 @@ for (const [example, real] of [
 }
 
 const nodeLauncher = (file) => `process.env.TOWER_WORKSPACE = __dirname;\nrequire(${JSON.stringify(slashes(path.join(REPO, file)))});\n`;
+const TOWER = slashes(path.join(REPO, "rust", "target", "release", process.platform === "win32" ? "tower.exe" : "tower"));
+const rustLauncher = (sub) =>
+  `const r = require("child_process").spawnSync(${JSON.stringify(TOWER)}, [${sub.map((x) => JSON.stringify(x)).join(", ")}${sub.length ? ", " : ""}...process.argv.slice(2)], { stdio: "inherit", env: { ...process.env, TOWER_WORKSPACE: __dirname, TOWER_REPO: ${JSON.stringify(slashes(REPO))} } });\nprocess.exit(r.status === null ? 1 : r.status);\n`;
+const rust = args.includes("--rust");
+if (rust && !fs.existsSync(TOWER)) {
+  console.error(`${TOWER} does not exist: build it first with "cargo build --release" in ${slashes(path.join(REPO, "rust"))}`);
+  process.exit(1);
+}
 const launchers = {
-  "board.js": nodeLauncher("src/cli.js"),
-  "sessions.js": nodeLauncher("bin/sessions.js"),
-  "jira-window.js": nodeLauncher("bin/jira-window.js"),
-  "jira-write.js": nodeLauncher("bin/jira-write.js"),
-  "permission-hook.js": nodeLauncher("bin/permission-hook.js"),
+  "board.js": rust ? rustLauncher([]) : nodeLauncher("src/cli.js"),
+  "sessions.js": rust ? rustLauncher(["routes"]) : nodeLauncher("bin/sessions.js"),
+  "jira-window.js": rust ? rustLauncher(["jira-window"]) : nodeLauncher("bin/jira-window.js"),
+  "jira-write.js": rust ? rustLauncher(["jira-write"]) : nodeLauncher("bin/jira-write.js"),
+  "permission-hook.js": rust ? rustLauncher(["hook"]) : nodeLauncher("bin/permission-hook.js"),
   "jira.sh": `#!/usr/bin/env bash\nexport TOWER_WORKSPACE="$(cd "$(dirname "$0")" && pwd -W 2>/dev/null || pwd)"\nexec bash ${JSON.stringify(slashes(path.join(REPO, "bin", "jira.sh")))} "$@"\n`,
 };
 if (args.includes("--legacy-launchers")) {
