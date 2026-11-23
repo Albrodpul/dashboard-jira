@@ -18,7 +18,7 @@ When several AI coding sessions work in parallel (one per product area), someone
 3. **The board delivers** the approved work itself: it types the message into the destination session through the session host and marks it sent only when it shows up in that conversation, with the ticket's attachments already downloaded. Restrictions (holds and mandatory notes per task, epic or session) are enforced in code on every path. Each session reports back `done`, `partial` or `question`, and you answer from the board.
 
 It also has:
-- **a session host**: the fixed sessions (reporter, orchestrator, follow-up, board) and the area sessions run as `claude` processes inside the board's own terminals (`node-pty`). They start by themselves at boot, wake up when work arrives, go to sleep after 30 idle minutes, and the reporter and orchestrator start a fresh conversation every day;
+- **a session host**: the fixed sessions (reporter, orchestrator, follow-up, board) and the area sessions run as `claude` processes inside the board's own terminals. They start by themselves at boot, wake up when work arrives, go to sleep after 30 idle minutes, and the reporter and orchestrator start a fresh conversation every day;
 - **Talk** (Chats): the live terminal of each session, from the desktop or the phone. It has a session list showing who is working, waiting or asleep, a model and effort picker per session, file attachments, voice notes transcribed locally with Whisper, and replies spoken with Piper. Attached files are saved in the chat's own project: `pruebas/hablar/<day>/` in the first project, `<project folder>/.tablero/hablar/<day>/` in the others (kept out of git through `.git/info/exclude`), and deleted after 7 days. When the project has no folder on that machine, the upload is refused rather than saved somewhere else;
 - **permissions**: a `PreToolUse` hook sends each permission request to the board. Read-only commands and edits inside the workspace are approved on their own, and the rest wait for you on the board;
 - **two machines** (optional): a PC and a Mac run the board together. One is in command (it hosts the sessions and talks to Jira) and the other mirrors it. See [Two machines](#two-machines);
@@ -36,7 +36,7 @@ It also has:
 
 <img src="docs/phone.png" alt="Talk on the phone: the same live terminal, with the session picker and keys for Esc, Tab and the arrows" width="300">
 
-Everything runs on your machines: a Node server on `127.0.0.1`, a SQLite file and your Jira API token in a local `.env`. Nothing goes anywhere except your own Jira, and Sentry, GitHub and AWS if you turn them on. The interface is in Spanish.
+Everything runs on your machines: one small binary (`tower`, written in Rust) serving on `127.0.0.1`, a SQLite file and your Jira API token in a local `.env`. Nothing goes anywhere except your own Jira, and Sentry, GitHub and AWS if you turn them on. The interface is in Spanish.
 
 Why it is built the way it is, decision by decision, with the traps found on the way: [docs/DECISIONS.md](docs/DECISIONS.md).
 
@@ -44,11 +44,11 @@ Why it is built the way it is, decision by decision, with the traps found on the
 
 ```bash
 git clone https://github.com/Albrodpul/dashboard-jira.git
-cd dashboard-jira && npm ci && cd ..
-node dashboard-jira/install.js C:/work/acme/board   # creates board.config.json and .env there
+cd dashboard-jira && npm ci && rust/build.sh && cd ..   # on Windows: cd rust && cargo build --release
+node dashboard-jira/install.js C:/work/acme/board --rust   # creates board.config.json and .env there
 # fill in .env (Jira site, email, API token) and board.config.json (projects, root folder)
 node C:/work/acme/board/board.js jira-setup        # prints the Jira ids the config needs
-node dashboard-jira/install.js C:/work/acme/board   # renders the Claude Code slash commands
+node dashboard-jira/install.js C:/work/acme/board --rust   # renders the Claude Code slash commands
 node C:/work/acme/board/board.js ensure            # http://127.0.0.1:4747
 ```
 
@@ -56,10 +56,11 @@ Then run `/resumen-jira` in one Claude Code session (and `/orquesta` in another 
 
 ## Requirements
 
-- Node 24 or later. It uses the built-in `node:sqlite`; the only npm dependencies are `@lydell/node-pty`, `@xterm/xterm`, `@xterm/addon-fit` and `ws`, for the session terminals.
+- Rust (stable, through `rustup`) to build the `tower` binary: the server, the commands, the permission hook and the session host. On Windows it also needs the Visual Studio Build Tools with the C++ workload (the MSVC linker). After a `git pull` that touches `rust/`, a running board rebuilds itself aside and swaps the binary in before restarting.
+- Node 24 or later, still needed for the installer, the small launchers it writes (they call `tower`), the smoke test (Playwright) and the browser terminal files (`@xterm/xterm`, `@xterm/addon-fit`). The previous all-Node server is still in `src/` and runs again if you install without `--rust`.
 - The Claude Code CLI (`claude`). The VS Code extension is optional: sessions can still be opened there.
 - A Jira Cloud API token.
-- Windows or macOS. What differs between them (processes, paths, keeping the machine awake) lives in `src/core/platform.js`.
+- Windows or macOS. What differs between them (processes, paths, keeping the machine awake) lives in `rust/src/core/platform.rs`.
 
 ## Setting it up at a company
 
@@ -151,7 +152,7 @@ Also set `statuses.rejectLabel`, the label reviewers add when they reject a tick
 ### 6. Install again
 
 ```bash
-node dashboard-jira/install.js C:/work/acme/board
+node dashboard-jira/install.js C:/work/acme/board --rust
 ```
 
 This time it renders `/resumen-jira`, `/orquesta`, `/soy`, `/seguimiento` and `/tablero` into `<root>/.claude/commands/`. The templates refer to `AGENTS.md` and `context/*.md` in your root for your team's rules (how to take a ticket, how to deploy). Write those for your team, or edit the templates.
@@ -218,7 +219,7 @@ Run `install.js` on the old workspace folder. Older data is migrated on the firs
 | `board.config.json` | Jira projects, your account id, the reviewer, status names, people to follow up, deploy targets |
 | `.env` | `JIRA_SITE`, `JIRA_EMAIL`, `JIRA_TOKEN`; optional `SENTRY_TOKEN`, and `CLAUDE_CODE_OAUTH_TOKEN` with `CLAUDE_TOKEN_EXPIRES` so hosted sessions use a long-lived token from `claude setup-token` instead of the /login that expires |
 | `data/` | SQLite database, session routes, hosted sessions, cluster state, push keys, logs (`startup.log`, `host.log`) |
-| `board.js`, `sessions.js`, `jira-window.js`, `jira-write.js`, `jira.sh`, `permission-hook.js` | launchers written by the installer that call this repo |
+| `board.js`, `sessions.js`, `jira-window.js`, `jira-write.js`, `jira.sh`, `permission-hook.js` | launchers written by the installer; with `--rust` they call `rust/target/release/tower`, without it the old Node code in `src/` |
 
 ## Use
 
@@ -251,12 +252,14 @@ In Claude Code:
 ## Layout
 
 ```
-src/cli.js            entry point: board.js commands (launchers point here; keep the path)
+rust/                 the board as one Rust binary (tower): same modules as src/, one .rs per .js (rust/PORTING.md)
+rust/build.sh         builds aside and swaps the binary in (never overwrite a running binary: macOS kills it)
+src/cli.js            entry point of the previous Node version: board.js commands
 src/core/             config, SQLite data, migrations, Windows/macOS differences
 src/server/           HTTP server, state for the page, startup, watcher, push, smoke test
 src/server/routes/    API handlers (index.js holds the route table)
 src/jira/             Jira client and the returned-tasks learning
-src/sessions/         session registry, the session host (node-pty), permissions, sleep, profiles
+src/sessions/         session registry, the session host, permissions, sleep, profiles
 src/cluster/          two-machine command and the git sync of context/
 src/features/         follow-up, Sentry, daily, deploy status, dev servers, quota, voice, file search
 src/page/             the web page (plain ES modules, no build step)
