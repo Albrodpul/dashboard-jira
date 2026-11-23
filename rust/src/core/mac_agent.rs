@@ -94,8 +94,20 @@ pub fn install(workspace: &Path, log_file: &Path) -> bool {
             launchctl(&["bootout", &target()], 10000);
         }
     }
-    if loaded() {
-        return true;
+    if !loaded() && !launchctl(&["bootstrap", &format!("gui/{}", uid()), &PLIST.to_string_lossy()], 10000) {
+        return false;
     }
-    launchctl(&["bootstrap", &format!("gui/{}", uid()), &PLIST.to_string_lossy()], 10000)
+    for _ in 0..10 {
+        if running() {
+            return true;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(500));
+    }
+    kickstart();
+    true
+}
+
+fn running() -> bool {
+    let out = crate::core::platform::run_output("/bin/launchctl", &["print".to_string(), target()], 5000, None, &[]);
+    out.ok && out.stdout.lines().any(|l| l.trim_start().starts_with("pid = "))
 }

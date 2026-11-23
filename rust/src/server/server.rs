@@ -469,11 +469,18 @@ pub fn serve() {
             std::process::exit(0);
         }
     }
-    let listener = match bind(listen_port()) {
-        Ok(l) => l,
-        Err(e) => {
-            eprintln!("{e}");
-            std::process::exit(1);
+    let mut tries = 0;
+    let listener = loop {
+        match bind(listen_port()) {
+            Ok(l) => break l,
+            Err(e) if tries < 30 && e.contains("in use") => {
+                tries += 1;
+                std::thread::sleep(Duration::from_secs(1));
+            }
+            Err(e) => {
+                eprintln!("{e}");
+                std::process::exit(1);
+            }
         }
     };
     println!("NutrIA en {}", *BASE_URL);
