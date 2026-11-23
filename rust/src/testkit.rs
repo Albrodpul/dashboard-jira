@@ -49,6 +49,9 @@ pub fn sandbox_with(extra: Value) -> &'static Sandbox {
             std::env::set_var("TOWER_PORT", "39998");
             std::env::set_var("TOWER_HOST_PORT", "39997");
             std::env::remove_var("TOWER_DB");
+            if std::env::var_os("TOWER_EXE").is_none() {
+                std::env::set_var("TOWER_EXE", "/usr/bin/true");
+            }
         }
         Sandbox { dir, workspace, data, home, root }
     })
@@ -64,7 +67,7 @@ static LOCK: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
 pub fn fresh() -> MutexGuard<'static, ()> {
     let sb = sandbox();
     let guard = LOCK.lock().unwrap_or_else(|p| p.into_inner());
-    crate::core::data::with_db(|c| c.execute_batch("DELETE FROM documents").unwrap());
+    crate::core::data::with_db(|c| c.execute_batch("DELETE FROM documents WHERE key <> 'schema'").unwrap());
     for entry in std::fs::read_dir(&sb.data).into_iter().flatten().flatten() {
         let name = entry.file_name().to_string_lossy().to_string();
         if !name.starts_with("board.db") {

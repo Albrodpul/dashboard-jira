@@ -373,6 +373,7 @@ pub fn projects() -> Vec<Project> {
             }
         }
     }
+    ENV_CACHE.lock().unwrap().retain(|f, _| *f == main_project().env_file);
     let defs = crate::core::data::read_key("projectDefs").and_then(|v| v.as_object().cloned()).unwrap_or_default();
     let local = local_projects();
     let mut list: Vec<Project> = Vec::new();
@@ -409,6 +410,7 @@ pub fn projects() -> Vec<Project> {
 
 pub fn forget_projects() {
     *CACHE.lock().unwrap() = (0, None);
+    ENV_CACHE.lock().unwrap().clear();
 }
 
 pub fn project(id: &str) -> Option<Project> {

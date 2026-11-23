@@ -31,13 +31,28 @@ pub trait Agent: Sync {
 pub static AGENTS: [(&str, &dyn Agent); 1] = [("claude", &claude::Claude)];
 
 pub fn agent_for(project: Option<&Project>) -> &'static dyn Agent {
-    todo!()
+    let id = project.map(|p| p.agent.as_str()).unwrap_or("");
+    AGENTS.iter().find(|(k, _)| *k == id).map(|(_, a)| *a).unwrap_or(&claude::Claude)
 }
 
 pub fn for_project(id: &str) -> &'static dyn Agent {
-    todo!()
+    agent_for(crate::core::config::project(id).as_ref())
 }
 
 pub fn main() -> &'static dyn Agent {
-    todo!()
+    agent_for(Some(crate::core::config::main_project()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn every_project_uses_claude_code_unless_it_says_otherwise() {
+        crate::testkit::sandbox();
+        assert_eq!(main().id(), "claude");
+        let mut p = crate::core::config::main_project().clone();
+        p.agent = "nope".into();
+        assert_eq!(agent_for(Some(&p)).id(), "claude");
+    }
 }

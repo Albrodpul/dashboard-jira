@@ -1529,6 +1529,7 @@ dependencies = [
  "rand",
  "regex",
  "rusqlite",
+ "rustls",
  "ryu-js",
  "serde",
  "serde_json",
@@ -1539,6 +1540,7 @@ dependencies = [
  "unicode-normalization",
  "ureq",
  "vt100",
+ "webpki-roots",
 ]
 
 [[package]]
