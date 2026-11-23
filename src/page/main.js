@@ -245,24 +245,18 @@ function renderMore(root, waitingDeploys, errors) {
       return h("button", { type: "button", onclick: () => switchView(tab.id, true) }, [h("strong", { text: tab.label + extra }), h("span", { text: VIEWS[tab.id][1] })]);
     })
   );
+  if (hasModule("jira")) menu.appendChild(h("button", { type: "button", class: "more-settings", onclick: toggleYolo }, [h("strong", { text: state.config && state.config.yolo ? t("Modo YOLO: activo") : t("Modo YOLO: apagado") }), h("span", { text: t("Todo automático: las tareas pendientes van solas a su sesión (si no tienen, el tablero crea una con el nombre del epic) y los posibles errores del seguimiento, a la sesión de errores. Las restricciones siguen mandando.") })]));
   menu.appendChild(h("button", { type: "button", class: "more-settings", onclick: () => openSettings(lastSection()) }, [h("strong", { text: t("Ajustes") }), h("span", { text: t("Proyectos, ordenadores, avisos, permisos y apariencia.") })]));
   root.appendChild(searchBox());
   root.appendChild(menu);
   root.appendChild(quotaBlock());
 }
 
-function yoloRule(root) {
-  const rule = h("input", { type: "checkbox", id: "yolo-mode" });
-  rule.checked = !!(state.config && state.config.yolo);
-  rule.addEventListener("change", () => {
-    const pending = (state.tasks || []).filter((x) => x.status === "pending").length;
-    if (rule.checked && pending && !window.confirm(tn(pending, "Hay {n} tarea en Pendientes: se enviará ya. ¿Activar el modo YOLO?", "Hay {n} tareas en Pendientes: se enviarán ya. ¿Activar el modo YOLO?"))) {
-      rule.checked = false;
-      return;
-    }
-    post("/api/config", { yolo: rule.checked }, rule.checked ? t("Modo YOLO activo: cada tarea pendiente va sola a su sesión (si no tiene, el tablero la crea) y cada posible error del seguimiento, a la sesión de errores.") : t("Modo YOLO apagado: las tareas nuevas esperan a que pulses Hacer."));
-  });
-  root.appendChild(h("label", { class: "rule", for: "yolo-mode", title: t("Todo automático: las tareas pendientes van solas a su sesión (si no tienen, el tablero crea una con el nombre del epic) y los posibles errores del seguimiento, a la sesión de errores. Las restricciones siguen mandando.") }, [rule, " " + t("Modo YOLO")]));
+function toggleYolo() {
+  const on = !(state.config && state.config.yolo);
+  const pending = (state.tasks || []).filter((x) => x.status === "pending").length;
+  if (on && pending && !window.confirm(tn(pending, "Hay {n} tarea en Pendientes: se enviará ya. ¿Activar el modo YOLO?", "Hay {n} tareas en Pendientes: se enviarán ya. ¿Activar el modo YOLO?"))) return;
+  post("/api/config", { yolo: on }, on ? t("Modo YOLO activo: cada tarea pendiente va sola a su sesión (si no tiene, el tablero la crea) y cada posible error del seguimiento, a la sesión de errores.") : t("Modo YOLO apagado: las tareas nuevas esperan a que pulses Hacer."));
 }
 
 function paintProjectPicker() {
@@ -406,7 +400,6 @@ function paint() {
     if (chips) bar.appendChild(chips);
     if (board) bar.appendChild(boardSearch());
     bar.appendChild(newTaskButton());
-    if ((state.tab === "pending" || switchable) && hasModule("jira")) yoloRule(bar);
     root.appendChild(bar);
     const form = newTaskForm();
     if (form) root.appendChild(form);
@@ -567,10 +560,7 @@ function yoloButton() {
   return iconButton(`btn top-btn yolo-toggle${on ? " on" : ""}`, YOLO_ICON, t("YOLO"), {
     "aria-pressed": String(on),
     title: on ? t("Modo YOLO activo: pulsa para apagarlo") : t("Todo automático: las tareas pendientes van solas a su sesión (si no tienen, el tablero crea una con el nombre del epic) y los posibles errores del seguimiento, a la sesión de errores. Las restricciones siguen mandando."),
-    onclick: (e) => {
-      e.currentTarget.disabled = true;
-      post("/api/config", { yolo: !on }, !on ? t("Modo YOLO activo: cada tarea pendiente va sola a su sesión (si no tiene, el tablero la crea) y cada posible error del seguimiento, a la sesión de errores.") : t("Modo YOLO apagado: las tareas nuevas esperan a que pulses Hacer."));
-    },
+    onclick: toggleYolo,
   });
 }
 render();

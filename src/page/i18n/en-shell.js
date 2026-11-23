@@ -261,4 +261,6 @@ export default {
   "El token de Claude caduca en {n} días": "The Claude token expires in {n} days",
   "YOLO": "YOLO",
   "Modo YOLO activo: pulsa para apagarlo": "YOLO mode on: click to turn it off",
+  "Modo YOLO: activo": "YOLO mode: on",
+  "Modo YOLO: apagado": "YOLO mode: off",
 };
