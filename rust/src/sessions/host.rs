@@ -499,6 +499,12 @@ fn read_output(mut reader: Box<dyn Read + Send>, conversation: &str, generation:
                 out
             }
         };
+        if cfg!(windows) && decoded.contains("\x1b[6n") {
+            let all = SESSIONS.lock().unwrap_or_else(|p| p.into_inner());
+            if let Some(pty) = all.get(conversation).filter(|x| x.generation == generation).and_then(|x| x.pty.as_ref()) {
+                pty.write("\x1b[1;1R");
+            }
+        }
         if !decoded.is_empty() {
             on_output(conversation, generation, &decoded);
         }
