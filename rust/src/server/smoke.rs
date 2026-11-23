@@ -38,7 +38,15 @@ async function visit(page, view, problems) {
   const problems = [];
   try {
     const desk = await browser.newPage({ viewport: { width: 1400, height: 900 } });
-    await desk.goto(base, { waitUntil: "domcontentloaded" });
+    const open = new Map();
+    desk.on("request", (r) => open.set(r, r.url()));
+    desk.on("requestfinished", (r) => open.delete(r));
+    desk.on("requestfailed", (r) => open.set(r, r.url() + " (" + ((r.failure() && r.failure().errorText) || "falló") + ")"));
+    try {
+      await desk.goto(base, { waitUntil: "domcontentloaded" });
+    } catch (e) {
+      throw new Error(String(e.message || e).split("\n")[0] + " · sin terminar: " + [...open.values()].map((u) => u.replace(base, "")).slice(0, 8).join(", "));
+    }
     for (const v of JSON.parse(viewsJson)) await visit(desk, v, problems);
     const phone = await browser.newPage({ viewport: { width: 390, height: 800 }, isMobile: true, hasTouch: true });
     await phone.goto(base, { waitUntil: "domcontentloaded" });
