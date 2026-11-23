@@ -135,7 +135,7 @@ pub struct Project {
     pub context_domains: Option<PathBuf>,
     /// The definition this project was built from (file or panel).
     pub raw: Value,
-    file_values: Option<Value>,
+    pub file_values: Option<Value>,
 }
 
 pub struct Credentials {

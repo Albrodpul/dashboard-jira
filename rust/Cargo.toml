@@ -19,8 +19,10 @@ rusqlite = { version = "0.43.0", features = ["bundled"] }
 ryu-js = "1.0.4"
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = { version = "1.0.154", features = ["preserve_order"] }
+sha1 = "0.11.0"
 sha2 = "0.11.1"
 tiny_http = "0.12.0"
 tungstenite = "0.30.0"
+unicode-normalization = "0.1.26"
 ureq = { version = "3.5.2", features = ["json"] }
 vt100 = "0.18.1"
