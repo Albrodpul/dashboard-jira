@@ -101,7 +101,7 @@ fn update_board() {
         crate::core::platform::run_output("node", &[repo.join("install.js").to_string_lossy().to_string(), workspace, "--rust".into()], 60_000, None, &[]);
     }
     if changed.out.split('\n').any(|f| f.starts_with("rust/")) {
-        let candidates = [crate::core::platform::home_dir().join(".cargo/bin/cargo"), std::path::PathBuf::from("/opt/homebrew/opt/rustup/bin/cargo")];
+        let candidates = [crate::core::platform::home_dir().join(".cargo").join("bin").join(if cfg!(windows) { "cargo.exe" } else { "cargo" }), std::path::PathBuf::from("/opt/homebrew/opt/rustup/bin/cargo")];
         let cargo = candidates.iter().find(|c| c.exists()).map(|c| c.to_string_lossy().to_string()).unwrap_or_else(|| "cargo".to_string());
         let built = crate::core::platform::run_output(&cargo, &["build".into(), "--release".into()], 900_000, Some(&repo.join("rust")), &[]);
         if !built.ok {
