@@ -174,10 +174,6 @@ export function updateStamp() {
   el.appendChild(bad);
 }
 
-const WINDOWS = [
-  ["five_hour", "5 h"],
-  ["seven_day", t("Semana")],
-];
 const fmtWeekday = new Intl.DateTimeFormat(LOCALE, { timeZone: "Europe/Madrid", weekday: "long" });
 const fmtHour = new Intl.DateTimeFormat(LOCALE, { timeZone: "Europe/Madrid", hour: "2-digit", minute: "2-digit" });
 
@@ -255,13 +251,12 @@ function quotaBlockInner() {
   const logo = h("span", { class: "quota-title claude-logo", title: t("Cuota de Claude"), role: "img", "aria-label": "Claude" });
   logo.innerHTML = CLAUDE_LOGO;
   const box = h("div", { class: "quota" }, [logo]);
-  if (!live("seven_day") && !live("five_hour")) {
+  if (!live("seven_day")) {
     box.appendChild(h("span", { class: "meta", text: c ? t("Semana recién renovada") : t("Aún sin datos") }));
     return box;
   }
   const items = [];
   if (live("seven_day")) items.push(quotaMeter(c, "seven_day", t("Semana"), true));
-  if (live("five_hour") && c.five_hour.used >= 50) items.push(quotaMeter(c, "five_hour", "5 h", false));
   box.appendChild(h("span", { class: "quota-items" }, items));
   if (live("seven_day")) box.appendChild(h("span", { class: "quota-reset", text: resets(c.seven_day.resetsAt) }));
   if (minutesSince(c.at) > 30) {
@@ -281,7 +276,7 @@ export function quotaRows() {
     const bar = h("span", { class: `sg-meter${level}`, role: "meter", "aria-valuemin": "0", "aria-valuemax": "100", "aria-valuenow": String(used), "aria-label": label }, [h("i", { style: `width:${used}%` })]);
     return row(label, live ? `${desc} · ${resets(w.resetsAt)}` : c ? t("Recién renovada") : t("Aún sin datos"), [bar, h("b", { class: "sg-meter-n", text: `${used}%` })]);
   };
-  const rows = [meter("seven_day", t("Semana"), t("El límite que manda")), meter("five_hour", t("Últimas 5 horas"), t("Ventana corta"))];
+  const rows = [meter("seven_day", t("Semana"), t("El límite que manda"))];
   if (c && c.at && minutesSince(c.at) > 30) rows.push(row(t("Dato de las {time}", { time: when(c.at) }), t("Se actualiza cuando alguna sesión habla con Claude."), null));
   return rows;
 }

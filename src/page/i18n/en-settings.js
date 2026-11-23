@@ -451,8 +451,6 @@ export default {
   "Fin de semana": "Weekend",
   "Recién renovada": "Just renewed",
   "El límite que manda": "The limit that matters",
-  "Últimas 5 horas": "Last 5 hours",
-  "Ventana corta": "Short window",
   "Dato de las {time}": "Figure from {time}",
   "Se actualiza cuando alguna sesión habla con Claude.": "It updates when some session talks to Claude.",
   "Colores del tablero": "Board colours",
