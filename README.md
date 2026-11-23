@@ -2,7 +2,7 @@
 
 A local control tower for running several [Claude Code](https://claude.com/claude-code) sessions on a Jira backlog. It reads Jira, turns new and returned tickets into cards, and lets you decide from your desktop or your phone which AI session works on each one.
 
-![Home: counts of tasks by state, which sessions are working, waiting or blocked, and the latest Jira report](docs/home.png)
+![Home: what is waiting for you, the inbox of new cards, which sessions are working or free, the finished tasks and the fixed sessions, with the latest Jira activity on the right and the battery and Claude quota at the bottom of the sidebar](docs/home.png)
 
 ## Why
 
@@ -34,7 +34,7 @@ It also has:
 
 ![Talk: the session list and the live terminal of a session fixing a ticket that came back from review](docs/talk.png)
 
-<img src="docs/phone.png" alt="Talk on the phone: the same live terminal, with the session picker and keys for Esc, Tab and the arrows" width="300">
+<img src="docs/phone.png" alt="Talk on the phone: the same live terminal, with the session picker, the battery and Claude quota in the top bar, and keys for Esc, Tab and the arrows" width="300">
 
 Everything runs on your machines: one small binary (`tower`, written in Rust) serving on `127.0.0.1`, a SQLite file and your Jira API token in a local `.env`. Nothing goes anywhere except your own Jira, and Sentry, GitHub and AWS if you turn them on. The interface is in Spanish.
 
