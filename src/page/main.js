@@ -1,5 +1,5 @@
 import { state, h, post, switchView, setRender, setRefresh, empty, reviewer, button, SETTINGS, openSettings } from "./lib/base.js";
-import { paintSettings, settingsButton, lastSection } from "./components/settings.js";
+import { paintSettings, settingsButton, lastSection, GEAR } from "./components/settings.js";
 import { syncPush } from "./views/notifications.js";
 import { renderTasks, renderToday, renderBoard, boardSearch } from "./views/tasks.js";
 import { nutria, paint as paintOtter } from "./components/nutria.js";
@@ -19,7 +19,7 @@ import { applyTheme } from "./views/appearance.js";
 import { paintTicket } from "./components/ticket.js";
 import { newTaskButton, newTaskForm } from "./components/new-task.js";
 import { t, tn, translateStatic } from "./lib/i18n.js";
-import { projectSwitch, bindProjectKeys, applyProjectFilter, tabVisible, hasModule, mixedProjects, mainProject, projectTitle } from "./components/project-filter.js";
+import { projectSwitch, projectChoices, bindProjectKeys, applyProjectFilter, tabVisible, hasModule, mixedProjects, mainProject, projectTitle } from "./components/project-filter.js";
 
 const TASK_TABS = [
   { id: "pending", label: t("Pendientes") },
@@ -254,19 +254,42 @@ function statusChips(root, counts, board) {
 
 function renderMore(root, waitingDeploys, errors) {
   const options = GROUPS.flatMap(([, list]) => list).filter((x) => !["home", "tasks", "talk"].includes(x.id) && tabVisible(x.id));
-  const menu = h(
-    "div",
-    { class: "more-menu" },
-    options.map((tab) => {
-      const extra = tab.id === "deploy" && waitingDeploys ? ` · ${t("{n} esperando", { n: waitingDeploys })}` : tab.id === "follow-up" && errors ? ` · ${tn(errors, "{n} posible error", "{n} posibles errores")}` : "";
-      return h("button", { type: "button", onclick: () => switchView(tab.id, true) }, [h("strong", { text: tab.label + extra }), h("span", { text: VIEWS[tab.id][1] })]);
-    })
-  );
-  if (hasModule("jira")) menu.appendChild(h("button", { type: "button", class: "more-settings", onclick: toggleYolo }, [h("strong", { text: state.config && state.config.yolo ? t("Modo YOLO: activo") : t("Modo YOLO: apagado") }), h("span", { text: t("Todo automático: las tareas pendientes van solas a su sesión (si no tienen, el tablero crea una con el nombre del epic) y los posibles errores del seguimiento, a la sesión de errores. Las restricciones siguen mandando.") })]));
-  menu.appendChild(h("button", { type: "button", class: "more-settings", onclick: () => openSettings(lastSection()) }, [h("strong", { text: t("Ajustes") }), h("span", { text: t("Proyectos, ordenadores, avisos, permisos y apariencia.") })]));
+  const onProject = () => {
+    applyProjectFilter();
+    if (!tabVisible(state.tab)) return switchView("home");
+    render();
+  };
+  const choices = projectChoices(onProject);
+  if (choices) root.appendChild(h("section", { class: "more-block" }, [h("h3", { class: "more-title", text: t("Proyecto") }), choices]));
   root.appendChild(searchBox());
-  root.appendChild(menu);
-  root.appendChild(quotaBlock());
+  const badge = (tab) => (tab.id === "deploy" && waitingDeploys ? waitingDeploys : tab.id === "follow-up" && errors ? errors : 0);
+  root.appendChild(
+    h("section", { class: "more-block" }, [
+      h("h3", { class: "more-title", text: t("Secciones") }),
+      h("div", { class: "more-grid" }, options.map((tab) => {
+        const n = badge(tab);
+        return h("button", { type: "button", class: "more-tile", title: VIEWS[tab.id][1], onclick: () => switchView(tab.id, true) }, [navIcon(tab.id), h("span", { class: "more-tile-name", text: tab.label }), n ? h("span", { class: "more-tile-n", text: String(n) }) : null]);
+      })),
+    ])
+  );
+  const rows = [];
+  if (hasModule("jira")) {
+    const on = !!(state.config && state.config.yolo);
+    const sw = h("input", { type: "checkbox", role: "switch", class: "sg-switch", "aria-label": t("Modo YOLO") });
+    sw.checked = on;
+    sw.addEventListener("change", (e) => {
+      e.preventDefault();
+      sw.checked = on;
+      toggleYolo();
+    });
+    const icon = h("span", { class: "more-row-icon" });
+    icon.innerHTML = YOLO_ICON;
+    rows.push(h("label", { class: "more-row" }, [icon, h("span", { class: "more-row-text" }, [h("strong", { text: t("Modo YOLO") }), h("span", { text: on ? t("Activo: las tareas van solas a su sesión") : t("Apagado: las tareas esperan a que pulses Hacer") })]), sw]));
+  }
+  const gear = h("span", { class: "more-row-icon" });
+  gear.innerHTML = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${GEAR}</svg>`;
+  rows.push(h("button", { type: "button", class: "more-row", onclick: () => openSettings(lastSection()) }, [gear, h("span", { class: "more-row-text" }, [h("strong", { text: t("Ajustes") }), h("span", { text: t("Proyectos, ordenadores, avisos, permisos y apariencia.") })]), h("span", { class: "more-row-chev", text: "›" })]));
+  root.appendChild(h("section", { class: "more-block more-rows" }, rows));
 }
 
 function toggleYolo() {
@@ -288,7 +311,6 @@ function paintProjectPicker() {
   if (top) top.textContent = "";
   const spots = [
     [document.getElementById("nav-project"), "side"],
-    [document.querySelector(".nav > .brand .brand-project"), "mobile"],
   ];
   for (const [el, variant] of spots) {
     if (!el) continue;

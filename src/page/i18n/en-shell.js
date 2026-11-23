@@ -266,4 +266,7 @@ export default {
   "el ordenador que manda": "the machine in command",
   "{machine}: CPU al {n} %": "{machine}: CPU at {n} %",
   "{machine}: RAM al {n} %": "{machine}: RAM at {n} %",
+  "Secciones": "Sections",
+  "Activo: las tareas van solas a su sesión": "On: tasks go to their session by themselves",
+  "Apagado: las tareas esperan a que pulses Hacer": "Off: tasks wait for you to press Do",
 };

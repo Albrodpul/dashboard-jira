@@ -146,3 +146,15 @@ export function bindProjectKeys(onChange) {
     choose(n === 0 ? "" : list[n - 1].id, onChange);
   });
 }
+
+export function projectChoices(onChange) {
+  const list = workspaces();
+  if (list.length < 2) return null;
+  const cur = currentProject();
+  return h("div", { class: "proj-choices", role: "listbox", "aria-label": t("Proyecto") }, [{ id: "", name: t("Todos los proyectos") }, ...list].map((p) =>
+    h("button", { type: "button", role: "option", class: "ps-option", "aria-selected": String(p.id === (cur || "")), onclick: () => choose(p.id, onChange) }, [
+      h("span", { class: "ps-initial", "aria-hidden": "true", text: p.id ? initial(p.name) : "∗" }),
+      h("span", { class: "ps-text" }, [h("span", { class: "ps-option-name", text: p.name }), statLine(p.id)]),
+    ])
+  ));
+}
