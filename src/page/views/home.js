@@ -39,7 +39,12 @@ function liveOf(conversation, sessionName, everywhere) {
   return list.find((s) => (conversation ? s.conversation === conversation : s.name === sessionName)) || null;
 }
 
+const SERVER = /\brun\.py\b|\buvicorn\b|\bgunicorn\b|artisan serve|\bphp -S\b|npm run (dev|start|serve)\b|\bnuxt (dev|start)\b|\bnuxi dev\b|\bvite\b(?! build)|\bnext dev\b|flask run|http\.server|docker compose up|\bserve\b.*--port/;
+const SERVER_WORDS = /\b(start|run|launch|serve|levanta|arranca)\b.*(\bserver\b|servidor|\bon :?\d{4}\b|\ben el :?\d{4}\b|:\d{4}\b)/i;
+const isServer = (what) => !!what && (SERVER.test(what.command || "") || SERVER_WORDS.test(what.description || ""));
+
 function backgroundReason(what) {
+  if (isServer(what)) return null;
   const command = (what && what.command) || "";
   if (/pgrep[^\n]*(phpunit|paratest|artisan\s+te)/.test(command)) return tr("Esperando hueco para los tests");
   if (/\b(artisan test|phpunit|paratest|pytest|vitest|cargo test)\b|\bnpm (run )?test\b/.test(command)) return tr("Esperando a que acaben sus tests");
@@ -78,7 +83,7 @@ export function sessionSituation() {
     const asking = ((state.permissions && state.permissions.pending) || []).find((p) => p.conversation === a.conversation);
     if (asking) out.blocked.push({ ...row, reason: { text: tr("Espera tu permiso: {what}", { what: asking.label }), view: "waiting", at: asking.at } });
     else if ((state.testWaits || {})[a.conversation] && live.status !== "busy") out.blocked.push({ ...row, reason: { text: tr("Esperando hueco para los tests"), at: state.testWaits[a.conversation].at } });
-    else if ((live.background || live.backgroundWhat) && live.status !== "busy") out.blocked.push({ ...row, reason: { text: backgroundReason(live.backgroundWhat), at: live.statusSince } });
+    else if ((live.background || live.backgroundWhat) && live.status !== "busy" && backgroundReason(live.backgroundWhat)) out.blocked.push({ ...row, reason: { text: backgroundReason(live.backgroundWhat), at: live.statusSince } });
     else if (live.status === "busy") out.working.push(row);
     else {
       const reason = blockReason(live, tasks);
