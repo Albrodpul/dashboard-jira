@@ -387,6 +387,7 @@ pub fn state() -> Value {
     put("cluster", crate::cluster::cluster::info());
     put("hosted", Value::Array(hosted));
     put("stuckDialogs", Value::Array(crate::features::stuck::list()));
+    put("machine", crate::features::machine_load::for_page());
     put("testWaits", {
         let cutoff = crate::core::time::now_ms() - 3600_000;
         let mut waits = d.get("testWaits").and_then(Value::as_object).cloned().unwrap_or_default();

@@ -455,6 +455,7 @@ fn start_jobs() {
     every(|| drop(crate::features::claude_token::warn_expiry()), 3 * 60 * 60 * 1000);
     every(|| drop(crate::features::memory_sync::sync_memory()), 10 * 60 * 1000);
     every(crate::features::mac_power::tick, 60 * 1000);
+    every(crate::features::machine_load::tick, 10 * 1000);
     every(crate::sessions::rotate::rotate_if_morning, 5 * 60 * 1000);
     every(crate::features::watchdog::tick, 2 * 60 * 1000);
     every(|| drop(crate::features::github::poll()), 3 * 60 * 1000);

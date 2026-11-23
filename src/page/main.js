@@ -187,7 +187,24 @@ function paintTabs(counts, waitingDeploys) {
     const badge = batteryBadge(c && c.macPower && c.macPower.battery, null);
     if (badge) foot.appendChild(badge);
     foot.appendChild(quotaBlock());
+    const load = machineLoad();
+    if (load) foot.appendChild(load);
   }
+}
+
+const CPU_ICON = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/><rect x="9.5" y="9.5" width="5" height="5"/><path d="M9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3"/></svg>';
+const RAM_ICON = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="7" width="20" height="9" rx="1.5"/><path d="M6 10.5v2M10 10.5v2M14 10.5v2M18 10.5v2M5 16v3M9 16v3M15 16v3M19 16v3"/></svg>';
+function machineLoad() {
+  const m = state.machine;
+  if (!m || typeof m.cpu !== "number") return null;
+  const level = (n) => (n >= 85 ? " high" : n >= 65 ? " medium" : "");
+  const who = m.label || t("el ordenador que manda");
+  const item = (icon, n, title) => {
+    const el = h("span", { class: `ml-item${level(n)}`, title }, [h("span", { class: "ml-icon" }), h("b", { text: `${n}%` })]);
+    el.firstChild.innerHTML = icon;
+    return el;
+  };
+  return h("div", { class: "machine-load" }, [item(CPU_ICON, m.cpu, t("{machine}: CPU al {n} %", { machine: who, n: m.cpu })), item(RAM_ICON, m.mem, t("{machine}: RAM al {n} %", { machine: who, n: m.mem }))]);
 }
 
 const tabText = (tab) => h("span", { class: "tab-text" }, [h("span", { class: "tab-long", text: tab.label }), h("span", { class: "tab-short", text: tab.short || tab.label })]);
@@ -409,7 +426,7 @@ function paint() {
   (NON_TASK_VIEWS[state.tab] || renderTasks)(root);
 }
 
-const FIELDS = ["cluster", "daily", "dailies", "tidies", "sessionProfiles", "sessions", "aliases", "reporterRoute", "reporterStatus", "boardStatus", "orchestrator", "epics", "allEpics", "reports", "lastReview", "config", "followUps", "sentry", "permissions", "hosted", "contextSync", "contextTidy", "messages", "tidyBlockers", "lastContextPass", "followUpStatus", "refreshRequest", "deployments", "deployerArea", "quota", "people", "jiraSetup", "voice", "speech", "deployStatus", "reviewJob", "convProfiles", "claudeTokenExpires", "workHours", "workSchedule", "restrictions", "mailman", "stuckDialogs", "testWaits", "reminders", "watchdog", "progress", "progressPhases", "github"];
+const FIELDS = ["cluster", "daily", "dailies", "tidies", "sessionProfiles", "sessions", "aliases", "reporterRoute", "reporterStatus", "boardStatus", "orchestrator", "epics", "allEpics", "reports", "lastReview", "config", "followUps", "sentry", "permissions", "hosted", "contextSync", "contextTidy", "messages", "tidyBlockers", "lastContextPass", "followUpStatus", "refreshRequest", "deployments", "deployerArea", "quota", "people", "jiraSetup", "voice", "speech", "deployStatus", "reviewJob", "convProfiles", "claudeTokenExpires", "workHours", "workSchedule", "restrictions", "mailman", "stuckDialogs", "testWaits", "machine", "reminders", "watchdog", "progress", "progressPhases", "github"];
 const withoutReadTime = (d) => JSON.stringify(d, (k, v) => (k === "syncedAt" ? undefined : v));
 const editing = () => {
   const a = document.activeElement;

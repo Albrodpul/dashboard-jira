@@ -263,4 +263,7 @@ export default {
   "Modo YOLO activo: pulsa para apagarlo": "YOLO mode on: click to turn it off",
   "Modo YOLO: activo": "YOLO mode: on",
   "Modo YOLO: apagado": "YOLO mode: off",
+  "el ordenador que manda": "the machine in command",
+  "{machine}: CPU al {n} %": "{machine}: CPU at {n} %",
+  "{machine}: RAM al {n} %": "{machine}: RAM at {n} %",
 };

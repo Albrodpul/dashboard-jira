@@ -33,7 +33,13 @@ body.settings-open { overflow: hidden; }
 @keyframes settings-pop { from { opacity: 0; transform: translateY(8px) scale(0.985); } }
 
 @media (min-width: 761px) {
-  .nav-foot { border-top: 0; padding-top: 10px; flex-direction: row; justify-content: center; align-items: flex-end; gap: 6px; }
+  .nav-foot { border-top: 0; padding-top: 10px; flex-direction: row; flex-wrap: wrap; justify-content: center; align-items: flex-end; gap: 6px; }
+  .machine-load { flex-basis: 100%; display: flex; justify-content: center; align-items: flex-end; gap: 6px; padding-top: 6px; }
+  .ml-item { display: inline-flex; flex-direction: column; align-items: center; gap: 3px; font-size: 11px; color: var(--ink-3); }
+  .ml-icon { display: inline-flex; line-height: 0; color: var(--ink-2); }
+  .ml-item b { font-size: 11px; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .ml-item.medium b, .ml-item.medium .ml-icon { color: var(--back); }
+  .ml-item.high b, .ml-item.high .ml-icon { color: var(--danger); }
   .nav-foot .battery-badge { flex-direction: column; gap: 3px; padding: 0; background: transparent; font-size: 11px; }
   .nav-foot .battery-badge .battery { transform: scale(0.8); transform-origin: bottom center; }
   .nav-foot .quota { margin: 0; padding: 0; align-items: center; gap: 3px; }

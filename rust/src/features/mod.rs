@@ -10,6 +10,7 @@ pub mod github;
 pub mod holds;
 pub mod jira_watch;
 pub mod mac_power;
+pub mod machine_load;
 pub mod mailman;
 pub mod manual_tasks;
 pub mod memory_sync;
