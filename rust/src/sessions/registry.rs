@@ -321,35 +321,66 @@ fn running_subagents(session_id: &str) -> usize {
     n
 }
 
+static BACKGROUND_CACHE: LazyLock<Mutex<HashMap<PathBuf, (u64, f64, Option<Value>)>>> = LazyLock::new(|| Mutex::new(HashMap::new()));
+static MOVED: LazyLock<regex::Regex> = LazyLock::new(|| regex::Regex::new(r"(?:moved to the background as task|moved to the background \(ID:|running in background with ID:)\s*([A-Za-z0-9_-]+)").unwrap());
+static FINISHED: LazyLock<regex::Regex> = LazyLock::new(|| regex::Regex::new(r"<task-id>([A-Za-z0-9_-]+)</task-id>\s*(?:<tool-use-id>[^<]*</tool-use-id>\s*)?(?:<output-file>[^<]*</output-file>\s*)?<status>(?:completed|failed|killed|stopped)</status>").unwrap());
+
+fn content_text(c: &Value) -> String {
+    match c {
+        Value::String(s) => s.clone(),
+        Value::Array(a) => a.iter().map(|p| p.get("text").and_then(|t| t.as_str()).map(String::from).unwrap_or_else(|| content_text(p.get("content").unwrap_or(&Value::Null)))).collect::<Vec<_>>().join("\n"),
+        _ => String::new(),
+    }
+}
+
 pub fn background_what(conversation: &str) -> Option<Value> {
     let file = transcript_of(conversation)?;
-    let size = std::fs::metadata(&file).ok()?.len();
-    let mut f = std::fs::File::open(&file).ok()?;
-    let start = size.saturating_sub(512 * 1024);
-    std::io::Seek::seek(&mut f, std::io::SeekFrom::Start(start)).ok()?;
-    let mut buf = Vec::new();
-    std::io::Read::read_to_end(&mut f, &mut buf).ok()?;
-    let body = String::from_utf8_lossy(&buf);
-    let mut last: Option<Value> = None;
-    for line in body.split('\n') {
-        if !line.contains("run_in_background") && !line.contains("\"Monitor\"") {
-            continue;
-        }
-        let Some(j) = json::parse(line) else { continue };
-        for c in j.get("message").and_then(|m| m.get("content")).and_then(|x| x.as_array()).into_iter().flatten() {
-            if c.get("type").and_then(|x| x.as_str()) != Some("tool_use") {
-                continue;
-            }
-            let Some(input) = c.get("input") else { continue };
-            if c.get("name").and_then(|x| x.as_str()) != Some("Monitor") && !truthy(input.get("run_in_background")) {
-                continue;
-            }
-            let command: String = input.get("command").map(text).unwrap_or_default().chars().take(400).collect();
-            let description: String = input.get("description").map(text).unwrap_or_default().chars().take(120).collect();
-            last = Some(json!({ "command": command, "description": description }));
+    let meta = std::fs::metadata(&file).ok()?;
+    let (size, mtime) = (meta.len(), mtime_ms(&meta));
+    if let Some((s0, m0, v)) = BACKGROUND_CACHE.lock().unwrap().get(&file) {
+        if *s0 == size && *m0 == mtime {
+            return v.clone();
         }
     }
-    last
+    let mut f = std::fs::File::open(&file).ok()?;
+    let start = size.saturating_sub(768 * 1024);
+    f.seek(SeekFrom::Start(start)).ok()?;
+    let mut buf = Vec::new();
+    f.read_to_end(&mut buf).ok()?;
+    let body = String::from_utf8_lossy(&buf);
+    let mut uses: HashMap<String, Value> = HashMap::new();
+    let mut pending: Vec<(String, Value)> = Vec::new();
+    for line in body.split('\n') {
+        let Some(j) = json::parse(line) else { continue };
+        let Some(content) = j.get("message").and_then(|m| m.get("content")) else { continue };
+        let whole = content_text(content);
+        for m in FINISHED.captures_iter(&whole) {
+            pending.retain(|(id, _)| id != &m[1]);
+        }
+        for c in content.as_array().into_iter().flatten() {
+            match c.get("type").and_then(|x| x.as_str()) {
+                Some("tool_use") => {
+                    let input = c.get("input").cloned().unwrap_or(Value::Null);
+                    let name = c.get("name").and_then(|x| x.as_str()).unwrap_or("").to_string();
+                    let command: String = input.get("command").or_else(|| input.get("code")).or_else(|| input.get("prompt")).map(text).unwrap_or_default().chars().take(400).collect();
+                    let description: String = input.get("description").map(text).unwrap_or_default().chars().take(120).collect();
+                    let id = c.get("id").and_then(|x| x.as_str()).unwrap_or("").to_string();
+                    uses.insert(id, json!({ "tool": name, "command": command, "description": description }));
+                }
+                Some("tool_result") => {
+                    let t = content_text(c.get("content").unwrap_or(&Value::Null));
+                    if let Some(m) = MOVED.captures(&t) {
+                        let origin = c.get("tool_use_id").and_then(|x| x.as_str()).and_then(|id| uses.get(id)).cloned().unwrap_or(json!({}));
+                        pending.push((m[1].to_string(), origin));
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+    let found = pending.pop().map(|(_, v)| v);
+    BACKGROUND_CACHE.lock().unwrap().insert(file, (size, mtime, found.clone()));
+    found
 }
 
 pub fn live_status(status: Option<&str>, subagents: usize) -> String {
@@ -384,7 +415,7 @@ pub fn live_sessions() -> Option<Vec<Value>> {
             "status": status,
             "subagents": subagents,
             "background": e.get("background").cloned().unwrap_or(Value::Null),
-            "backgroundWhat": if truthy(e.get("background")) { background_what(&conversation).unwrap_or(Value::Null) } else { Value::Null },
+            "backgroundWhat": if status != "busy" { background_what(&conversation).unwrap_or(Value::Null) } else { Value::Null },
             "project": project.id,
             "statusSince": status_since,
             "title": title,

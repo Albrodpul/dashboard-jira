@@ -122,4 +122,5 @@ export default {
   "Esperando a que acaben sus tests": "Waiting for its tests to finish",
   "Esperando: {what}": "Waiting: {what}",
   "Esperando a un proceso en segundo plano": "Waiting for a background process",
+  "Esperando una prueba en el navegador": "Waiting for a browser test",
 };

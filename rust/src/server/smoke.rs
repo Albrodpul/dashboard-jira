@@ -97,9 +97,25 @@ pub fn run_smoke() -> Result<Value, String> {
     }
 }
 
+fn memory_free_percent() -> Option<u32> {
+    if !cfg!(target_os = "macos") {
+        return None;
+    }
+    let out = std::process::Command::new("/usr/bin/memory_pressure").stderr(std::process::Stdio::null()).output().ok()?;
+    let text = String::from_utf8_lossy(&out.stdout);
+    let line = text.lines().find(|l| l.contains("free percentage"))?;
+    line.rsplit(':').next()?.trim().trim_end_matches('%').parse().ok()
+}
+
 pub fn smoke_after_update() {
     if !crate::cluster::cluster::is_primary() {
         return;
+    }
+    for _ in 0..12 {
+        match memory_free_percent() {
+            Some(free) if free < 40 => std::thread::sleep(std::time::Duration::from_secs(300)),
+            _ => break,
+        }
     }
     let now = head();
     let last = crate::core::data::read_json(&FILE, json!({}));

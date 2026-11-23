@@ -43,6 +43,7 @@ function backgroundReason(what) {
   const command = (what && what.command) || "";
   if (/pgrep[^\n]*(phpunit|paratest|artisan\s+te)/.test(command)) return tr("Esperando hueco para los tests");
   if (/\b(artisan test|phpunit|paratest|pytest|vitest|cargo test)\b|\bnpm (run )?test\b/.test(command)) return tr("Esperando a que acaben sus tests");
+  if (what && /playwright/.test(what.tool || "")) return tr("Esperando una prueba en el navegador");
   if (what && what.description) return tr("Esperando: {what}", { what: what.description });
   return tr("Esperando a un proceso en segundo plano");
 }
@@ -77,7 +78,7 @@ export function sessionSituation() {
     const asking = ((state.permissions && state.permissions.pending) || []).find((p) => p.conversation === a.conversation);
     if (asking) out.blocked.push({ ...row, reason: { text: tr("Espera tu permiso: {what}", { what: asking.label }), view: "waiting", at: asking.at } });
     else if ((state.testWaits || {})[a.conversation] && live.status !== "busy") out.blocked.push({ ...row, reason: { text: tr("Esperando hueco para los tests"), at: state.testWaits[a.conversation].at } });
-    else if (live.background && live.status !== "busy") out.blocked.push({ ...row, reason: { text: backgroundReason(live.backgroundWhat), at: live.statusSince } });
+    else if ((live.background || live.backgroundWhat) && live.status !== "busy") out.blocked.push({ ...row, reason: { text: backgroundReason(live.backgroundWhat), at: live.statusSince } });
     else if (live.status === "busy") out.working.push(row);
     else {
       const reason = blockReason(live, tasks);
