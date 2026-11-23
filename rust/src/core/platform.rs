@@ -110,6 +110,7 @@ pub fn spawn_detached(cmd: &str, args: &[String], env: Option<&HashMap<String, S
         use std::os::unix::process::CommandExt;
         c.process_group(0);
     }
+    stop_inheriting_std_handles();
     let mut child = c.spawn().ok()?;
     let pid = child.id();
     std::thread::spawn(move || {
@@ -259,3 +260,22 @@ pub fn self_exe() -> std::io::Result<std::path::PathBuf> {
         _ => std::env::current_exe(),
     }
 }
+
+#[cfg(windows)]
+pub fn stop_inheriting_std_handles() {
+    unsafe extern "system" {
+        fn GetStdHandle(which: u32) -> *mut std::ffi::c_void;
+        fn SetHandleInformation(handle: *mut std::ffi::c_void, mask: u32, flags: u32) -> i32;
+    }
+    for which in [-10i32, -11, -12] {
+        unsafe {
+            let h = GetStdHandle(which as u32);
+            if !h.is_null() && h as isize != -1 {
+                SetHandleInformation(h, 1, 0);
+            }
+        }
+    }
+}
+
+#[cfg(not(windows))]
+pub fn stop_inheriting_std_handles() {}

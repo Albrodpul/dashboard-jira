@@ -19,6 +19,7 @@ pub fn spawn_self_detached(args: &[&str]) -> bool {
         use std::os::windows::process::CommandExt;
         command.creation_flags(0x00000008 | 0x08000000);
     }
+    crate::core::platform::stop_inheriting_std_handles();
     command.spawn().is_ok()
 }
 
