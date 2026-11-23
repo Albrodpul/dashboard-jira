@@ -105,7 +105,20 @@ fn update_board() {
         let cargo = candidates.iter().find(|c| c.exists()).map(|c| c.to_string_lossy().to_string()).unwrap_or_else(|| "cargo".to_string());
         let dir = std::path::Path::new(&cargo).parent().map(|d| d.to_string_lossy().to_string()).unwrap_or_default();
         let path = format!("{dir}{}{}", if cfg!(windows) { ";" } else { ":" }, std::env::var("PATH").unwrap_or_default());
-        let built = crate::core::platform::run_output(&cargo, &["build".into(), "--release".into()], 900_000, Some(&repo.join("rust")), &[("PATH", path.as_str())]);
+        let staging = repo.join("rust").join("target-next");
+        let target_dir = if cfg!(windows) { staging.to_string_lossy().to_string() } else { repo.join("rust").join("target").to_string_lossy().to_string() };
+        let built = crate::core::platform::run_output(&cargo, &["build".into(), "--release".into()], 900_000, Some(&repo.join("rust")), &[("PATH", path.as_str()), ("CARGO_TARGET_DIR", target_dir.as_str())]);
+        if built.ok && cfg!(windows) {
+            let live = repo.join("rust").join("target").join("release").join("tower.exe");
+            let old = live.with_extension("exe.old");
+            let _ = std::fs::remove_file(&old);
+            let swapped = std::fs::rename(&live, &old).is_ok() || !live.exists();
+            if !swapped || std::fs::copy(staging.join("release").join("tower.exe"), &live).is_err() {
+                let _ = std::fs::rename(&old, &live);
+                push_later(format!("El tablero de {} no se puede poner al día solo: no se pudo cambiar tower.exe", crate::core::platform::hostname()));
+                return;
+            }
+        }
         if !built.ok {
             push_later(format!("El tablero de {} no se puede poner al día solo: no compila ({})", crate::core::platform::hostname(), cut(built.stderr.trim().split('\n').last().unwrap_or(""), 120)));
             return;

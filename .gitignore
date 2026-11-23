@@ -31,3 +31,4 @@ node_modules/
 
 # Rust build output
 rust/target/
+rust/target-next/
