@@ -32,11 +32,11 @@ It also has:
 - a "Learning" tab that tracks how often work comes back from review;
 - the shared `context/` folder kept in sync through git.
 
-![Talk: the session list and the live terminal of a session fixing a ticket that came back from review](docs/talk.png)
+![Talk: the session list and the live terminal of a session fixing a ticket that came back from review, next to the latest Jira activity](docs/talk.png)
 
 <img src="docs/phone.png" alt="Talk on the phone: the same live terminal, with the session picker, the battery and Claude quota in the top bar, and keys for Esc, Tab and the arrows" width="300">
 
-Everything runs on your machines: one small binary (`tower`, written in Rust) serving on `127.0.0.1`, a SQLite file and your Jira API token in a local `.env`. Nothing goes anywhere except your own Jira, and Sentry, GitHub and AWS if you turn them on. The interface is in Spanish.
+Everything runs on your machines: one small binary (`tower`, written in Rust) serving on `127.0.0.1`, a SQLite file and your Jira API token in a local `.env`. Nothing goes anywhere except your own Jira, and Sentry, GitHub and AWS if you turn them on. The interface is in Spanish, with English available in Ajustes → Apariencia (the screenshots use English).
 
 Why it is built the way it is, decision by decision, with the traps found on the way: [docs/DECISIONS.md](docs/DECISIONS.md).
 
