@@ -44,7 +44,8 @@ Why it is built the way it is, decision by decision, with the traps found on the
 
 ```bash
 git clone https://github.com/Albrodpul/dashboard-jira.git
-cd dashboard-jira && npm ci && rust/build.sh && cd ..   # on Windows: cd rust && cargo build --release
+cd dashboard-jira && npm ci && cd ..
+dashboard-jira/rust/build.sh                       # macOS; on Windows: cargo build --release --manifest-path dashboard-jira/rust/Cargo.toml
 node dashboard-jira/install.js C:/work/acme/board --rust   # creates board.config.json and .env there
 # fill in .env (Jira site, email, API token) and board.config.json (projects, root folder)
 node C:/work/acme/board/board.js jira-setup        # prints the Jira ids the config needs
@@ -56,7 +57,7 @@ Then run `/resumen-jira` in one Claude Code session (and `/orquesta` in another 
 
 ## Requirements
 
-- Rust (stable, through `rustup`) to build the `tower` binary: the server, the commands, the permission hook and the session host. On Windows it also needs the Visual Studio Build Tools with the C++ workload (the MSVC linker). After a `git pull` that touches `rust/`, a running board rebuilds itself aside and swaps the binary in before restarting.
+- Rust (stable, through `rustup`; from rustup.rs, or Homebrew's `rustup`, which is keg-only, so add `$(brew --prefix rustup)/bin` to `PATH`) to build the `tower` binary: the server, the commands, the permission hook and the session host. On Windows it also needs the Visual Studio Build Tools with the C++ workload (the MSVC linker). After a `git pull` that touches `rust/`, a running board rebuilds itself aside and swaps the binary in before restarting.
 - Node 24 or later, still needed for the installer, the small launchers it writes (they call `tower`), the smoke test (Playwright) and the browser terminal files (`@xterm/xterm`, `@xterm/addon-fit`). The previous all-Node server is still in `src/` and runs again if you install without `--rust`.
 - The Claude Code CLI (`claude`). The VS Code extension is optional: sessions can still be opened there.
 - A Jira Cloud API token.
@@ -70,10 +71,12 @@ The code is the same everywhere. What changes from one company (one Jira) to ano
 
 ```bash
 git clone https://github.com/Albrodpul/dashboard-jira.git
-node dashboard-jira/install.js C:/work/acme/board
+cd dashboard-jira && npm ci && cd ..
+dashboard-jira/rust/build.sh                       # macOS; on Windows: cargo build --release --manifest-path dashboard-jira/rust/Cargo.toml
+node dashboard-jira/install.js C:/work/acme/board --rust
 ```
 
-The first run creates `board.config.json` and `.env` from the examples and stops, because they are empty.
+`--rust` makes the launchers call the binary just built (`rust/target/release/tower`); without it they run the previous Node code in `src/`. The first run creates `board.config.json` and `.env` from the examples and stops, because they are empty.
 
 ### 2. Jira credentials (`.env`)
 
