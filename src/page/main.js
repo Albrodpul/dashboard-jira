@@ -183,7 +183,10 @@ function paintTabs(counts, waitingDeploys) {
   const foot = document.getElementById("nav-foot");
   if (foot) {
     foot.textContent = "";
-    foot.appendChild(settingsButton("tab settings-tab"));
+    const c = state.cluster;
+    const badge = batteryBadge(c && c.macPower && c.macPower.battery, null);
+    if (badge) foot.appendChild(badge);
+    foot.appendChild(quotaBlock());
   }
 }
 
@@ -352,13 +355,15 @@ function paint() {
   const right = document.getElementById("top-right");
   right.textContent = "";
   const c = state.cluster;
-  if (!mobile) right.appendChild(activityButton());
   if (c && c.peer && (viaHeaders[1] || c.role !== "primary")) {
     const stale = viaHeaders[1];
     right.appendChild(h("span", { class: "commander warn", text: stale ? t("{machine}: el otro no responde", { machine: stale }) : t("Sin ordenador al mando") }));
   }
-  const badge = batteryBadge(c && c.macPower && c.macPower.battery, null);
-  if (badge) right.appendChild(badge);
+  if (!mobile) {
+    right.appendChild(activityButton());
+    if (hasModule("jira")) right.appendChild(yoloButton());
+    right.appendChild(settingsButton("btn top-settings"));
+  }
   const brand = document.querySelector(".nav > .brand");
   if (brand) {
     const old = brand.querySelector(".mobile-battery");
@@ -366,7 +371,6 @@ function paint() {
     const small = batteryBadge(c && c.macPower && c.macPower.battery, null);
     brand.appendChild(h("span", { class: "mobile-battery" }, [small, quotaBlock()]));
   }
-  right.appendChild(quotaBlock());
   paintProjectPicker();
   document.querySelector(".app").setAttribute("data-jira", hasModule("jira") ? "on" : "off");
   document.querySelector(".app").setAttribute("data-view", state.tab);
@@ -543,15 +547,30 @@ function setReportHidden(hidden) {
   window.dispatchEvent(new Event("layoutchange"));
   render();
 }
+const ACTIVITY_ICON = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg>';
+const YOLO_ICON = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg>';
+function iconButton(cls, icon, label, attrs) {
+  const b = h("button", { class: cls, type: "button", ...attrs }, [h("span", { class: "top-btn-icon" }), h("span", { class: "top-btn-text", text: label })]);
+  b.firstChild.innerHTML = icon;
+  return b;
+}
 function activityButton() {
-  return h("button", {
-    class: `btn activity-toggle${reportHidden ? "" : " on"}`,
-    type: "button",
+  return iconButton(`btn top-btn activity-toggle${reportHidden ? "" : " on"}`, ACTIVITY_ICON, t("Última actividad"), {
     "aria-controls": "report",
     "aria-pressed": String(!reportHidden),
     title: reportHidden ? t("Enseñar la última actividad de Jira y GitHub") : t("Ocultar la última actividad"),
-    text: t("Actividad"),
     onclick: () => setReportHidden(!reportHidden),
+  });
+}
+function yoloButton() {
+  const on = !!(state.config && state.config.yolo);
+  return iconButton(`btn top-btn yolo-toggle${on ? " on" : ""}`, YOLO_ICON, t("YOLO"), {
+    "aria-pressed": String(on),
+    title: on ? t("Modo YOLO activo: pulsa para apagarlo") : t("Todo automático: las tareas pendientes van solas a su sesión (si no tienen, el tablero crea una con el nombre del epic) y los posibles errores del seguimiento, a la sesión de errores. Las restricciones siguen mandando."),
+    onclick: (e) => {
+      e.currentTarget.disabled = true;
+      post("/api/config", { yolo: !on }, !on ? t("Modo YOLO activo: cada tarea pendiente va sola a su sesión (si no tiene, el tablero la crea) y cada posible error del seguimiento, a la sesión de errores.") : t("Modo YOLO apagado: las tareas nuevas esperan a que pulses Hacer."));
+    },
   });
 }
 render();

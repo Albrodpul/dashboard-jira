@@ -33,7 +33,12 @@ body.settings-open { overflow: hidden; }
 @keyframes settings-pop { from { opacity: 0; transform: translateY(8px) scale(0.985); } }
 
 @media (min-width: 761px) {
-  .nav-foot { border-top: 0; padding-top: 4px; }
+  .nav-foot { border-top: 0; padding-top: 10px; align-items: center; gap: 10px; }
+  .nav-foot .battery-badge { flex-direction: column; gap: 2px; padding: 4px 6px; background: transparent; font-size: 11.5px; }
+  .nav-foot .quota { margin: 0; padding: 0; align-items: center; gap: 2px; }
+  .nav-foot .quota-items { flex-direction: column; gap: 2px; }
+  .nav-foot .quota-reset, .nav-foot .quota-stale { display: none; }
+  .nav-foot .quota-meter b { font-size: 12px; }
   .settings-tab:hover, .settings-tab[aria-expanded="true"] { background: transparent; }
   .settings-tab[aria-expanded="true"] .tab-icon { background: var(--accent-soft); color: var(--accent); }
   .settings-tab[aria-expanded="true"] .tab-text { color: var(--ink); font-weight: 600; }
