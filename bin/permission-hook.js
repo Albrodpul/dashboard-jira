@@ -29,11 +29,34 @@ function trace(event, result) {
 }
 
 let current = null;
+let rewritten = null;
 
 function decide(decision, reason) {
   if (current) trace(current, decision);
-  process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: decision, permissionDecisionReason: reason || "" } }));
+  process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: decision, permissionDecisionReason: reason || "", ...(rewritten ? { updatedInput: rewritten } : {}) } }));
   process.exit(0);
+}
+
+function pass() {
+  if (rewritten) process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: "PreToolUse", updatedInput: rewritten } }));
+  process.exit(0);
+}
+
+function testTurn(event) {
+  if (event.tool_name !== "Bash" || !event.tool_input || typeof event.tool_input.command !== "string") return;
+  let t;
+  try {
+    const dir = process.env.TOWER_WORKSPACE ? require("path").join(process.env.TOWER_WORKSPACE, "data") : null;
+    t = require("../src/sessions/test-turn").decide(event.tool_input.command, { file: dir ? require("path").join(dir, "test-turn.json") : require("path").join(require("os").tmpdir(), "tower-test-turn.json") });
+  } catch (e) {
+    return;
+  }
+  if (t.kind === "wait") return decide("deny", t.reason);
+  if (t.kind === "go" && t.command) {
+    rewritten = { ...event.tool_input, command: t.command };
+    event.tool_input = rewritten;
+    trace(event, `tests: ${t.command.match(/--processes[=\s]+\d+/)}`);
+  }
 }
 
 function localVerdict(event) {
@@ -48,11 +71,11 @@ function withoutBoard(event) {
   const c = localVerdict(event);
   if (!c) {
     trace(event, "sin-tablero sin-filtro");
-    return process.exit(0);
+    return pass();
   }
   if (c.kind === "allow") {
     trace(event, "sin-tablero");
-    return process.exit(0);
+    return pass();
   }
   return decide("ask", `El tablero no responde y esto lo protege el filtro: ${c.label || event.tool_name}. Decide tú aquí.`);
 }
@@ -67,6 +90,7 @@ async function main() {
     return process.exit(0);
   }
   current = event;
+  testTurn(event);
   let r;
   try {
     r = await call("POST", "/api/permission/check", { session_id: event.session_id, tool_name: event.tool_name, tool_input: event.tool_input, cwd: event.cwd });
@@ -74,7 +98,7 @@ async function main() {
     return withoutBoard(event);
   }
   if (r.decision === "allow") return decide("allow", "Permitido por el filtro del tablero");
-  if (r.decision !== "wait") return process.exit(0);
+  if (r.decision !== "wait") return pass();
   const until = Date.now() + (r.waitMinutes || 55) * 60000;
   while (Date.now() < until) {
     await new Promise((ok) => setTimeout(ok, POLL_MS));
