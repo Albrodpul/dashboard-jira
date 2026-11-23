@@ -33,10 +33,10 @@ body.settings-open { overflow: hidden; }
 @keyframes settings-pop { from { opacity: 0; transform: translateY(8px) scale(0.985); } }
 
 @media (min-width: 761px) {
-  .nav-foot { border-top: 0; padding-top: 10px; flex-direction: row; flex-wrap: wrap; justify-content: center; align-items: flex-end; gap: 6px; }
-  .machine-load { flex-basis: 100%; display: flex; justify-content: center; align-items: flex-end; gap: 6px; padding-top: 6px; }
-  .ml-item { display: inline-flex; flex-direction: column; align-items: center; gap: 3px; font-size: 11px; color: var(--ink-3); width: 36px; flex: none; }
-  .nav-foot .battery-badge, .nav-foot .quota { width: 36px; flex: none; box-sizing: border-box; }
+  .nav-foot { border-top: 0; padding-top: 10px; flex-direction: row; flex-wrap: wrap; justify-content: center; align-items: flex-end; gap: 4px; }
+  .machine-load { flex-basis: 100%; display: flex; justify-content: center; align-items: flex-end; gap: 4px; padding-top: 6px; }
+  .ml-item { display: inline-flex; flex-direction: column; align-items: center; gap: 3px; font-size: 11px; color: var(--ink-3); width: 34px; flex: none; }
+  .nav-foot .battery-badge, .nav-foot .quota { width: 34px; flex: none; box-sizing: border-box; }
   .nav-foot .quota-items { justify-content: center; }
   .ml-icon { display: inline-flex; line-height: 0; color: var(--ink-2); }
   .ml-item b { font-size: 11px; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
