@@ -324,6 +324,7 @@ fn running_subagents(session_id: &str) -> usize {
 static BACKGROUND_CACHE: LazyLock<Mutex<HashMap<PathBuf, (u64, f64, Option<Value>)>>> = LazyLock::new(|| Mutex::new(HashMap::new()));
 static MOVED: LazyLock<regex::Regex> = LazyLock::new(|| regex::Regex::new(r"(?:moved to the background as task|moved to the background \(ID:|running in background with ID:)\s*([A-Za-z0-9_-]+)").unwrap());
 static FINISHED: LazyLock<regex::Regex> = LazyLock::new(|| regex::Regex::new(r"<task-id>([A-Za-z0-9_-]+)</task-id>\s*(?:<tool-use-id>[^<]*</tool-use-id>\s*)?(?:<output-file>[^<]*</output-file>\s*)?<status>(?:completed|failed|killed|stopped)</status>").unwrap());
+static STOPPED: LazyLock<regex::Regex> = LazyLock::new(|| regex::Regex::new(r"(?:Successfully stopped task|stopped task):?\s*([A-Za-z0-9_-]+)").unwrap());
 
 fn content_text(c: &Value) -> String {
     match c {
@@ -355,6 +356,9 @@ pub fn background_what(conversation: &str) -> Option<Value> {
         let Some(content) = j.get("message").and_then(|m| m.get("content")) else { continue };
         let whole = content_text(content);
         for m in FINISHED.captures_iter(&whole) {
+            pending.retain(|(id, _)| id != &m[1]);
+        }
+        for m in STOPPED.captures_iter(&whole) {
             pending.retain(|(id, _)| id != &m[1]);
         }
         for c in content.as_array().into_iter().flatten() {
@@ -415,7 +419,7 @@ pub fn live_sessions() -> Option<Vec<Value>> {
             "status": status,
             "subagents": subagents,
             "background": e.get("background").cloned().unwrap_or(Value::Null),
-            "backgroundWhat": if status != "busy" { background_what(&conversation).unwrap_or(Value::Null) } else { Value::Null },
+            "backgroundWhat": if status != "busy" { background_what(&conversation).filter(|w| truthy(e.get("background")) || w.get("tool").and_then(|t| t.as_str()).is_some_and(|t| t.starts_with("mcp__"))).unwrap_or(Value::Null) } else { Value::Null },
             "project": project.id,
             "statusSince": status_since,
             "title": title,
