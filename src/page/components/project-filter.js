@@ -71,6 +71,7 @@ function paintMenu(onChange) {
     portal = h("div", { id: "ps-portal" });
     document.body.appendChild(portal);
   }
+  if (switchOpen && portal.querySelector(".ps-menu")) return;
   portal.textContent = "";
   if (!switchOpen) return;
   const list = workspaces();
@@ -79,11 +80,36 @@ function paintMenu(onChange) {
     h("button", { type: "button", role: "option", class: "ps-option", "aria-selected": String(p.id === cur), onclick: () => choose(p.id, onChange) }, [
       h("span", { class: "ps-initial", "aria-hidden": "true", text: p.id ? initial(p.name) : "∗" }),
       h("span", { class: "ps-text" }, [h("span", { class: "ps-option-name", text: p.name }), statLine(p.id)]),
+      p.id === (cur || "") ? h("span", { class: "ps-check", "aria-label": t("Proyecto actual"), text: "✓" }) : null,
       i < 10 ? h("kbd", { text: String(i) }) : null,
     ])
   );
-  portal.appendChild(h("div", { class: "ps-backdrop", onclick: () => ((switchOpen = false), onChange(true)) }));
-  portal.appendChild(h("div", { class: "ps-menu", role: "listbox", "aria-label": t("Proyecto") }, [h("div", { class: "ps-menu-head" }, [h("strong", { text: cur ? projectName(cur) : t("Todos los proyectos") }), h("span", { text: t("Cambia de proyecto con las teclas 0-{max}", { max: Math.min(list.length, 9) }) })]), ...options]));
+  const close = () => ((switchOpen = false), onChange(true));
+  const items = h("div", { class: "ps-items" }, options);
+  const search = list.length > 6 ? h("input", { type: "search", class: "ps-search", placeholder: t("Buscar proyecto"), "aria-label": t("Buscar proyecto") }) : null;
+  if (search) search.addEventListener("input", () => {
+    const q = search.value.trim().toLowerCase();
+    for (const el of items.children) el.hidden = !!q && !el.textContent.toLowerCase().includes(q);
+  });
+  portal.appendChild(h("div", { class: "ps-backdrop", onclick: close }));
+  const sheet = h("div", { class: "ps-menu", role: "listbox", "aria-label": t("Proyecto") }, [h("span", { class: "ps-grab", "aria-hidden": "true" }), h("div", { class: "ps-menu-head" }, [h("strong", { class: "ps-title-desk", text: cur ? projectName(cur) : t("Todos los proyectos") }), h("strong", { class: "ps-title-sheet", text: t("Cambiar de proyecto") }), h("span", { class: "ps-keys", text: t("Cambia de proyecto con las teclas 0-{max}", { max: Math.min(list.length, 9) }) })]), search, items]);
+  portal.appendChild(sheet);
+  let startY = null;
+  sheet.addEventListener("touchstart", (e) => {
+    startY = items.scrollTop > 0 && e.target.closest(".ps-items") ? null : e.touches[0].clientY;
+  }, { passive: true });
+  sheet.addEventListener("touchmove", (e) => {
+    if (startY === null) return;
+    const dy = Math.max(0, e.touches[0].clientY - startY);
+    sheet.style.transform = dy ? `translateY(${dy}px)` : "";
+  }, { passive: true });
+  sheet.addEventListener("touchend", (e) => {
+    if (startY === null) return;
+    const dy = e.changedTouches[0].clientY - startY;
+    startY = null;
+    if (dy > 90) return close();
+    sheet.style.transform = "";
+  });
 }
 
 export function projectStats(id) {
@@ -147,14 +173,16 @@ export function bindProjectKeys(onChange) {
   });
 }
 
-export function projectChoices(onChange) {
+export function projectSheetButton(onChange) {
   const list = workspaces();
   if (list.length < 2) return null;
   const cur = currentProject();
-  return h("div", { class: "proj-choices", role: "listbox", "aria-label": t("Proyecto") }, [{ id: "", name: t("Todos los proyectos") }, ...list].map((p) =>
-    h("button", { type: "button", role: "option", class: "ps-option", "aria-selected": String(p.id === (cur || "")), onclick: () => choose(p.id, onChange) }, [
-      h("span", { class: "ps-initial", "aria-hidden": "true", text: p.id ? initial(p.name) : "∗" }),
-      h("span", { class: "ps-text" }, [h("span", { class: "ps-option-name", text: p.name }), statLine(p.id)]),
-    ])
-  ));
+  const name = cur ? projectName(cur) : t("Todos los proyectos");
+  const chev = h("span", { class: "ps-chev", "aria-hidden": "true" });
+  chev.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16"><path d="m6 9 6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  return h("button", { type: "button", class: `ps-sheet-button${cur ? " filtered" : ""}`, "aria-haspopup": "listbox", onclick: () => ((switchOpen = true), paintMenu(onChange)) }, [
+    h("span", { class: "ps-initial", "aria-hidden": "true", text: cur ? initial(name) : "∗" }),
+    h("span", { class: "ps-text" }, [h("span", { class: "ps-option-name", text: name }), statLine(cur || "")]),
+    chev,
+  ]);
 }

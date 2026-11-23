@@ -19,7 +19,7 @@ import { applyTheme } from "./views/appearance.js";
 import { paintTicket } from "./components/ticket.js";
 import { newTaskButton, newTaskForm } from "./components/new-task.js";
 import { t, tn, translateStatic } from "./lib/i18n.js";
-import { projectSwitch, projectChoices, bindProjectKeys, applyProjectFilter, tabVisible, hasModule, mixedProjects, mainProject, projectTitle } from "./components/project-filter.js";
+import { projectSwitch, projectSheetButton, bindProjectKeys, applyProjectFilter, tabVisible, hasModule, mixedProjects, mainProject, projectTitle } from "./components/project-filter.js";
 
 const TASK_TABS = [
   { id: "pending", label: t("Pendientes") },
@@ -254,12 +254,13 @@ function statusChips(root, counts, board) {
 
 function renderMore(root, waitingDeploys, errors) {
   const options = GROUPS.flatMap(([, list]) => list).filter((x) => !["home", "tasks", "talk"].includes(x.id) && tabVisible(x.id));
-  const onProject = () => {
+  const onProject = (onlyMenu) => {
+    if (onlyMenu === true) return render();
     applyProjectFilter();
     if (!tabVisible(state.tab)) return switchView("home");
     render();
   };
-  const choices = projectChoices(onProject);
+  const choices = projectSheetButton(onProject);
   if (choices) root.appendChild(h("section", { class: "more-block" }, [h("h3", { class: "more-title", text: t("Proyecto") }), choices]));
   root.appendChild(searchBox());
   const badge = (tab) => (tab.id === "deploy" && waitingDeploys ? waitingDeploys : tab.id === "follow-up" && errors ? errors : 0);

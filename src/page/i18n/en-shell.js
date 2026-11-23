@@ -269,4 +269,7 @@ export default {
   "Secciones": "Sections",
   "Activo: las tareas van solas a su sesión": "On: tasks go to their session by themselves",
   "Apagado: las tareas esperan a que pulses Hacer": "Off: tasks wait for you to press Do",
+  "Buscar proyecto": "Search project",
+  "Cambiar de proyecto": "Switch project",
+  "Proyecto actual": "Current project",
 };
