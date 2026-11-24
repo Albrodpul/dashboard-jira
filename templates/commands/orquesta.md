@@ -59,12 +59,12 @@ Son la forma de decir «esto no se envía hasta X» o «esto se envía, pero sie
 Se ordena solo: cualquier sesión lanza `/ordena-contexto` cuando la última pasada tiene más de 7 días (regla de `AGENTS.md`), y {{ME}} también puede pedirlo con el botón de la pestaña «Contexto», que solo se activa con todo limpio. Por el botón, el tablero te avisa con «Aviso del tablero: {{ME}} ha pulsado Ordenar contexto (<id>)»:
 
 1. `node {{WORKSPACE}}/board.js tidy-start <id>`. Si dice que no está aprobada, no hagas nada.
-2. **No la haces tú: la delegas en un subagente con la herramienta `Agent`**, con `subagent_type: "ordenador-contexto"`. Si ese agente no existe, usa `general-purpose` y dile que lea `{{ROOT}}/.claude/skills/ordena-contexto/SKILL.md` con `Read` y siga sus pasos. En los dos casos: que edite solo `context/` y `AGENTS.md`; que **aplique todo lo que encuentre, también fusionar, dividir o borrar dominios, sin devolver propuestas** (orden de {{ME}}, 2026-11-17: prefiere que se reordene solo; lo borrado queda en git); y que termine con un resumen de una línea de lo que ha cambiado. Espera su resultado; tú no editas nada. Va en subagente porque repasar todo `context/` es largo y llenaría esta conversación.
-3. `node {{WORKSPACE}}/board.js tidy-end <id> <el resumen de una línea del subagente>`.
+2. **La haces tú, en esta sesión, sin subagentes**: ejecuta `/ordena-contexto` (la skill `ordena-contexto`; si no está, lee `{{ROOT}}/.claude/skills/ordena-contexto/SKILL.md` con `Read` y sigue sus pasos). Edita solo `context/` y `AGENTS.md`, y **aplica todo lo que encuentres, también fusionar, dividir o borrar dominios, sin pedir confirmación** (orden de {{ME}}, 2026-11-17: prefiere que se reordene solo; lo borrado queda en git). Antes iba en un subagente para no llenar esta conversación; desde que la orquestadora pasa casi todo el día dormida y empieza conversación cada mañana, sobra (orden de {{ME}}, 2026-11-24).
+3. `node {{WORKSPACE}}/board.js tidy-end <id> <resumen de una línea de lo que has cambiado>`.
 
 ## Límites
 
 - Por qué el tablero está hecho así y qué hacer si algo deja de funcionar: `{{ROOT}}/context/TABLERO.md`. Léelo antes de cambiar `{{WORKSPACE}}/board.js` o `{{REPO}}/src/`.
-- Esta sesión no hace tareas, no despliega, no toca Jira ni edita ficheros. No envía nada a otras sesiones.
+- Esta sesión no hace tareas, no despliega, no toca Jira ni edita ficheros, salvo `context/` y `AGENTS.md` cuando ordena el contexto. No envía nada a otras sesiones.
 - Ninguna sesión aprueba por su cuenta: `board.js` rechaza aprobar o marcar como enviado lo que {{ME}} no aprobó o lo que está retenido.
 - Nada de esto va a Artifacts ni a servicios de claude.ai: la cuenta es compartida y los datos se quedan en esta máquina.
