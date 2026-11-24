@@ -133,11 +133,19 @@ fn update_board() {
             return;
         }
     }
+    let live_page = changed.out.split('\n').map(str::trim).filter(|f| !f.is_empty()).all(|f| f.starts_with("src/page/") && f != "src/page/sw.js" || f.ends_with(".md") || f.starts_with("docs/") || f.starts_with("test/"));
+    if changed.ok && live_page {
+        return;
+    }
     if let Ok(exe) = crate::core::platform::self_exe() {
         let mut env: std::collections::HashMap<String, String> = std::env::vars().collect();
         env.insert("TOWER_WORKSPACE".into(), crate::core::config::workspace().to_string_lossy().to_string());
         crate::core::platform::spawn_detached(&exe.to_string_lossy(), &["restart".into()], Some(&env));
     }
+}
+
+pub fn remember_running_head() {
+    LazyLock::force(&RUNNING_HEAD);
 }
 
 pub fn sync_context() {

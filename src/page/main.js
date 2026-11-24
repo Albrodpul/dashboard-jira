@@ -496,12 +496,15 @@ function apply(d) {
 
 let lastHash = "";
 let inFlight = null;
+let failures = 0;
 function reload(force) {
   if (inFlight && !force) return inFlight;
   const headers = force || !lastHash ? {} : { "x-state-hash": lastHash };
   inFlight = fetch("/api/state", { cache: "no-store", headers })
     .then((r) => {
       showVia(r.headers.get("x-tower-via"), r.headers.get("x-tower-stale"));
+      if (!r.ok && r.status !== 204) throw new Error(String(r.status));
+      failures = 0;
       if (r.status === 204) return null;
       lastHash = r.headers.get("x-state-hash") || "";
       return r.json();
@@ -534,6 +537,8 @@ function reload(force) {
       }
     })
     .catch(() => {
+      failures++;
+      if (state.ok && failures < 4) return;
       state.ok = false;
       last = "";
       lastHash = "";
