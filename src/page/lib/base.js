@@ -247,7 +247,9 @@ export function renderMd(text) {
     if (heading && first) box.appendChild(h("h3", {}, inline(heading[1])));
     else if (heading) {
       const ses = /^(.*?)\s*\((sesión: [^)]*|sin sesión)\)\s*$/i.exec(heading[1]);
-      box.appendChild(h("h4", {}, ses ? [...inline(ses[1]), h("span", { class: "session-tag" + (/^sin/i.test(ses[2]) ? " none" : ""), text: ses[2].replace(/^sesión: /i, "") })] : inline(heading[1])));
+      const tag = ses ? ses[2].replace(/^sesión: /i, "") : "";
+      const sameAsEpic = ses && ses[1].replace(/^\S+-\d+\s+/, "").trim().toLowerCase() === tag.trim().toLowerCase();
+      box.appendChild(h("h4", {}, ses ? [...inline(ses[1]), sameAsEpic ? null : h("span", { class: "session-tag" + (/^sin/i.test(ses[2]) ? " none" : ""), text: tag })] : inline(heading[1])));
     } else box.appendChild(h("p", {}, inline(line)));
     first = false;
   }

@@ -93,3 +93,8 @@ a.jira-link:hover { text-decoration: underline; }
   body.report-hidden .report { display: none; }
   body.report-hidden .app { grid-template-columns: var(--nav-w) minmax(0, 1fr); }
 }
+
+#report-body details > summary { margin: 2px 0 4px; cursor: pointer; }
+#report-body .report-ev { padding: 12px 0 4px; gap: 6px; }
+#report-body .report-ev:first-of-type { margin-top: 4px; }
+.report-text h4 + table { margin-top: 2px; }

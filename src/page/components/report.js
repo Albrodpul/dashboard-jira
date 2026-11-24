@@ -128,7 +128,10 @@ export function renderReport() {
   const det = h("details", {}, [h("summary", { class: "meta", text: t("Reportes anteriores ({n})", { n: older.length }) })]);
   det.open = historyOpen;
   det.addEventListener("toggle", () => (historyOpen = det.open));
-  older.forEach((x) => det.appendChild(h("div", { class: "ev" }, [h("span", { class: "t", text: when(x.at) }), renderMd(x.text)])));
+  older.forEach((x) => {
+    const otherDay = dayLabel(x.at);
+    det.appendChild(h("div", { class: "ev report-ev" }, [otherDay ? h("span", { class: "t", text: otherDay }) : null, renderMd(x.text)]));
+  });
   box.appendChild(det);
 }
 
