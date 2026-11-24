@@ -266,7 +266,7 @@ pub fn normalize(p: &Path) -> PathBuf {
     out
 }
 
-const COMMON_KEYS: [&str; 8] = ["cluster", "trustedHosts", "voice", "sessionModel", "sessionProfiles", "launchdLabels", "dailyStyle", "boardAliveMinutes"];
+const COMMON_KEYS: [&str; 9] = ["cluster", "trustedHosts", "voice", "sessionModel", "sessionProfiles", "launchdLabels", "dailyStyle", "boardAliveMinutes", "reviewerCriteria"];
 
 pub struct Settings {
     pub common: Map<String, Value>,
@@ -490,4 +490,38 @@ pub fn for_page() -> Value {
             "source": p.source,
         })).collect::<Vec<_>>(),
     })
+}
+
+pub fn reviewer_criteria() -> Option<String> {
+    common("reviewerCriteria").and_then(|v| v.as_str()).map(str::trim).filter(|s| !s.is_empty()).map(String::from)
+}
+
+pub fn is_reviewer(project_id: &str, who: &str) -> bool {
+    let p = project(project_id).unwrap_or_else(|| main_project().clone());
+    let name = p.jira.as_ref().and_then(|j| j.reviewer.get("name")).and_then(|v| v.as_str()).unwrap_or("").to_lowercase();
+    let first = name.split_whitespace().next().unwrap_or("");
+    let who = who.to_lowercase();
+    !first.is_empty() && !who.is_empty() && (who.contains(&name) || name.contains(&who) || who.split_whitespace().next() == Some(first))
+}
+
+pub fn cause_advice(cause: &str) -> String {
+    let criteria = reviewer_criteria();
+    match (cause, criteria) {
+        ("new", Some(c)) => format!("Como es nueva, añade su línea a {c}: qué mira el revisor, en una frase."),
+        ("new", None) => String::new(),
+        ("written", _) => "Ya estaba escrita: revisa por qué el agente revisor no lo vio antes de entregarla y apúntalo donde corresponda para que la próxima vez lo vea.".into(),
+        _ => String::new(),
+    }
+}
+
+#[cfg(test)]
+mod reviewer_tests {
+    #[test]
+    fn a_comment_counts_as_the_reviewers_by_first_name_or_full_name() {
+        let _g = crate::testkit::fresh();
+        assert!(super::is_reviewer("", "Reviewer"));
+        assert!(super::is_reviewer("", "reviewer smith"));
+        assert!(!super::is_reviewer("", "Someone Else"));
+        assert!(!super::is_reviewer("", ""));
+    }
 }

@@ -123,4 +123,11 @@ export default {
   "Esperando: {what}": "Waiting: {what}",
   "Esperando a un proceso en segundo plano": "Waiting for a background process",
   "Esperando una prueba en el navegador": "Waiting for a browser test",
+  "Lo que ha pedido {reviewer}": "What {reviewer} has asked for",
+  "Sus comentarios en Jira, en tus tickets y en los de los demás, con la causa que apuntó la sesión. Lo nuevo tiene que acabar en el criterio que leen el revisor y el probador.": "Their Jira comments, on your tickets and on everyone else's, with the cause the session wrote down. Anything new has to end up in the criteria the reviewer and the tester read.",
+  "Tuyo": "Yours",
+  "De otro": "Someone else's",
+  "Devuelta": "Sent back",
+  "Causa: ya escrita": "Cause: already written",
+  "Causa: nueva": "Cause: new",
 };

@@ -16,6 +16,7 @@ static READING: AtomicBool = AtomicBool::new(false);
 fn table() {
     with_db(|db| {
         let _ = db.execute_batch("CREATE TABLE IF NOT EXISTS learning_tickets (key TEXT PRIMARY KEY, epic TEXT, epic_name TEXT, events TEXT NOT NULL)");
+        let _ = db.execute_batch("CREATE TABLE IF NOT EXISTS reviewer_notes (key TEXT NOT NULL, at TEXT NOT NULL, text TEXT NOT NULL, mine INTEGER NOT NULL, PRIMARY KEY (key, at))");
     });
 }
 
@@ -70,10 +71,51 @@ fn events_of(key: &str, project: &Project) -> Result<Value, String> {
         if let Some(rid) = &reviewer_id {
             if c.get("author").filter(|a| truthy(Some(a))).and_then(|a| a.get("accountId")) == Some(rid) {
                 reviewer_comments.push(c["created"].clone());
+                save_note(key, text(c.get("created")), &crate::server::routes::tasks::adf_text(c.get("body")), true);
             }
         }
     }
     Ok(json!({ "deliveries": deliveries, "returns": returns, "reviewerComments": reviewer_comments }))
+}
+
+fn save_note(key: &str, at: &str, body: &str, mine: bool) {
+    let body: String = body.trim().chars().take(4000).collect();
+    if at.is_empty() || body.is_empty() {
+        return;
+    }
+    with_db(|db| {
+        let _ = db.execute("INSERT OR REPLACE INTO reviewer_notes VALUES (?, ?, ?, ?)", rusqlite::params![key, at, body, mine as i64]);
+    });
+}
+
+fn read_others(project: &Project, days: i64) -> Result<usize, String> {
+    let Some(reviewer) = sites::reviewer(Some(project)).get("id").and_then(Value::as_str).filter(|s| !s.is_empty()).map(String::from) else { return Ok(0) };
+    let projects_jql = project.jira.as_ref().map(|j| j.projects_jql.clone()).unwrap_or_default();
+    let me = sites::me(Some(project));
+    let me_id = me.get("id").and_then(Value::as_str).unwrap_or("").to_string();
+    let jql = encode_uri_component(&format!("{projects_jql} AND updated >= -{days}d AND (assignee != \"{me_id}\" OR assignee is EMPTY) ORDER BY updated DESC"));
+    let mut token = String::new();
+    let mut keys: Vec<String> = Vec::new();
+    loop {
+        let next = if token.is_empty() { String::new() } else { format!("&nextPageToken={}", encode_uri_component(&token)) };
+        let b = jira_get(&format!("/search/jql?jql={jql}&fields=summary&maxResults=100{next}"), Some(project))?;
+        keys.extend(b.get("issues").and_then(Value::as_array).into_iter().flatten().map(|i| text(i.get("key")).to_string()));
+        token = if truthy(b.get("isLast")) { String::new() } else { b.get("nextPageToken").and_then(Value::as_str).unwrap_or("").to_string() };
+        if token.is_empty() || keys.len() >= 400 {
+            break;
+        }
+    }
+    let mut saved = 0;
+    for key in &keys {
+        let Ok(comments) = jira_get(&format!("/issue/{key}/comment?maxResults=100"), Some(project)) else { continue };
+        for c in comments.get("comments").and_then(Value::as_array).cloned().unwrap_or_default() {
+            if c.get("author").and_then(|a| a.get("accountId")).and_then(Value::as_str) == Some(reviewer.as_str()) {
+                save_note(key, text(c.get("created")), &crate::server::routes::tasks::adf_text(c.get("body")), false);
+                saved += 1;
+            }
+        }
+    }
+    Ok(saved)
 }
 
 pub fn read_jira() -> Result<usize, String> {
@@ -122,6 +164,11 @@ pub fn read_jira() -> Result<usize, String> {
                 }
             }
             Err(_) => failures += 1,
+        }
+    }
+    for project in sites::jira_projects() {
+        if read_others(&project, days.min(30)).is_err() {
+            failures += 1;
         }
     }
     let count = issues.len();
@@ -323,7 +370,23 @@ pub fn learning_summary() -> Value {
         "weeks": week_list,
         "areas": areas.into_iter().map(|(_, a)| a).collect::<Vec<_>>(),
         "recentCauses": causes.iter().take(12).cloned().collect::<Vec<_>>(),
+        "reviewerNotes": reviewer_notes(&rows),
     })
+}
+
+fn reviewer_notes(rows: &[(String, Option<String>, Value)]) -> Value {
+    let notes: Vec<(String, String, String, bool)> = with_db(|db| {
+        let Ok(mut stmt) = db.prepare("SELECT key, at, text, mine FROM reviewer_notes ORDER BY at DESC LIMIT 80") else { return Vec::new() };
+        stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get::<_, i64>(3)? != 0))).map(|it| it.filter_map(Result::ok).collect()).unwrap_or_default()
+    });
+    let returns_of = |key: &str| rows.iter().find(|(k, _, _)| k == key).map(|(_, _, ev)| strings(ev.get("returns"))).unwrap_or_default();
+    let causes = load().get("causes").and_then(Value::as_array).cloned().unwrap_or_default();
+    Value::Array(notes.into_iter().map(|(key, at, body, mine)| {
+        let t = crate::core::time::parse(&at).unwrap_or(0);
+        let returned = returns_of(&key).iter().filter_map(|r| crate::core::time::parse(r)).any(|r| (r - t).abs() <= 3 * 3600 * 1000);
+        let cause = causes.iter().find(|c| text(c.get("key")) == key && text(c.get("at")) >= at.as_str()).map(|c| json!({ "cause": c.get("cause"), "note": c.get("note") })).unwrap_or(Value::Null);
+        json!({ "key": key, "at": at, "text": body, "mine": mine, "returned": returned, "cause": cause })
+    }).collect())
 }
 
 pub fn save_cause(key: &str, cause: &str, note: Option<&str>) -> bool {

@@ -26,3 +26,9 @@
 @media (max-width: 760px) {
   .learning-table { padding: 12px; }
 }
+
+.rn-list { display: flex; flex-direction: column; gap: 8px; }
+.rn-item { padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.rn-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 6px; }
+.rn-text { margin: 0; font-size: 13.5px; line-height: 1.45; white-space: pre-wrap; display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; overflow: hidden; }
+.rn-item:hover .rn-text { -webkit-line-clamp: unset; }

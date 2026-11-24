@@ -659,7 +659,7 @@ pub fn handle_search(input: &Value) -> Res {
     }
 }
 
-fn adf_text(node: Option<&Value>) -> String {
+pub(crate) fn adf_text(node: Option<&Value>) -> String {
     let Some(node) = node.filter(|n| truthy(Some(n))) else { return String::new() };
     let kind = str_of(node, "type");
     match kind {

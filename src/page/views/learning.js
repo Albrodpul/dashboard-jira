@@ -1,4 +1,4 @@
-import { h, button, when, toast, requestOrFail, render, empty, reviewer } from "../lib/base.js";
+import { h, button, when, toast, requestOrFail, render, empty, reviewer, ticketLink } from "../lib/base.js";
 import { t, LOCALE } from "../lib/i18n.js";
 
 let data = null;
@@ -107,4 +107,27 @@ export function renderLearning(root) {
     ),
   ];
   for (const b of blocks) if (b) root.appendChild(b);
+  const notes = reviewerNotes(data.reviewerNotes || []);
+  if (notes) root.appendChild(notes);
+}
+
+function reviewerNotes(list) {
+  if (!list.length) return null;
+  const who = reviewer();
+  return h("section", { class: "learning-table reviewer-notes" }, [
+    h("h3", { text: t("Lo que ha pedido {reviewer}", { reviewer: who }) }),
+    h("p", { class: "meta", text: t("Sus comentarios en Jira, en tus tickets y en los de los demás, con la causa que apuntó la sesión. Lo nuevo tiene que acabar en el criterio que leen el revisor y el probador.") }),
+    h("div", { class: "rn-list" }, list.map((n) =>
+      h("article", { class: "rn-item" }, [
+        h("div", { class: "rn-head" }, [
+          ticketLink(n.key),
+          h("span", { class: "meta", text: when(n.at) }),
+          h("span", { class: `chip${n.mine ? "" : " muted"}`, text: n.mine ? t("Tuyo") : t("De otro") }),
+          n.returned ? h("span", { class: "chip warn", text: t("Devuelta") }) : null,
+          n.cause ? h("span", { class: `chip${n.cause.cause === "new" ? " ok" : ""}`, title: n.cause.note || "", text: n.cause.cause === "written" ? t("Causa: ya escrita") : t("Causa: nueva") }) : null,
+        ]),
+        h("p", { class: "rn-text", text: n.text }),
+      ])
+    )),
+  ]);
 }

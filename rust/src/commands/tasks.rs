@@ -64,11 +64,16 @@ fn leftovers(t: &Value) -> Vec<String> {
     roots.iter().flat_map(|r| ["pruebas", ".attachments"].map(|dir| r.join(dir).join(&key))).filter(|f| f.exists()).map(|f| f.to_string_lossy().to_string()).collect()
 }
 
+fn reviewer_comment(t: &Value) -> bool {
+    t.get("kind").and_then(Value::as_str) == Some("comment") && crate::core::config::is_reviewer(&crate::core::projects::project_of(t), &text(t.get("noteBy")))
+}
+
 fn needs_cause(d: &Doc, t: &Value) -> bool {
-    if t.get("kind").and_then(Value::as_str) != Some("returned") {
+    let returned = t.get("kind").and_then(Value::as_str) == Some("returned");
+    if !returned && !reviewer_comment(t) {
         return false;
     }
-    let since_text = or(t.get("returnedAt"), t.get("at")).filter(|v| truthy(Some(v))).map(|v| text(Some(&v))).unwrap_or_default();
+    let since_text = (if returned { or(t.get("returnedAt"), t.get("at")) } else { or(t.get("commentedAt"), t.get("at")) }).filter(|v| truthy(Some(v))).map(|v| text(Some(&v))).unwrap_or_default();
     let since = crate::core::time::parse(&since_text).unwrap_or(0);
     let key = t.get("key");
     !d.get("causes").and_then(Value::as_array).is_some_and(|causes| causes.iter().any(|c| c.get("key") == key && c.get("at").and_then(Value::as_str).and_then(crate::core::time::parse).unwrap_or(0) >= since))
@@ -83,7 +88,10 @@ fn done_refusal(d: &Doc, t: &Value, again: &str) -> Vec<String> {
         out.push(format!("{key}: no se da por hecha porque quedan restos de la prueba en {list}. Bórralos (lo de pruebas/{key}/ y .attachments/{key}/ se borra al cerrar la tarea) y vuelve a lanzar {again}."));
     }
     if needs_cause(d, t) {
-        out.push(format!("{key}: no se da por hecha porque volvió de la revisión (devuelta) y no tiene apuntada la causa. Apúntala primero con «board.js cause {key} written|new <dónde estaba escrito, o qué se ha apuntado ahora>» y vuelve a lanzar {again}."));
+        let why = if reviewer_comment(t) { format!("llegó por un comentario de {} pidiendo cambios", text(t.get("noteBy"))) } else { "volvió de la revisión (devuelta)".to_string() };
+        let criteria = crate::core::config::reviewer_criteria().map(|c| format!(" Si es new, añade también su línea a {c}; si es written, revisa por qué el revisor no lo vio."))
+            .unwrap_or_default();
+        out.push(format!("{key}: no se da por hecha porque {why} y no tiene apuntada la causa. Apúntala primero con «board.js cause {key} written|new <dónde estaba escrito, o qué se ha apuntado ahora>» y vuelve a lanzar {again}.{criteria}"));
     }
     out
 }
@@ -158,6 +166,9 @@ pub fn add(args: &Args) -> Result<i32, String> {
             }
             if task.get("kind").and_then(Value::as_str) == Some("returned") {
                 task.insert("returnedAt".into(), Value::from(now()));
+            }
+            if task.get("kind").and_then(Value::as_str) == Some("comment") {
+                task.insert("commentedAt".into(), Value::from(now()));
             }
             let kind_text = text(kind.as_ref());
             if comes_back {
@@ -519,6 +530,10 @@ pub fn cause(args: &Args) -> Result<i32, String> {
     }
     let with_card = crate::jira::learning::save_cause(a, &cause, Some(&note));
     println!("causa de la devolución de {a} apuntada como «{cause}»{}", if with_card { "" } else { " (sin tarjeta en el tablero)" });
+    let advice = crate::core::config::cause_advice(&cause);
+    if !advice.is_empty() {
+        println!("{advice}");
+    }
     Ok(0)
 }
 

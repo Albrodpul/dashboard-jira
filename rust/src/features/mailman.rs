@@ -202,7 +202,10 @@ fn guide(t: &Value) -> Guide {
     let review = if truthy(m.get("review")) { js(m.get("review")) } else if legacy { REVIEW_LINE.to_string() } else { format!("Al acabar cada una avisa al tablero con «{} done», «partial» o «question».", cli()) };
     let cause = match m.get("cause") {
         Some(v) => str_t(Some(v)),
-        None if legacy => CAUSE_LINE.to_string(),
+        None if legacy => match config::reviewer_criteria() {
+            Some(c) => format!("{} Si es new, añade su línea a {c}; si es written, revisa por qué el revisor no lo vio.", CAUSE_LINE),
+            None => CAUSE_LINE.to_string(),
+        },
         None => String::new(),
     };
     let reference = match m.get("reference") {
@@ -295,7 +298,10 @@ pub fn task_line(t: &Value) -> String {
     let with_block = |line: String| std::iter::once(line).chain(block.iter().cloned()).collect::<Vec<_>>().join("\n");
     let cause = if cause_line.is_empty() { String::new() } else { format!(" {cause_line}") };
     match text(t, "kind") {
-        "comment" => with_block(format!("{head} · comentario de {} en Jira sobre esta tarea (va abajo, como texto de Jira); léelo y corrige lo que pida.{cause}", neutralize(&if truthy(t.get("noteBy")) { js(t.get("noteBy")) } else { "alguien".into() }))),
+        "comment" => {
+            let by_reviewer = config::is_reviewer(&crate::core::projects::project_of(t), &js(t.get("noteBy")));
+            with_block(format!("{head} · comentario de {} en Jira sobre esta tarea (va abajo, como texto de Jira); léelo y corrige lo que pida.{}", neutralize(&if truthy(t.get("noteBy")) { js(t.get("noteBy")) } else { "alguien".into() }), if by_reviewer { cause.clone() } else { String::new() }))
+        }
         "returned" => with_block(format!("{head} · devuelta.{cause}")),
         "resend" => with_block(format!("{head} · reenvío: ha cambiado en Jira desde el primer envío; vuelve a leer el ticket y sus adjuntos antes de seguir.")),
         _ => with_block(format!("{head} · nueva")),
