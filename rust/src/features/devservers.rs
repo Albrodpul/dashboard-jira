@@ -168,7 +168,7 @@ pub fn spawn_hidden(command: &str, args: &[String], cwd: &str, log: &str) -> Res
     let line = format!("/d /s /c \"{} >> \"{}\" 2>&1\"", words.join(" "), log);
     let lit = |s: &str| format!("'{}'", s.replace('\'', "''"));
     let ps = format!("(Start-Process -FilePath cmd.exe -ArgumentList {} -WorkingDirectory {} -WindowStyle Hidden -PassThru).Id", lit(&line), lit(cwd));
-    let mut cmd = Command::new("powershell.exe");
+    let mut cmd = crate::core::platform::cmd("powershell.exe");
     cmd.args(["-NoProfile", "-NonInteractive", "-Command", &ps]);
     match run_with_timeout(&mut cmd, None, 30000) {
         Ok(r) => {
@@ -250,11 +250,11 @@ pub fn start(id: &str) -> Result<bool, String> {
         std::fs::write(pid_file(id), pid.to_string()).map_err(|e| e.to_string())?;
     } else {
         let mut cmd = if truthy(s.get("shell")) {
-            let mut c = Command::new("/bin/sh");
+            let mut c = crate::core::platform::cmd("/bin/sh");
             c.arg("-c").arg(std::iter::once(command.clone()).chain(args.iter().cloned()).collect::<Vec<_>>().join(" "));
             c
         } else {
-            let mut c = Command::new(&command);
+            let mut c = crate::core::platform::cmd(&command);
             c.args(&args);
             c
         };
@@ -285,7 +285,7 @@ pub fn stop(id: &str) -> Result<bool, String> {
     let port = port_of(&s);
     if let Some(st) = s.get("stop").filter(|v| truthy(Some(v))) {
         let cwd = resolve(&text(&s, "root"), s.get("cwd").and_then(Value::as_str).filter(|c| !c.is_empty()).unwrap_or("."));
-        let mut cmd = Command::new(text(st, "command"));
+        let mut cmd = crate::core::platform::cmd(text(st, "command"));
         cmd.args(args_of(st)).current_dir(cwd);
         let _ = run_with_timeout(&mut cmd, None, 30000);
         let mut i = 0;

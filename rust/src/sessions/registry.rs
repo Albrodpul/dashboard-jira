@@ -116,7 +116,7 @@ fn alive(pid: i64) -> bool {
 
 #[cfg(not(unix))]
 fn alive(pid: i64) -> bool {
-    std::process::Command::new("tasklist").args(["/FI", &format!("PID eq {pid}"), "/NH"]).output().map(|o| String::from_utf8_lossy(&o.stdout).contains(&pid.to_string())).unwrap_or(false)
+    crate::core::platform::cmd("tasklist").args(["/FI", &format!("PID eq {pid}"), "/NH"]).output().map(|o| String::from_utf8_lossy(&o.stdout).contains(&pid.to_string())).unwrap_or(false)
 }
 
 pub fn transcript_of(session_id: &str) -> Option<PathBuf> {
@@ -187,13 +187,13 @@ fn keep_shells(list: Vec<String>) -> Vec<String> {
 fn refresh_shell_commands() {
     std::thread::spawn(|| {
         if !cfg!(windows) {
-            if let Some(out) = output_within(std::process::Command::new("ps").args(["-axww", "-o", "command="]), Duration::from_millis(20000)) {
+            if let Some(out) = output_within(crate::core::platform::cmd("ps").args(["-axww", "-o", "command="]), Duration::from_millis(20000)) {
                 *SHELL_COMMANDS.lock().unwrap() = keep_shells(out.split('\n').map(String::from).collect());
             }
             return;
         }
         let script = "Get-CimInstance Win32_Process -Filter \"Name='bash.exe'\" | ForEach-Object { $_.CommandLine } | ConvertTo-Json -Compress";
-        let Some(out) = output_within(std::process::Command::new("powershell").args(["-NoProfile", "-Command", script]), Duration::from_millis(20000)) else { return };
+        let Some(out) = output_within(crate::core::platform::cmd("powershell").args(["-NoProfile", "-Command", script]), Duration::from_millis(20000)) else { return };
         let trimmed = out.trim();
         let Some(list) = json::parse(if trimmed.is_empty() { "[]" } else { trimmed }) else { return };
         let items = match list {
@@ -574,7 +574,7 @@ pub fn reconcile(live: &[Value]) {
 
 pub fn sessions_cli(args: &[&str]) -> Result<String, String> {
     let exe = crate::core::platform::self_exe().map_err(|e| e.to_string())?;
-    let out = std::process::Command::new(&exe).arg("routes").args(args).stdin(std::process::Stdio::null()).output().map_err(|e| e.to_string())?;
+    let out = crate::core::platform::cmd(&exe).arg("routes").args(args).stdin(std::process::Stdio::null()).output().map_err(|e| e.to_string())?;
     if !out.status.success() {
         return Err(format!("Command failed: {} routes {}\n{}", exe.display(), args.join(" "), String::from_utf8_lossy(&out.stderr)));
     }
@@ -761,11 +761,11 @@ fn kill_group(pid: u32) {
 
 #[cfg(not(unix))]
 fn kill_group(pid: u32) {
-    let _ = std::process::Command::new("taskkill").args(["/pid", &pid.to_string(), "/t", "/f"]).output();
+    let _ = crate::core::platform::cmd("taskkill").args(["/pid", &pid.to_string(), "/t", "/f"]).output();
 }
 
 pub fn run_bounded(exe: &str, args: &[String], opts: &RunOptions, ms: u64) -> Bounded {
-    let mut cmd = std::process::Command::new(exe);
+    let mut cmd = crate::core::platform::cmd(exe);
     cmd.args(args).stdin(std::process::Stdio::null()).stdout(std::process::Stdio::piped()).stderr(std::process::Stdio::null());
     if let Some(cwd) = &opts.cwd {
         cmd.current_dir(cwd);

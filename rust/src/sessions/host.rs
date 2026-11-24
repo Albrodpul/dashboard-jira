@@ -103,7 +103,7 @@ static ATTACH: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^/attach/([0-9a-f
 static SESSION_FILE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^\d+\.json$").unwrap());
 
 pub static HOST_HEAD: LazyLock<Option<String>> = LazyLock::new(|| {
-    let out = std::process::Command::new("git").arg("-C").arg(crate::core::config::repo()).args(["rev-parse", "HEAD"]).output().ok()?;
+    let out = crate::core::platform::cmd("git").arg("-C").arg(crate::core::config::repo()).args(["rev-parse", "HEAD"]).output().ok()?;
     out.status.success().then(|| String::from_utf8_lossy(&out.stdout).trim().to_string())
 });
 pub static HOST_STARTED: LazyLock<String> = LazyLock::new(crate::core::time::now);
@@ -1112,7 +1112,7 @@ pub fn ensure_host() -> bool {
         return true;
     }
     let Ok(exe) = crate::core::platform::self_exe() else { return false };
-    let mut cmd = std::process::Command::new(exe);
+    let mut cmd = crate::core::platform::cmd(exe);
     cmd.arg("host").stdin(std::process::Stdio::null()).stdout(std::process::Stdio::null()).stderr(std::process::Stdio::null()).env_clear().envs(crate::sessions::registry::clean_env());
     #[cfg(unix)]
     {

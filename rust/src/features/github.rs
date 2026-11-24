@@ -6,7 +6,7 @@ use crate::core::time::{iso, now, now_ms};
 use regex::Regex;
 use serde_json::{Map, Value, json};
 use std::collections::HashSet;
-use std::process::Command;
+
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{LazyLock, Mutex};
 
@@ -21,7 +21,7 @@ static ME: LazyLock<Mutex<Option<String>>> = LazyLock::new(|| Mutex::new(None));
 static RUNNING: AtomicBool = AtomicBool::new(false);
 
 fn gh(args: &[String]) -> Option<Value> {
-    let mut cmd = Command::new("gh");
+    let mut cmd = crate::core::platform::cmd("gh");
     cmd.args(args);
     let out = crate::features::devservers::run_with_timeout(&mut cmd, None, 30000).ok()?;
     if !out.status.success() {

@@ -62,7 +62,7 @@ async function visit(page, view, problems) {
 "#;
 
 fn head() -> Option<String> {
-    let out = std::process::Command::new("git").arg("-C").arg(crate::core::config::repo()).args(["rev-parse", "--short", "HEAD"]).stderr(std::process::Stdio::null()).output().ok()?;
+    let out = crate::core::platform::cmd("git").arg("-C").arg(crate::core::config::repo()).args(["rev-parse", "--short", "HEAD"]).stderr(std::process::Stdio::null()).output().ok()?;
     if !out.status.success() {
         return None;
     }
@@ -77,7 +77,7 @@ fn playwright() -> Option<PathBuf> {
 
 pub fn run_smoke() -> Result<Value, String> {
     let Some(pw) = playwright() else { return Ok(json!({ "skipped": "no está instalado Playwright en scripts/mcp" })) };
-    let out = std::process::Command::new("node")
+    let out = crate::core::platform::cmd("node")
         .arg("-e")
         .arg(DRIVER)
         .arg(pw)
@@ -101,7 +101,7 @@ fn memory_free_percent() -> Option<u32> {
     if !cfg!(target_os = "macos") {
         return None;
     }
-    let out = std::process::Command::new("/usr/bin/memory_pressure").stderr(std::process::Stdio::null()).output().ok()?;
+    let out = crate::core::platform::cmd("/usr/bin/memory_pressure").stderr(std::process::Stdio::null()).output().ok()?;
     let text = String::from_utf8_lossy(&out.stdout);
     let line = text.lines().find(|l| l.contains("free percentage"))?;
     line.rsplit(':').next()?.trim().trim_end_matches('%').parse().ok()

@@ -139,7 +139,7 @@ pub fn start_reading() -> bool {
         READING.store(false, Ordering::SeqCst);
         return true;
     };
-    let mut cmd = std::process::Command::new(exe);
+    let mut cmd = crate::core::platform::cmd(exe);
     cmd.arg("learning-read").stdin(std::process::Stdio::null()).stdout(std::process::Stdio::null()).stderr(std::process::Stdio::null());
     #[cfg(unix)]
     {

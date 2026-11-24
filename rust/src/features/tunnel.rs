@@ -4,7 +4,7 @@ use crate::core::json::{parse, stringify, truthy};
 use crate::core::time::{now, now_ms};
 use serde_json::{Value, json};
 use std::path::PathBuf;
-use std::process::{Command, Stdio};
+use std::process::Stdio;
 use std::sync::{LazyLock, Mutex};
 use std::time::Duration;
 
@@ -115,7 +115,7 @@ fn target() -> Result<(String, String), String> {
 
 fn ssh_under(parent: u32) -> Option<u32> {
     let script = format!("(Get-CimInstance Win32_Process -Filter \"ParentProcessId={parent} AND Name='ssh.exe'\" | Select-Object -First 1).ProcessId");
-    let mut cmd = Command::new("powershell.exe");
+    let mut cmd = crate::core::platform::cmd("powershell.exe");
     cmd.args(["-NoProfile", "-NonInteractive", "-Command", &script]);
     let out = crate::features::devservers::run_with_timeout(&mut cmd, None, 20000).ok()?;
     String::from_utf8_lossy(&out.stdout).trim().parse::<u32>().ok().filter(|p| *p != 0)
@@ -147,7 +147,7 @@ pub fn open() -> Result<Value, String> {
     } else {
         let log = std::fs::File::create(&*LOG).map_err(|e| e.to_string())?;
         let err = log.try_clone().map_err(|e| e.to_string())?;
-        let mut cmd = Command::new("ssh");
+        let mut cmd = crate::core::platform::cmd("ssh");
         cmd.args(&args).stdin(Stdio::null()).stdout(Stdio::from(log)).stderr(Stdio::from(err));
         #[cfg(unix)]
         std::os::unix::process::CommandExt::process_group(&mut cmd, 0);
@@ -228,7 +228,7 @@ mod tests {
     }
 
     fn fake_tunnel() -> std::process::Child {
-        let child = Command::new("sleep").arg("60").stdin(Stdio::null()).spawn().unwrap();
+        let child = crate::core::platform::cmd("sleep").arg("60").stdin(Stdio::null()).spawn().unwrap();
         std::fs::write(&*STATE, stringify(&json!({ "pid": child.id(), "host": "u@peer", "label": "Mac", "since": "2026-11-09T10:00:00.000Z" }))).unwrap();
         child
     }

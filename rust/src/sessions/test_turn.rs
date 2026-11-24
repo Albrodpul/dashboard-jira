@@ -111,7 +111,7 @@ pub fn is_back_test(command: &str) -> bool {
 }
 
 fn processes() -> Vec<Process> {
-    let Ok(out) = std::process::Command::new("/bin/ps").args(["-axo", "pid=,ppid=,command="]).output() else { return Vec::new() };
+    let Ok(out) = crate::core::platform::cmd("/bin/ps").args(["-axo", "pid=,ppid=,command="]).output() else { return Vec::new() };
     if !out.status.success() {
         return Vec::new();
     }

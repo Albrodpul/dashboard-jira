@@ -95,7 +95,7 @@ fn hhmm(iso: &str) -> String {
 
 fn self_command(args: &[String]) -> Command {
     let exe = crate::core::platform::self_exe().unwrap_or_else(|_| "tower".into());
-    let mut cmd = Command::new(exe);
+    let mut cmd = crate::core::platform::cmd(exe);
     cmd.args(args).env("TOWER_WORKSPACE", crate::core::config::workspace());
     cmd
 }

@@ -6,7 +6,7 @@ use crate::core::time::{Clock, madrid_now, now, now_ms};
 use regex::Regex;
 use serde_json::{Map, Value, json};
 use std::path::PathBuf;
-use std::process::{Child, Command, Stdio};
+use std::process::{Child, Stdio};
 use std::sync::{LazyLock, Mutex};
 use std::time::Duration;
 
@@ -28,7 +28,7 @@ fn log(m: &str) {
 }
 
 fn run(program: &str, args: &[&str], ms: u64) -> Option<std::process::Output> {
-    let mut cmd = Command::new(program);
+    let mut cmd = crate::core::platform::cmd(program);
     cmd.args(args);
     crate::features::devservers::run_with_timeout(&mut cmd, None, ms).ok()
 }
@@ -141,7 +141,7 @@ fn keep_screen(on: bool) {
         *keeper = None;
     }
     if on && keeper.is_none() {
-        if let Ok(child) = Command::new("/usr/bin/caffeinate").args(["-d", "-w", &std::process::id().to_string()]).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null()).spawn() {
+        if let Ok(child) = crate::core::platform::cmd("/usr/bin/caffeinate").args(["-d", "-w", &std::process::id().to_string()]).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null()).spawn() {
             *keeper = Some(child);
         }
         log("tapa abierta en horario: la pantalla no se apaga");
@@ -156,7 +156,7 @@ fn keep_screen(on: bool) {
 
 fn sleep_now() {
     std::thread::spawn(|| {
-        let _ = Command::new("/usr/bin/pmset").arg("sleepnow").stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null()).status();
+        let _ = crate::core::platform::cmd("/usr/bin/pmset").arg("sleepnow").stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null()).status();
     });
 }
 

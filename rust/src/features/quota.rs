@@ -62,7 +62,7 @@ fn read_credentials() -> Option<String> {
     if !cfg!(target_os = "macos") {
         return None;
     }
-    let mut cmd = std::process::Command::new("/usr/bin/security");
+    let mut cmd = crate::core::platform::cmd("/usr/bin/security");
     cmd.args(["find-generic-password", "-s", "Claude Code-credentials", "-w"]);
     let out = crate::features::devservers::run_with_timeout(&mut cmd, None, 10000).ok()?;
     out.status.success().then(|| String::from_utf8_lossy(&out.stdout).into_owned())

@@ -2,7 +2,7 @@ use regex::Regex;
 use std::collections::HashMap;
 use std::io::Read;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::Stdio;
 use std::sync::LazyLock;
 use std::time::{Duration, Instant};
 
@@ -51,7 +51,7 @@ pub fn username() -> String {
 }
 
 pub fn run_output(cmd: &str, args: &[String], timeout_ms: u64, cwd: Option<&Path>, env: &[(&str, &str)]) -> Output {
-    let mut c = Command::new(cmd);
+    let mut c = crate::core::platform::cmd(cmd);
     c.args(args).stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped());
     if let Some(dir) = cwd {
         c.current_dir(dir);
@@ -100,7 +100,7 @@ fn run(cmd: &str, args: &[&str], timeout_ms: u64) -> String {
 }
 
 pub fn spawn_detached(cmd: &str, args: &[String], env: Option<&HashMap<String, String>>) -> Option<u32> {
-    let mut c = Command::new(cmd);
+    let mut c = crate::core::platform::cmd(cmd);
     c.args(args).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null());
     if let Some(env) = env {
         c.env_clear().envs(env);
@@ -279,3 +279,14 @@ pub fn stop_inheriting_std_handles() {
 
 #[cfg(not(windows))]
 pub fn stop_inheriting_std_handles() {}
+
+pub fn cmd<S: AsRef<std::ffi::OsStr>>(program: S) -> std::process::Command {
+    #[allow(unused_mut)]
+    let mut c = std::process::Command::new(program);
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        c.creation_flags(0x08000000);
+    }
+    c
+}

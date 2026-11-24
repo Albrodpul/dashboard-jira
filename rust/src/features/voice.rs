@@ -7,7 +7,7 @@ use serde_json::json;
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::process::Command;
+
 use std::sync::{LazyLock, Mutex};
 
 static VOICE_DIR: LazyLock<PathBuf> = LazyLock::new(|| DATA_DIR.join("voice"));
@@ -24,7 +24,7 @@ pub fn voice_available() -> bool {
 
 fn transcribe(file: &std::path::Path) -> Result<String, String> {
     let language = crate::core::config::voice().get("language").and_then(|v| v.as_str()).filter(|s| !s.is_empty()).unwrap_or("es").to_string();
-    let mut cmd = Command::new(&*WHISPER_BIN);
+    let mut cmd = crate::core::platform::cmd(&*WHISPER_BIN);
     cmd.arg("-m").arg(&*WHISPER_MODEL).arg("-f").arg(file).args(["-l", &language, "-nt", "-np", "-t", "6"]);
     let out = crate::features::devservers::run_with_timeout(&mut cmd, None, 120000).map_err(|_| "no se pudo transcribir la nota".to_string())?;
     if !out.status.success() || out.stdout.len() > 1024 * 1024 {

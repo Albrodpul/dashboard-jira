@@ -131,9 +131,9 @@ fn adf_text(node: Option<&Value>) -> String {
 
 fn board(cmd: &str, data: &Value) -> String {
     use std::io::Write;
-    use std::process::{Command, Stdio};
+    use std::process::Stdio;
     let Ok(exe) = crate::core::platform::self_exe() else { return String::new() };
-    let Ok(mut child) = Command::new(exe).arg(cmd).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::null()).spawn() else { return String::new() };
+    let Ok(mut child) = crate::core::platform::cmd(exe).arg(cmd).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::null()).spawn() else { return String::new() };
     if let Some(mut stdin) = child.stdin.take() {
         let _ = stdin.write_all(stringify(data).as_bytes());
     }

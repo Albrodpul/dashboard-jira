@@ -3,11 +3,11 @@ use crate::commands::args::{Args, json};
 use crate::core::data::{BASE_URL, DATA_DIR, PORT, pause, read_stdin};
 use serde_json::json;
 use std::io::{IsTerminal, Write};
-use std::process::{Command, Stdio};
+use std::process::Stdio;
 
 pub fn spawn_self_detached(args: &[&str]) -> bool {
     let Ok(exe) = crate::core::platform::self_exe() else { return false };
-    let mut command = Command::new(exe);
+    let mut command = crate::core::platform::cmd(exe);
     command.args(args).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null());
     #[cfg(unix)]
     {

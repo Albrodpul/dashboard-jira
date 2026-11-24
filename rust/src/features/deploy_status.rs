@@ -7,7 +7,7 @@ use regex::Regex;
 use serde_json::{Map, Value, json};
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::process::Command;
+
 use std::sync::{Arc, Condvar, LazyLock, Mutex};
 use std::time::Duration;
 
@@ -32,7 +32,7 @@ pub struct Pairing {
 }
 
 fn run(bin: &str, args: &[String]) -> Result<String, String> {
-    let mut cmd = Command::new(bin);
+    let mut cmd = crate::core::platform::cmd(bin);
     cmd.args(args);
     match crate::features::devservers::run_with_timeout(&mut cmd, None, 60000) {
         Ok(out) if out.status.success() => Ok(String::from_utf8_lossy(&out.stdout).into_owned()),

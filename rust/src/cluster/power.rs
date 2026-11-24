@@ -3,7 +3,7 @@ use crate::core::data::DATA_DIR;
 use serde_json::Value;
 
 fn caffeinate_running(pid: i64) -> Result<bool, ()> {
-    let out = std::process::Command::new("/bin/ps").args(["-o", "comm=", "-p", &pid.to_string()]).output().map_err(|_| ())?;
+    let out = crate::core::platform::cmd("/bin/ps").args(["-o", "comm=", "-p", &pid.to_string()]).output().map_err(|_| ())?;
     if !out.status.success() {
         return Err(());
     }

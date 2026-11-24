@@ -6,7 +6,7 @@ use regex::Regex;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+
 use std::sync::{Arc, Condvar, LazyLock, Mutex};
 
 static SPEECH_DIR: LazyLock<PathBuf> = LazyLock::new(|| DATA_DIR.join("speech"));
@@ -42,7 +42,7 @@ fn speakable(text: &str) -> String {
 }
 
 fn run(bin: &Path, args: &[&str], input: Option<&str>) -> Result<(), String> {
-    let mut cmd = Command::new(bin);
+    let mut cmd = crate::core::platform::cmd(bin);
     cmd.args(args);
     let out = crate::features::devservers::run_with_timeout(&mut cmd, input.map(str::as_bytes), 120000).map_err(|e| e.to_string())?;
     if out.status.success() { Ok(()) } else { Err(String::from_utf8_lossy(&out.stderr).into_owned()) }

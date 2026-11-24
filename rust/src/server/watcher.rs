@@ -104,7 +104,7 @@ fn exit_when_orphaned() {
 }
 
 fn head() -> Option<String> {
-    let out = std::process::Command::new("git")
+    let out = crate::core::platform::cmd("git")
         .arg("-C")
         .arg(crate::core::config::repo())
         .args(["rev-parse", "HEAD"])

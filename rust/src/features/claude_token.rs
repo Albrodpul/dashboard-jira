@@ -6,7 +6,7 @@ use regex::Regex;
 use serde_json::{Map, Value, json};
 use std::io::{Read, Write};
 use std::path::PathBuf;
-use std::process::{Command, Stdio};
+use std::process::Stdio;
 use std::sync::{Arc, LazyLock, Mutex};
 
 const NAME: &str = "CLAUDE_CODE_OAUTH_TOKEN";
@@ -34,12 +34,12 @@ static CACHED: LazyLock<Mutex<Option<Cached>>> = LazyLock::new(|| Mutex::new(Non
 static JOB: LazyLock<Mutex<Option<Arc<Mutex<Job>>>>> = LazyLock::new(|| Mutex::new(None));
 
 fn quiet(program: &str, args: &[&str]) -> bool {
-    Command::new(program).args(args).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null()).status().is_ok_and(|s| s.success())
+    crate::core::platform::cmd(program).args(args).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null()).status().is_ok_and(|s| s.success())
 }
 
 fn windows(token: Option<&str>) -> Result<(), String> {
     let script = if token.is_some() { format!("[Environment]::SetEnvironmentVariable('{NAME}', $env:NEW_VALUE, 'User')") } else { format!("[Environment]::SetEnvironmentVariable('{NAME}', $null, 'User')") };
-    let ok = Command::new("powershell.exe").args(["-NoProfile", "-NonInteractive", "-Command", &script]).env("NEW_VALUE", token.unwrap_or("")).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null()).status().map_err(|e| e.to_string())?;
+    let ok = crate::core::platform::cmd("powershell.exe").args(["-NoProfile", "-NonInteractive", "-Command", &script]).env("NEW_VALUE", token.unwrap_or("")).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null()).status().map_err(|e| e.to_string())?;
     if ok.success() { Ok(()) } else { Err(format!("Command failed: powershell.exe -NoProfile -NonInteractive -Command {script}")) }
 }
 

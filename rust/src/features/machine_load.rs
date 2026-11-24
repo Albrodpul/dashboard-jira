@@ -1,11 +1,11 @@
 use serde_json::{Value, json};
-use std::process::{Command, Stdio};
+use std::process::Stdio;
 use std::sync::{LazyLock, Mutex};
 
 static LOAD: LazyLock<Mutex<Value>> = LazyLock::new(|| Mutex::new(Value::Null));
 
 fn run(cmd: &str, args: &[&str]) -> String {
-    Command::new(cmd).args(args).stdin(Stdio::null()).stderr(Stdio::null()).output().map(|o| String::from_utf8_lossy(&o.stdout).to_string()).unwrap_or_default()
+    crate::core::platform::cmd(cmd).args(args).stdin(Stdio::null()).stderr(Stdio::null()).output().map(|o| String::from_utf8_lossy(&o.stdout).to_string()).unwrap_or_default()
 }
 
 fn cores() -> f64 {
