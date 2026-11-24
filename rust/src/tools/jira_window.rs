@@ -415,7 +415,22 @@ fn window(args: &[String]) -> Result<i32, String> {
             cards.push(Value::Object(card));
             continue;
         }
-        if created.is_some() || e0.assignee_id != site.me || closed {
+        if created.is_some() || closed {
+            continue;
+        }
+        let handed = evs.iter().filter(|e| e.kind == "assignee").last();
+        if let Some(handed) = handed.filter(|_| available_or_mine) {
+            let returned_or_comment = evs.iter().any(|e| e.kind == "rejected" || e.kind == "comment" || (e.kind == "status" && site.returned_test(&e.text)));
+            if !returned_or_comment {
+                let mut card = base_card(handed, &area_of);
+                card.insert("kind".into(), Value::from("new"));
+                card.insert("note".into(), Value::from(if e0.assignee_id.is_some() { format!("{} te la asigna a las {}.", handed.who, hhmm(&handed.t)) } else { format!("{} la deja sin asignar a las {}.", handed.who, hhmm(&handed.t)) }));
+                card.insert("noteBy".into(), Value::from(handed.who.as_str()));
+                cards.push(Value::Object(card));
+                continue;
+            }
+        }
+        if e0.assignee_id != site.me {
             continue;
         }
         let returned = evs.iter().filter(|e| e.kind == "rejected" || (e.kind == "status" && site.returned_test(&e.text))).last();
