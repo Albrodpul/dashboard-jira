@@ -470,6 +470,7 @@ pub fn serve() {
             std::process::exit(0);
         }
     }
+    raise_file_limit();
     let mut tries = 0;
     let listener = loop {
         match bind(listen_port()) {
@@ -500,12 +501,43 @@ fn bind(port: u16) -> Result<Listeners, String> {
     Ok(Listeners { front, inner })
 }
 
+const WORKERS: usize = 48;
+
+fn raise_file_limit() {
+    #[cfg(unix)]
+    unsafe {
+        let mut lim = libc::rlimit { rlim_cur: 0, rlim_max: 0 };
+        if libc::getrlimit(libc::RLIMIT_NOFILE, &mut lim) == 0 {
+            let want: libc::rlim_t = 10240;
+            let target = if lim.rlim_max == libc::RLIM_INFINITY { want } else { want.min(lim.rlim_max) };
+            if lim.rlim_cur < target {
+                lim.rlim_cur = target;
+                let _ = libc::setrlimit(libc::RLIMIT_NOFILE, &lim);
+            }
+        }
+    }
+}
+
 fn run(listeners: Listeners) {
     let Listeners { front: listener, inner } = listeners;
     let inner_port = inner.server_addr().to_ip().map(|a| a.port()).unwrap_or(0);
+    let (tx, rx) = std::sync::mpsc::channel::<tiny_http::Request>();
+    let rx = std::sync::Arc::new(std::sync::Mutex::new(rx));
+    for _ in 0..WORKERS {
+        let rx = rx.clone();
+        std::thread::spawn(move || loop {
+            let next = rx.lock().unwrap_or_else(|p| p.into_inner()).recv();
+            match next {
+                Ok(request) => {
+                    let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| handle(request)));
+                }
+                Err(_) => return,
+            }
+        });
+    }
     std::thread::spawn(move || {
         for request in inner.incoming_requests() {
-            std::thread::spawn(move || handle(request));
+            let _ = tx.send(request);
         }
     });
     for stream in listener.incoming() {

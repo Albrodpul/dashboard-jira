@@ -24,7 +24,11 @@ pub fn spawn_self_detached(args: &[&str]) -> bool {
 }
 
 fn launch_server(message: &str) {
-    let via_agent = crate::core::mac_agent::IS_MAC && crate::core::mac_agent::loaded() && crate::core::mac_agent::kickstart();
+    launch_server_with(message, false)
+}
+
+fn launch_server_with(message: &str, force: bool) {
+    let via_agent = crate::core::mac_agent::IS_MAC && crate::core::mac_agent::loaded() && (if force { crate::core::mac_agent::restart_agent() } else { crate::core::mac_agent::kickstart() });
     if !via_agent {
         spawn_self_detached(&["serve"]);
     }
@@ -58,16 +62,16 @@ fn post_status(route: &str) -> Option<u16> {
 
 pub fn restart(_args: &Args) -> Result<i32, String> {
     match post_status("/api/quit") {
-        None => launch_server("Tablero reiniciado"),
+        None => launch_server_with("Tablero reiniciado", true),
         Some(200) => {
             pause(400);
-            launch_server("Tablero reiniciado");
+            launch_server_with("Tablero reiniciado", true);
         }
         Some(_) => match post_status("/api/salir") {
-            None => launch_server("Tablero reiniciado"),
+            None => launch_server_with("Tablero reiniciado", true),
             Some(200) => {
                 pause(400);
-                launch_server("Tablero reiniciado");
+                launch_server_with("Tablero reiniciado", true);
             }
             Some(_) => println!("El servidor en marcha no sabe reiniciarse: cierra a mano el proceso node del puerto {} (por su PID, nunca `taskkill /IM node.exe`) y ejecuta `ensure`.", *PORT),
         },

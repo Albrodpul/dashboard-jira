@@ -76,6 +76,10 @@ pub fn kickstart() -> bool {
     launchctl(&["kickstart", &target()], 5000)
 }
 
+pub fn restart_agent() -> bool {
+    launchctl(&["kickstart", "-k", &target()], 10000)
+}
+
 pub fn install(workspace: &Path, log_file: &Path) -> bool {
     if !IS_MAC || under_agent() {
         return false;
