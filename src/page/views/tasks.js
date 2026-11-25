@@ -612,7 +612,7 @@ let folded = (() => {
 
 function foldableEpic(column, g, head, rows) {
   const id = `${column}|${g.project || mainProject()}|${g.key || "no-epic"}`;
-  const box = h("div", { class: `board-epic${column === "sent" ? " sent-epic" : ""}${folded.has(id) ? " folded" : ""}` });
+  const box = h("div", { class: `board-epic${column === "pending" ? "" : " sent-epic"}${folded.has(id) ? " folded" : ""}` });
   const toggle = h("button", { type: "button", class: "epic-fold", "aria-expanded": String(!folded.has(id)), title: tr("Plegar o desplegar"), "aria-label": tr("Plegar o desplegar {name}", { name: g.name }) });
   toggle.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>';
   toggle.addEventListener("click", () => {
@@ -661,9 +661,27 @@ function sentRow(t) {
   ]);
 }
 
+function doneRow(t) {
+  const flag = t.reviewedAt ? [tr("En revisión"), "review"] : t.manual ? [tr("A mano"), ""] : null;
+  return h("button", { type: "button", class: `board-row${state.ticket === t.id ? " open" : ""}`, title: `${t.title} · ${areaName(t.area) || ""}`, onclick: () => openDrawer(t) }, [
+    h("span", { class: "key", text: t.key }),
+    h("span", { class: "board-row-title", text: t.title }),
+    flag ? h("span", { class: `board-tag ${flag[1]}`.trim(), text: flag[0] }) : null,
+    h("span", { class: "time", text: when(t.updatedAt || t.sentAt || t.at) }),
+  ]);
+}
+
+function doneColumn(list) {
+  return epicGroups(list).map((g) => foldableEpic("done", g, epicHead(g), g.items.map(doneRow)));
+}
+
+function epicHead(g) {
+  return h("div", { class: "board-epic-head" }, [g.project && g.project !== mainProject() ? projectChip(g.project) : null, g.key ? h("span", { class: "group-key", text: g.key }) : null, h("span", { class: "board-epic-name", text: g.name }), h("span", { class: "n epic-n", text: String(g.items.length) })]);
+}
+
 function sentColumn(list) {
   return epicGroups(list).map((g) =>
-    foldableEpic("sent", g, h("div", { class: "board-epic-head" }, [g.project && g.project !== mainProject() ? projectChip(g.project) : null, g.key ? h("span", { class: "group-key", text: g.key }) : null, h("span", { class: "board-epic-name", text: g.name }), h("span", { class: "n epic-n", text: String(g.items.length) })]), g.items.map(sentRow))
+    foldableEpic("sent", g, epicHead(g), g.items.map(sentRow))
   );
 }
 
@@ -709,7 +727,7 @@ export function renderBoard(root) {
   const columns = BOARD_COLUMNS.map(([id, title, statuses]) => {
     const list = shown.filter((t) => statuses.includes(t.status)).sort((a, b) => String(b.sentAt || b.at || "").localeCompare(String(a.sentAt || a.at || "")));
     const head = h("div", { class: "board-head" }, [h("span", { text: title }), h("span", { class: "n", text: String(list.length) })]);
-    const body = !list.length ? [h("div", { class: "board-empty" }, [nutria(id === "done" ? "idle" : "free", "mid", id === "done" ? "box" : null), h("span", { text: tr("Ninguna") })])] : id === "pending" ? pendingColumn(list) : id === "sent" ? sentColumn(list) : list.map(boardCard);
+    const body = !list.length ? [h("div", { class: "board-empty" }, [nutria(id === "done" ? "idle" : "free", "mid", id === "done" ? "box" : null), h("span", { text: tr("Ninguna") })])] : id === "pending" ? pendingColumn(list) : id === "sent" ? sentColumn(list) : id === "done" ? doneColumn(list) : list.map(boardCard);
     if (id === "done") {
       const all = reviewAllButton(list);
       const inReview = list.filter((t) => t.reviewedAt);

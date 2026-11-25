@@ -236,3 +236,4 @@ details.send-options > summary { cursor: pointer; font-size: 12.5px; color: var(
 .board-epic.folded .epic-fold svg { transform: rotate(-90deg); }
 .board-epic.folded .epic-rows, .board-epic.folded .board-epic-head .group-actions { display: none; }
 .board-epic-head .epic-n { order: 0; }
+.board-tag.review { color: var(--ok); }
