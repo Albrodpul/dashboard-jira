@@ -616,6 +616,25 @@ function pendingColumn(list) {
   );
 }
 
+function epicGroups(list) {
+  const byEpic = new Map();
+  for (const t of list) {
+    const k = `${t.project || mainProject()}|${t.epicKey || "no-epic"}`;
+    if (!byEpic.has(k)) byEpic.set(k, { project: t.project, key: t.epicKey, name: t.epicName || tr("Sin epic"), items: [] });
+    byEpic.get(k).items.push(t);
+  }
+  return [...byEpic.values()].sort((a, b) => (a.key ? 0 : 1) - (b.key ? 0 : 1) || b.items.length - a.items.length || a.name.localeCompare(b.name));
+}
+
+function sentColumn(list) {
+  return epicGroups(list).map((g) =>
+    h("div", { class: "board-epic sent-epic" }, [
+      h("div", { class: "board-epic-head", title: mixedProjects() ? projectName(g.project || mainProject()) : undefined }, [g.key ? h("span", { class: "group-key", text: g.key }) : null, h("span", { class: "board-epic-name", text: g.name }), h("span", { class: "n", text: String(g.items.length) })]),
+      ...g.items.map(boardCard),
+    ])
+  );
+}
+
 let boardQuery = "";
 const fold = (x) => String(x || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 const matches = (t, words) => {
@@ -658,7 +677,7 @@ export function renderBoard(root) {
   const columns = BOARD_COLUMNS.map(([id, title, statuses]) => {
     const list = shown.filter((t) => statuses.includes(t.status)).sort((a, b) => String(b.sentAt || b.at || "").localeCompare(String(a.sentAt || a.at || "")));
     const head = h("div", { class: "board-head" }, [h("span", { text: title }), h("span", { class: "n", text: String(list.length) })]);
-    const body = !list.length ? [h("div", { class: "board-empty" }, [nutria(id === "done" ? "idle" : "free", "mid", id === "done" ? "box" : null), h("span", { text: tr("Ninguna") })])] : id === "pending" ? pendingColumn(list) : list.map(boardCard);
+    const body = !list.length ? [h("div", { class: "board-empty" }, [nutria(id === "done" ? "idle" : "free", "mid", id === "done" ? "box" : null), h("span", { text: tr("Ninguna") })])] : id === "pending" ? pendingColumn(list) : id === "sent" ? sentColumn(list) : list.map(boardCard);
     if (id === "done") {
       const all = reviewAllButton(list);
       const inReview = list.filter((t) => t.reviewedAt);
