@@ -231,7 +231,7 @@ function paintBottomBar(section, attention) {
   bottom.textContent = "";
   for (const [id, label, target] of BOTTOM_BAR) {
     const b = h("button", { type: "button", "aria-current": section === id ? "page" : "false" });
-    b.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[id]}</svg>`;
+    b.innerHTML = `<span class="bn-pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[id]}</svg></span>`;
     b.appendChild(document.createTextNode(label));
     if (attention[id]) {
       const n = attention[id];

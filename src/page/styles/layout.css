@@ -32,16 +32,18 @@ h1 { font-size: 16px; font-weight: 600; letter-spacing: -0.01em; margin: 0; }
   .brand .sub { display: none; }
   h1 { font-size: 15px; }
   .tabs { display: none; }
-  .main { padding: 16px 16px 96px; gap: 16px; }
+  .main { padding: 16px 16px 100px; gap: 16px; }
   .app[data-view="today"] .main { order: 1; padding-bottom: 8px; }
   .main-head h2 { font-size: 19px; }
   .main-head .sub { font-size: 13.5px; }
-  .bottom { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 6; background: var(--surface); border-top: 1px solid var(--line); padding: 4px 8px calc(4px + env(safe-area-inset-bottom, 0px)); }
-  .bottom button { flex: 1 1 0; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 52px; background: none; border: 0; color: var(--ink-3); font: inherit; font-size: 12px; cursor: pointer; }
-  .bottom button svg { width: 22px; height: 22px; }
-  .bottom button[aria-current="page"] { color: var(--accent); font-weight: 600; }
-  .bottom .badge { position: absolute; top: 4px; left: calc(50% + 6px); min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--danger); color: #fff; font-size: 11px; font-weight: 600; line-height: 18px; text-align: center; }
-  .main { padding-bottom: 96px; }
+  .bottom { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); align-items: center; position: fixed; left: 12px; right: 12px; bottom: max(12px, env(safe-area-inset-bottom, 0px)); z-index: 6; height: 64px; padding: 0 4px; box-sizing: border-box; background: color-mix(in srgb, var(--surface) 95%, transparent); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); border: 1px solid var(--line); border-radius: 24px; box-shadow: 0 8px 30px -6px rgba(0, 0, 0, 0.3); }
+  .bottom > button { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-width: 0; height: 100%; background: none; border: 0; color: var(--ink-3); font: inherit; font-size: 11px; font-weight: 600; letter-spacing: -0.01em; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  .bottom .bn-pill { display: flex; align-items: center; justify-content: center; width: 44px; height: 28px; border-radius: 999px; transition: background-color .15s; }
+  .bottom .bn-pill svg { width: 20px; height: 20px; }
+  .bottom > button[aria-current="page"] { color: var(--accent); }
+  .bottom > button[aria-current="page"] .bn-pill { background: color-mix(in srgb, var(--accent) 15%, transparent); }
+  .bottom .badge { position: absolute; top: 6px; left: calc(50% + 8px); min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--danger); color: #fff; font-size: 11px; font-weight: 600; line-height: 18px; text-align: center; box-sizing: border-box; }
+  .main { padding-bottom: 100px; }
   .app[data-view="today"] .main { order: 1; padding-bottom: 8px; }
   .more-menu { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); overflow: hidden; }
   .more-menu button { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%; padding: 12px 14px; border: 0; background: none; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
@@ -49,7 +51,7 @@ h1 { font-size: 16px; font-weight: 600; letter-spacing: -0.01em; margin: 0; }
   .more-menu button:active { background: var(--surface-2); }
   .more-menu button strong { font-size: 15px; font-weight: 600; }
   .more-menu button span { font-size: 13px; color: var(--ink-3); }
-  .toast { bottom: calc(76px + env(safe-area-inset-bottom, 0px)); width: calc(100% - 32px); text-align: center; }
+  .toast { bottom: calc(92px + env(safe-area-inset-bottom, 0px)); width: calc(100% - 32px); text-align: center; }
 }
 .battery-badge { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px 3px 8px; border-radius: 999px; background: var(--surface-2); font-size: 12.5px; color: var(--ink-2); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .battery-label { font-weight: 600; color: var(--ink-3); font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; }
