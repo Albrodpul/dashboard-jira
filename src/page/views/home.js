@@ -211,7 +211,6 @@ function deskLine(s, group) {
   return bits.length ? h("span", { class: "plate-meta", text: bits.join(" · ") }) : null;
 }
 
-const sofaFront = () => h("span", { class: "sofa" }, [h("i", { class: "arm-rest left" }), h("i", { class: "arm-rest right" })]);
 function art(cls, markup) {
   const el = document.createElement("span");
   el.className = cls;
@@ -221,7 +220,6 @@ function art(cls, markup) {
 }
 const cobweb = (cls = "") => art(`cobweb ${cls}`.trim(), '<svg viewBox="0 0 30 30"><g fill="none" stroke="currentColor" stroke-width=".9" stroke-linecap="round"><path d="M0 0L29 29M0 0L29 11M0 0L11 29M0 0L29 1M0 0L1 29"/><path d="M9 0Q8 4 7 7Q4 8 0 9M17 0Q16 8 14 14Q8 16 0 17M26 0Q24 12 21 21Q12 24 0 26"/></g><circle cx="15" cy="15" r="1.8" fill="currentColor"/></svg>');
 const deskItems = () => h("span", { class: "desk-items" }, [h("i", { class: "laptop-shut" }), h("i", { class: "postit" }), h("i", { class: "cup" }, [h("b"), h("b")])]);
-const emptyLounge = () => h("span", { class: "still-row" }, [h("span", { class: "couch-empty seat-scene" }, [h("i", { class: "rug" }), h("i", { class: "sofa-back" }), sofaFront(), h("i", { class: "cushion" })]), h("span", { class: "side-table" }, [h("i", { class: "magazine" })])]);
 const lonelyBox = () => h("span", { class: "lonely-box" }, [h("i")]);
 const pick = (key, n) => [...String(key || "")].reduce((v, ch) => (v * 33 + ch.charCodeAt(0)) >>> 0, 11) % n;
 
@@ -248,12 +246,12 @@ const OFFICE_TRIPS = [
   { spot: ".ow-board", mood: "drawing", prop: null, say: "Apunto en la pizarra" },
   { spot: ".ow-shelf", mood: "idle", prop: "book", say: "Busco un libro" },
 ];
-const REST_TRIPS = [
-  { spot: ".rb-fridge", mood: "idle", prop: "mug", say: "A por un zumo" },
-  { spot: ".rb-vending", mood: "idle", prop: "box", say: "A por galletas" },
-  { spot: ".rb-window", mood: "relax", prop: null, say: "Mirando por la ventana" },
-  { spot: ".rb-arcade", mood: "idle", prop: "controller", say: "Una partidita" },
-  { spot: ".rb-cooler", mood: "idle", prop: "mug", say: "Voy a por agua" },
+const LOUNGE_TRIPS = [
+  { spot: ".lv-shelf", mood: "idle", prop: "book", say: "Buscando un libro" },
+  { spot: ".lv-window", mood: "relax", prop: null, say: "Mirando por la ventana" },
+  { spot: ".lv-records", mood: "idle", prop: null, say: "Cambio el disco" },
+  { spot: ".lv-plant", mood: "idle", prop: null, say: "Riego la planta" },
+  { spot: ".lv-snacks", mood: "idle", prop: "mug", say: "A por palomitas" },
 ];
 
 function trip(x, trips, salt) {
@@ -298,11 +296,14 @@ function placeWalkers(room) {
     if (!from || !spot) return;
     const f = from.getBoundingClientRect();
     const t = spot.getBoundingClientRect();
-    const wall = spot.closest(".ow-wall, .rb-wall");
+    const wall = spot.closest(".ow-wall, .rb-wall, .lv-wall");
     const ty = wall ? wall.getBoundingClientRect().bottom + 6 : t.bottom - 4;
     w.style.setProperty("--dx", `${f.left + f.width / 2 - box.left}px`);
     w.style.setProperty("--dy", `${box.bottom - f.bottom}px`);
     w.style.setProperty("--tx", `${t.left + t.width / 2 - box.left}px`);
+    const at = (t.left + t.width / 2 - box.left) / box.width;
+    w.classList.toggle("edge-right", at > 0.8);
+    w.classList.toggle("edge-left", at < 0.2);
     w.style.setProperty("--ty", `${Math.max(4, box.bottom - ty)}px`);
   });
 }
@@ -343,58 +344,119 @@ function officeRoom(list) {
 }
 
 
-const REST = [
-  (x) => [h("i", { class: "sofa-back" }), otter(x, "free"), sofaFront()],
-  (x) => [h("span", { class: "hammock" }, [h("i", { class: "post left" }), h("i", { class: "post right" })]), h("span", { class: "swing" }, [otter(x, "free"), h("i", { class: "cloth" })])],
-  (x) => [h("span", { class: "beanbag" }), otter(x, "idle", "book")],
-  (x) => [h("span", { class: "pool" }), otter(x, "relax", null, "floating"), h("span", { class: "pool-front" }), h("span", { class: "float-ring" })],
-  (x) => [otter(x, "idle", "controller"), h("span", { class: "tv" }, [h("i")])],
+const CHAT_LINES = ["¿Qué tal el día?", "jaja", "¡No me digas!", "Mmm…", "¿Otro café?", "¡Qué bueno!", "Ya ves", "¿Viste eso?", "Ni idea", "¡Totalmente!", "¿En serio?", "Te cuento…", "¡Calla!", "Qué risa", "Pues yo…", "¡Anda ya!"];
+const GAME_LINES = ["¡Te toca!", "¡Un seis!", "Uy…", "¡Gané!", "¿Otra?", "Hmm…", "¡Trampa!", "Venga, va"];
+const TURN_S = 3.2;
+const NAP_AFTER_MS = 40 * 60000;
+const REGROUP_MS = 20 * 60000;
+const LOUNGE_BASE = 366;
+const LOUNGE_ROW = 110;
+
+const LOUNGE_GROUPS = [
+  { id: "sofa", talk: CHAT_LINES, slots: [{ x: "calc(50% - var(--lv-gap))", y: 102, mood: "idle", walks: true }, { x: "50%", y: 102, mood: "idle", prop: "mug", mirror: true, walks: true }] },
+  { id: "game", talk: GAME_LINES, slots: [{ x: "calc(50% - 66px)", y: 232, mood: "idle", walks: true }, { x: "calc(50% + 66px)", y: 232, mood: "idle", mirror: true, walks: true }] },
+  { id: "reader", slots: [{ x: "12%", y: 178, mood: "idle", prop: "book", walks: true }] },
+  { id: "ball", slots: [{ x: "57%", y: 318, mood: "waiting" }, { x: "87%", y: 318, mood: "waiting", mirror: true }] },
+  { id: "music", slots: [{ x: "87%", y: 164, mood: "relax", prop: "headphones", walks: true }] },
+  { id: "sofa3", talk: CHAT_LINES, slots: [{ x: "calc(50% + var(--lv-gap))", y: 102, mood: "idle", mirror: true, walks: true }] },
+  { id: "nap", slots: [{ x: "15%", y: 318, mood: "free" }] },
 ];
 
-const PAIRS = [
-  (a, b) => ({ cls: "coffee", left: [otter(a, "idle", "mug"), h("b", { class: "say one", text: "…" })], middle: h("span", { class: "coffee-table" }), right: [otter(b, "idle", "mug", "mirror"), h("b", { class: "say two", text: tr("jaja") })] }),
-  (a, b) => ({ cls: "pingpong", left: [otter(a, "idle", "paddle")], middle: h("span", { class: "pp-table" }, [h("i", { class: "net" }), h("i", { class: "ball" })]), right: [otter(b, "idle", "paddle", "mirror")] }),
-  (a, b) => ({ cls: "chess", left: [otter(a, "idle"), h("b", { class: "say one", text: "?" })], middle: h("span", { class: "chess-table" }), right: [otter(b, "idle", null, "mirror")] }),
-];
+function corrillo(row) {
+  const y = 318 + LOUNGE_ROW * row;
+  return [
+    { id: `chat${row}a`, talk: CHAT_LINES, slots: [{ x: "15%", y, mood: "idle", prop: "mug", walks: true }, { x: "34%", y, mood: "idle", mirror: true, walks: true }] },
+    { id: `chat${row}b`, talk: CHAT_LINES, slots: [{ x: "64%", y, mood: "idle", walks: true }, { x: "84%", y, mood: "idle", prop: "mug", mirror: true, walks: true }] },
+  ];
+}
+
+function seatPeople(list) {
+  const now = Date.now();
+  const round = Math.floor(now / REGROUP_MS);
+  let people = list.map(({ x }) => x).sort((p, q) => pick(p.name + round, 9973) - pick(q.name + round, 9973));
+  const seats = [];
+  const oldest = [...people].sort((p, q) => new Date(p.since || now) - new Date(q.since || now))[0];
+  const napper = oldest && oldest.since && now - new Date(oldest.since) > NAP_AFTER_MS && people.length !== 2 ? oldest : null;
+  if (napper) {
+    seats.push({ x: napper, group: LOUNGE_GROUPS[6], i: 0 });
+    people = people.filter((p) => p !== napper);
+  }
+  const groups = LOUNGE_GROUPS.filter((g) => !(napper && g.id === "nap"));
+  for (let row = 1; people.length; row++) {
+    for (const g of row === 1 ? groups : corrillo(row - 1)) {
+      if (!people.length) break;
+      const take = g.slots.length <= people.length ? g.slots.length : row === 1 ? 0 : people.length;
+      people.splice(0, take).forEach((x, i) => seats.push({ x, group: g, i }));
+    }
+  }
+  return seats;
+}
+
+function talkBubble(group, i, n, x) {
+  const period = TURN_S * n;
+  const now = Date.now() / 1000;
+  const base = -((now + pick(group.id, 97)) % (period * 3));
+  const past = (d, cycle) => (((d % cycle) + cycle) % cycle) - cycle;
+  const lines = [0, 1, 2].map((k) => h("span", { text: tr(group.talk[pick(`${x.name}${group.id}${k}${Math.floor(now / 600)}`, group.talk.length)]), style: `animation-delay:${past(base + i * TURN_S + k * period, period * 3).toFixed(2)}s` }));
+  return h("b", { class: `lv-say n${n}`, style: `--lv-p:${period}s;animation-delay:${past(base + i * TURN_S, period).toFixed(2)}s` }, lines);
+}
+
+function loungeSeat({ x, group, i }, n) {
+  const slot = group.slots[i];
+  const sprite = otter(x, slot.mood, slot.prop || null, `mid${slot.mirror ? " mirror" : ""}`);
+  const third = group.id === "sofa3";
+  if (group.talk && n > 1) sprite.appendChild(talkBubble(third ? LOUNGE_GROUPS[0] : group, third ? 2 : i, n, x));
+  const side = slot.x.startsWith("calc") ? "" : parseFloat(slot.x) < 22 ? " left" : parseFloat(slot.x) > 78 ? " right" : "";
+  const title = x.since ? tr("{name}: {mood} desde {time}. Pulsa para verla en directo.", { name: x.name, mood: MOOD_TEXT.free, time: when(x.since) }) : tr("{name}: {mood}. Pulsa para verla en directo.", { name: x.name, mood: MOOD_TEXT.free });
+  return h("button", { class: `seat free lv-seat lv-${group.id.replace(/\d.*/, "")}${side}`, type: "button", "data-conv": x.conversation, style: `left:${slot.x};top:${slot.y - 46}px`, title, onclick: () => openLive(x.conversation, x.sessionName || x.name) }, [
+    sprite,
+    h("span", { class: "lv-tag" }, [h("strong", { text: x.name }), mixedProjects() && x.project ? h("span", { text: projectName(x.project) }) : null]),
+  ]);
+}
+
+function loungeFurniture(rows, ballPlayers) {
+  const books = Array.from({ length: 3 }, (_, r) => h("i", { class: "lv-books" }, Array.from({ length: 7 }, (_, k) => h("b", { style: `height:${12 + ((k * 5 + r * 3) % 7)}px;background:${CLAYS[(k * 3 + r * 5) % CLAYS.length]}` }))));
+  return [
+    h("span", { class: "lv-wall", "aria-hidden": "true" }, [
+      h("span", { class: "lv-shelf" }, books),
+      h("span", { class: "lv-window" }, [h("i", { class: "lv-curtain l" }), h("i", { class: "lv-curtain r" })]),
+      h("span", { class: "lv-frame a" }),
+      h("span", { class: "lv-frame b" }),
+      h("span", { class: "lv-clock" }, [h("i")]),
+      h("span", { class: "lv-lamp" }, [h("i")]),
+      h("span", { class: "lv-records" }, [h("i", { class: "lv-disc" }), h("span", { class: "lv-plant" }, [h("i"), h("i"), h("i")])]),
+    ]),
+    h("span", { class: "lv-rug", "aria-hidden": "true" }),
+    h("span", { class: "lv-sofa-back", "aria-hidden": "true" }),
+    h("span", { class: "lv-sofa-front", "aria-hidden": "true" }),
+    h("span", { class: "lv-armchair", "aria-hidden": "true" }, [h("i")]),
+    h("span", { class: "lv-table", "aria-hidden": "true" }, [h("i", { class: "lv-board" }), h("i", { class: "lv-dice" }), h("i", { class: "lv-snacks" })]),
+    h("span", { class: "lv-cushion", "aria-hidden": "true" }),
+    h("span", { class: `lv-toss${ballPlayers === 2 ? " on" : ""}`, "aria-hidden": "true" }, [h("i")]),
+    ...Array.from({ length: rows }, (_, r) => h("span", { class: "lv-rug small", style: `top:${318 + LOUNGE_ROW * (r + 1) - 14}px`, "aria-hidden": "true" })),
+  ];
+}
 
 function restRoom(list) {
-  const scenes = restScenes(list);
-  const walkers = [];
-  const box = h("div", { class: `rest-room${list.length ? "" : " is-empty"}` }, [
-    h("span", { class: "rb-wall", "aria-hidden": "true" }, [h("span", { class: "rb-window" }), h("span", { class: "rb-fridge" }, [h("i")]), h("span", { class: "rb-vending" }, [h("i"), h("i"), h("i")]), h("span", { class: "rb-cooler" }, [h("i")]), h("span", { class: "rb-arcade" }, [h("i")])]),
-    h("div", { class: "rest-floor" }, list.length ? scenes : [emptyLounge()]),
+  const seats = seatPeople(list);
+  const size = (g) => seats.filter((s) => s.group.id === g.id || (g.id === "sofa" && s.group.id === "sofa3")).length;
+  const rows = Math.max(0, ...seats.map((s) => Math.round((s.group.slots[s.i].y - 318) / LOUNGE_ROW)));
+  const box = h("div", { class: `lv-room${list.length ? "" : " is-empty"}`, style: `height:${LOUNGE_BASE + LOUNGE_ROW * rows}px` }, [
+    ...loungeFurniture(rows, seats.filter((s) => s.group.id === "ball").length),
+    ...seats.map((s) => loungeSeat(s, s.group.id === "sofa3" ? size(LOUNGE_GROUPS[0]) : s.group.id === "sofa" ? size(LOUNGE_GROUPS[0]) : seats.filter((o) => o.group === s.group).length)),
   ]);
-  for (const { x } of list) {
-    const seat = box.querySelector(`.seat[data-conv="${CSS.escape(x.conversation || "")}"] .nutria`);
-    if (!seat || !x.conversation) continue;
-    const t = trip(x, REST_TRIPS, "rest");
-    sitStill(seat, t);
-    walkers.push(walker(x, t));
+  const walkers = [];
+  for (const s of seats) {
+    if (!s.group.slots[s.i].walks || !s.x.conversation || pick(s.x.name + Math.floor(Date.now() / REGROUP_MS), 3)) continue;
+    const sprite = box.querySelector(`.seat[data-conv="${CSS.escape(s.x.conversation)}"] .nutria`);
+    if (!sprite) continue;
+    const t = trip(s.x, LOUNGE_TRIPS, "rest");
+    sitStill(sprite, t);
+    walkers.push(walker(s.x, t));
   }
   box.append(...walkers);
   if (walkers.length) requestAnimationFrame(() => placeWalkers(box));
   return box;
-}
-
-function restScenes(list) {
-  const sorted = [...list].sort((p, q) => p.x.name.localeCompare(q.x.name));
-  const out = [];
-  let last = -1;
-  for (let i = 0; i < sorted.length; i += 2) {
-    const a = sorted[i].x;
-    const b = sorted[i + 1] && sorted[i + 1].x;
-    if (!b) {
-      const v = pick(a.name, REST.length);
-      out.push(h("div", { class: `scene rest-v${v}` }, [actor(a, "free", REST[v](a))]));
-      continue;
-    }
-    let k = pick(a.name + b.name, PAIRS.length);
-    if (k === last) k = (k + 1) % PAIRS.length;
-    last = k;
-    const p = PAIRS[k](a, b);
-    out.push(h("div", { class: `scene pair ${p.cls}` }, [actor(a, "free", p.left), p.middle, actor(b, "free", p.right)]));
-  }
-  return out;
 }
 
 function inboxPile(n) {

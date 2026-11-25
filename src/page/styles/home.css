@@ -625,25 +625,6 @@
 .ow-cabinet i::after { content: ""; display: block; width: 8px; height: 2px; margin: 3px auto 0; background: #5d636b; }
 .od-say { position: absolute; left: 50%; bottom: 100%; transform: translateX(-50%); margin-bottom: 2px; padding: 2px 7px; border-radius: 8px; background: var(--plate-bg); color: var(--plate-ink); font-size: 10.5px; font-weight: 600; white-space: nowrap; box-shadow: 0 1px 2px rgba(0,0,0,.15); }
 .r-sofa .room-floor { padding: 0; display: flex; flex-direction: column; justify-content: stretch; }
-.rest-room { position: relative; flex: 1; display: flex; flex-direction: column; min-height: 230px; }
-.rb-wall { position: relative; flex: none; height: 74px; display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; padding: 0 14px; border-bottom: 5px solid rgba(0,0,0,.06); }
-.rest-floor { flex: 1; display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: center; gap: 10px; padding: 14px; }
-.rb-window { align-self: center; width: 70px; height: 46px; border: 4px solid #f7f7f2; border-radius: 2px; background: linear-gradient(#9fd3f0, #d4ecf7); box-sizing: border-box; }
-.office-plan.lights-off .rb-window { background: linear-gradient(#1d2a44, #2e3d5c); }
-.rb-fridge { position: relative; width: 34px; height: 64px; border-radius: 4px; background: #eef1f4; box-shadow: inset 0 -26px 0 #e1e5ea; }
-.rb-fridge i { position: absolute; right: 5px; top: 10px; width: 3px; height: 14px; border-radius: 2px; background: #9aa3ad; box-shadow: 0 26px 0 #9aa3ad; }
-.rb-vending { width: 40px; height: 66px; border-radius: 4px; background: #d76f9c; padding: 6px 5px; box-sizing: border-box; display: flex; flex-direction: column; gap: 4px; }
-.rb-vending i { display: block; height: 10px; border-radius: 1px; background: linear-gradient(90deg, #e0a63b 0 30%, #fff 30% 36%, #5fa86b 36% 66%, #fff 66% 72%, #4f9bd6 72%); }
-.rb-cooler { position: relative; width: 22px; height: 54px; border-radius: 3px; background: #e6e8ec; box-shadow: inset 0 -18px 0 #cfd3d9; margin-top: 20px; }
-.rb-cooler i { position: absolute; left: 3px; right: 3px; top: -20px; height: 22px; border-radius: 8px 8px 3px 3px; background: rgba(110,180,230,.75); }
-.rb-arcade { position: relative; width: 38px; height: 66px; border-radius: 6px 6px 2px 2px; background: #3b3b44; }
-.rb-arcade i { position: absolute; left: 6px; right: 6px; top: 8px; height: 20px; border-radius: 2px; background: #1b2433; box-shadow: inset 0 0 0 2px #2bd18c; }
-.rb-arcade::after { content: ""; position: absolute; left: 10px; top: 36px; width: 6px; height: 6px; border-radius: 50%; background: #d97757; box-shadow: 12px 0 0 #e0a63b; }
-.rest-room .seat-scene .nutria.walks, .od-seated.walks { will-change: opacity; }
-@media (prefers-reduced-motion: no-preference) {
-  .rest-room .nutria.walks { animation: od-sit var(--od-d) linear var(--od-dl) infinite; }
-}
-@media (max-width: 760px) { .rb-vending, .rb-arcade { display: none; } }
 .office-plan.crowded .r-work { grid-column: 1 / -1; }
 .office-plan.crowded .od-grid { grid-template-columns: repeat(auto-fill, minmax(108px, 1fr)); row-gap: 46px; }
 @media (min-width: 1101px) {
