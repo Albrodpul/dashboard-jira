@@ -82,6 +82,17 @@ impl Hook {
         let _ = agent.post(&format!("{}/api/test-wait", *BASE)).header("origin", BASE.as_str()).header("content-type", "application/json").send(stringify(&json!({ "conversation": session, "waiting": waiting })));
     }
 
+    fn browser_turn(&mut self) -> Option<i32> {
+        let tool = self.event.get("tool_name").and_then(Value::as_str).unwrap_or("").to_string();
+        let command = self.event.get("tool_input").and_then(|i| i.get("command")).and_then(Value::as_str).map(String::from);
+        if !crate::sessions::test_turn::is_browser_launch(&tool, command.as_deref()) {
+            return None;
+        }
+        let load = crate::sessions::test_turn::measure();
+        let reason = crate::sessions::test_turn::browser_wait(load.as_ref())?;
+        Some(self.decide("deny", &reason))
+    }
+
     fn test_turn(&mut self) -> Option<i32> {
         if self.event.get("tool_name").and_then(Value::as_str) != Some("Bash") {
             return None;
@@ -91,7 +102,7 @@ impl Hook {
             Some(dir) => dir.join("test-turn.json"),
             None => std::env::temp_dir().join("tower-test-turn.json"),
         };
-        let options = crate::sessions::test_turn::DecideOptions { list: None, file: Some(file), now_ms: None };
+        let options = crate::sessions::test_turn::DecideOptions { list: None, file: Some(file), now_ms: None, load: None };
         let plan = std::panic::catch_unwind(|| crate::sessions::test_turn::decide(&command, &options)).ok()?;
         if plan.kind == "wait" {
             self.tell_test_wait(true);
@@ -142,6 +153,9 @@ pub fn run(_args: &[String]) -> i32 {
     };
     let mut hook = Hook { event, rewritten: None };
     if let Some(code) = hook.test_turn() {
+        return code;
+    }
+    if let Some(code) = hook.browser_turn() {
         return code;
     }
     let e = &hook.event;
