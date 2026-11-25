@@ -1,6 +1,6 @@
 import { decide } from "../components/permissions.js";
 import { state, h, when, minutesSince, switchView, empty, fixedAreaIds, button, post, toast } from "../lib/base.js";
-import { currentProject, mixedProjects, projectName } from "../components/project-filter.js";
+import { currentProject, mixedProjects, projectName, mainProject } from "../components/project-filter.js";
 import { nutria, paint, CLAYS } from "../components/nutria.js";
 import { t as tr } from "../lib/i18n.js";
 
@@ -308,41 +308,153 @@ function placeWalkers(room) {
   });
 }
 
+const DOING = {
+  code: { mood: "typing", label: "Programando" },
+  tests: { mood: "idle", label: "Pasando tests" },
+  browser: { mood: "idle", label: "Probando en el navegador" },
+  terminal: { mood: "typing", label: "En la terminal" },
+  reading: { mood: "idle", label: "Leyendo código" },
+  web: { mood: "idle", label: "Buscando en la web" },
+  jira: { mood: "idle", label: "Mirando Jira" },
+  shipping: { mood: "waiting", label: "Subiendo cambios" },
+  thinking: { mood: "relax", label: "Pensando" },
+  meeting: { mood: "idle", label: "En reunión" },
+};
+const CHEER_MS = 3 * 60000;
+const ISLANDS = { BACK: "Back", FRON: "Front", DON: "Donatella" };
+
+function doingOf(x) {
+  const live = liveOf(x.conversation, x.sessionName);
+  if (x.subagents) return "meeting";
+  const kind = live && live.doing && live.doing.kind;
+  return DOING[kind] ? kind : "thinking";
+}
+
+function islandOf(x) {
+  if (mixedProjects() && x.project && x.project !== mainProject()) return projectName(x.project);
+  const area = state.areas.find((a) => a.id === x.id);
+  const kinds = new Set(Object.keys((area && area.epics) || {}).map((k) => ISLANDS[k.split("-")[0]] || null).filter(Boolean));
+  if (kinds.size === 1) return [...kinds][0];
+  if (kinds.size > 1) return tr("Varios");
+  return x.project && mixedProjects() ? projectName(x.project) : tr("General");
+}
+
+function cheering(x) {
+  const now = Date.now();
+  return state.tasks.some((t) => t.status === "done" && t.area === x.id && now - new Date(t.updatedAt || t.doneAt || 0) < CHEER_MS);
+}
+
+function deploying() {
+  const items = (state.deployStatus && state.deployStatus.items) || [];
+  return items.some((it) => Object.values(it.envs || {}).some((e) => e && e.actions && ["in_progress", "queued", "waiting", "pending"].includes(e.actions.status)));
+}
+
+function screen(kind, on) {
+  if (!on) return h("span", { class: "od-monitor off" });
+  const inner = {
+    code: [h("i"), h("i"), h("i"), h("i")],
+    terminal: [h("i"), h("i"), h("b", { class: "cursor" })],
+    tests: [h("span", { class: "bar" }, [h("b")]), h("i", { class: "dots" })],
+    browser: [h("span", { class: "tabs" }), h("span", { class: "page" }), h("b", { class: "mouse" })],
+    reading: [h("i"), h("i"), h("i"), h("b", { class: "lens" })],
+    web: [h("span", { class: "tabs" }), h("span", { class: "search" })],
+    jira: [h("span", { class: "cards" }, [h("i"), h("i"), h("i")])],
+    shipping: [h("b", { class: "rocket" })],
+    thinking: [h("i"), h("i")],
+    meeting: [h("i")],
+  }[kind] || [];
+  return h("span", { class: `od-monitor scr-${kind}` }, inner);
+}
+
+function officeDesk({ x, id }, curious) {
+  const kind = id === "blocked" ? null : doingOf(x);
+  const cheer = id === "working" && cheering(x);
+  const mood = id === "blocked" ? "blocked" : cheer ? "done" : DOING[kind].mood;
+  const sit = otter(x, mood, kind === "shipping" ? "rocket" : null, `mid od-seated ${id === "blocked" ? waitClass(x.reason && x.reason.at) : ""}`.trim());
+  if (kind === "thinking" && !cheer) sit.appendChild(h("b", { class: "od-think", text: "…" }));
+  const walks = id === "working" && !cheer && (kind === "thinking" || kind === "code" || kind === "reading");
+  let t = null;
+  if (walks) {
+    t = trip(x, OFFICE_TRIPS, "office");
+    sitStill(sit, t);
+  }
+  const line = id === "blocked" ? deskLine(x, id) : h("span", { class: "plate-meta", text: cheer ? tr("¡Tarea terminada!") : tr(DOING[kind].label) });
+  const el = h("button", {
+    class: `od-desk ${id}${cheer ? " cheer" : ""}${curious ? " curious" : ""} doing-${kind || "blocked"}`,
+    type: "button",
+    "data-conv": x.conversation,
+    title: x.since ? tr("{name}: {mood} desde {time}. Pulsa para verla en directo.", { name: x.name, mood: MOOD_TEXT[id], time: when(x.since) }) : tr("{name}: {mood}. Pulsa para verla en directo.", { name: x.name, mood: MOOD_TEXT[id] }),
+    onclick: () => openLive(x.conversation, x.sessionName || x.name),
+  }, [
+    h("span", { class: "od-chair" }),
+    sit,
+    h("span", { class: "od-top" }, [screen(kind || "thinking", true), id === "blocked" ? h("i", { class: "od-note", text: "?" }) : null, h("i", { class: "od-keys" }), h("i", { class: "od-mug" }), h("i", { class: "od-lamp" })]),
+    h("span", { class: "od-front" }),
+    cheer ? h("span", { class: "od-confetti", "aria-hidden": "true" }, Array.from({ length: 8 }, (_, i) => h("i", { style: `--c:${CLAYS[i % CLAYS.length]};--i:${i}` }))) : null,
+    h("span", { class: "plate small" }, [h("strong", { text: x.name }), line, mixedProjects() && x.project && x.project !== mainProject() ? h("span", { class: "plate-project", text: projectName(x.project) }) : null]),
+  ]);
+  return { el, walker: t ? walker(x, t) : null };
+}
+
+function meetingRoom(list) {
+  if (!list.length) return null;
+  const seats = list.map(({ x }) => {
+    const lead = otter(x, "idle", null, "mid od-lead");
+    const helpers = Array.from({ length: Math.min(x.subagents, 4) }, (_, i) => paint(nutria(i % 2 ? "typing" : "idle", "tiny", i % 3 === 0 ? "laptop" : null), `${x.name}${i}`));
+    return h("button", { class: "od-meet-seat", type: "button", "data-conv": x.conversation, title: tr("{name}: reunida con {n} ayudantes. Pulsa para verla en directo.", { name: x.name, n: x.subagents }), onclick: () => openLive(x.conversation, x.sessionName || x.name) }, [
+      lead,
+      h("span", { class: "od-helpers" }, helpers),
+      h("span", { class: "plate small" }, [h("strong", { text: x.name }), h("span", { class: "plate-meta", text: plural(x.subagents, "ayudante", "ayudantes") })]),
+    ]);
+  });
+  return h("div", { class: "od-meeting" }, [
+    h("span", { class: "od-meeting-sign", text: tr("Reunión") }),
+    h("span", { class: "od-whiteboard", "aria-hidden": "true" }, [h("i"), h("i"), h("i"), h("b")]),
+    h("div", { class: "od-meeting-table" }, seats),
+  ]);
+}
+
+function corkBoard() {
+  const keys = state.tasks.filter((t) => t.status === "sent").slice(0, 4).map((t) => t.key);
+  return h("span", { class: "ow-cork", "aria-hidden": "true" }, keys.length ? keys.map((k, i) => h("i", { text: k, style: `--r:${((i * 37) % 9) - 4}deg;--c:${["#fff3a6", "#ffd3c2", "#cfe8ff", "#d7f5d0"][i % 4]}` })) : [h("i", { class: "pin" })]);
+}
+
 function officeRoom(list) {
   const walkers = [];
-  const desks = list.length
-    ? list.map(({ x, id }) => {
-        const sit = otter(x, id === "blocked" ? "blocked" : "typing", null, `mid od-seated ${id === "blocked" ? waitClass(x.reason && x.reason.at) : ""}`.trim());
-        if (id === "working") {
-          const t = trip(x, OFFICE_TRIPS, "office");
-          sitStill(sit, t);
-          walkers.push(walker(x, t));
-        }
-        const helpers = x.subagents ? h("span", { class: "helpers" }, Array.from({ length: Math.min(x.subagents, 3) }, () => paint(nutria("working", "tiny"), x.name))) : null;
-        const [chair, top, front] = deskFurniture(true);
-        return h("button", {
-          class: `od-desk ${id}`,
-          type: "button",
-          "data-conv": x.conversation,
-          title: x.since ? tr("{name}: {mood} desde {time}. Pulsa para verla en directo.", { name: x.name, mood: MOOD_TEXT[id], time: when(x.since) }) : tr("{name}: {mood}. Pulsa para verla en directo.", { name: x.name, mood: MOOD_TEXT[id] }),
-          onclick: () => openLive(x.conversation, x.sessionName || x.name),
-        }, [chair, sit, top, front, helpers, h("span", { class: "plate small" }, [h("strong", { text: x.name }), deskLine(x, id), mixedProjects() && x.project ? h("span", { class: "plate-project", text: projectName(x.project) }) : null])]);
-      })
-    : [0, 1, 2].map(() => h("span", { class: "od-desk empty" }, deskFurniture(false)));
-  const room = h("div", { class: "office-room" }, [
+  const meeting = list.filter(({ x, id }) => id === "working" && x.subagents);
+  const desks = list.filter((d) => !meeting.includes(d));
+  const islands = new Map();
+  for (const d of desks) {
+    const key = islandOf(d.x);
+    if (!islands.has(key)) islands.set(key, []);
+    islands.get(key).push(d);
+  }
+  const islandEls = [...islands.entries()].sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0])).map(([name, group]) => {
+    const stuck = group.some((d) => d.id === "blocked" && waited(d.x.reason && d.x.reason.at) >= 10);
+    const els = group.map((d) => {
+      const r = officeDesk(d, stuck && d.id === "working");
+      if (r.walker) walkers.push(r.walker);
+      return r.el;
+    });
+    return h("div", { class: "od-island", style: `flex:0 1 ${Math.min(group.length, 4) * 134 + 16}px` }, [h("span", { class: "od-sign", text: name }), h("div", { class: "od-grid" }, els)]);
+  });
+  const empty = !list.length ? [h("div", { class: "od-island" }, [h("div", { class: "od-grid" }, [0, 1, 2].map(() => h("span", { class: "od-desk empty" }, deskFurniture(false))))])] : [];
+  const room = h("div", { class: `office-room${deploying() ? " deploying" : ""}` }, [
     officeWall(),
+    corkBoard(),
+    deploying() ? h("span", { class: "ow-beacon", "aria-hidden": "true" }, [h("i")]) : null,
     h("span", { class: "ow-printer", "aria-hidden": "true" }, [h("i"), h("b")]),
     h("span", { class: "ow-cabinet", "aria-hidden": "true" }, [h("i"), h("i"), h("i")]),
     h("div", { class: "ow-floor" }, [
-      h("div", { class: "od-grid" }, desks),
+      h("div", { class: "od-islands" }, [...islandEls, ...empty, meetingRoom(meeting)]),
       h("span", { class: "ow-kitchen", "aria-hidden": "true" }, [h("span", { class: "ow-cooler" }, [h("i")]), h("span", { class: "ow-counter" }, [h("span", { class: "ow-coffee" }, [h("i")]), h("i", { class: "ow-cups" })]), h("span", { class: "ow-plant" }, [h("i"), h("i"), h("i")])]),
     ]),
+    h("span", { class: "ow-corridor", "aria-hidden": "true" }, [paint(nutria("idle", "mid", "paper"), "pasillo")]),
     ...walkers,
   ]);
   if (walkers.length) requestAnimationFrame(() => placeWalkers(room));
   return room;
 }
-
 
 const CHAT_LINES = ["¿Qué tal el día?", "jaja", "¡No me digas!", "Mmm…", "¿Otro café?", "¡Qué bueno!", "Ya ves", "¿Viste eso?", "Ni idea", "¡Totalmente!", "¿En serio?", "Te cuento…", "¡Calla!", "Qué risa", "Pues yo…", "¡Anda ya!"];
 const GAME_LINES = ["¡Te toca!", "¡Un seis!", "Uy…", "¡Gané!", "¿Otra?", "Hmm…", "¡Trampa!", "Venga, va"];

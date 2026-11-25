@@ -1,0 +1,108 @@
+.office-room .ow-art { display: none; }
+.ow-cork { position: absolute; left: 74%; top: 8px; width: min(22%, 150px); height: 58px; z-index: 1; display: flex; flex-wrap: wrap; align-content: flex-start; gap: 3px; padding: 5px; box-sizing: border-box; border: 3px solid var(--wood); border-radius: 2px; background: radial-gradient(circle at 30% 30%, rgba(0,0,0,.08) 1px, transparent 1.5px) 0 0/6px 6px, #d8b582; }
+.ow-cork { overflow: hidden; }
+.ow-cork i { display: block; padding: 1px 2px; background: var(--c); color: #3b3b44; font: 600 7px/1.2 var(--mono); transform: rotate(var(--r)); box-shadow: 0 1px 1px rgba(0,0,0,.18); white-space: nowrap; }
+.ow-cork i.pin { width: 6px; height: 6px; padding: 0; border-radius: 50%; background: #d97757; margin: 18px auto; }
+
+.od-islands { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: center; gap: 30px 18px; }
+.od-island { position: relative; flex: 1 1 auto; min-width: 0; padding: 26px 8px 46px; border-radius: 10px; background: rgba(255,255,255,.14); box-shadow: inset 0 0 0 1px rgba(0,0,0,.04); }
+.od-island .od-grid { flex: none; width: 100%; display: flex; flex-wrap: wrap; justify-content: center; gap: 50px 30px; }
+.od-sign { position: absolute; left: 50%; top: -14px; transform: translateX(-50%); padding: 2px 10px; border-radius: 4px; background: var(--ow-chair); color: #fff; font: 700 10.5px/1.4 var(--font); letter-spacing: .04em; text-transform: uppercase; white-space: nowrap; box-shadow: 0 2px 0 rgba(0,0,0,.15); }
+.od-sign::before, .od-sign::after { content: ""; position: absolute; bottom: 100%; width: 1px; height: 12px; background: var(--ow-metal); }
+.od-sign::before { left: 8px; } .od-sign::after { right: 8px; }
+.od-island:only-child .od-sign { display: none; }
+.od-island:only-child { padding-top: 4px; padding-bottom: 40px; background: none; box-shadow: none; }
+
+.od-monitor { overflow: hidden; }
+.od-monitor[class*="scr-"] i { animation: none; width: auto; margin: 0; }
+.od-monitor > * { flex: none; }
+.scr-code i { height: 3px; border-radius: 1px; background: #2bd18c; }
+.scr-code i:nth-child(2) { width: 70%; margin-left: 4px; background: #4f9bd6; } .scr-code i:nth-child(3) { width: 50%; margin-left: 4px; background: #e0a63b; } .scr-code i:nth-child(4) { width: 36%; background: #d76f9c; }
+.scr-terminal { background: #0f1115 !important; }
+.scr-terminal i { height: 2px; background: #9ea3ab; width: 80%; } .scr-terminal i + i { width: 55%; }
+.scr-terminal .cursor { width: 5px; height: 4px; background: #2bd18c; }
+.scr-tests .bar { display: block; height: 5px; margin-top: 3px; border-radius: 2px; background: #2a2f38; overflow: hidden; }
+.scr-tests .bar b { display: block; height: 100%; width: 40%; background: #2bd18c; }
+.scr-tests .dots { height: 3px; width: 70%; background: repeating-linear-gradient(90deg, #2bd18c 0 2px, transparent 2px 4px); }
+.scr-browser, .scr-web { background: #f4f6f9 !important; padding: 0 !important; }
+.scr-browser .tabs, .scr-web .tabs { display: block; height: 5px; background: #c9ccd3; }
+.scr-browser .page { display: block; margin: 3px; height: 8px; border-radius: 1px; background: linear-gradient(90deg, #4f9bd6 0 40%, transparent 40%), linear-gradient(#e0a63b, #e0a63b) 0 6px / 60% 2px no-repeat; }
+.scr-browser .mouse { position: absolute; left: 60%; top: 50%; width: 0; height: 0; border-left: 3px solid transparent; border-right: 3px solid transparent; border-bottom: 5px solid #3b3b44; transform: rotate(-30deg); }
+.scr-web .search { display: block; margin: 5px 4px 0; height: 4px; border-radius: 2px; background: #fff; box-shadow: 0 0 0 1px #9ea3ab; }
+.scr-reading i { height: 2px; background: #9ea3ab; } .scr-reading i:nth-child(2) { width: 80%; } .scr-reading i:nth-child(3) { width: 60%; }
+.scr-reading .lens { position: absolute; right: 4px; bottom: 3px; width: 6px; height: 6px; border: 2px solid #e0a63b; border-radius: 50%; }
+.scr-jira { background: #eef2f8 !important; }
+.scr-jira .cards { display: flex; gap: 2px; height: 100%; }
+.scr-jira .cards i { flex: 1; border-radius: 1px; background: linear-gradient(#4f9bd6 0 3px, #fff 3px 7px, transparent 7px); }
+.scr-shipping .rocket { position: absolute; left: 50%; bottom: 2px; width: 6px; height: 9px; margin-left: -3px; border-radius: 3px 3px 1px 1px; background: #f7f7f2; box-shadow: 0 3px 0 -1px #e0a63b; }
+.scr-thinking i { height: 2px; width: 50%; background: #55555f; }
+.od-think { position: absolute; right: -6px; top: -10px; padding: 0 5px; border-radius: 8px; background: var(--plate-bg); color: var(--plate-ink); font: 700 11px/14px var(--font); box-shadow: 0 1px 2px rgba(0,0,0,.18); }
+.od-note { position: absolute; right: 2px; bottom: 30px; width: 12px; height: 12px; background: #fff3a6; color: #b45309; font: 800 10px/12px var(--font); text-align: center; transform: rotate(8deg); box-shadow: 0 1px 1px rgba(0,0,0,.2); z-index: 3; }
+.od-lamp { display: none; position: absolute; left: 2px; bottom: 9px; width: 4px; height: 18px; background: #55555f; }
+.od-lamp::before { content: ""; position: absolute; left: -2px; top: -4px; width: 12px; height: 6px; border-radius: 6px 6px 1px 1px; background: #e0a63b; }
+.od-lamp::after { content: ""; position: absolute; left: -24px; top: -6px; width: 60px; height: 44px; border-radius: 50%; background: radial-gradient(ellipse, rgba(255, 214, 140, .45), transparent 70%); pointer-events: none; }
+.office-plan.lights-off .od-desk:not(.empty) .od-lamp { display: block; }
+.office-plan.lights-off .office-room { background-blend-mode: multiply; }
+
+.od-confetti { position: absolute; left: 50%; bottom: 70px; width: 0; height: 0; z-index: 5; pointer-events: none; }
+.od-confetti i { position: absolute; left: 0; top: 0; width: 4px; height: 6px; background: var(--c); opacity: 0; }
+.od-desk.cheer .plate { box-shadow: 0 0 0 2px #2bd18c; }
+
+.od-meeting { position: relative; flex: 0 1 auto; min-width: 180px; padding: 30px 12px 6px; border-radius: 8px; background: rgba(160, 205, 235, .22); box-shadow: inset 0 0 0 2px rgba(120, 170, 210, .45); }
+.od-meeting-sign { position: absolute; left: 12px; top: -12px; padding: 2px 10px; border-radius: 4px; background: #4f9bd6; color: #fff; font: 700 10.5px/1.4 var(--font); letter-spacing: .04em; text-transform: uppercase; }
+.od-whiteboard { position: absolute; right: 12px; top: 6px; width: 54px; height: 20px; border: 2px solid #c9ccd3; border-radius: 2px; background: #fbfbf8; }
+.od-whiteboard i { position: absolute; left: 5px; height: 2px; background: #4f9bd6; width: 40%; top: 4px; } .od-whiteboard i:nth-child(2) { top: 9px; width: 28%; background: #d97757; } .od-whiteboard i:nth-child(3) { left: auto; right: 6px; top: 4px; width: 10px; height: 8px; background: none; border: 2px solid #5fa86b; }
+.od-meeting-table { position: relative; display: flex; flex-wrap: wrap; gap: 6px 4px; justify-content: center; padding-bottom: 4px; }
+.od-meeting-table::before { content: ""; position: absolute; left: 4px; right: 4px; top: 40px; height: 14px; border-radius: 8px; background: var(--ow-desk); box-shadow: inset 0 -4px 0 var(--ow-desk-front); z-index: 1; }
+.od-meet-seat { position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 0 6px; border: 0; background: none; font: inherit; color: inherit; cursor: pointer; }
+.od-meet-seat .plate { max-width: 110px; } .od-meet-seat .plate strong { max-width: 98px; }
+.od-meet-seat .od-lead { position: relative; z-index: 0; }
+.od-helpers { position: relative; z-index: 2; display: flex; gap: 3px; margin-top: -8px; }
+.od-helpers .nutria.tiny { width: 22px; height: 20px; }
+.od-meet-seat .plate { margin-top: 4px; }
+.od-meet-seat:hover .plate, .od-meet-seat:focus-visible .plate { box-shadow: 0 0 0 2px var(--accent); }
+
+.ow-beacon { position: absolute; left: 50%; top: 0; width: 16px; height: 10px; margin-left: -8px; z-index: 6; border-radius: 0 0 8px 8px; background: #d94b3b; box-shadow: 0 0 10px 3px rgba(217, 75, 59, .7); }
+.ow-beacon i { position: absolute; left: 50%; top: 4px; width: 260px; height: 160px; margin-left: -130px; background: conic-gradient(from 0deg, rgba(217, 75, 59, .22) 0 30deg, transparent 30deg 180deg, rgba(217, 75, 59, .22) 180deg 210deg, transparent 210deg); border-radius: 50%; pointer-events: none; }
+
+.ow-corridor { position: absolute; left: 0; right: 0; bottom: 2px; height: 46px; pointer-events: none; z-index: 4; }
+.ow-corridor .nutria { position: absolute; left: -60px; bottom: 0; opacity: 0; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .scr-code i:nth-child(n+2) { animation: od-type 2.4s steps(4) infinite; transform-origin: left; }
+  .scr-terminal .cursor { animation: nutria-blink 1s steps(2) infinite; }
+  .scr-tests .bar b { animation: od-progress 6s linear infinite; }
+  .scr-browser .mouse { animation: od-mouse 3s ease-in-out infinite; }
+  .scr-reading .lens { animation: od-lens 4s ease-in-out infinite; }
+  .scr-shipping .rocket { animation: od-launch 2s ease-in infinite; }
+  .od-think { animation: nutria-float 3s ease-in-out infinite; }
+  .od-desk.blocked .od-note { animation: od-wiggle 1.6s ease-in-out infinite; }
+  .od-desk.curious .od-seated svg { animation: od-peek 5s ease-in-out infinite; }
+  .od-desk.cheer .od-seated svg { animation: od-cheer .9s ease-in-out infinite; }
+  .od-confetti i { animation: od-confetti 1.8s ease-out infinite; animation-delay: calc(var(--i) * -.22s); }
+  .od-helpers .nutria { animation: od-bob .6s steps(2) infinite; }
+  .od-helpers .nutria:nth-child(2n) { animation-delay: -.3s; }
+  .ow-beacon i { animation: od-spin 1.6s linear infinite; }
+  .ow-corridor .nutria { animation: od-corridor 46s linear infinite; }
+  .ow-corridor .nutria svg { animation: od-bob .45s steps(2) infinite; }
+  .office-room.deploying .od-seated svg { animation: od-lookup 3s ease-in-out infinite; }
+}
+@keyframes od-type { 0% { transform: scaleX(.2); } 100% { transform: scaleX(1); } }
+@keyframes od-progress { 0% { width: 0; background: #2bd18c; } 85% { width: 100%; background: #2bd18c; } 100% { width: 100%; background: #2bd18c; } }
+@keyframes od-mouse { 0%, 100% { left: 30%; top: 40%; } 40% { left: 70%; top: 60%; } 70% { left: 50%; top: 30%; } }
+@keyframes od-lens { 0%, 100% { right: 4px; } 50% { right: 18px; } }
+@keyframes od-launch { 0% { bottom: 2px; opacity: 1; } 80% { bottom: 18px; opacity: 1; } 100% { bottom: 22px; opacity: 0; } }
+@keyframes od-wiggle { 0%, 100% { transform: rotate(8deg); } 50% { transform: rotate(-6deg); } }
+@keyframes od-peek { 0%, 60%, 100% { transform: none; } 70%, 90% { transform: rotate(-6deg) translateX(-1px); } }
+@keyframes od-cheer { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+@keyframes od-confetti { 0% { opacity: 1; transform: translate(0, 0) rotate(0); } 100% { opacity: 0; transform: translate(calc((var(--i) - 3.5) * 9px), -38px) rotate(220deg); } }
+@keyframes od-spin { to { transform: rotate(360deg); } }
+@keyframes od-corridor { 0%, 70% { left: -60px; opacity: 0; } 70.5% { opacity: 1; } 99.5% { opacity: 1; } 100% { left: calc(100% + 60px); opacity: 0; } }
+@keyframes od-lookup { 0%, 100% { transform: none; } 50% { transform: translateY(-1px) rotate(-3deg); } }
+
+@media (max-width: 760px) {
+  .ow-cork { left: auto; right: 6px; width: 96px; height: 46px; top: 10px; }
+  .od-islands { gap: 26px 8px; }
+  .od-island { padding: 24px 4px 44px; }
+  .od-meeting { flex: 1 1 100%; }
+}

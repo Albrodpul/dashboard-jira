@@ -387,6 +387,69 @@ pub fn background_what(conversation: &str) -> Option<Value> {
     found
 }
 
+static DOING_CACHE: LazyLock<Mutex<HashMap<PathBuf, (u64, f64, Option<Value>)>>> = LazyLock::new(|| Mutex::new(HashMap::new()));
+static TEST_RUN: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"artisan\s+test|phpunit|paratest|vitest|jest|pytest|playwright\s+test|npm\s+(run\s+)?test|cargo\s+test|node\s+--test|go\s+test").unwrap());
+static DEPLOY_RUN: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"git\s+push|git\s+tag|gh\s+(pr|release|workflow)|deploy").unwrap());
+
+pub fn doing_kind(tool: &str, command: &str) -> &'static str {
+    let t = tool.to_ascii_lowercase();
+    if t == "task" || t == "agent" || t == "workflow" {
+        "meeting"
+    } else if t.contains("playwright") || t.contains("browser") {
+        "browser"
+    } else if t == "edit" || t == "write" || t == "multiedit" || t == "notebookedit" {
+        "code"
+    } else if t == "read" || t == "grep" || t == "glob" || t.starts_with("mcp__sentry") {
+        "reading"
+    } else if t == "webfetch" || t == "websearch" {
+        "web"
+    } else if t.starts_with("mcp__jira") {
+        "jira"
+    } else if t == "bash" || t == "powershell" {
+        if TEST_RUN.is_match(command) { "tests" } else if DEPLOY_RUN.is_match(command) { "shipping" } else { "terminal" }
+    } else {
+        "thinking"
+    }
+}
+
+pub fn doing(conversation: &str) -> Option<Value> {
+    let file = transcript_of(conversation)?;
+    let meta = std::fs::metadata(&file).ok()?;
+    let (size, mtime) = (meta.len(), mtime_ms(&meta));
+    if let Some((s0, m0, v)) = DOING_CACHE.lock().unwrap().get(&file) {
+        if *s0 == size && *m0 == mtime {
+            return v.clone();
+        }
+    }
+    let mut f = std::fs::File::open(&file).ok()?;
+    f.seek(SeekFrom::Start(size.saturating_sub(96 * 1024))).ok()?;
+    let mut buf = Vec::new();
+    f.read_to_end(&mut buf).ok()?;
+    let body = String::from_utf8_lossy(&buf);
+    let mut found: Option<Value> = None;
+    for line in body.split('\n') {
+        let Some(j) = json::parse(line) else { continue };
+        if j.get("type").and_then(|x| x.as_str()) != Some("assistant") {
+            continue;
+        }
+        let at = j.get("timestamp").cloned().unwrap_or(Value::Null);
+        for c in j.get("message").and_then(|m| m.get("content")).and_then(|c| c.as_array()).into_iter().flatten() {
+            match c.get("type").and_then(|x| x.as_str()) {
+                Some("tool_use") => {
+                    let name = c.get("name").and_then(|x| x.as_str()).unwrap_or("");
+                    let input = c.get("input").cloned().unwrap_or(Value::Null);
+                    let command: String = input.get("command").map(text).unwrap_or_default();
+                    found = Some(json!({ "kind": doing_kind(name, &command), "tool": name, "at": at }));
+                }
+                Some("thinking") | Some("text") => found = Some(json!({ "kind": "thinking", "tool": null, "at": at })),
+                _ => {}
+            }
+        }
+    }
+    DOING_CACHE.lock().unwrap().insert(file, (size, mtime, found.clone()));
+    found
+}
+
 pub fn live_status(status: Option<&str>, subagents: usize) -> String {
     if subagents > 0 {
         return "busy".into();
@@ -422,6 +485,7 @@ pub fn live_sessions() -> Option<Vec<Value>> {
             "backgroundWhat": if status != "busy" { background_what(&conversation).filter(|w| truthy(e.get("background")) || w.get("tool").and_then(|t| t.as_str()).is_some_and(|t| t.starts_with("mcp__"))).unwrap_or(Value::Null) } else { Value::Null },
             "project": project.id,
             "statusSince": status_since,
+            "doing": if status == "busy" { doing(&conversation).unwrap_or(Value::Null) } else { Value::Null },
             "title": title,
         }));
     }
@@ -898,5 +962,20 @@ mod tests {
         assert_eq!(current_ref(&refs, Some(&json!({ "conversation": "c1", "started": "2026-01-01T00:00:00.000Z" }))), json!("R1"));
         assert_eq!(current_ref(&refs, Some(&json!({ "conversation": "c1", "started": "2026-01-02T00:00:00.000Z" }))), Value::Null);
         assert_eq!(current_ref(&refs, None), Value::Null);
+    }
+}
+
+#[cfg(test)]
+mod doing_kinds {
+    #[test]
+    fn tools_map_to_office_activities() {
+        assert_eq!(super::doing_kind("Bash", "cd super-app && php artisan test --parallel"), "tests");
+        assert_eq!(super::doing_kind("Bash", "git push origin develop"), "shipping");
+        assert_eq!(super::doing_kind("Bash", "ls -la"), "terminal");
+        assert_eq!(super::doing_kind("Edit", ""), "code");
+        assert_eq!(super::doing_kind("Grep", ""), "reading");
+        assert_eq!(super::doing_kind("mcp__playwright__browser_click", ""), "browser");
+        assert_eq!(super::doing_kind("Agent", ""), "meeting");
+        assert_eq!(super::doing_kind("WebSearch", ""), "web");
     }
 }
