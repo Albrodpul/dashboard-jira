@@ -601,6 +601,34 @@ function boardCard(t) {
   ]);
 }
 
+const FOLDED_KEY = "board-folded-epics";
+let folded = (() => {
+  try {
+    return new Set(JSON.parse(localStorage.getItem(FOLDED_KEY) || "[]"));
+  } catch (e) {
+    return new Set();
+  }
+})();
+
+function foldableEpic(column, g, head, rows) {
+  const id = `${column}|${g.project || mainProject()}|${g.key || "no-epic"}`;
+  const box = h("div", { class: `board-epic${column === "sent" ? " sent-epic" : ""}${folded.has(id) ? " folded" : ""}` });
+  const toggle = h("button", { type: "button", class: "epic-fold", "aria-expanded": String(!folded.has(id)), title: tr("Plegar o desplegar"), "aria-label": tr("Plegar o desplegar {name}", { name: g.name }) });
+  toggle.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>';
+  toggle.addEventListener("click", () => {
+    const now = !box.classList.toggle("folded");
+    toggle.setAttribute("aria-expanded", String(now));
+    if (now) folded.delete(id);
+    else folded.add(id);
+    try {
+      localStorage.setItem(FOLDED_KEY, JSON.stringify([...folded]));
+    } catch (e) {}
+  });
+  head.prepend(toggle);
+  box.append(head, h("div", { class: "epic-rows" }, rows));
+  return box;
+}
+
 function pendingColumn(list) {
   const byEpic = new Map();
   for (const t of list) {
@@ -608,12 +636,7 @@ function pendingColumn(list) {
     if (!byEpic.has(k)) byEpic.set(k, { project: t.project, key: t.epicKey, name: t.epicName || tr("Sin epic"), area: t.area || t.proposedArea, items: [] });
     byEpic.get(k).items.push(t);
   }
-  return [...byEpic.values()].map((g) =>
-    h("div", { class: "board-epic" }, [
-      h("div", { class: "board-epic-head" }, [projectChip(g.project), g.key ? h("span", { class: "group-key", text: g.key }) : null, h("span", { class: "board-epic-name", text: g.name }), batchControls(g)]),
-      ...g.items.map(boardRow),
-    ])
-  );
+  return [...byEpic.values()].map((g) => foldableEpic("pending", g, h("div", { class: "board-epic-head" }, [projectChip(g.project), g.key ? h("span", { class: "group-key", text: g.key }) : null, h("span", { class: "board-epic-name", text: g.name }), h("span", { class: "n epic-n", text: String(g.items.length) }), batchControls(g)]), g.items.map(boardRow)));
 }
 
 function epicGroups(list) {
@@ -640,10 +663,7 @@ function sentRow(t) {
 
 function sentColumn(list) {
   return epicGroups(list).map((g) =>
-    h("div", { class: "board-epic sent-epic" }, [
-      h("div", { class: "board-epic-head" }, [g.project && g.project !== mainProject() ? projectChip(g.project) : null, g.key ? h("span", { class: "group-key", text: g.key }) : null, h("span", { class: "board-epic-name", text: g.name }), h("span", { class: "n", text: String(g.items.length) })]),
-      ...g.items.map(sentRow),
-    ])
+    foldableEpic("sent", g, h("div", { class: "board-epic-head" }, [g.project && g.project !== mainProject() ? projectChip(g.project) : null, g.key ? h("span", { class: "group-key", text: g.key }) : null, h("span", { class: "board-epic-name", text: g.name }), h("span", { class: "n epic-n", text: String(g.items.length) })]), g.items.map(sentRow))
   );
 }
 

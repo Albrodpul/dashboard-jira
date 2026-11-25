@@ -222,7 +222,7 @@ details.send-options > summary { cursor: pointer; font-size: 12.5px; color: var(
 .sent-epic .board-epic-name { flex: 1 1 0; }
 .sent-epic .board-epic-name { line-height: 1.3; }
 .sent-epic .group-key { flex: none; white-space: nowrap; }
-.sent-epic .board-epic-head .n { flex: none; align-self: flex-start; font-size: 11px; min-width: 18px; padding: 0 6px; border-radius: 9px; background: var(--accent-soft); color: var(--accent); font-weight: 600; line-height: 18px; text-align: center; }
+.board-epic-head .epic-n { flex: none; align-self: flex-start; font-size: 11px; min-width: 18px; padding: 0 6px; border-radius: 9px; background: var(--accent-soft); color: var(--accent); font-weight: 600; line-height: 18px; text-align: center; }
 .sent-epic .board-row .time { margin-left: auto; padding-left: 6px; color: var(--ink-3); }
 .board-tag.changed { color: var(--back); }
 .sent-epic .board-row { grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "key tag time" "title title title"; row-gap: 2px; }
@@ -230,3 +230,9 @@ details.send-options > summary { cursor: pointer; font-size: 12.5px; color: var(
 .sent-epic .board-row .board-row-title { grid-area: title; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; line-height: 1.35; }
 .sent-epic .board-row .time { margin-left: 0; font-size: 11px; font-family: var(--mono); }
 .sent-epic .board-row .board-tag { font-size: 9.5px; }
+.epic-fold { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; margin-left: -4px; padding: 0; border: 0; border-radius: 4px; background: none; color: var(--ink-3); cursor: pointer; }
+.epic-fold:hover { background: var(--mute-soft); color: var(--ink); }
+.epic-fold svg { width: 14px; height: 14px; transition: transform .15s ease; }
+.board-epic.folded .epic-fold svg { transform: rotate(-90deg); }
+.board-epic.folded .epic-rows, .board-epic.folded .board-epic-head .group-actions { display: none; }
+.board-epic-head .epic-n { order: 0; }
