@@ -230,6 +230,36 @@ fn sessions() -> std::sync::MutexGuard<'static, HashMap<String, Session>> {
     SESSIONS.lock().unwrap_or_else(|p| p.into_inner())
 }
 
+pub fn ensure_permission_hook(root: &std::path::Path) {
+    let hook = crate::core::config::workspace().join("permission-hook.js");
+    if !hook.exists() || !root.is_dir() {
+        return;
+    }
+    let dir = root.join(".claude");
+    let has_hook = |file: &std::path::Path| std::fs::read_to_string(file).ok().and_then(|t| serde_json::from_str::<Value>(&t).ok()).map_or(false, |v| v.pointer("/hooks/PreToolUse").map_or(false, |h| h.to_string().contains("permission-hook")));
+    if has_hook(&dir.join("settings.json")) || has_hook(&dir.join("settings.local.json")) {
+        return;
+    }
+    let file = dir.join("settings.local.json");
+    let mut settings = std::fs::read_to_string(&file).ok().and_then(|t| serde_json::from_str::<Value>(&t).ok()).filter(|v| v.is_object()).unwrap_or_else(|| json!({}));
+    let entry = json!({ "matcher": "*", "hooks": [{ "type": "command", "command": format!("node {}", hook.to_string_lossy()), "timeout": 3600 }] });
+    let obj = settings.as_object_mut().unwrap();
+    let hooks = obj.entry("hooks").or_insert_with(|| json!({}));
+    if !hooks.is_object() {
+        *hooks = json!({});
+    }
+    let pre = hooks.as_object_mut().unwrap().entry("PreToolUse").or_insert_with(|| json!([]));
+    if !pre.is_array() {
+        *pre = json!([]);
+    }
+    pre.as_array_mut().unwrap().insert(0, entry);
+    let _ = std::fs::create_dir_all(&dir);
+    let text = serde_json::to_string_pretty(&settings).unwrap_or_default() + "\n";
+    if std::fs::write(&file, text).is_ok() {
+        log(&format!("hook de permisos añadido en {}", file.to_string_lossy()));
+    }
+}
+
 fn agent() -> &'static dyn crate::agents::index::Agent {
     crate::agents::index::main()
 }
@@ -369,6 +399,11 @@ fn unstuck(s: &mut Session) {
 
 fn type_into(s: &mut Session, data: &str) {
     s.last_input = crate::core::time::now_ms();
+    let answers = data.contains('\r') || data == "\x1b" || (data.len() == 1 && data.as_bytes()[0].is_ascii_digit());
+    if answers && s.prompt_key.is_some() {
+        s.prompt_key = None;
+        s.prompt_due = Some(Instant::now() + Duration::from_millis(1500));
+    }
     unstuck(s);
     if let Some(p) = &s.pty {
         p.write(data);
@@ -425,6 +460,9 @@ fn spawn(entry: &Value, notify: bool) -> bool {
     let cli = agent().cli();
     let (exe, full_args) = agent().command(&args, Some(&cli));
     let cwd = entry_text(entry, "cwd").or_else(|| conversation_root(&conversation).map(|p| p.to_string_lossy().to_string())).unwrap_or_else(|| WORKDIR.clone());
+    if agent().id() == crate::agents::claude::ID {
+        ensure_permission_hook(std::path::Path::new(&cwd));
+    }
     let system = portable_pty::native_pty_system();
     let pair = match system.openpty(portable_pty::PtySize { rows: s.rows, cols: s.cols, pixel_width: 0, pixel_height: 0 }) {
         Ok(p) => p,
@@ -1447,5 +1485,24 @@ mod tests {
         assert_eq!(handle_request("GET", "/sessions", &json!({})).1[0]["waitingForVsCode"], true);
         assert_eq!(handle_request("POST", "/release", &json!({ "conversation": "c9" })), (200, json!({ "ok": true })));
         assert!(read_config().is_empty());
+    }
+}
+
+#[cfg(test)]
+mod permission_hook_setup {
+    #[test]
+    fn adds_the_hook_once_and_keeps_other_settings() {
+        let _env = crate::testkit::sandbox();
+        std::fs::write(crate::core::config::workspace().join("permission-hook.js"), "").unwrap();
+        let root = std::env::temp_dir().join(format!("hook-root-{}", std::process::id()));
+        std::fs::create_dir_all(root.join(".claude")).unwrap();
+        std::fs::write(root.join(".claude/settings.local.json"), r#"{"permissions":{"allow":["Bash"]}}"#).unwrap();
+        super::ensure_permission_hook(&root);
+        super::ensure_permission_hook(&root);
+        let v: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(root.join(".claude/settings.local.json")).unwrap()).unwrap();
+        assert_eq!(v["permissions"]["allow"][0], "Bash");
+        assert_eq!(v["hooks"]["PreToolUse"].as_array().unwrap().len(), 1);
+        assert!(v["hooks"]["PreToolUse"][0]["hooks"][0]["command"].as_str().unwrap().contains("permission-hook.js"));
+        let _ = std::fs::remove_dir_all(&root);
     }
 }
