@@ -626,11 +626,23 @@ function epicGroups(list) {
   return [...byEpic.values()].sort((a, b) => (a.key ? 0 : 1) - (b.key ? 0 : 1) || b.items.length - a.items.length || a.name.localeCompare(b.name));
 }
 
+function sentRow(t) {
+  const held = holdOf(t, t.area);
+  const quiet = t.sentAt && Date.now() - new Date(t.sentAt).getTime() >= 3 * 3600000;
+  const flag = held ? [tr("Retenida"), "held"] : t.manual ? [tr("A mano"), ""] : hasChanges(t) ? [tr("Cambió en Jira"), "changed"] : quiet ? [tr("Sin noticias"), "quiet"] : null;
+  return h("button", { type: "button", class: `board-row${state.ticket === t.id ? " open" : ""}`, title: `${t.title} · ${areaName(t.area) || ""}`, onclick: () => openDrawer(t) }, [
+    h("span", { class: "key", text: t.key }),
+    h("span", { class: "board-row-title", text: t.title }),
+    flag ? h("span", { class: `board-tag ${flag[1]}`.trim(), text: flag[0] }) : null,
+    h("span", { class: "time", text: when(t.sentAt || t.at) }),
+  ]);
+}
+
 function sentColumn(list) {
   return epicGroups(list).map((g) =>
     h("div", { class: "board-epic sent-epic" }, [
-      h("div", { class: "board-epic-head", title: mixedProjects() ? projectName(g.project || mainProject()) : undefined }, [g.key ? h("span", { class: "group-key", text: g.key }) : null, h("span", { class: "board-epic-name", text: g.name }), h("span", { class: "n", text: String(g.items.length) })]),
-      ...g.items.map(boardCard),
+      h("div", { class: "board-epic-head" }, [g.project && g.project !== mainProject() ? projectChip(g.project) : null, g.key ? h("span", { class: "group-key", text: g.key }) : null, h("span", { class: "board-epic-name", text: g.name }), h("span", { class: "n", text: String(g.items.length) })]),
+      ...g.items.map(sentRow),
     ])
   );
 }

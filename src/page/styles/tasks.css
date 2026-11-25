@@ -218,10 +218,15 @@ details.send-options > summary { cursor: pointer; font-size: 12.5px; color: var(
 .send-options-body { display: flex; flex-direction: column; gap: 6px; padding-top: 6px; }
 .send-option { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--ink-2); font-family: var(--mono); overflow-wrap: anywhere; cursor: pointer; }
 .send-option input { width: 16px; height: 16px; flex: none; accent-color: var(--accent); }
-.board-epic.sent-epic { display: flex; flex-direction: column; gap: 6px; background: none; border: 0; border-radius: 0; overflow: visible; }
-.sent-epic .board-epic-head { padding: 4px 2px 0; flex-wrap: nowrap; }
-.sent-epic .board-epic-name { color: var(--ink-2); line-height: 1.3; }
+.sent-epic .board-epic-head { flex-wrap: wrap; }
+.sent-epic .board-epic-name { flex: 1 1 0; }
+.sent-epic .board-epic-name { line-height: 1.3; }
 .sent-epic .group-key { flex: none; white-space: nowrap; }
-.sent-epic .board-epic-head .n { align-self: flex-start; }
-.sent-epic .board-epic-head .n { flex: none; font-size: 11px; min-width: 18px; padding: 0 6px; border-radius: 9px; background: var(--mute-soft); color: var(--ink-3); line-height: 18px; text-align: center; }
-.sent-epic + .sent-epic { margin-top: 6px; }
+.sent-epic .board-epic-head .n { flex: none; align-self: flex-start; font-size: 11px; min-width: 18px; padding: 0 6px; border-radius: 9px; background: var(--accent-soft); color: var(--accent); font-weight: 600; line-height: 18px; text-align: center; }
+.sent-epic .board-row .time { margin-left: auto; padding-left: 6px; color: var(--ink-3); }
+.board-tag.changed { color: var(--back); }
+.sent-epic .board-row { grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "key tag time" "title title title"; row-gap: 2px; }
+.sent-epic .board-row .key { grid-area: key; } .sent-epic .board-row .board-tag { grid-area: tag; justify-self: start; } .sent-epic .board-row .time { grid-area: time; }
+.sent-epic .board-row .board-row-title { grid-area: title; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; line-height: 1.35; }
+.sent-epic .board-row .time { margin-left: 0; font-size: 11px; font-family: var(--mono); }
+.sent-epic .board-row .board-tag { font-size: 9.5px; }
