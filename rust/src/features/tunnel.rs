@@ -37,7 +37,7 @@ pub fn parse_lsof(text: &str, only_loopback: bool) -> Vec<u16> {
     let mut board = false;
     for line in text.lines() {
         if let Some(c) = line.strip_prefix('c') {
-            board = c == "tower";
+            board = c == "tower" || c == "ssh";
             continue;
         }
         if line.starts_with('p') {
@@ -423,7 +423,7 @@ mod tests {
 
     #[test]
     fn listening_ports_are_read_from_lsof_and_netstat() {
-        let lsof = "p100\ncnode\nf12\nn127.0.0.1:3000\nf13\nn*:8000\np200\ncmysqld\nf5\nn[::1]:5432\nf6\nn100.64.0.3:9000\nf7\nn*:8000\np300\nctower\nf3\nn127.0.0.1:4747\nf4\nn127.0.0.1:61000\n";
+        let lsof = "p100\ncnode\nf12\nn127.0.0.1:3000\nf13\nn*:8000\np200\ncmysqld\nf5\nn[::1]:5432\nf6\nn100.64.0.3:9000\nf7\nn*:8000\np300\nctower\nf3\nn127.0.0.1:4747\nf4\nn127.0.0.1:61000\np400\ncssh\nf3\nn127.0.0.1:4804\n";
         assert_eq!(parse_lsof(lsof, true), vec![3000, 5432, 8000]);
         assert_eq!(parse_lsof(lsof, false), vec![3000, 5432, 8000, 9000]);
         let netstat = "  Proto  Local Address          Foreign Address        State\n  TCP    0.0.0.0:135            0.0.0.0:0              LISTENING\n  TCP    127.0.0.1:4747         0.0.0.0:0              LISTENING\n  TCP    192.168.1.5:139        0.0.0.0:0              LISTENING\n  TCP    127.0.0.1:50000        127.0.0.1:3000         ESTABLISHED\n  TCP    [::1]:3306             [::]:0                 LISTENING\n";
