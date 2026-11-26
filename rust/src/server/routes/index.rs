@@ -577,6 +577,7 @@ pub fn handle_get(req: &Req) -> Option<Res> {
             serve_json(&Value::Object(out))
         }
         _ if url.starts_with("/api/permission/perm-") => serve_json(&permissions::poll(&url["/api/permission/".len()..])),
+        "/api/cluster/ports" => serve_json(&json!({ "ports": crate::features::tunnel::listening(true) })),
         "/api/cluster/quota" => serve_json(&crate::features::quota::read_quota().unwrap_or(Value::Null)),
         "/api/cluster/memory" => serve_json(&crate::features::memory_sync::snapshot()),
         _ if url.starts_with("/api/cluster/memory/") => {

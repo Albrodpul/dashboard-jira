@@ -210,9 +210,7 @@ fn open_log(id: &str) -> std::io::Result<std::fs::File> {
 
 fn own_pids() -> Vec<String> {
     let mut out = vec![std::process::id().to_string()];
-    if let Some(p) = crate::features::tunnel::pid() {
-        out.push(p.to_string());
-    }
+    out.extend(crate::features::tunnel::pids().into_iter().map(|p| p.to_string()));
     out
 }
 

@@ -441,6 +441,7 @@ fn start_jobs() {
     after(0, crate::features::deploy_status::start_deploy_status);
     every(|| drop(crate::features::devservers::schedule()), 60 * 1000);
     every(crate::features::tunnel::guard, 60 * 1000);
+    every(crate::features::tunnel::follow, 30 * 1000);
     every(|| drop(crate::core::hours::overtime()), 60 * 1000);
     every(crate::cluster::contextsync::sync_context, 3 * 60 * 1000);
     every(crate::cluster::contextsync::wake_check, 30 * 1000);

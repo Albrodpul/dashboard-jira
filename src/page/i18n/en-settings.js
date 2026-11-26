@@ -348,6 +348,7 @@ export default {
   "Cerrar túnel": "Close tunnel",
   "Los proyectos corren en el {who}": "The projects run on the {who}",
   "Los proyectos corren en el otro ordenador": "The projects run on the other computer",
+  "Todo lo que el otro ordenador tiene abierto en localhost llega aquí al mismo puerto, y lo que se abra después se añade solo: {ports}.": "Everything the other computer has open on localhost reaches this one on the same port, and anything opened later is added automatically: {ports}.",
   "Para usar las webs del otro ordenador desde este, login incluido, ábrelos por un túnel.": "To use the other computer's sites from this one, login included, open them through a tunnel.",
   "Último error: {error}": "Last error: {error}",
   "Abriendo…": "Opening…",

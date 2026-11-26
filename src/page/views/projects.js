@@ -62,6 +62,7 @@ function tunnelPanel() {
       h("div", { class: "proj-tunnel-text" }, [
         h("strong", { text: remote ? t("Viendo los proyectos del {who}", { who: remote }) : t("Viendo los proyectos del otro ordenador") }),
         h("span", { class: "meta", text: t(remote ? "Abre los enlaces en el navegador de este ordenador: van por un túnel comprimido al {who}, con el login funcionando. Abierto {time}." : "Abre los enlaces en el navegador de este ordenador: van por un túnel comprimido al otro ordenador, con el login funcionando. Abierto {time}.", { who: remote, time: when(tun.since) }) }),
+        tun.ports && tun.ports.length ? h("span", { class: "meta", text: t("Todo lo que el otro ordenador tiene abierto en localhost llega aquí al mismo puerto, y lo que se abra después se añade solo: {ports}.", { ports: tun.ports.join(", ") }) }) : null,
       ]),
       button(t("Cerrar túnel"), { cls: "subtle", disabled: working, onClick: (b) => tunnelAct("close", b) }),
     ]);
