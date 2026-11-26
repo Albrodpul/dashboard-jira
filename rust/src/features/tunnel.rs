@@ -224,7 +224,7 @@ fn ssh_under(parent: u32) -> Option<u32> {
     String::from_utf8_lossy(&out.stdout).trim().parse::<u32>().ok().filter(|p| *p != 0)
 }
 
-fn spawn_ssh(host: &str, ports: &[u16]) -> Result<u32, String> {
+fn spawn_ssh(host: &str, ports: &[u16], log_path: &std::path::Path) -> Result<u32, String> {
     let mut args: Vec<String> = ["-N", "-C", "-o", "BatchMode=yes", "-o", "ExitOnForwardFailure=no", "-o", "ServerAliveInterval=30", "-o", "ServerAliveCountMax=3", "-o", "StrictHostKeyChecking=accept-new", "-o", "ConnectTimeout=10"].iter().map(|s| s.to_string()).collect();
     for p in ports {
         args.push("-L".into());
@@ -233,14 +233,14 @@ fn spawn_ssh(host: &str, ports: &[u16]) -> Result<u32, String> {
     args.push(host.to_string());
     let fail = || last_error().unwrap_or_else(|| "ssh no arranca".into());
     if cfg!(windows) {
-        std::fs::write(&*LOG, "").map_err(|e| e.to_string())?;
+        std::fs::write(log_path, "").map_err(|e| e.to_string())?;
         let home = std::env::home_dir().unwrap_or_default();
-        let wrapper = crate::features::devservers::spawn_hidden("ssh", &args, &home.to_string_lossy(), &LOG.to_string_lossy())?;
+        let wrapper = crate::features::devservers::spawn_hidden("ssh", &args, &home.to_string_lossy(), &log_path.to_string_lossy())?;
         std::thread::sleep(Duration::from_millis(3500));
         let pid = if alive(wrapper) { ssh_under(wrapper) } else { None };
         return pid.ok_or_else(fail);
     }
-    let log = std::fs::File::create(&*LOG).map_err(|e| e.to_string())?;
+    let log = std::fs::File::create(log_path).map_err(|e| e.to_string())?;
     let err = log.try_clone().map_err(|e| e.to_string())?;
     let mut cmd = crate::core::platform::cmd("ssh");
     cmd.args(&args).stdin(Stdio::null()).stdout(Stdio::from(log)).stderr(Stdio::from(err));
@@ -272,7 +272,7 @@ pub fn open() -> Result<Value, String> {
     let _ = crate::features::devservers::standby();
     let busy = listening(false);
     let ports: Vec<u16> = wanted().into_iter().filter(|p| free_here(*p, &busy)).collect();
-    let pid = spawn_ssh(&host, &ports)?;
+    let pid = spawn_ssh(&host, &ports, &LOG)?;
     std::fs::write(&*STATE, stringify(&json!({ "pid": pid, "host": host, "label": label, "since": now(), "ports": ports, "extra": [] }))).map_err(|e| e.to_string())?;
     Ok(status())
 }
@@ -300,7 +300,9 @@ pub fn follow() {
         let _ = open();
         return;
     }
-    let Ok(pid) = spawn_ssh(&host, &new) else { return };
+    let free_log = (0..MAX_EXTRA).map(|i| DATA_DIR.join(format!("tunnel-extra-{i}.log"))).find(|f| std::fs::OpenOptions::new().write(true).create(true).truncate(true).open(f).is_ok());
+    let Some(log_path) = free_log else { return };
+    let Ok(pid) = spawn_ssh(&host, &new, &log_path) else { return };
     let mut list = live;
     list.push(json!({ "pid": pid, "ports": new }));
     t["extra"] = Value::Array(list);
